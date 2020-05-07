@@ -129,6 +129,10 @@ bool AudioBenchAudioProcessor::isBusesLayoutSupported (const BusesLayout& layout
 }
 #endif
 
+extern "C" {
+    float attenuate(float);
+}
+
 void AudioBenchAudioProcessor::processBlock (AudioBuffer<float>& buffer, MidiBuffer& midiMessages)
 {
     ScopedNoDenormals noDenormals;
@@ -154,7 +158,8 @@ void AudioBenchAudioProcessor::processBlock (AudioBuffer<float>& buffer, MidiBuf
     {
         auto* channelData = buffer.getWritePointer (channel);
         for (int sample = 0; sample < buffer.getNumSamples(); sample++) {
-            channelData[sample] = ((float) (sample % 100)) / 100.0f;
+            float triangleWave = ((float) (sample % 100)) / 100.0f;
+            channelData[sample] = triangleWave;
         }
     }
 }
