@@ -4,47 +4,24 @@
 set -e
 
 echo "This script will:"
-echo "1. Build ProJUCEr"
-echo "2. Build AudioBench"
-echo "3. Build the JUCE frontend for AudioBench"
-echo "Run with argument 'projucer' to open the project in ProJUCEr."
+echo "1. Build AudioBench"
+echo "2. Build the JUCE frontend for AudioBench"
 echo "Run with argument 'run' to execute the standalone version for testing."
+echo "Run with argument 'clean' to delete old build files before building."
 echo ""
 
-ROOT_DIR=$(pwd)
-PROJUCER_BUILD_DIR="juce_lib/extras/Projucer/Builds/LinuxMakefile"
-PROJUCER_PATH="$PROJUCER_BUILD_DIR/build/Projucer"
+FRONTEND_ROOT=$(pwd)
+export PROJECT_ROOT="$(readlink -f "$FRONTEND_ROOT/../..")"
+export RUST_OUTPUT_DIR="$PROJECT_ROOT/target/debug"
 SEPERATOR="========================================"
-echo $SEPERATOR
-if [ -f "juce_lib/success_marker.txt" ]; then
-    echo "Projucer already built"
-else
-    echo "Cloning JUCE..."
-    rm -rf juce_lib
-    git clone "https://github.com/juce-framework/JUCE" juce_lib
-
-    echo "Setting GPL mode..."
-    CONFIG_PATH="juce_lib/extras/Projucer/JuceLibraryCode/AppConfig.h"
-    sed -i "s/JUCER_ENABLE_GPL_MODE 0/JUCER_ENABLE_GPL_MODE 1/g" "$CONFIG_PATH"
-
-    echo "Building project..."
-    cd $PROJUCER_BUILD_DIR
-    make
-
-    echo "Projucer built successfully!"
-    cd $ROOT_DIR
-    echo "success_marker" > juce_lib/success_marker.txt
-fi
-
-if [ "$1" == "projucer" ]; then
-    $PROJUCER_PATH AudioBench.jucer
-    exit 0
-fi
 
 echo ""
 echo $SEPERATOR
 echo "Building AudioBench..."
 cd ../../
+if [ "$1" == "clean" ]; then
+    cargo clean
+fi
 cargo build
 cd frontends/juce
 echo "Success!"
@@ -52,20 +29,25 @@ echo "Success!"
 echo ""
 echo $SEPERATOR
 echo "Building JUCE frontend..."
-$PROJUCER_PATH --resave AudioBench.jucer
-VST_BUILD_DIR="Builds/LinuxMakefile"
-cd $VST_BUILD_DIR
+if [ "$1" == "clean" ]; then
+    rm -rf _build
+fi
+mkdir -p _build
+cd _build
+cmake ..
+cd ..
+cmake --build _build --config Debug
 # The build system cannot detect when the AudioBench library has changed, so we
 # delete the build artifacts to force it to re-link them.
-rm build/AudioBench*
-make
-cd $ROOT_DIR
+# rm -f build/AudioBench*
+# make
+cd $FRONTEND_ROOT
 echo "Success!"
 
 if [ "$1" == "run" ]; then
     echo ""
     echo "Starting standalone version..."
-    cd "$VST_BUILD_DIR/build"
+    # cd "$VST_BUILD_DIR/build"
     # Standalone version
-    ./AudioBench
+    # ./AudioBench
 fi
