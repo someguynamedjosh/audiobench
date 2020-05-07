@@ -19,20 +19,20 @@
         <CONFIGURATION isDebug="0" name="Release"/>
       </CONFIGURATIONS>
       <MODULEPATHS>
-        <MODULEPATH id="juce_audio_basics" path="../../juce/modules"/>
-        <MODULEPATH id="juce_audio_devices" path="../../juce/modules"/>
-        <MODULEPATH id="juce_audio_formats" path="../../juce/modules"/>
-        <MODULEPATH id="juce_audio_plugin_client" path="../../juce/modules"/>
-        <MODULEPATH id="juce_audio_processors" path="../../juce/modules"/>
-        <MODULEPATH id="juce_audio_utils" path="../../juce/modules"/>
-        <MODULEPATH id="juce_core" path="../../juce/modules"/>
-        <MODULEPATH id="juce_cryptography" path="../../juce/modules"/>
-        <MODULEPATH id="juce_data_structures" path="../../juce/modules"/>
-        <MODULEPATH id="juce_events" path="../../juce/modules"/>
-        <MODULEPATH id="juce_graphics" path="../../juce/modules"/>
-        <MODULEPATH id="juce_gui_basics" path="../../juce/modules"/>
-        <MODULEPATH id="juce_gui_extra" path="../../juce/modules"/>
-        <MODULEPATH id="juce_opengl" path="../../juce/modules"/>
+        <MODULEPATH id="juce_audio_basics" path="juce_lib/modules"/>
+        <MODULEPATH id="juce_audio_devices" path="juce_lib/modules"/>
+        <MODULEPATH id="juce_audio_formats" path="juce_lib/modules"/>
+        <MODULEPATH id="juce_audio_plugin_client" path="juce_lib/modules"/>
+        <MODULEPATH id="juce_audio_processors" path="juce_lib/modules"/>
+        <MODULEPATH id="juce_audio_utils" path="juce_lib/modules"/>
+        <MODULEPATH id="juce_core" path="juce_lib/modules"/>
+        <MODULEPATH id="juce_cryptography" path="juce_lib/modules"/>
+        <MODULEPATH id="juce_data_structures" path="juce_lib/modules"/>
+        <MODULEPATH id="juce_events" path="juce_lib/modules"/>
+        <MODULEPATH id="juce_graphics" path="juce_lib/modules"/>
+        <MODULEPATH id="juce_gui_basics" path="juce_lib/modules"/>
+        <MODULEPATH id="juce_gui_extra" path="juce_lib/modules"/>
+        <MODULEPATH id="juce_opengl" path="juce_lib/modules"/>
       </MODULEPATHS>
     </LINUX_MAKE>
   </EXPORTFORMATS>
