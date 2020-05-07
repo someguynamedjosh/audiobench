@@ -11,6 +11,7 @@
 #pragma once
 
 #include <JuceHeader.h>
+#include "audiobench.h"
 
 //==============================================================================
 /**
@@ -54,6 +55,8 @@ public:
     //==============================================================================
     void getStateInformation (MemoryBlock& destData) override;
     void setStateInformation (const void* data, int sizeInBytes) override;
+
+    ABTestStructRef testStruct;
 
 private:
     //==============================================================================

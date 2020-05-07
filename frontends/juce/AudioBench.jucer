@@ -19,7 +19,7 @@
     <LINUX_MAKE targetFolder="Builds/LinuxMakefile" externalLibraries="audiobench">
       <CONFIGURATIONS>
         <CONFIGURATION isDebug="1" name="Debug" libraryPath="../../../../target/debug/"
-                       recommendedWarnings="GCC"/>
+                       recommendedWarnings="GCC" headerPath="../../../../src/"/>
         <CONFIGURATION isDebug="0" name="Release" linkTimeOptimisation="1" recommendedWarnings="GCC"/>
       </CONFIGURATIONS>
       <MODULEPATHS>

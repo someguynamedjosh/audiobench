@@ -10,6 +10,7 @@
 
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
+#include "audiobench.h"
 
 //==============================================================================
 AudioBenchAudioProcessor::AudioBenchAudioProcessor()
@@ -24,10 +25,12 @@ AudioBenchAudioProcessor::AudioBenchAudioProcessor()
                        )
 #endif
 {
+    testStruct = ABCreateTestStruct();
 }
 
 AudioBenchAudioProcessor::~AudioBenchAudioProcessor()
 {
+    ABDestroyTestStruct(testStruct);
 }
 
 //==============================================================================
@@ -129,10 +132,6 @@ bool AudioBenchAudioProcessor::isBusesLayoutSupported (const BusesLayout& layout
 }
 #endif
 
-extern "C" {
-    float attenuate(float);
-}
-
 void AudioBenchAudioProcessor::processBlock (AudioBuffer<float>& buffer, MidiBuffer& midiMessages)
 {
     ScopedNoDenormals noDenormals;
@@ -159,7 +158,7 @@ void AudioBenchAudioProcessor::processBlock (AudioBuffer<float>& buffer, MidiBuf
         auto* channelData = buffer.getWritePointer (channel);
         for (int sample = 0; sample < buffer.getNumSamples(); sample++) {
             float triangleWave = ((float) (sample % 100)) / 100.0f;
-            channelData[sample] = attenuate(triangleWave);
+            channelData[sample] = ABAttenuate(testStruct, triangleWave);
         }
     }
 }
