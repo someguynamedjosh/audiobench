@@ -154,12 +154,12 @@ void AudioBenchAudioProcessor::processBlock (AudioBuffer<float>& buffer, MidiBuf
     // the samples and the outer loop is handling the channels.
     // Alternatively, you can process the samples with the channels
     // interleaved by keeping the same state.
-    for (int channel = 0; channel < totalNumInputChannels; ++channel)
+    for (int channel = 0; channel < totalNumOutputChannels; ++channel)
     {
         auto* channelData = buffer.getWritePointer (channel);
         for (int sample = 0; sample < buffer.getNumSamples(); sample++) {
             float triangleWave = ((float) (sample % 100)) / 100.0f;
-            channelData[sample] = triangleWave;
+            channelData[sample] = attenuate(triangleWave);
         }
     }
 }

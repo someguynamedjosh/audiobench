@@ -55,6 +55,9 @@ echo "Building JUCE frontend..."
 $PROJUCER_PATH --resave AudioBench.jucer
 VST_BUILD_DIR="Builds/LinuxMakefile"
 cd $VST_BUILD_DIR
+# The build system cannot detect when the AudioBench library has changed, so we
+# delete the build artifacts to force it to re-link them.
+rm build/AudioBench*
 make
 cd $ROOT_DIR
 echo "Success!"
