@@ -34,10 +34,14 @@ impl Instance {
 
         let lane_size = (GRID_2 / 2 - KNOB_INSIDE_SPACE) / 3;
         for (index, value) in &[(0, 0.2), (1, 0.6), (2, 0.1)] {
+            if *index == 1 {
+                g.set_color(&COLOR_AUTOMATION_FOCUSED);
+            } else {
+                g.set_color(&COLOR_AUTOMATION);
+            }
             let outer_diameter = GRID_2 - lane_size * index * 2;
             let inner_diameter = outer_diameter - lane_size * 2;
             let inset = (GRID_2 - outer_diameter) / 2;
-            g.set_color(&COLOR_AUTOMATION[*index as usize]);
             g.fill_pie(
                 coord(0) + inset,
                 coord(0) + inset,

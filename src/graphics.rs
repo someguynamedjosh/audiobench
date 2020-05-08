@@ -142,10 +142,18 @@ pub mod constants {
 
     pub const KNOB_INSIDE_SPACE: i32 = 10;
 
-    pub const COLOR_BG: (u8, u8, u8) = (0x05, 0x08, 0x0F);
-    pub const COLOR_SURFACE: (u8, u8, u8) = (0x40, 0x48, 0x70);
-    pub const COLOR_KNOB: (u8, u8, u8) = (0x4A, 0x8C, 0xFF);
-    pub const COLOR_AUTOMATION: [(u8, u8, u8); 3] =
-        [(0xFF, 0x00, 0x00), (0x00, 0xFF, 0x00), (0x00, 0x00, 0xFF)];
+    const fn hex_color(hex: u32) -> (u8, u8, u8) {
+        (
+            ((hex >> 16) & 0xFF) as u8,
+            ((hex >> 8) & 0xFF) as u8,
+            ((hex >> 0) & 0xFF) as u8,
+        )
+    }
+
+    pub const COLOR_BG: (u8, u8, u8) = hex_color(0x121520);
+    pub const COLOR_SURFACE: (u8, u8, u8) = hex_color(0x48525F);
+    pub const COLOR_KNOB: (u8, u8, u8) = hex_color(0xFF0022);
+    pub const COLOR_AUTOMATION: (u8, u8, u8) = hex_color(0xC7D5E8);
+    pub const COLOR_AUTOMATION_FOCUSED: (u8, u8, u8) = hex_color(0x54bdff);
     pub const COLOR_TEXT: (u8, u8, u8) = (0xFF, 0xFF, 0xFF);
 }
