@@ -24,6 +24,21 @@ void fillRect(void *gp, int x, int y, int w, int h) {
     ((Graphics*) gp)->fillRect(x, y, w, h);
 }
 
+void fillPie(void *gp, int x, int y, int r, int ir, float sr, float er) {
+    Path pie;
+    pie.addPieSegment(
+        (float) (x - r),
+        (float) (y - r),
+        (float) (r * 2),
+        (float) (r * 2),
+        // JUCE people don't know how math works and made 0 radians up and clockwise positive.
+        M_PI_2 - sr,
+        M_PI_2 - er,
+        ((float) ir) / ((float) r)
+    );
+    ((Graphics*) gp)->fillPath(pie);
+}
+
 //==============================================================================
 AudioBenchAudioProcessorEditor::AudioBenchAudioProcessorEditor (AudioBenchAudioProcessor& p)
     : AudioProcessorEditor (&p), processor (p)
@@ -32,6 +47,7 @@ AudioBenchAudioProcessorEditor::AudioBenchAudioProcessorEditor (AudioBenchAudioP
     fns.setColor = setColor;
     fns.clear = clear;
     fns.fillRect = fillRect;
+    fns.fillPie = fillPie;
     ABSetGraphicsFunctions(p.ab, fns);
     // Make sure that before the constructor has finished, you've set the
     // editor's size to whatever you need it to be.

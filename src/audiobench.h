@@ -5,6 +5,7 @@ struct ABGraphicsFunctions {
     void (*setColor)(void*, uint8_t, uint8_t, uint8_t);
     void (*clear)(void*);
     void (*fillRect)(void*, int, int, int, int);
+    void (*fillPie)(void*, int, int, int, int, float, float);
 };
 
 extern "C" {
