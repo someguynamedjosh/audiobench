@@ -1,79 +1,8 @@
-#[repr(C)]
-pub struct GraphicsFunctions {
-    set_color: fn(*mut i8, u8, u8, u8),
-    clear: fn(*mut i8),
-    fill_rect: fn(*mut i8, i32, i32, i32, i32),
-    fill_pie: fn(*mut i8, i32, i32, i32, i32, f32, f32),
-}
+mod graphics;
 
-impl GraphicsFunctions {
-    fn placeholders() -> Self {
-        fn set_color(_data: *mut i8, _r: u8, _g: u8, _b: u8) {
-            panic!("ERROR: Graphics functions not set by frontend!");
-        }
-        fn clear(_data: *mut i8) {
-            panic!("ERROR: Graphics functions not set by frontend!");
-        }
-        fn fill_rect(_data: *mut i8, _x: i32, _y: i32, _w: i32, _h: i32) {
-            panic!("ERROR: Graphics functions not set by frontend!");
-        }
-        fn fill_pie(_data: *mut i8, _x: i32, _y: i32, _r: i32, _ir: i32, _sr: f32, _er: f32) {
-            panic!("ERROR: Graphics functions not set by frontend!");
-        }
-        Self {
-            set_color,
-            clear,
-            fill_rect,
-            fill_pie,
-        }
-    }
-}
-
-struct GrahpicsWrapper<'a> {
-    graphics_fns: &'a GraphicsFunctions,
-    aux_data: *mut i8,
-}
-
-impl<'a> GrahpicsWrapper<'a> {
-    pub fn new(graphics_fns: &GraphicsFunctions, aux_data: *mut i8) -> GrahpicsWrapper {
-        GrahpicsWrapper {
-            graphics_fns,
-            aux_data,
-        }
-    }
-
-    pub fn set_color(&mut self, color: &(u8, u8, u8)) {
-        (self.graphics_fns.set_color)(self.aux_data, color.0, color.1, color.2);
-    }
-
-    pub fn clear(&mut self) {
-        (self.graphics_fns.clear)(self.aux_data);
-    }
-
-    pub fn fill_rect(&mut self, x: i32, y: i32, w: i32, h: i32) {
-        (self.graphics_fns.fill_rect)(self.aux_data, x, y, w, h);
-    }
-
-    pub fn fill_pie(
-        &mut self,
-        x: i32,
-        y: i32,
-        radius: i32,
-        inner_radius: i32,
-        start_rad: f32,
-        end_rad: f32,
-    ) {
-        (self.graphics_fns.fill_pie)(
-            self.aux_data,
-            x,
-            y,
-            radius,
-            inner_radius,
-            start_rad,
-            end_rad,
-        );
-    }
-}
+use graphics::constants::*;
+use graphics::{GrahpicsWrapper, GraphicsFunctions};
+use std::f32::consts::PI;
 
 pub struct Instance {
     graphics_fns: GraphicsFunctions,
@@ -91,11 +20,36 @@ impl Instance {
 impl Instance {
     pub fn draw_interface(&self, data: *mut i8) {
         let mut g = GrahpicsWrapper::new(&self.graphics_fns, data);
-        g.set_color(&(255, 0, 255));
+
+        g.set_color(&COLOR_BG);
         g.clear();
-        g.set_color(&(255, 255, 255));
-        g.fill_rect(0, 0, 10, 10);
-        g.fill_pie(100, 100, 50, 30, 0.0, std::f32::consts::PI);
+        g.set_color(&COLOR_SURFACE);
+        g.fill_rect(fatcoord(0), fatcoord(0), FATGRID_2, FATGRID_2);
+        g.set_color(&COLOR_BG);
+        g.fill_pie(coord(0), coord(0), GRID_2, 0, 0.0, PI);
+
+        g.set_color(&COLOR_KNOB);
+        let primary_angle = PI * (1.0 - 0.3);
+        g.fill_pie(coord(0), coord(0), GRID_2, 0, primary_angle, PI);
+
+        let lane_size = (GRID_2 / 2 - KNOB_INSIDE_SPACE) / 3;
+        for (index, value) in &[(0, 0.2), (1, 0.6), (2, 0.1)] {
+            let outer_diameter = GRID_2 - lane_size * index * 2;
+            let inner_diameter = outer_diameter - lane_size * 2;
+            let inset = (GRID_2 - outer_diameter) / 2;
+            g.set_color(&COLOR_AUTOMATION[*index as usize]);
+            g.fill_pie(
+                coord(0) + inset,
+                coord(0) + inset,
+                outer_diameter,
+                inner_diameter,
+                PI * (1.0f32 - value),
+                PI,
+            );
+        }
+
+        g.set_color(&COLOR_TEXT);
+        g.write_label(coord(0), coord(1), GRID_2, "AMPLITUDE LINE2");
     }
 }
 

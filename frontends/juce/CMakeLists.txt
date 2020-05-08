@@ -28,7 +28,6 @@ add_subdirectory(juce_git)
 # the formats specified by the FORMATS arguments. This function accepts many optional arguments.
 # Check the readme at `examples/CMake` in the JUCE repo for the full list.
 
-link_directories("$ENV{RUST_OUTPUT_DIR}")
 juce_add_plugin(
     AudioBench 
     # VERSION ...                               # Set this if the plugin version is different to the project version
@@ -105,5 +104,5 @@ target_link_libraries(
     AudioBench PRIVATE
     # AudioPluginData           # If we'd created a binary data target, we'd link to it here
     juce::juce_audio_utils
-    audiobench
+    "$ENV{RUST_OUTPUT_DIR}/libaudiobench.a"
 )

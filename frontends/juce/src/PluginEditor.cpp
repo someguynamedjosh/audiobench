@@ -16,8 +16,16 @@ void setColor(void *gp, uint8_t r, uint8_t g, uint8_t b) {
     ((Graphics*) gp)->setColour(Colour(r, g, b));
 }
 
+void setAlpha_notJuce(void *gp, float alpha) {
+    ((Graphics*) gp)->setOpacity(alpha);
+}
+
 void clear(void *gp) {
     ((Graphics*) gp)->fillAll();
+}
+
+void strokeLine(void *gp, int x1, int y1, int x2, int y2, float weight) {
+    ((Graphics*) gp)->drawLine(x1, y1, x2, y2, weight);
 }
 
 void fillRect(void *gp, int x, int y, int w, int h) {
@@ -27,10 +35,10 @@ void fillRect(void *gp, int x, int y, int w, int h) {
 void fillPie(void *gp, int x, int y, int r, int ir, float sr, float er) {
     Path pie;
     pie.addPieSegment(
-        (float) (x - r),
-        (float) (y - r),
-        (float) (r * 2),
-        (float) (r * 2),
+        (float) x,
+        (float) y,
+        (float) r,
+        (float) r,
         // JUCE people don't know how math works and made 0 radians up and clockwise positive.
         M_PI_2 - sr,
         M_PI_2 - er,
@@ -39,15 +47,24 @@ void fillPie(void *gp, int x, int y, int r, int ir, float sr, float er) {
     ((Graphics*) gp)->fillPath(pie);
 }
 
+void writeLabel(void *gp, int x, int y, int w, char *text) {
+    String str = String(text);
+    ((Graphics*) gp)->setFont(12.0f);
+    ((Graphics*) gp)->drawFittedText(str, x, y, w, 30, Justification::centredTop, 2);
+}
+
 //==============================================================================
 AudioBenchAudioProcessorEditor::AudioBenchAudioProcessorEditor (AudioBenchAudioProcessor& p)
     : AudioProcessorEditor (&p), processor (p)
 {
     ABGraphicsFunctions fns;
     fns.setColor = setColor;
+    fns.setAlpha = setAlpha_notJuce;
     fns.clear = clear;
+    fns.strokeLine = strokeLine;
     fns.fillRect = fillRect;
     fns.fillPie = fillPie;
+    fns.writeLabel = writeLabel;
     ABSetGraphicsFunctions(p.ab, fns);
     // Make sure that before the constructor has finished, you've set the
     // editor's size to whatever you need it to be.
