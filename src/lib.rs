@@ -1,8 +1,10 @@
 mod graphics;
+mod util;
+mod widgets;
 
 use graphics::constants::*;
 use graphics::{GrahpicsWrapper, GraphicsFunctions};
-use std::f32::consts::PI;
+use widgets::Widget;
 
 pub struct Instance {
     graphics_fns: GraphicsFunctions,
@@ -20,40 +22,23 @@ impl Instance {
 impl Instance {
     pub fn draw_interface(&self, data: *mut i8) {
         let mut g = GrahpicsWrapper::new(&self.graphics_fns, data);
+        let mut k = widgets::Knob::default();
 
+        k.value = 0.5;
+        k.automation.push((-1.0, 0.2));
+        k.automation.push((0.0, 0.8));
+        k.label = "VOLUME".to_owned();
+        k.x = coord(0);
+        k.y = coord(0);
+
+        g.push_state();
+        g.apply_offset(30, 30);
         g.set_color(&COLOR_BG);
         g.clear();
         g.set_color(&COLOR_SURFACE);
         g.fill_rect(fatcoord(0), fatcoord(0), FATGRID_2, FATGRID_2);
-        g.set_color(&COLOR_BG);
-        g.fill_pie(coord(0), coord(0), GRID_2, 0, 0.0, PI);
-
-        g.set_color(&COLOR_KNOB);
-        let primary_angle = PI * (1.0 - 0.3);
-        g.fill_pie(coord(0), coord(0), GRID_2, 0, primary_angle, PI);
-
-        let lane_size = (GRID_2 / 2 - KNOB_INSIDE_SPACE) / 3;
-        for (index, value) in &[(0, 0.2), (1, 0.6), (2, 0.1)] {
-            if *index == 1 {
-                g.set_color(&COLOR_AUTOMATION_FOCUSED);
-            } else {
-                g.set_color(&COLOR_AUTOMATION);
-            }
-            let outer_diameter = GRID_2 - lane_size * index * 2;
-            let inner_diameter = outer_diameter - lane_size * 2;
-            let inset = (GRID_2 - outer_diameter) / 2;
-            g.fill_pie(
-                coord(0) + inset,
-                coord(0) + inset,
-                outer_diameter,
-                inner_diameter,
-                PI * (1.0f32 - value),
-                PI,
-            );
-        }
-
-        g.set_color(&COLOR_TEXT);
-        g.write_label(coord(0), coord(1), GRID_2, "AMPLITUDE LINE2");
+        k.draw(&mut g);
+        g.pop_state();
     }
 }
 

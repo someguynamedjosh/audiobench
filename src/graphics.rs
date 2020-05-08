@@ -1,5 +1,9 @@
 #[repr(C)]
 pub struct GraphicsFunctions {
+    push_state: fn(*mut i8),
+    pop_state: fn(*mut i8),
+    apply_offset: fn(*mut i8, i32, i32),
+
     set_color: fn(*mut i8, u8, u8, u8),
     set_alpha: fn(*mut i8, f32),
     clear: fn(*mut i8),
@@ -11,6 +15,15 @@ pub struct GraphicsFunctions {
 
 impl GraphicsFunctions {
     pub fn placeholders() -> Self {
+        fn push_state(_data: *mut i8) {
+            panic!("ERROR: Graphics functions not set by frontend!");
+        }
+        fn pop_state(_data: *mut i8) {
+            panic!("ERROR: Graphics functions not set by frontend!");
+        }
+        fn apply_offset(_data: *mut i8, _x: i32, _y: i32) {
+            panic!("ERROR: Graphics functions not set by frontend!");
+        }
         fn set_color(_data: *mut i8, _r: u8, _g: u8, _b: u8) {
             panic!("ERROR: Graphics functions not set by frontend!");
         }
@@ -33,6 +46,9 @@ impl GraphicsFunctions {
             panic!("ERROR: Graphics functions not set by frontend!");
         }
         Self {
+            push_state,
+            pop_state,
+            apply_offset,
             set_color,
             set_alpha,
             clear,
@@ -55,6 +71,18 @@ impl<'a> GrahpicsWrapper<'a> {
             graphics_fns,
             aux_data,
         }
+    }
+
+    pub fn push_state(&mut self) {
+        (self.graphics_fns.push_state)(self.aux_data);
+    }
+
+    pub fn pop_state(&mut self) {
+        (self.graphics_fns.pop_state)(self.aux_data);
+    }
+
+    pub fn apply_offset(&mut self, x: i32, y: i32) {
+        (self.graphics_fns.apply_offset)(self.aux_data, x, y);
     }
 
     pub fn set_color(&mut self, color: &(u8, u8, u8)) {
@@ -140,7 +168,11 @@ pub mod constants {
         GRID_1 * index + GRID_P * index
     }
 
-    pub const KNOB_INSIDE_SPACE: i32 = 10;
+    pub const KNOB_OUTSIDE_SPACE: i32 = 3;
+    pub const KNOB_INSIDE_SPACE: i32 = 3;
+    pub const KNOB_AUTOMATION_SPACE: i32 = GRID_2 / 2 - KNOB_OUTSIDE_SPACE - KNOB_INSIDE_SPACE;
+    pub const KNOB_LANE_GAP: i32 = 1;
+    pub const KNOB_MAX_LANE_SIZE: i32 = 4;
 
     const fn hex_color(hex: u32) -> (u8, u8, u8) {
         (

@@ -2,6 +2,10 @@
 
 typedef void *ABInstanceRef;
 struct ABGraphicsFunctions {
+    void (*pushState)(void*);
+    void (*popState)(void*);
+    void (*applyOffset)(void*, int, int);
+
     void (*setColor)(void*, uint8_t, uint8_t, uint8_t);
     void (*setAlpha)(void*, float);
     void (*clear)(void*);

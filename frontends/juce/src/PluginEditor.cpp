@@ -12,6 +12,18 @@
 #include "PluginEditor.h"
 #include "audiobench.h"
 
+void pushState(void *gp) {
+    ((Graphics*) gp)->saveState();
+}
+
+void popState(void *gp) {
+    ((Graphics*) gp)->restoreState();
+}
+
+void applyOffset(void *gp, int x, int y) {
+    ((Graphics*) gp)->addTransform(AffineTransform().translated(x, y));
+}
+
 void setColor(void *gp, uint8_t r, uint8_t g, uint8_t b) {
     ((Graphics*) gp)->setColour(Colour(r, g, b));
 }
@@ -58,6 +70,10 @@ AudioBenchAudioProcessorEditor::AudioBenchAudioProcessorEditor (AudioBenchAudioP
     : AudioProcessorEditor (&p), processor (p)
 {
     ABGraphicsFunctions fns;
+    fns.pushState = pushState;
+    fns.popState = popState;
+    fns.applyOffset = applyOffset;
+
     fns.setColor = setColor;
     fns.setAlpha = setAlpha_notJuce;
     fns.clear = clear;
