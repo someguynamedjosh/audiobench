@@ -26,12 +26,12 @@ AudioBenchAudioProcessor::AudioBenchAudioProcessor()
                        )
 #endif
 {
-    testStruct = ABCreateTestStruct();
+    ab = ABCreateInstance();
 }
 
 AudioBenchAudioProcessor::~AudioBenchAudioProcessor()
 {
-    ABDestroyTestStruct(testStruct);
+    ABDestroyInstance(ab);
 }
 
 //==============================================================================
@@ -159,7 +159,7 @@ void AudioBenchAudioProcessor::processBlock (AudioBuffer<float>& buffer, MidiBuf
         auto* channelData = buffer.getWritePointer (channel);
         for (int sample = 0; sample < buffer.getNumSamples(); sample++) {
             float triangleWave = ((float) (sample % 100)) / 100.0f;
-            channelData[sample] = ABAttenuate(testStruct, triangleWave);
+            channelData[sample] = 0.1f * triangleWave;
         }
     }
 }

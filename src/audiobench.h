@@ -1,9 +1,15 @@
 #pragma once
 
-typedef void *ABTestStructRef;
+typedef void *ABInstanceRef;
+struct ABGraphicsFunctions {
+    void (*setColor)(void*, uint8_t, uint8_t, uint8_t);
+    void (*clear)(void*);
+    void (*fillRect)(void*, int, int, int, int);
+};
 
 extern "C" {
-    ABTestStructRef ABCreateTestStruct();
-    void ABDestroyTestStruct(ABTestStructRef);
-    float ABAttenuate(ABTestStructRef, float);
+    ABInstanceRef ABCreateInstance();
+    void ABDestroyInstance(ABInstanceRef);
+    void ABSetGraphicsFunctions(ABInstanceRef, ABGraphicsFunctions);
+    void ABDrawUI(ABInstanceRef, void *extraData);
 }
