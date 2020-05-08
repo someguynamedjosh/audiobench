@@ -37,6 +37,7 @@ cd _build
 cmake ..
 cd ..
 cmake --build _build --config Debug
+cp _build/AudioBench_artefacts/VST3/AudioBench.vst3/Contents/x86_64-linux/AudioBench.so ~/.vst3/
 # The build system cannot detect when the AudioBench library has changed, so we
 # delete the build artifacts to force it to re-link them.
 # rm -f build/AudioBench*
@@ -47,7 +48,6 @@ echo "Success!"
 if [ "$1" == "run" ]; then
     echo ""
     echo "Starting standalone version..."
-    # cd "$VST_BUILD_DIR/build"
     # Standalone version
-    # ./AudioBench
+    ./_build/AudioBench_artefacts/Standalone/AudioBench
 fi
