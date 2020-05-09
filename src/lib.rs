@@ -3,7 +3,7 @@ mod gui;
 mod util;
 
 use gui::graphics::{GrahpicsWrapper, GraphicsFunctions};
-use gui::widgets::{Gui};
+use gui::Gui;
 
 pub struct Instance {
     graphics_fns: GraphicsFunctions,
