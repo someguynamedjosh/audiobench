@@ -1,5 +1,6 @@
 use crate::engine;
-use crate::graphics::{constants::*, GrahpicsWrapper};
+use crate::gui::constants::*;
+use crate::gui::graphics::GrahpicsWrapper;
 use crate::util::*;
 use std::f32::consts::PI;
 

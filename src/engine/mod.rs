@@ -1,6 +1,6 @@
-use crate::graphics::constants::*;
+use crate::gui::constants::*;
+use crate::gui::widgets;
 use crate::util::*;
-use crate::widgets;
 
 #[derive(Default)]
 pub struct Control {

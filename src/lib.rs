@@ -1,10 +1,9 @@
 mod engine;
-mod graphics;
+mod gui;
 mod util;
-mod widgets;
 
-use graphics::{GrahpicsWrapper, GraphicsFunctions};
-use widgets::Widget;
+use gui::graphics::{GrahpicsWrapper, GraphicsFunctions};
+use gui::widgets::Widget;
 
 pub struct Instance {
     graphics_fns: GraphicsFunctions,
