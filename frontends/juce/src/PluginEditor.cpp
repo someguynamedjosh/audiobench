@@ -73,6 +73,7 @@ void writeLabel(void *gp, int x, int y, int w, char *text) {
 AudioBenchAudioProcessorEditor::AudioBenchAudioProcessorEditor (AudioBenchAudioProcessor& p)
     : AudioProcessorEditor (&p), processor (p)
 {
+    // The Rust library will use these functions to paint to the screen.
     ABGraphicsFunctions fns;
     fns.pushState = pushState;
     fns.popState = popState;
@@ -87,26 +88,44 @@ AudioBenchAudioProcessorEditor::AudioBenchAudioProcessorEditor (AudioBenchAudioP
     fns.fillPie = fillPie;
     fns.writeLabel = writeLabel;
     ABSetGraphicsFunctions(p.ab, fns);
+
     // Make sure that before the constructor has finished, you've set the
     // editor's size to whatever you need it to be.
     setSize (400, 300);
+    ABCreateUI(processor.ab);
 }
 
 AudioBenchAudioProcessorEditor::~AudioBenchAudioProcessorEditor()
 {
+    ABDestroyUI(processor.ab);
 }
 
 //==============================================================================
 void AudioBenchAudioProcessorEditor::paint (Graphics& g)
 {
-    // (Our component is opaque, so we must completely fill the background with a solid colour)
-    g.fillAll (getLookAndFeel().findColour (ResizableWindow::backgroundColourId));
-
+    // Rust will pass the pointer to the Graphics object as the first argument to the drawing 
+    // functions whenever it uses them.
     ABDrawUI(processor.ab, (void*) &g);
+}
 
-    g.setColour (Colours::white);
-    g.setFont (15.0f);
-    g.drawFittedText ("Hello World!", getLocalBounds(), Justification::centred, 1);
+void AudioBenchAudioProcessorEditor::mouseDown(const MouseEvent &event) {
+    ABUIMouseDown(processor.ab, event.x, event.y);
+    repaint();
+}
+
+void AudioBenchAudioProcessorEditor::mouseMove(const MouseEvent &event) {
+    ABUIMouseMove(processor.ab, event.x, event.y);
+    repaint();
+}
+
+void AudioBenchAudioProcessorEditor::mouseDrag(const MouseEvent &event) {
+    ABUIMouseMove(processor.ab, event.x, event.y);
+    repaint();
+}
+
+void AudioBenchAudioProcessorEditor::mouseUp(const MouseEvent &event) {
+    ABUIMouseUp(processor.ab);
+    repaint();
 }
 
 void AudioBenchAudioProcessorEditor::resized()

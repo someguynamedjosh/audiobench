@@ -1,6 +1,6 @@
 use num::Float;
 
-pub trait RangeMap: Sized + Copy {
+pub trait FloatUtil: Sized + Copy {
     /// Converts from the range [from_min,from_max] to [0,1]
     fn from_range(self, from_min: Self, from_max: Self) -> Self;
     /// Converts from the range [0,1] to [to_min, to_max]
@@ -8,15 +8,28 @@ pub trait RangeMap: Sized + Copy {
     fn from_range_to_range(self, from_min: Self, from_max: Self, to_min: Self, to_max: Self) -> Self {
         self.from_range(from_min, from_max).to_range(to_min, to_max)
     }
+
+    /// Clamps the value to the specified range. Not called clamp because that causes an error.
+    fn clam(self, min: Self, max: Self) -> Self;
 }
 
-impl<T: Float> RangeMap for T {
+impl<T: Float> FloatUtil for T {
     fn from_range(self, from_min: Self, from_max: Self) -> Self {
         (self - from_min) / (from_max - from_min)
     }
 
     fn to_range(self, to_min: Self, to_max: Self) -> Self {
         self * (to_max - to_min) + to_min
+    }
+
+    fn clam(self, min: Self, max: Self) -> Self {
+        if self < min {
+            min
+        } else if self > max {
+            max
+        } else {
+            self
+        }
     }
 }
 

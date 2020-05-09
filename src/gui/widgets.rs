@@ -4,29 +4,95 @@ use crate::gui::graphics::GrahpicsWrapper;
 use crate::util::*;
 use std::f32::consts::PI;
 
-// This trait is convenient to implement for widgets, but inconvenient to call.
-pub trait WidgetImpl {
+pub struct Gui {
+    root_widget: Rcrc<dyn Widget>,
+    clicked: Option<Rcrc<dyn Widget>>,
+    click_position: (i32, i32),
+    dragged: bool,
+}
+
+impl Gui {
+    pub fn new(root: impl Widget + 'static) -> Self {
+        Self {
+            root_widget: rcrc(root),
+            clicked: None,
+            click_position: (0, 0),
+            dragged: false,
+        }
+    }
+
+    pub fn draw(&self, g: &mut GrahpicsWrapper) {
+        self.root_widget.borrow().draw(g);
+    }
+
+    pub fn on_mouse_down(&mut self, pos: (i32, i32)) {
+        let hit = trace_hit(&self.root_widget, pos);
+        self.clicked = Some(hit);
+        self.click_position = pos;
+        self.dragged = false;
+    }
+
+    // TODO: Require minimum amount of movement before recognizing dragging.
+    pub fn on_mouse_move(&mut self, new_pos: (i32, i32)) {
+        if let Some(clicked) = &self.clicked {
+            let delta = (
+                new_pos.0 - self.click_position.0,
+                new_pos.1 - self.click_position.1,
+            );
+            clicked.borrow_mut().on_drag(delta);
+            self.click_position = new_pos;
+            self.dragged = true;
+        }
+    }
+
+    pub fn on_mouse_up(&mut self) {
+        self.clicked = None;
+    }
+}
+
+pub fn trace_hit(widget: &Rcrc<dyn Widget>, pixel: (i32, i32)) -> Rcrc<dyn Widget> {
+    let widget_ref = widget.borrow();
+    if let Some(child) = widget_ref.trace_hit(pixel) {
+        child
+    } else {
+        drop(widget_ref);
+        Rc::clone(widget)
+    }
+}
+
+pub trait Widget {
     fn get_pos(&self) -> (i32, i32);
+    fn get_size(&self) -> (i32, i32);
     fn borrow_children(&self) -> &[Rcrc<dyn Widget>] {
         &[]
     }
-    fn draw(&self, g: &mut GrahpicsWrapper);
-}
 
-// This trait is convenient to call, but inconvenient for widgets to implement.
-pub trait Widget: WidgetImpl {
-    fn draw(&self, g: &mut GrahpicsWrapper);
-}
+    fn on_drag(&mut self, _delta: (i32, i32)) {}
 
-// All widgets with the easy-to-implement trait will also implement the easy-to-call trait.
-impl<T: WidgetImpl> Widget for T {
+    fn is_hit(&self, pixel: (i32, i32)) -> bool {
+        let size = self.get_size();
+        pixel.0 >= 0 && pixel.1 >= 0 && pixel.0 <= size.0 && pixel.1 <= size.1
+    }
+    fn trace_hit(&self, pixel: (i32, i32)) -> Option<Rcrc<dyn Widget>> {
+        for child in self.borrow_children() {
+            let child_ref = child.borrow();
+            let child_pos = child_ref.get_pos();
+            let child_pixel = (pixel.0 - child_pos.0, pixel.1 - child_pos.1);
+            if child_ref.is_hit(child_pixel) {
+                return Some(trace_hit(child, child_pixel));
+            }
+        }
+        None
+    }
+
+    fn draw_impl(&self, g: &mut GrahpicsWrapper);
     fn draw(&self, g: &mut GrahpicsWrapper) {
         g.push_state();
-        let pos = WidgetImpl::get_pos(self);
+        let pos = Widget::get_pos(self);
         g.apply_offset(pos.0, pos.1);
-        WidgetImpl::draw(self, g);
+        self.draw_impl(g);
         for child in self.borrow_children() {
-            Widget::draw(&*child.borrow(), g);
+            child.borrow().draw(g);
         }
         g.pop_state();
     }
@@ -49,12 +115,29 @@ impl Knob {
     }
 }
 
-impl WidgetImpl for Knob {
+impl Widget for Knob {
     fn get_pos(&self) -> (i32, i32) {
         self.pos
     }
 
-    fn draw(&self, g: &mut GrahpicsWrapper) {
+    fn get_size(&self) -> (i32, i32) {
+        // Don't include the label in the boundaries.
+        (GRID_2, GRID_1)
+    }
+
+    fn on_drag(&mut self, delta: (i32, i32)) {
+        let delta = delta.0 - delta.1;
+        // How many pixels the user must drag across to cover the entire range of the knob.
+        const DRAG_PIXELS: f32 = 200.0;
+        let delta = delta as f32 / DRAG_PIXELS;
+
+        let mut control_ref = self.control.borrow_mut();
+        let range = control_ref.range;
+        let delta = delta * (range.1 - range.0) as f32;
+        control_ref.value = (control_ref.value + delta).clam(range.0, range.1);
+    }
+
+    fn draw_impl(&self, g: &mut GrahpicsWrapper) {
         let control = &*self.control.borrow();
         fn value_to_angle(range: (f32, f32), value: f32) -> f32 {
             value.from_range_to_range(range.0, range.1, PI, 0.0)
@@ -121,12 +204,17 @@ impl IOTab {
     }
 }
 
-impl WidgetImpl for IOTab {
+impl Widget for IOTab {
     fn get_pos(&self) -> (i32, i32) {
         self.pos
     }
 
-    fn draw(&self, g: &mut GrahpicsWrapper) {
+    fn get_size(&self) -> (i32, i32) {
+        const MITS: i32 = MODULE_IO_TAB_SIZE;
+        (MITS, MITS)
+    }
+
+    fn draw_impl(&self, g: &mut GrahpicsWrapper) {
         const MITS: i32 = MODULE_IO_TAB_SIZE;
         const MCS: i32 = MODULE_CORNER_SIZE;
         g.fill_rounded_rect(0, 0, MITS, MITS, MCS);
@@ -169,16 +257,26 @@ impl Module {
     }
 }
 
-impl WidgetImpl for Module {
+impl Widget for Module {
     fn get_pos(&self) -> (i32, i32) {
         self.module.borrow().pos
+    }
+
+    fn get_size(&self) -> (i32, i32) {
+        self.size
     }
 
     fn borrow_children(&self) -> &[Rcrc<dyn Widget>] {
         &self.children[..]
     }
 
-    fn draw(&self, g: &mut GrahpicsWrapper) {
+    fn on_drag(&mut self, delta: (i32, i32)) {
+        let mut module_ref = self.module.borrow_mut();
+        module_ref.pos.0 += delta.0;
+        module_ref.pos.1 += delta.1;
+    }
+
+    fn draw_impl(&self, g: &mut GrahpicsWrapper) {
         const MCS: i32 = MODULE_CORNER_SIZE;
         const MIW: i32 = MODULE_IO_WIDTH;
 
@@ -220,16 +318,20 @@ impl Default for ModuleGraph {
     }
 }
 
-impl WidgetImpl for ModuleGraph {
+impl Widget for ModuleGraph {
     fn get_pos(&self) -> (i32, i32) {
         self.pos
+    }
+
+    fn get_size(&self) -> (i32, i32) {
+        self.size
     }
 
     fn borrow_children(&self) -> &[Rcrc<dyn Widget>] {
         &self.children[..]
     }
 
-    fn draw(&self, g: &mut GrahpicsWrapper) {
+    fn draw_impl(&self, g: &mut GrahpicsWrapper) {
         g.apply_offset(self.offset.0, self.offset.1);
     }
 }

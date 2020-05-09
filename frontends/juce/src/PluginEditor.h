@@ -25,6 +25,10 @@ public:
     //==============================================================================
     void paint (Graphics&) override;
     void resized() override;
+    void mouseDown(const MouseEvent &event) override;
+    void mouseMove(const MouseEvent &event) override;
+    void mouseDrag(const MouseEvent &event) override;
+    void mouseUp(const MouseEvent &event) override;
 
 private:
     // This reference is provided as a quick way for your editor to

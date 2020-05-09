@@ -20,5 +20,11 @@ extern "C" {
     ABInstanceRef ABCreateInstance();
     void ABDestroyInstance(ABInstanceRef);
     void ABSetGraphicsFunctions(ABInstanceRef, ABGraphicsFunctions);
+
+    void ABCreateUI(ABInstanceRef);
     void ABDrawUI(ABInstanceRef, void *extraData);
+    void ABDestroyUI(ABInstanceRef);
+    void ABUIMouseDown(ABInstanceRef, int, int);
+    void ABUIMouseMove(ABInstanceRef, int, int);
+    void ABUIMouseUp(ABInstanceRef);
 }
