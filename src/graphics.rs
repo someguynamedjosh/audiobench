@@ -9,6 +9,7 @@ pub struct GraphicsFunctions {
     clear: fn(*mut i8),
     stroke_line: fn(*mut i8, i32, i32, i32, i32, f32),
     fill_rect: fn(*mut i8, i32, i32, i32, i32),
+    fill_rounded_rect: fn(*mut i8, i32, i32, i32, i32, i32),
     fill_pie: fn(*mut i8, i32, i32, i32, i32, f32, f32),
     write_label: fn(*mut i8, i32, i32, i32, *const u8),
 }
@@ -39,6 +40,9 @@ impl GraphicsFunctions {
         fn fill_rect(_data: *mut i8, _x: i32, _y: i32, _w: i32, _h: i32) {
             panic!("ERROR: Graphics functions not set by frontend!");
         }
+        fn fill_rounded_rect(_data: *mut i8, _x: i32, _y: i32, _w: i32, _h: i32, _cs: i32) {
+            panic!("ERROR: Graphics functions not set by frontend!");
+        }
         fn fill_pie(_data: *mut i8, _x: i32, _y: i32, _r: i32, _ir: i32, _sr: f32, _er: f32) {
             panic!("ERROR: Graphics functions not set by frontend!");
         }
@@ -54,6 +58,7 @@ impl GraphicsFunctions {
             clear,
             stroke_line,
             fill_rect,
+            fill_rounded_rect,
             fill_pie,
             write_label,
         }
@@ -103,6 +108,10 @@ impl<'a> GrahpicsWrapper<'a> {
 
     pub fn fill_rect(&mut self, x: i32, y: i32, w: i32, h: i32) {
         (self.graphics_fns.fill_rect)(self.aux_data, x, y, w, h);
+    }
+
+    pub fn fill_rounded_rect(&mut self, x: i32, y: i32, w: i32, h: i32, corner_size: i32) {
+        (self.graphics_fns.fill_rounded_rect)(self.aux_data, x, y, w, h, corner_size);
     }
 
     pub fn fill_pie(
@@ -173,6 +182,9 @@ pub mod constants {
     pub const KNOB_AUTOMATION_SPACE: i32 = GRID_2 / 2 - KNOB_OUTSIDE_SPACE - KNOB_INSIDE_SPACE;
     pub const KNOB_LANE_GAP: i32 = 1;
     pub const KNOB_MAX_LANE_SIZE: i32 = 4;
+
+    pub const MODULE_CORNER_SIZE: i32 = 4;
+    pub const IO_TAB_SIZE: i32 = GRID_1;
 
     const fn hex_color(hex: u32) -> (u8, u8, u8) {
         (

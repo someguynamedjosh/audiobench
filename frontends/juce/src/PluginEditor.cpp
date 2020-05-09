@@ -44,6 +44,10 @@ void fillRect(void *gp, int x, int y, int w, int h) {
     ((Graphics*) gp)->fillRect(x, y, w, h);
 }
 
+void fillRoundedRect(void *gp, int x, int y, int w, int h, int cornerSize) {
+    ((Graphics*) gp)->fillRoundedRectangle(x, y, w, h, cornerSize);
+}
+
 void fillPie(void *gp, int x, int y, int r, int ir, float sr, float er) {
     Path pie;
     pie.addPieSegment(
@@ -79,6 +83,7 @@ AudioBenchAudioProcessorEditor::AudioBenchAudioProcessorEditor (AudioBenchAudioP
     fns.clear = clear;
     fns.strokeLine = strokeLine;
     fns.fillRect = fillRect;
+    fns.fillRoundedRect = fillRoundedRect;
     fns.fillPie = fillPie;
     fns.writeLabel = writeLabel;
     ABSetGraphicsFunctions(p.ab, fns);

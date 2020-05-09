@@ -11,19 +11,25 @@ pub trait WidgetImpl {
 // This trait is convenient to call, but inconvenient for widgets to implement.
 pub trait Widget: WidgetImpl {
     fn draw(&self, g: &mut GrahpicsWrapper);
+    fn apply_transform(&self, g: &mut GrahpicsWrapper);
 }
 
 // All widgets with the easy-to-implement trait will also implement the easy-to-call trait.
 impl<T: WidgetImpl> Widget for T {
     fn draw(&self, g: &mut GrahpicsWrapper) {
         g.push_state();
-        let pos = WidgetImpl::get_pos(self);
-        g.apply_offset(pos.0, pos.1);
+        self.apply_transform(g);
         WidgetImpl::draw(self, g);
         g.pop_state();
     }
+
+    fn apply_transform(&self, g: &mut GrahpicsWrapper) {
+        let pos = WidgetImpl::get_pos(self);
+        g.apply_offset(pos.0, pos.1);
+    }
 }
 
+#[derive(Clone)]
 pub struct Knob {
     pub x: i32,
     pub y: i32,
@@ -94,6 +100,59 @@ impl WidgetImpl for Knob {
                 min_angle,
                 max_angle,
             );
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct Module {
+    pub x: i32,
+    pub y: i32,
+    pub w: i32,
+    pub h: i32,
+    pub num_inputs: usize,
+    pub num_outputs: usize,
+    pub label: String,
+}
+
+impl Default for Module {
+    fn default() -> Module {
+        Module {
+            x: 0,
+            y: 0,
+            w: FATGRID_2,
+            h: FATGRID_2,
+            num_inputs: 0,
+            num_outputs: 0,
+            label: "UNLABELED".to_owned(),
+        }
+    }
+}
+
+impl WidgetImpl for Module {
+    fn get_pos(&self) -> (i32, i32) {
+        (self.x, self.y)
+    }
+
+    fn draw(&self, g: &mut GrahpicsWrapper) {
+        const IOTS: i32 = IO_TAB_SIZE;
+        const MCS: i32 = MODULE_CORNER_SIZE;
+
+        g.set_color(&COLOR_BG);
+        g.clear();
+        g.set_color(&COLOR_SURFACE);
+        g.fill_rounded_rect(-IOTS, 0, self.w + IOTS * 2, self.h, MCS);
+
+        g.set_color(&COLOR_TEXT);
+        for index in 0..self.num_inputs as i32 {
+            let y = coord(index);
+            g.fill_rounded_rect(-IOTS, y, IOTS, IOTS, MCS);
+            g.fill_rect(-IOTS, y, MCS, IOTS);
+        }
+        for index in 0..self.num_outputs as i32 {
+            let y = coord(index);
+            g.fill_rounded_rect(self.w, y, IOTS, IOTS, MCS);
+            g.fill_rect(self.w + (IOTS - MCS), y, MCS, IOTS);
         }
     }
 }

@@ -11,6 +11,7 @@ struct ABGraphicsFunctions {
     void (*clear)(void*);
     void (*strokeLine)(void*, int, int, int, int, float);
     void (*fillRect)(void*, int, int, int, int);
+    void (*fillRoundedRect)(void*, int, int, int, int, int);
     void (*fillPie)(void*, int, int, int, int, float, float);
     void (*writeLabel)(void*, int, int, int, char*);
 };
