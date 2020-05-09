@@ -61,11 +61,11 @@ impl WidgetImpl for Knob {
         }
 
         g.set_color(&COLOR_BG);
-        g.fill_pie(0, 0, GRID_2, KNOB_INSIDE_SPACE, 0.0, PI);
+        g.fill_pie(0, 0, GRID_2, KNOB_INSIDE_SPACE * 2, 0.0, PI);
         g.set_color(&COLOR_KNOB);
         let zero_angle = value_to_angle(control.range, 0.0);
         let value_angle = value_to_angle(control.range, control.value);
-        g.fill_pie(0, 0, GRID_2, KNOB_INSIDE_SPACE, zero_angle, value_angle);
+        g.fill_pie(0, 0, GRID_2, KNOB_INSIDE_SPACE * 2, zero_angle, value_angle);
         g.set_color(&COLOR_TEXT);
         g.write_label(0, GRID_1 + GRID_P, GRID_2, &self.label);
 
