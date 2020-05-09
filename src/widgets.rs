@@ -1,40 +1,41 @@
 use crate::graphics::{constants::*, GrahpicsWrapper};
 use crate::util::RangeMap;
+use std::cell::RefCell;
 use std::f32::consts::PI;
+use std::rc::Rc;
 
 // This trait is convenient to implement for widgets, but inconvenient to call.
 pub trait WidgetImpl {
-    fn draw(&self, g: &mut GrahpicsWrapper);
     fn get_pos(&self) -> (i32, i32);
+    fn borrow_children(&self) -> &[Rc<RefCell<dyn Widget>>] {
+        &[]
+    }
+    fn draw(&self, g: &mut GrahpicsWrapper);
 }
 
 // This trait is convenient to call, but inconvenient for widgets to implement.
 pub trait Widget: WidgetImpl {
     fn draw(&self, g: &mut GrahpicsWrapper);
-    fn apply_transform(&self, g: &mut GrahpicsWrapper);
 }
 
 // All widgets with the easy-to-implement trait will also implement the easy-to-call trait.
 impl<T: WidgetImpl> Widget for T {
     fn draw(&self, g: &mut GrahpicsWrapper) {
         g.push_state();
-        self.apply_transform(g);
-        WidgetImpl::draw(self, g);
-        g.pop_state();
-    }
-
-    fn apply_transform(&self, g: &mut GrahpicsWrapper) {
         let pos = WidgetImpl::get_pos(self);
         g.apply_offset(pos.0, pos.1);
+        WidgetImpl::draw(self, g);
+        for child in self.borrow_children() {
+            Widget::draw(&*child.borrow(), g);
+        }
+        g.pop_state();
     }
 }
 
 #[derive(Clone)]
 pub struct Knob {
-    pub x: i32,
-    pub y: i32,
-    pub min: f32,
-    pub max: f32,
+    pub pos: (i32, i32),
+    pub bounds: (f32, f32),
     pub value: f32,
     pub label: String,
     pub automation: Vec<(f32, f32)>,
@@ -43,10 +44,8 @@ pub struct Knob {
 impl Default for Knob {
     fn default() -> Knob {
         Knob {
-            x: 0,
-            y: 0,
-            min: -1.0,
-            max: 1.0,
+            pos: (0, 0),
+            bounds: (-1.0, 1.0),
             value: 0.0,
             label: "UNLABELED".to_owned(),
             automation: Vec::new(),
@@ -56,12 +55,12 @@ impl Default for Knob {
 
 impl WidgetImpl for Knob {
     fn get_pos(&self) -> (i32, i32) {
-        (self.x, self.y)
+        self.pos
     }
 
     fn draw(&self, g: &mut GrahpicsWrapper) {
         fn value_to_angle(slf: &Knob, value: f32) -> f32 {
-            value.from_range_to_range(slf.min, slf.max, PI, 0.0)
+            value.from_range_to_range(slf.bounds.0, slf.bounds.1, PI, 0.0)
         }
 
         g.set_color(&COLOR_BG);
@@ -106,22 +105,26 @@ impl WidgetImpl for Knob {
 
 #[derive(Clone)]
 pub struct Module {
-    pub x: i32,
-    pub y: i32,
-    pub w: i32,
-    pub h: i32,
+    pub pos: (i32, i32),
+    pub size: (i32, i32),
+    pub children: Vec<Rc<RefCell<dyn Widget>>>,
     pub num_inputs: usize,
     pub num_outputs: usize,
     pub label: String,
 }
 
+impl Module {
+    pub fn adopt_child(&mut self, child: impl Widget + 'static) {
+        self.children.push(Rc::from(RefCell::new(child)))
+    }
+}
+
 impl Default for Module {
     fn default() -> Module {
         Module {
-            x: 0,
-            y: 0,
-            w: FATGRID_2,
-            h: FATGRID_2,
+            pos: (0, 0),
+            size: (FATGRID_2, FATGRID_2),
+            children: Vec::new(),
             num_inputs: 0,
             num_outputs: 0,
             label: "UNLABELED".to_owned(),
@@ -131,7 +134,11 @@ impl Default for Module {
 
 impl WidgetImpl for Module {
     fn get_pos(&self) -> (i32, i32) {
-        (self.x, self.y)
+        self.pos
+    }
+
+    fn borrow_children(&self) -> &[Rc<RefCell<dyn Widget>>] {
+        &self.children[..]
     }
 
     fn draw(&self, g: &mut GrahpicsWrapper) {
@@ -141,7 +148,7 @@ impl WidgetImpl for Module {
         g.set_color(&COLOR_BG);
         g.clear();
         g.set_color(&COLOR_SURFACE);
-        g.fill_rounded_rect(-IOTS, 0, self.w + IOTS * 2, self.h, MCS);
+        g.fill_rounded_rect(-IOTS, 0, self.size.0 + IOTS * 2, self.size.1, MCS);
 
         g.set_color(&COLOR_TEXT);
         for index in 0..self.num_inputs as i32 {
@@ -151,8 +158,46 @@ impl WidgetImpl for Module {
         }
         for index in 0..self.num_outputs as i32 {
             let y = coord(index);
-            g.fill_rounded_rect(self.w, y, IOTS, IOTS, MCS);
-            g.fill_rect(self.w + (IOTS - MCS), y, MCS, IOTS);
+            g.fill_rounded_rect(self.size.0, y, IOTS, IOTS, MCS);
+            g.fill_rect(self.size.0 + (IOTS - MCS), y, MCS, IOTS);
         }
+    }
+}
+
+pub struct ModuleGraph {
+    pub pos: (i32, i32),
+    pub offset: (i32, i32),
+    pub size: (i32, i32),
+    children: Vec<Rc<RefCell<dyn Widget>>>,
+}
+
+impl ModuleGraph {
+    pub fn adopt_child(&mut self, child: impl Widget + 'static) {
+        self.children.push(Rc::from(RefCell::new(child)))
+    }
+}
+
+impl Default for ModuleGraph {
+    fn default() -> ModuleGraph {
+        ModuleGraph {
+            pos: (0, 0),
+            offset: (0, 0),
+            size: (9999, 9999),
+            children: Vec::new(),
+        }
+    }
+}
+
+impl WidgetImpl for ModuleGraph {
+    fn get_pos(&self) -> (i32, i32) {
+        self.pos
+    }
+
+    fn borrow_children(&self) -> &[Rc<RefCell<dyn Widget>>] {
+        &self.children[..]
+    }
+
+    fn draw(&self, g: &mut GrahpicsWrapper) {
+        g.apply_offset(self.offset.0, self.offset.1);
     }
 }

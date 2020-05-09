@@ -25,29 +25,26 @@ impl Instance {
         let mut m = widgets::Module::default();
         let mut k = widgets::Knob::default();
 
-        m.num_inputs = 2;
-        m.num_outputs = 1;
-        m.w = fatgrid(4);
-
         k.value = 0.5;
         k.automation.push((-1.0, 0.2));
         k.automation.push((0.0, 0.8));
         k.label = "volume".to_owned();
-        k.x = coord(0);
-        k.y = coord(0);
+        k.pos = (coord(0), coord(0));
 
         let mut k2 = k.clone();
-        k2.x = coord(2);
+        k2.pos.0 = coord(2);
 
-        g.push_state();
-        g.apply_offset(30, 30);
+        m.num_inputs = 2;
+        m.num_outputs = 1;
+        m.size.0 = fatgrid(4);
+        m.adopt_child(k);
+        m.adopt_child(k2);
 
-        m.draw(&mut g);
-        m.apply_transform(&mut g);
-        k.draw(&mut g);
-        k2.draw(&mut g);
+        let mut graph = widgets::ModuleGraph::default();
+        graph.adopt_child(m);
+        graph.offset = (30, 30);
 
-        g.pop_state();
+        graph.draw(&mut g);
     }
 }
 
