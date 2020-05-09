@@ -22,9 +22,22 @@ impl Instance {
     pub fn draw_interface(&self, data: *mut i8) {
         let mut g = GrahpicsWrapper::new(&self.graphics_fns, data);
 
-        let module = engine::Module::example();
-        let module_gui = module.example_gui();
-        module_gui.draw(&mut g);
+        let module_prototype = engine::Module::example();
+        let mut module_graph = engine::ModuleGraph::new();
+
+        let mut inst = module_prototype.clone();
+        inst.pos = (10, 5);
+        module_graph.adopt_module(inst);
+
+        let mut inst = module_prototype.clone();
+        inst.pos = (20, 100);
+        module_graph.adopt_module(inst);
+
+        let module_graph = util::rcrc(module_graph);
+        let gui = engine::ModuleGraph::build_gui(module_graph);
+        g.set_color(&gui::constants::COLOR_BG);
+        g.clear();
+        gui.draw(&mut g);
     }
 }
 

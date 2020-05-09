@@ -2,19 +2,43 @@ use crate::gui::constants::*;
 use crate::gui::widgets;
 use crate::util::*;
 
-#[derive(Default)]
+#[derive(Clone)]
+pub struct AutomationLane {
+    pub source: (Rcrc<Module>, usize),
+    pub range: (f32, f32),
+}
+
+#[derive(Clone, Default)]
 pub struct Control {
     pub range: (f32, f32),
     pub value: f32,
-    pub automation: Vec<(f32, f32)>,
+    pub automation: Vec<AutomationLane>,
 }
 
-#[derive(Clone)]
 pub struct Module {
     gui_outline: Rcrc<GuiOutline>,
     controls: Vec<Rcrc<Control>>,
+    pub pos: (i32, i32),
     pub num_inputs: usize,
     pub num_outputs: usize,
+}
+
+impl Clone for Module {
+    fn clone(&self) -> Self {
+        // gui_outline should point to the same data, but controls should point to unique copies
+        // of the controls.
+        Self {
+            gui_outline: Rc::clone(&self.gui_outline),
+            controls: self
+                .controls
+                .iter()
+                .map(|control_ref| rcrc((*control_ref.borrow()).clone()))
+                .collect(),
+            pos: self.pos,
+            num_inputs: self.num_inputs,
+            num_outputs: self.num_outputs,
+        }
+    }
 }
 
 impl Module {
@@ -42,12 +66,13 @@ impl Module {
             rcrc(Control {
                 range: (0.0, 10.0),
                 value: 2.0,
-                automation: vec![(5.0, 9.0), (5.0, 6.0)],
+                automation: vec![],
             }),
         ];
         Self {
             gui_outline,
             controls,
+            pos: (0, 0),
             num_inputs: 2,
             num_outputs: 1,
         }
@@ -70,22 +95,53 @@ impl Module {
         }
     }
 
-    pub fn example_gui(self) -> widgets::Module {
-        let outline = self.gui_outline.borrow();
+    pub fn build_gui(self_rcrc: Rcrc<Self>) -> widgets::Module {
+        let self_ref = self_rcrc.borrow();
+        let outline = self_ref.gui_outline.borrow();
         let control_widgets = outline
             .widget_outlines
             .iter()
-            .map(|wo| self.instantiate_widget(wo))
+            .map(|wo| self_ref.instantiate_widget(wo))
             .collect();
         drop(outline);
+        drop(self_ref);
 
         widgets::Module::create(
-            rcrc(self),
-            (0, 0),
+            self_rcrc,
             (4, 2),
             "TEST".to_owned(),
             control_widgets,
         )
+    }
+}
+
+pub struct ModuleGraph {
+    modules: Vec<Rcrc<Module>>,
+}
+
+impl ModuleGraph {
+    pub fn new() -> Self {
+        Self {
+            modules: Vec::new(),
+        }
+    }
+
+    pub fn add_module(&mut self, module: Rcrc<Module>) {
+        self.modules.push(module);
+    }
+
+    pub fn adopt_module(&mut self, module: Module) {
+        self.modules.push(rcrc(module));
+    }
+
+    pub fn build_gui(self_rcrc: Rcrc<Self>) -> widgets::ModuleGraph {
+        let self_ref = self_rcrc.borrow();
+        let module_widgets = self_ref
+            .modules
+            .iter()
+            .map(|module| rcrc(Module::build_gui(Rc::clone(module))) as Rcrc<dyn widgets::Widget>)
+            .collect();
+        widgets::ModuleGraph::create(module_widgets)
     }
 }
 

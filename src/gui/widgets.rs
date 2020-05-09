@@ -76,7 +76,7 @@ impl WidgetImpl for Knob {
         let num_lanes = control.automation.len() as i32;
         let lane_size = KNOB_AUTOMATION_SPACE / num_lanes;
         let lane_size = lane_size.min(KNOB_MAX_LANE_SIZE);
-        for (index, (min, max)) in control.automation.iter().enumerate() {
+        for (index, lane) in control.automation.iter().enumerate() {
             if index == 1 {
                 g.set_color(&COLOR_AUTOMATION_FOCUSED);
             } else {
@@ -86,8 +86,8 @@ impl WidgetImpl for Knob {
             let outer_diameter = GRID_2 - (KNOB_OUTSIDE_SPACE * 2) - lane_size * index * 2;
             let inner_diameter = outer_diameter - (lane_size - KNOB_LANE_GAP) * 2;
             let inset = (GRID_2 - outer_diameter) / 2;
-            let min_angle = value_to_angle(control.range, *min);
-            let max_angle = value_to_angle(control.range, *max);
+            let min_angle = value_to_angle(control.range, lane.range.0);
+            let max_angle = value_to_angle(control.range, lane.range.1);
             g.fill_pie(
                 inset,
                 inset,
@@ -137,7 +137,6 @@ impl WidgetImpl for IOTab {
 
 pub struct Module {
     module: Rcrc<engine::Module>,
-    pos: (i32, i32),
     size: (i32, i32),
     label: String,
     children: Vec<Rcrc<dyn Widget>>,
@@ -146,7 +145,6 @@ pub struct Module {
 impl Module {
     pub fn create(
         module: Rcrc<engine::Module>,
-        pos: (i32, i32),
         grid_size: (i32, i32),
         label: String,
         mut children: Vec<Rcrc<dyn Widget>>,
@@ -164,7 +162,6 @@ impl Module {
         drop(module_ref);
         Self {
             module,
-            pos,
             size,
             label,
             children,
@@ -174,7 +171,7 @@ impl Module {
 
 impl WidgetImpl for Module {
     fn get_pos(&self) -> (i32, i32) {
-        self.pos
+        self.module.borrow().pos
     }
 
     fn borrow_children(&self) -> &[Rcrc<dyn Widget>] {
@@ -185,8 +182,6 @@ impl WidgetImpl for Module {
         const MCS: i32 = MODULE_CORNER_SIZE;
         const MIW: i32 = MODULE_IO_WIDTH;
 
-        g.set_color(&COLOR_BG);
-        g.clear();
         g.set_color(&COLOR_IO_AREA);
         g.fill_rounded_rect(0, 0, self.size.0, self.size.1, MCS);
         g.set_color(&COLOR_SURFACE);
@@ -204,8 +199,13 @@ pub struct ModuleGraph {
 }
 
 impl ModuleGraph {
-    pub fn adopt_child(&mut self, child: impl Widget + 'static) {
-        self.children.push(rcrc(child))
+    pub fn create(children: Vec<Rcrc<dyn Widget>>) -> Self {
+        Self {
+            pos: (0, 0),
+            offset: (0, 0),
+            size: (0, 0),
+            children,
+        }
     }
 }
 
