@@ -178,13 +178,15 @@ pub mod constants {
     }
 
     pub const KNOB_OUTSIDE_SPACE: i32 = 3;
-    pub const KNOB_INSIDE_SPACE: i32 = 3;
+    pub const KNOB_INSIDE_SPACE: i32 = 6;
     pub const KNOB_AUTOMATION_SPACE: i32 = GRID_2 / 2 - KNOB_OUTSIDE_SPACE - KNOB_INSIDE_SPACE;
     pub const KNOB_LANE_GAP: i32 = 1;
     pub const KNOB_MAX_LANE_SIZE: i32 = 4;
 
     pub const MODULE_CORNER_SIZE: i32 = 4;
-    pub const IO_TAB_SIZE: i32 = GRID_1;
+    pub const MODULE_IO_TAB_SIZE: i32 = GRID_1;
+    // Width of the area dedicated to input or output on each module.
+    pub const MODULE_IO_WIDTH: i32 = MODULE_IO_TAB_SIZE + GRID_P;
 
     const fn hex_color(hex: u32) -> (u8, u8, u8) {
         (
@@ -196,6 +198,7 @@ pub mod constants {
 
     pub const COLOR_BG: (u8, u8, u8) = hex_color(0x121520);
     pub const COLOR_SURFACE: (u8, u8, u8) = hex_color(0x48525F);
+    pub const COLOR_IO_AREA: (u8, u8, u8) = hex_color(0x2F434F);
     pub const COLOR_KNOB: (u8, u8, u8) = hex_color(0xFF0022);
     pub const COLOR_AUTOMATION: (u8, u8, u8) = hex_color(0xC7D5E8);
     pub const COLOR_AUTOMATION_FOCUSED: (u8, u8, u8) = hex_color(0x54bdff);

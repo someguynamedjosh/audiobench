@@ -19,3 +19,10 @@ impl<T: Float> RangeMap for T {
         self * (to_max - to_min) + to_min
     }
 }
+
+pub use std::{rc::Rc, cell::RefCell};
+
+pub type Rcrc<T> = Rc<RefCell<T>>;
+pub fn rcrc<T>(content: T) -> Rcrc<T> {
+    Rc::new(RefCell::new(content))
+}

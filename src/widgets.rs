@@ -1,13 +1,12 @@
+use crate::engine;
 use crate::graphics::{constants::*, GrahpicsWrapper};
-use crate::util::RangeMap;
-use std::cell::RefCell;
+use crate::util::*;
 use std::f32::consts::PI;
-use std::rc::Rc;
 
 // This trait is convenient to implement for widgets, but inconvenient to call.
 pub trait WidgetImpl {
     fn get_pos(&self) -> (i32, i32);
-    fn borrow_children(&self) -> &[Rc<RefCell<dyn Widget>>] {
+    fn borrow_children(&self) -> &[Rcrc<dyn Widget>] {
         &[]
     }
     fn draw(&self, g: &mut GrahpicsWrapper);
@@ -34,21 +33,17 @@ impl<T: WidgetImpl> Widget for T {
 
 #[derive(Clone)]
 pub struct Knob {
-    pub pos: (i32, i32),
-    pub bounds: (f32, f32),
-    pub value: f32,
-    pub label: String,
-    pub automation: Vec<(f32, f32)>,
+    control: Rcrc<engine::Control>,
+    pos: (i32, i32),
+    label: String,
 }
 
-impl Default for Knob {
-    fn default() -> Knob {
+impl Knob {
+    pub fn create(control: Rcrc<engine::Control>, pos: (i32, i32), label: String) -> Knob {
         Knob {
-            pos: (0, 0),
-            bounds: (-1.0, 1.0),
-            value: 0.0,
-            label: "UNLABELED".to_owned(),
-            automation: Vec::new(),
+            control,
+            pos,
+            label,
         }
     }
 }
@@ -59,27 +54,28 @@ impl WidgetImpl for Knob {
     }
 
     fn draw(&self, g: &mut GrahpicsWrapper) {
-        fn value_to_angle(slf: &Knob, value: f32) -> f32 {
-            value.from_range_to_range(slf.bounds.0, slf.bounds.1, PI, 0.0)
+        let control = &*self.control.borrow();
+        fn value_to_angle(range: (f32, f32), value: f32) -> f32 {
+            value.from_range_to_range(range.0, range.1, PI, 0.0)
         }
 
         g.set_color(&COLOR_BG);
-        g.fill_pie(0, 0, GRID_2, 0, 0.0, PI);
+        g.fill_pie(0, 0, GRID_2, KNOB_INSIDE_SPACE, 0.0, PI);
         g.set_color(&COLOR_KNOB);
-        let zero_angle = value_to_angle(self, 0.0);
-        let value_angle = value_to_angle(self, self.value);
-        g.fill_pie(0, 0, GRID_2, 0, zero_angle, value_angle);
+        let zero_angle = value_to_angle(control.range, 0.0);
+        let value_angle = value_to_angle(control.range, control.value);
+        g.fill_pie(0, 0, GRID_2, KNOB_INSIDE_SPACE, zero_angle, value_angle);
         g.set_color(&COLOR_TEXT);
         g.write_label(0, GRID_1 + GRID_P, GRID_2, &self.label);
 
-        if self.automation.len() == 0 {
+        if control.automation.len() == 0 {
             return;
         }
 
-        let num_lanes = self.automation.len() as i32;
+        let num_lanes = control.automation.len() as i32;
         let lane_size = KNOB_AUTOMATION_SPACE / num_lanes;
         let lane_size = lane_size.min(KNOB_MAX_LANE_SIZE);
-        for (index, (min, max)) in self.automation.iter().enumerate() {
+        for (index, (min, max)) in control.automation.iter().enumerate() {
             if index == 1 {
                 g.set_color(&COLOR_AUTOMATION_FOCUSED);
             } else {
@@ -89,8 +85,8 @@ impl WidgetImpl for Knob {
             let outer_diameter = GRID_2 - (KNOB_OUTSIDE_SPACE * 2) - lane_size * index * 2;
             let inner_diameter = outer_diameter - (lane_size - KNOB_LANE_GAP) * 2;
             let inset = (GRID_2 - outer_diameter) / 2;
-            let min_angle = value_to_angle(self, *min);
-            let max_angle = value_to_angle(self, *max);
+            let min_angle = value_to_angle(control.range, *min);
+            let max_angle = value_to_angle(control.range, *max);
             g.fill_pie(
                 inset,
                 inset,
@@ -103,31 +99,74 @@ impl WidgetImpl for Knob {
     }
 }
 
-#[derive(Clone)]
-pub struct Module {
-    pub pos: (i32, i32),
-    pub size: (i32, i32),
-    pub children: Vec<Rc<RefCell<dyn Widget>>>,
-    pub num_inputs: usize,
-    pub num_outputs: usize,
-    pub label: String,
+struct IOTab {
+    pos: (i32, i32),
+    is_output: bool,
 }
 
-impl Module {
-    pub fn adopt_child(&mut self, child: impl Widget + 'static) {
-        self.children.push(Rc::from(RefCell::new(child)))
+impl IOTab {
+    fn input(x: i32, y: i32) -> Self {
+        Self {
+            pos: (x, y),
+            is_output: false,
+        }
+    }
+
+    fn output(x: i32, y: i32) -> Self {
+        Self {
+            pos: (x, y),
+            is_output: true,
+        }
     }
 }
 
-impl Default for Module {
-    fn default() -> Module {
-        Module {
-            pos: (0, 0),
-            size: (FATGRID_2, FATGRID_2),
-            children: Vec::new(),
-            num_inputs: 0,
-            num_outputs: 0,
-            label: "UNLABELED".to_owned(),
+impl WidgetImpl for IOTab {
+    fn get_pos(&self) -> (i32, i32) {
+        self.pos
+    }
+
+    fn draw(&self, g: &mut GrahpicsWrapper) {
+        const MITS: i32 = MODULE_IO_TAB_SIZE;
+        const MCS: i32 = MODULE_CORNER_SIZE;
+        g.fill_rounded_rect(0, 0, MITS, MITS, MCS);
+        let x = if self.is_output { MITS - MCS } else { 0 };
+        g.fill_rect(x, 0, MCS, MITS);
+    }
+}
+
+pub struct Module {
+    module: Rcrc<engine::Module>,
+    pos: (i32, i32),
+    size: (i32, i32),
+    label: String,
+    children: Vec<Rcrc<dyn Widget>>,
+}
+
+impl Module {
+    pub fn create(
+        module: Rcrc<engine::Module>,
+        pos: (i32, i32),
+        grid_size: (i32, i32),
+        label: String,
+        mut children: Vec<Rcrc<dyn Widget>>,
+    ) -> Self {
+        const MIW: i32 = MODULE_IO_WIDTH;
+        let size = (fatgrid(grid_size.0) + MIW * 2, fatgrid(grid_size.1));
+        let module_ref = module.borrow();
+        for index in 0..module_ref.num_inputs as i32 {
+            children.push(rcrc(IOTab::input(0, coord(index))));
+        }
+        let x = size.0 - MODULE_IO_TAB_SIZE;
+        for index in 0..module_ref.num_outputs as i32 {
+            children.push(rcrc(IOTab::output(x, coord(index))));
+        }
+        drop(module_ref);
+        Self {
+            module,
+            pos,
+            size,
+            label,
+            children,
         }
     }
 }
@@ -137,30 +176,22 @@ impl WidgetImpl for Module {
         self.pos
     }
 
-    fn borrow_children(&self) -> &[Rc<RefCell<dyn Widget>>] {
+    fn borrow_children(&self) -> &[Rcrc<dyn Widget>] {
         &self.children[..]
     }
 
     fn draw(&self, g: &mut GrahpicsWrapper) {
-        const IOTS: i32 = IO_TAB_SIZE;
         const MCS: i32 = MODULE_CORNER_SIZE;
+        const MIW: i32 = MODULE_IO_WIDTH;
 
         g.set_color(&COLOR_BG);
         g.clear();
+        g.set_color(&COLOR_IO_AREA);
+        g.fill_rounded_rect(0, 0, self.size.0, self.size.1, MCS);
         g.set_color(&COLOR_SURFACE);
-        g.fill_rounded_rect(-IOTS, 0, self.size.0 + IOTS * 2, self.size.1, MCS);
+        g.fill_rect(MIW, 0, self.size.0 - MIW * 2, self.size.1);
 
         g.set_color(&COLOR_TEXT);
-        for index in 0..self.num_inputs as i32 {
-            let y = coord(index);
-            g.fill_rounded_rect(-IOTS, y, IOTS, IOTS, MCS);
-            g.fill_rect(-IOTS, y, MCS, IOTS);
-        }
-        for index in 0..self.num_outputs as i32 {
-            let y = coord(index);
-            g.fill_rounded_rect(self.size.0, y, IOTS, IOTS, MCS);
-            g.fill_rect(self.size.0 + (IOTS - MCS), y, MCS, IOTS);
-        }
     }
 }
 
@@ -168,12 +199,12 @@ pub struct ModuleGraph {
     pub pos: (i32, i32),
     pub offset: (i32, i32),
     pub size: (i32, i32),
-    children: Vec<Rc<RefCell<dyn Widget>>>,
+    children: Vec<Rcrc<dyn Widget>>,
 }
 
 impl ModuleGraph {
     pub fn adopt_child(&mut self, child: impl Widget + 'static) {
-        self.children.push(Rc::from(RefCell::new(child)))
+        self.children.push(rcrc(child))
     }
 }
 
@@ -193,7 +224,7 @@ impl WidgetImpl for ModuleGraph {
         self.pos
     }
 
-    fn borrow_children(&self) -> &[Rc<RefCell<dyn Widget>>] {
+    fn borrow_children(&self) -> &[Rcrc<dyn Widget>] {
         &self.children[..]
     }
 
