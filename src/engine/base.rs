@@ -34,6 +34,8 @@ pub struct Module {
     pub pos: (i32, i32),
     pub num_inputs: usize,
     pub num_outputs: usize,
+    pub internal_id: String,
+    pub code_resource: String,
 }
 
 impl Clone for Module {
@@ -50,6 +52,8 @@ impl Clone for Module {
             pos: self.pos,
             num_inputs: self.num_inputs,
             num_outputs: self.num_outputs,
+            internal_id: self.internal_id.clone(),
+            code_resource: self.code_resource.clone(),
         }
     }
 }
@@ -60,6 +64,8 @@ impl Module {
         controls: Vec<Rcrc<Control>>,
         num_inputs: usize,
         num_outputs: usize,
+        internal_id: String,
+        code_resource: String,
     ) -> Self {
         Self {
             gui_outline,
@@ -67,46 +73,8 @@ impl Module {
             pos: (0, 0),
             num_inputs,
             num_outputs,
-        }
-    }
-
-    pub fn example() -> Self {
-        let gui_outline = rcrc(GuiOutline {
-            label: "Example".to_owned(),
-            size: (4, 2),
-            widget_outlines: vec![
-                WidgetOutline::Knob {
-                    control_index: 0,
-                    grid_pos: (0, 0),
-                    label: "Pan".to_owned(),
-                },
-                WidgetOutline::Knob {
-                    control_index: 1,
-                    grid_pos: (2, 0),
-                    label: "Amplitude".to_owned(),
-                },
-            ],
-        });
-        let controls = vec![
-            rcrc(Control {
-                code_name: "pan".to_owned(),
-                range: (-1.0, 1.0),
-                value: 0.5,
-                automation: vec![],
-            }),
-            rcrc(Control {
-                code_name: "volume".to_owned(),
-                range: (0.0, 10.0),
-                value: 2.0,
-                automation: vec![],
-            }),
-        ];
-        Self {
-            gui_outline,
-            controls,
-            pos: (0, 0),
-            num_inputs: 2,
-            num_outputs: 1,
+            internal_id,
+            code_resource,
         }
     }
 

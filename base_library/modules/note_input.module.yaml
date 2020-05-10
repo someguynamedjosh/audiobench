@@ -6,4 +6,6 @@ outputs:
 controls:
 gui: 
   label: Note Input
+  width: 2
+  height: 2
   widgets:

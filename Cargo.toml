@@ -19,3 +19,8 @@ panic = "abort"
 
 [dependencies]
 num = "0.2"
+zip = "0.5"
+
+[build-dependencies]
+walkdir = "2.3"
+zip = "0.5"

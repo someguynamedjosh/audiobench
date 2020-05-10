@@ -13,10 +13,12 @@ pub struct Instance {
 
 impl Instance {
     fn new() -> Self {
+        let (registry, base_lib_status) = engine::registry::Registry::new();
+        base_lib_status.expect("TODO: Nice error.");
         Self {
             graphics_fns: GraphicsFunctions::placeholders(),
             gui: None,
-            registry: engine::registry::Registry::new(),
+            registry,
         }
     }
 }
@@ -30,11 +32,11 @@ impl Instance {
             eprintln!("WARNING: create_gui called when GUI was already created!");
         } else {
             let mut module_graph = engine::ModuleGraph::new();
-            let module_prototype = engine::Module::example();
-            let mut inst = module_prototype.clone();
+
+            let mut inst = self.registry.borrow_module("base:note_input").unwrap().clone();
             inst.pos = (10, 5);
             module_graph.adopt_module(inst);
-            let mut inst = module_prototype.clone();
+            let mut inst = self.registry.borrow_module("base:oscillator").unwrap().clone();
             inst.pos = (20, 100);
             module_graph.adopt_module(inst);
 
