@@ -8,6 +8,7 @@ use gui::Gui;
 pub struct Instance {
     graphics_fns: GraphicsFunctions,
     gui: Option<Gui>,
+    registry: engine::registry::Registry,
 }
 
 impl Instance {
@@ -15,6 +16,7 @@ impl Instance {
         Self {
             graphics_fns: GraphicsFunctions::placeholders(),
             gui: None,
+            registry: engine::registry::Registry::new(),
         }
     }
 }

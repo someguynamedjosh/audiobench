@@ -1,0 +1,9 @@
+inputs:
+outputs:
+  time:
+  pitch:
+  velocity:
+controls:
+gui: 
+  label: Note Input
+  components:

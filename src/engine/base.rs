@@ -2,19 +2,20 @@ use crate::gui::constants::*;
 use crate::gui::widgets;
 use crate::util::*;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct AutomationLane {
     pub source: (Rcrc<Module>, usize),
     pub range: (f32, f32),
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone, Default, Debug)]
 pub struct Control {
     pub range: (f32, f32),
     pub value: f32,
     pub automation: Vec<AutomationLane>,
 }
 
+#[derive(Debug)]
 pub struct Module {
     gui_outline: Rcrc<GuiOutline>,
     controls: Vec<Rcrc<Control>>,
@@ -42,6 +43,21 @@ impl Clone for Module {
 }
 
 impl Module {
+    pub fn create(
+        gui_outline: Rcrc<GuiOutline>,
+        controls: Vec<Rcrc<Control>>,
+        num_inputs: usize,
+        num_outputs: usize,
+    ) -> Self {
+        Self {
+            gui_outline,
+            controls,
+            pos: (0, 0),
+            num_inputs,
+            num_outputs,
+        }
+    }
+
     pub fn example() -> Self {
         let gui_outline = rcrc(GuiOutline {
             widget_outlines: vec![
@@ -106,15 +122,11 @@ impl Module {
         drop(outline);
         drop(self_ref);
 
-        widgets::Module::create(
-            self_rcrc,
-            (4, 2),
-            "TEST".to_owned(),
-            control_widgets,
-        )
+        widgets::Module::create(self_rcrc, (4, 2), "TEST".to_owned(), control_widgets)
     }
 }
 
+#[derive(Debug)]
 pub struct ModuleGraph {
     modules: Vec<Rcrc<Module>>,
 }
@@ -145,10 +157,12 @@ impl ModuleGraph {
     }
 }
 
+#[derive(Debug)]
 pub struct GuiOutline {
     pub widget_outlines: Vec<WidgetOutline>,
 }
 
+#[derive(Debug)]
 pub enum WidgetOutline {
     Knob {
         control_index: usize,

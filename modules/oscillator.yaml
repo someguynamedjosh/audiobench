@@ -1,0 +1,18 @@
+inputs:
+  time:
+    type: time
+    icon: time
+  frequency:
+    type: frequency
+    icon: frequency
+  waveform:
+    type: waveform
+    icon: waveform
+outputs:
+  audio:
+    type: audio
+    icon: audio
+controls:
+gui: 
+  label: Note Input
+  components:
