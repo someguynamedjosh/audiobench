@@ -13,6 +13,26 @@ outputs:
     type: audio
     icon: audio
 controls:
+  phase:
+    min: -1
+    max: 1
+    default: 0
+  amplitude:
+    min: 0
+    max: 1
+    default: 1
 gui: 
-  label: Note Input
-  components:
+  label: Oscillator
+  width: 4
+  height: 2
+  widgets:
+    knob:
+      control: phase
+      label: Phase
+      x: 0
+      y: 0
+    knob:
+      control: amplitude
+      label: Amplitude
+      x: 2
+      y: 0

@@ -8,11 +8,23 @@ pub struct AutomationLane {
     pub range: (f32, f32),
 }
 
-#[derive(Clone, Default, Debug)]
+#[derive(Clone, Debug)]
 pub struct Control {
+    pub code_name: String,
     pub range: (f32, f32),
     pub value: f32,
     pub automation: Vec<AutomationLane>,
+}
+
+impl Control {
+    pub fn create(code_name: String, min: f32, max: f32, default: f32) -> Self {
+        Self {
+            code_name,
+            range: (min, max),
+            value: default,
+            automation: Vec::new(),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -60,6 +72,8 @@ impl Module {
 
     pub fn example() -> Self {
         let gui_outline = rcrc(GuiOutline {
+            label: "Example".to_owned(),
+            size: (4, 2),
             widget_outlines: vec![
                 WidgetOutline::Knob {
                     control_index: 0,
@@ -75,11 +89,13 @@ impl Module {
         });
         let controls = vec![
             rcrc(Control {
+                code_name: "pan".to_owned(),
                 range: (-1.0, 1.0),
                 value: 0.5,
                 automation: vec![],
             }),
             rcrc(Control {
+                code_name: "volume".to_owned(),
                 range: (0.0, 10.0),
                 value: 2.0,
                 automation: vec![],
@@ -114,6 +130,8 @@ impl Module {
     pub fn build_gui(self_rcrc: Rcrc<Self>) -> widgets::Module {
         let self_ref = self_rcrc.borrow();
         let outline = self_ref.gui_outline.borrow();
+        let label = outline.label.clone();
+        let size = outline.size.clone();
         let control_widgets = outline
             .widget_outlines
             .iter()
@@ -122,7 +140,7 @@ impl Module {
         drop(outline);
         drop(self_ref);
 
-        widgets::Module::create(self_rcrc, (4, 2), "TEST".to_owned(), control_widgets)
+        widgets::Module::create(self_rcrc, size, label, control_widgets)
     }
 }
 
@@ -159,6 +177,8 @@ impl ModuleGraph {
 
 #[derive(Debug)]
 pub struct GuiOutline {
+    pub label: String,
+    pub size: (i32, i32),
     pub widget_outlines: Vec<WidgetOutline>,
 }
 

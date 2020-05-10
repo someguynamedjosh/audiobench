@@ -6,4 +6,4 @@ outputs:
 controls:
 gui: 
   label: Note Input
-  components:
+  widgets:
