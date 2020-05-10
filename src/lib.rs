@@ -33,12 +33,24 @@ impl Instance {
         } else {
             let mut module_graph = engine::ModuleGraph::new();
 
-            let mut inst = self.registry.borrow_module("base:note_input").unwrap().clone();
+            let mut inst = self
+                .registry
+                .borrow_module("base:note_input")
+                .unwrap()
+                .clone();
             inst.pos = (10, 5);
             module_graph.adopt_module(inst);
-            let mut inst = self.registry.borrow_module("base:oscillator").unwrap().clone();
+            let mut inst = self
+                .registry
+                .borrow_module("base:oscillator")
+                .unwrap()
+                .clone();
             inst.pos = (20, 100);
             module_graph.adopt_module(inst);
+
+            if let Ok(code) = module_graph.generate_code(512) {
+                println!("{}", code);
+            }
 
             self.gui = Some(Gui::new(engine::ModuleGraph::build_gui(util::rcrc(
                 module_graph,

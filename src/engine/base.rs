@@ -1,10 +1,11 @@
 use crate::gui::constants::*;
 use crate::gui::widgets;
 use crate::util::*;
+use std::collections::HashSet;
 
 #[derive(Clone, Debug)]
 pub struct AutomationLane {
-    pub source: (Rcrc<Module>, usize),
+    pub connection: (Rcrc<Module>, usize),
     pub range: (f32, f32),
 }
 
@@ -27,13 +28,28 @@ impl Control {
     }
 }
 
+#[derive(Clone, Debug)]
+pub struct IOTab {
+    connection: Option<(Rcrc<Module>, usize)>,
+    code_name: String,
+}
+
+impl IOTab {
+    pub fn create(code_name: String) -> Self {
+        Self {
+            connection: None,
+            code_name,
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct Module {
     gui_outline: Rcrc<GuiOutline>,
     controls: Vec<Rcrc<Control>>,
     pub pos: (i32, i32),
-    pub num_inputs: usize,
-    pub num_outputs: usize,
+    pub inputs: Vec<IOTab>,
+    pub outputs: Vec<IOTab>,
     pub internal_id: String,
     pub code_resource: String,
 }
@@ -50,8 +66,8 @@ impl Clone for Module {
                 .map(|control_ref| rcrc((*control_ref.borrow()).clone()))
                 .collect(),
             pos: self.pos,
-            num_inputs: self.num_inputs,
-            num_outputs: self.num_outputs,
+            inputs: self.inputs.clone(),
+            outputs: self.outputs.clone(),
             internal_id: self.internal_id.clone(),
             code_resource: self.code_resource.clone(),
         }
@@ -62,8 +78,8 @@ impl Module {
     pub fn create(
         gui_outline: Rcrc<GuiOutline>,
         controls: Vec<Rcrc<Control>>,
-        num_inputs: usize,
-        num_outputs: usize,
+        inputs: Vec<IOTab>,
+        outputs: Vec<IOTab>,
         internal_id: String,
         code_resource: String,
     ) -> Self {
@@ -71,8 +87,8 @@ impl Module {
             gui_outline,
             controls,
             pos: (0, 0),
-            num_inputs,
-            num_outputs,
+            inputs,
+            outputs,
             internal_id,
             code_resource,
         }
@@ -140,6 +156,149 @@ impl ModuleGraph {
             .map(|module| rcrc(Module::build_gui(Rc::clone(module))) as Rcrc<dyn widgets::Widget>)
             .collect();
         widgets::ModuleGraph::create(module_widgets)
+    }
+
+    fn index_of_module(&self, module: &Rcrc<Module>) -> Option<usize> {
+        self.modules
+            .iter()
+            .position(|other| Rc::ptr_eq(module, other))
+    }
+
+    fn compute_execution_order(&self) -> Result<Vec<usize>, ()> {
+        let mut execution_order = Vec::new();
+        struct ModuleRepr {
+            dependencies: Vec<usize>,
+            satisfied: bool,
+        }
+        let mut module_reprs = Vec::new();
+        for module in self.modules.iter() {
+            let module_ref = module.borrow();
+            let mut dependencies = HashSet::new();
+            for input in &module_ref.inputs {
+                if let Some((module_ref, _)) = &input.connection {
+                    dependencies.insert(self.index_of_module(module_ref).ok_or(())?);
+                }
+            }
+            for control in &module_ref.controls {
+                let control_ref = control.borrow();
+                for lane in &control_ref.automation {
+                    dependencies.insert(self.index_of_module(&lane.connection.0).ok_or(())?);
+                }
+            }
+            let flat_dependencies = dependencies.iter().cloned().collect();
+            module_reprs.push(ModuleRepr {
+                dependencies: flat_dependencies,
+                satisfied: false,
+            });
+        }
+        let mut progress = true;
+        while progress {
+            progress = false;
+            for index in 0..module_reprs.len() {
+                if module_reprs[index].satisfied {
+                    continue;
+                }
+                // Dependencies met if there is no dependency that is not satisfied.
+                let dependencies_met = !module_reprs[index]
+                    .dependencies
+                    .iter()
+                    .any(|depi| !module_reprs[*depi].satisfied);
+                if dependencies_met {
+                    execution_order.push(index);
+                    module_reprs[index].satisfied = true;
+                    progress = true;
+                }
+            }
+        }
+        if execution_order.len() == module_reprs.len() {
+            Ok(execution_order)
+        } else {
+            Err(())
+        }
+    }
+
+    fn generate_code_for_control(&self, control: &Rcrc<Control>) -> String {
+        let control_ref = control.borrow();
+        if control_ref.automation.len() == 0 {
+            format!("{:01.1}", control_ref.value)
+        } else {
+            unimplemented!()
+        }
+    }
+
+    fn generate_code_for_input(&self, input: &IOTab) -> String {
+        if let Some((module, output_index)) = &input.connection {
+            format!(
+                "module_{}_output_{}",
+                self.index_of_module(&module).unwrap_or(999999),
+                output_index
+            )
+        } else {
+            "0.0".to_owned()
+        }
+    }
+
+    pub fn generate_code(&self, samples_per_channel: i32) -> Result<String, ()> {
+        let mut code = "".to_owned();
+        code.push_str(&format!(
+            "INT SAMPLES_PER_CHANNEL = {};\n",
+            samples_per_channel
+        ));
+        code.push_str(concat!(
+            "input FLOAT global_pitch, global_velocity;\n",
+            "output [SAMPLES_PER_CHANNEL][2]FLOAT global_audio_out;\n",
+            "\n",
+        ));
+
+        for (index, module) in self.modules.iter().enumerate() {
+            code.push_str(&format!("macro module_{}(\n", index));
+            let module_ref = module.borrow();
+            for input in module_ref.inputs.iter() {
+                code.push_str(&format!("    {}, \n", input.code_name));
+            }
+            for control in module_ref.controls.iter() {
+                let control_ref = control.borrow();
+                code.push_str(&format!("    {}, \n", control_ref.code_name));
+            }
+            code.push_str("):(\n");
+            for output in module_ref.outputs.iter() {
+                code.push_str(&format!("    {}, \n", output.code_name));
+            }
+            code.push_str(") {\n");
+            code.push_str(&format!("    include \"{}\";\n", module_ref.code_resource));
+            code.push_str("}\n\n");
+        }
+
+        let execution_order = self.compute_execution_order()?;
+        for index in execution_order {
+            let module_ref = self.modules[index].borrow();
+            code.push_str(&format!("module_{}(\n", index));
+            for input in &module_ref.inputs {
+                code.push_str(&format!(
+                    "    {}, // {}\n",
+                    self.generate_code_for_input(input),
+                    &input.code_name
+                ));
+            }
+            for control in &module_ref.controls {
+                code.push_str(&format!(
+                    "    {}, // {}\n",
+                    self.generate_code_for_control(control),
+                    &control.borrow().code_name
+                ));
+            }
+            code.push_str("):(\n");
+            for output_index in 0..module_ref.outputs.len() {
+                code.push_str(&format!(
+                    "    AUTO module_{}_output_{},\n",
+                    index,
+                    output_index,
+                ));
+            }
+            code.push_str(");\n\n");
+        }
+
+        Ok(code)
     }
 }
 

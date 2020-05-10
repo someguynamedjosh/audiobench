@@ -1,10 +1,7 @@
 inputs:
-  time:
-    type: time
-    icon: time
-  frequency:
-    type: frequency
-    icon: frequency
+  pitch:
+    type: pitch 
+    icon: pitch 
   waveform:
     type: waveform
     icon: waveform

@@ -194,11 +194,11 @@ impl Module {
         const MIW: i32 = MODULE_IO_WIDTH;
         let size = (fatgrid(grid_size.0) + MIW * 2, fatgrid(grid_size.1));
         let module_ref = module.borrow();
-        for index in 0..module_ref.num_inputs as i32 {
+        for index in 0..module_ref.inputs.len() as i32 {
             children.push(rcrc(IOTab::input(0, coord(index))));
         }
         let x = size.0 - MODULE_IO_TAB_SIZE;
-        for index in 0..module_ref.num_outputs as i32 {
+        for index in 0..module_ref.outputs.len() as i32 {
             children.push(rcrc(IOTab::output(x, coord(index))));
         }
         drop(module_ref);

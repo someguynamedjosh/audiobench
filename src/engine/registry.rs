@@ -1,5 +1,5 @@
 use crate::engine::yaml::{self, YamlNode};
-use crate::engine::{Control, GuiOutline, Module, WidgetOutline};
+use crate::engine::{Control, GuiOutline, IOTab, Module, WidgetOutline};
 use crate::util::*;
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
@@ -81,14 +81,20 @@ fn create_module_prototype_from_yaml(yaml: &YamlNode, module_id: &str) -> Result
         widget_outlines: widgets,
     };
 
-    let num_inputs = yaml.unique_child("inputs")?.children.len();
-    let num_outputs = yaml.unique_child("outputs")?.children.len();
+    let mut inputs = Vec::new();
+    for input_description in &yaml.unique_child("inputs")?.children {
+        inputs.push(IOTab::create(input_description.name.clone()));
+    }
+    let mut outputs = Vec::new();
+    for output_description in &yaml.unique_child("outputs")?.children {
+        outputs.push(IOTab::create(output_description.name.clone()));
+    }
 
     Ok(Module::create(
         rcrc(gui),
         controls,
-        num_inputs,
-        num_outputs,
+        inputs,
+        outputs,
         module_id.to_owned(),
         yaml.name.replace(".module.yaml", ".module.ns"),
     ))
@@ -99,7 +105,12 @@ pub struct Registry {
 }
 
 impl Registry {
-    fn load_module_resource(&mut self, name: &str, module_id: &str, buffer: Vec<u8>) -> Result<(), String> {
+    fn load_module_resource(
+        &mut self,
+        name: &str,
+        module_id: &str,
+        buffer: Vec<u8>,
+    ) -> Result<(), String> {
         let buffer_as_text = String::from_utf8(buffer).map_err(|e| {
             format!(
                 "ERROR: The file {} is not a valid UTF-8 text document, caused by:\nERROR: {}",
@@ -150,7 +161,7 @@ impl Registry {
         Ok(())
     }
 
-    pub fn load_library_from_file(&mut self, path: &Path) -> Result<(), String> {
+    fn load_library_from_file(&mut self, path: &Path) -> Result<(), String> {
         let lib_name = path
             .file_name()
             .unwrap_or_default()
