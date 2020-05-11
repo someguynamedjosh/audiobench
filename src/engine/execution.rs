@@ -29,7 +29,7 @@ impl ExecEnvironment {
 
         let input = InputData {
             global_pitch: 440.0,
-            global_velocity: 1.0,
+            global_velocity: 440.0,
         };
         let output = OutputData {
             global_audio_out: [0.0; 1024],

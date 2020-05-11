@@ -1,0 +1,9 @@
+inputs:
+  audio:
+outputs:
+controls:
+gui: 
+  label: Note Output
+  width: 2
+  height: 2
+  widgets:

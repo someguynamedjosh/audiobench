@@ -21,17 +21,13 @@ impl Instance {
         let mut module_graph = engine::ModuleGraph::new();
         let mut input = registry.borrow_module("base:note_input").unwrap().clone();
         input.pos = (10, 5);
-        let input = util::rcrc(input);
-        module_graph.add_module(input.clone());
+        module_graph.adopt_module(input);
         let mut osc = registry.borrow_module("base:oscillator").unwrap().clone();
         osc.pos = (50, 20);
-        osc.controls[0].borrow_mut().automation.push(engine::AutomationLane {
-            connection: (input.clone(), 2),
-            range: (0.0, 0.5)
-        });
-        let osc = util::rcrc(osc);
-        module_graph.add_module(osc.clone());
-        osc.borrow_mut().inputs[0].connection = Some((input.clone(), 1));
+        module_graph.adopt_module(osc);
+        let mut output = registry.borrow_module("base:note_output").unwrap().clone();
+        output.pos = (90, 90);
+        module_graph.adopt_module(output);
 
         let mut executor = engine::execution::ExecEnvironment::new(&registry);
         let code = module_graph.generate_code(512).expect("TODO: Nice error.");
@@ -115,6 +111,13 @@ impl Instance {
         } else {
             debug_assert!(false, "mouse_up called, but no GUI exists.");
             eprintln!("WARNING: mouse_up called, but no GUI exists.");
+        }
+        // TODO: Make a more robust solution for this.
+        let code = self.module_graph.borrow().generate_code(512).expect("TODO: Nice error.");
+        println!("{}", code);
+        if let Err(problem) = self.executor.compile(code) {
+            eprintln!("{}", problem);
+            std::process::abort();
         }
     }
 }

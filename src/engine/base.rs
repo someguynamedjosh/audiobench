@@ -3,6 +3,16 @@ use crate::gui::widgets;
 use crate::util::*;
 use std::collections::HashSet;
 
+fn format_decimal(value: f32) -> String {
+    let digits = 8i32;
+    let digits = match value {
+        v if v <= 0.0 => digits,
+        _ => digits - (value.abs().log10().min(5.0) as i32),
+    };
+    let digits = digits as usize;
+    format!("{:.*}", digits, value)
+}
+
 #[derive(Clone, Debug)]
 pub struct AutomationLane {
     pub connection: (Rcrc<Module>, usize),
@@ -94,10 +104,7 @@ impl Module {
         }
     }
 
-    fn instantiate_widget(
-        &self,
-        outline: &WidgetOutline,
-    ) -> widgets::Knob {
+    fn instantiate_widget(&self, outline: &WidgetOutline) -> widgets::Knob {
         fn convert_grid_pos(grid_pos: &(i32, i32)) -> (i32, i32) {
             (MODULE_IO_WIDTH + coord(grid_pos.0), coord(grid_pos.1))
         }
@@ -220,13 +227,30 @@ impl ModuleGraph {
         }
     }
 
+    fn generate_code_for_lane(&self, lane: &AutomationLane) -> String {
+        let (target_min, target_max) = lane.range;
+        // algebraic simplification of remapping value [-1, 1] -> [0, 1] -> [min, max]
+        let a = (target_max - target_min) / 2.0;
+        let b = a + target_min;
+        let mod_index = self.index_of_module(&lane.connection.0).unwrap_or(3999999);
+        format!(
+            "module_{}_output_{} * {} + {}",
+            mod_index,
+            lane.connection.1,
+            format_decimal(a),
+            format_decimal(b)
+        )
+    }
+
     fn generate_code_for_control(&self, control: &Rcrc<Control>) -> String {
         let control_ref = control.borrow();
         if control_ref.automation.len() == 0 {
-            format!("{:01.1}", control_ref.value)
+            format_decimal(control_ref.value)
         } else {
-            // TODO:
-            let mut code = "0.0".to_owned();
+            let mut code = self.generate_code_for_lane(&control_ref.automation[0]);
+            for lane in &control_ref.automation[1..] {
+                code.push_str(&self.generate_code_for_lane(lane));
+            }
             code
         }
     }
@@ -235,7 +259,7 @@ impl ModuleGraph {
         if let Some((module, output_index)) = &input.connection {
             format!(
                 "module_{}_output_{}",
-                self.index_of_module(&module).unwrap_or(999999),
+                self.index_of_module(&module).unwrap_or(2999999),
                 output_index
             )
         } else {
