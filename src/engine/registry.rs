@@ -102,6 +102,7 @@ fn create_module_prototype_from_yaml(yaml: &YamlNode, module_id: &str) -> Result
 
 pub struct Registry {
     modules: HashMap<String, Module>,
+    scripts: HashMap<String, String>,
 }
 
 impl Registry {
@@ -120,6 +121,21 @@ impl Registry {
         let yaml = yaml::parse_yaml(&buffer_as_text, name)?;
         let module = create_module_prototype_from_yaml(&yaml, &module_id)?;
         self.modules.insert(module.internal_id.clone(), module);
+        Ok(())
+    }
+
+    fn load_script_resource(
+        &mut self,
+        name: &str,
+        buffer: Vec<u8>,
+    ) -> Result<(), String> {
+        let buffer_as_text = String::from_utf8(buffer).map_err(|e| {
+            format!(
+                "ERROR: The file {} is not a valid UTF-8 text document, caused by:\nERROR: {}",
+                name, e
+            )
+        })?;
+        self.scripts.insert(name.to_owned(), buffer_as_text);
         Ok(())
     }
 
@@ -151,6 +167,8 @@ impl Registry {
                 let file_name = &file_name[last_slash + 1..extension_start];
                 let module_id = format!("{}:{}", lib_name, file_name);
                 self.load_module_resource(&name, &module_id, buffer)?;
+            } else if name.ends_with(".ns") {
+                self.load_script_resource(&name, buffer)?;
             } else {
                 return Err(format!(
                     "ERROR: Not sure what to do with the file {}.",
@@ -188,6 +206,7 @@ impl Registry {
     pub fn new() -> (Self, Result<(), String>) {
         let mut registry = Self {
             modules: HashMap::new(),
+            scripts: HashMap::new(),
         };
 
         let base_library = std::include_bytes!(concat!(env!("OUT_DIR"), "/base.ablib"));
@@ -201,5 +220,9 @@ impl Registry {
 
     pub fn borrow_module(&self, id: &str) -> Option<&Module> {
         self.modules.get(id)
+    }
+
+    pub fn borrow_scripts(&self) -> &HashMap<String, String> {
+        &self.scripts
     }
 }

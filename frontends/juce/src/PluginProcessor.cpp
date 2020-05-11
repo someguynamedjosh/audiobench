@@ -148,6 +148,8 @@ void AudioBenchAudioProcessor::processBlock (AudioBuffer<float>& buffer, MidiBuf
     for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
         buffer.clear (i, 0, buffer.getNumSamples());
 
+    float *audioBuffer = ABRenderAudio(ab);
+
     // This is the place where you'd normally do the guts of your plugin's
     // audio processing...
     // Make sure to reset the state if your inner loop is processing
@@ -158,8 +160,7 @@ void AudioBenchAudioProcessor::processBlock (AudioBuffer<float>& buffer, MidiBuf
     {
         auto* channelData = buffer.getWritePointer (channel);
         for (int sample = 0; sample < buffer.getNumSamples(); sample++) {
-            float triangleWave = ((float) (sample % 100)) / 100.0f;
-            channelData[sample] = 0.0f * triangleWave;
+            channelData[sample] = audioBuffer[sample * 2 + channel];
         }
     }
 }

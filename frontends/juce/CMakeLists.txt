@@ -105,4 +105,6 @@ target_link_libraries(
     # AudioPluginData           # If we'd created a binary data target, we'd link to it here
     juce::juce_audio_utils
     "$ENV{RUST_OUTPUT_DIR}/libaudiobench.a"
+    z
+    curses
 )

@@ -19,6 +19,7 @@ struct ABGraphicsFunctions {
 extern "C" {
     ABInstanceRef ABCreateInstance();
     void ABDestroyInstance(ABInstanceRef);
+    float *ABRenderAudio(ABInstanceRef);
     void ABSetGraphicsFunctions(ABInstanceRef, ABGraphicsFunctions);
 
     void ABCreateUI(ABInstanceRef);

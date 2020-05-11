@@ -9,21 +9,43 @@ pub struct Instance {
     graphics_fns: GraphicsFunctions,
     gui: Option<Gui>,
     registry: engine::registry::Registry,
+    module_graph: util::Rcrc<engine::ModuleGraph>,
+    executor: engine::execution::ExecEnvironment,
 }
 
 impl Instance {
     fn new() -> Self {
         let (registry, base_lib_status) = engine::registry::Registry::new();
         base_lib_status.expect("TODO: Nice error.");
+
+        let mut module_graph = engine::ModuleGraph::new();
+        let mut inst = registry.borrow_module("base:note_input").unwrap().clone();
+        inst.pos = (10, 5);
+        module_graph.adopt_module(inst);
+
+        let mut executor = engine::execution::ExecEnvironment::new(&registry);
+        let code = module_graph.generate_code(512).expect("TODO: Nice error.");
+        println!("{}", code);
+        if let Err(problem) = executor.compile(code) {
+            eprintln!("{}", problem);
+            std::process::abort();
+        }
+
         Self {
             graphics_fns: GraphicsFunctions::placeholders(),
             gui: None,
             registry,
+            module_graph: util::rcrc(module_graph),
+            executor,
         }
     }
 }
 
 impl Instance {
+    pub fn render_audio(&mut self) -> &[f32] {
+        self.executor.execute().expect("TODO: Nice error.")
+    }
+
     pub fn create_ui(&mut self) {
         if self.gui.is_some() {
             // This is an indicator of a bug in the frontend, but is not in itself a critical error,
@@ -31,29 +53,8 @@ impl Instance {
             debug_assert!(false, "create_gui called when GUI was already created!");
             eprintln!("WARNING: create_gui called when GUI was already created!");
         } else {
-            let mut module_graph = engine::ModuleGraph::new();
-
-            let mut inst = self
-                .registry
-                .borrow_module("base:note_input")
-                .unwrap()
-                .clone();
-            inst.pos = (10, 5);
-            module_graph.adopt_module(inst);
-            let mut inst = self
-                .registry
-                .borrow_module("base:oscillator")
-                .unwrap()
-                .clone();
-            inst.pos = (20, 100);
-            module_graph.adopt_module(inst);
-
-            if let Ok(code) = module_graph.generate_code(512) {
-                println!("{}", code);
-            }
-
-            self.gui = Some(Gui::new(engine::ModuleGraph::build_gui(util::rcrc(
-                module_graph,
+            self.gui = Some(Gui::new(engine::ModuleGraph::build_gui(util::Rc::clone(
+                &self.module_graph,
             ))));
         }
     }
@@ -117,6 +118,11 @@ pub unsafe extern "C" fn ABCreateInstance() -> *mut Instance {
 pub unsafe extern "C" fn ABDestroyInstance(instance: *mut Instance) {
     let data = Box::from_raw(instance);
     drop(data);
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ABRenderAudio(instance: *mut Instance) -> *const f32 {
+    (*instance).render_audio().as_ptr()
 }
 
 #[no_mangle]
