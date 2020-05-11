@@ -1,6 +1,5 @@
 use crate::gui::constants::*;
 use crate::gui::widgets;
-use crate::gui::Widget;
 use crate::util::*;
 use std::collections::HashSet;
 
@@ -95,7 +94,11 @@ impl Module {
         }
     }
 
-    fn instantiate_widget(&self, module: Rcrc<Module>, outline: &WidgetOutline) -> Rcrc<dyn Widget> {
+    fn instantiate_widget(
+        &self,
+        module: Rcrc<Module>,
+        outline: &WidgetOutline,
+    ) -> widgets::Knob {
         fn convert_grid_pos(grid_pos: &(i32, i32)) -> (i32, i32) {
             (MODULE_IO_WIDTH + coord(grid_pos.0), coord(grid_pos.1))
         }
@@ -104,12 +107,11 @@ impl Module {
                 control_index,
                 grid_pos,
                 label,
-            } => rcrc(widgets::Knob::create(
-                module,
+            } => widgets::Knob::create(
                 Rc::clone(&self.controls[*control_index]),
                 convert_grid_pos(grid_pos),
                 label.clone(),
-            )),
+            ),
         }
     }
 
@@ -155,7 +157,7 @@ impl ModuleGraph {
         let module_widgets = self_ref
             .modules
             .iter()
-            .map(|module| rcrc(Module::build_gui(Rc::clone(module))) as Rcrc<dyn Widget>)
+            .map(|module| Module::build_gui(Rc::clone(module)))
             .collect();
         widgets::ModuleGraph::create(module_widgets)
     }

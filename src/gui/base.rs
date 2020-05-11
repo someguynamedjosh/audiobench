@@ -1,38 +1,79 @@
+use crate::engine;
 use crate::gui::graphics::GrahpicsWrapper;
+use crate::gui::widgets;
 use crate::util::*;
 
+pub enum MouseAction {
+    None,
+    ManipulateControl(Rcrc<engine::Control>),
+    MoveModule(Rcrc<engine::Module>),
+}
+
+impl MouseAction {
+    pub fn is_none(&self) -> bool {
+        if let Self::None = self {
+            true
+        } else {
+            false
+        }
+    }
+
+    fn on_drag(&mut self, delta: (i32, i32)) {
+        match self {
+            Self::None => (),
+            Self::ManipulateControl(control) => {
+                let delta = delta.0 - delta.1;
+                // How many pixels the user must drag across to cover the entire range of the knob.
+                const DRAG_PIXELS: f32 = 200.0;
+                let delta = delta as f32 / DRAG_PIXELS;
+
+                let mut control_ref = control.borrow_mut();
+                let range = control_ref.range;
+                let delta = delta * (range.1 - range.0) as f32;
+                control_ref.value = (control_ref.value + delta).clam(range.0, range.1);
+            }
+            Self::MoveModule(module) => {
+                let mut module_ref = module.borrow_mut();
+                module_ref.pos.0 += delta.0;
+                module_ref.pos.1 += delta.1;
+            }
+        }
+    }
+}
+
 pub struct Gui {
-    root_widget: Rcrc<dyn Widget>,
-    clicked: Option<Rcrc<dyn Widget>>,
+    root_widget: widgets::ModuleGraph,
+    mouse_action: MouseAction,
     click_position: (i32, i32),
+    mouse_down: bool,
     dragged: bool,
 }
 
 impl Gui {
-    pub fn new(root: impl Widget + 'static) -> Self {
+    pub fn new(root: widgets::ModuleGraph) -> Self {
         Self {
-            root_widget: rcrc(root),
-            clicked: None,
+            root_widget: root,
+            mouse_action: MouseAction::None,
             click_position: (0, 0),
+            mouse_down: false,
             dragged: false,
         }
     }
 
     pub fn draw(&self, g: &mut GrahpicsWrapper) {
-        self.root_widget.borrow().draw(g);
+        self.root_widget.draw(g);
     }
 
     pub fn on_mouse_down(&mut self, pos: (i32, i32)) {
-        let hit = trace_hit(&self.root_widget, pos);
-        self.clicked = Some(hit);
+        self.mouse_action = self.root_widget.respond_to_mouse_press(pos);
+        self.mouse_down = true;
         self.click_position = pos;
-        self.dragged = false;
     }
 
     /// Minimum number of pixels the mouse must move before dragging starts.
     const MIN_DRAG_DELTA: i32 = 4;
     pub fn on_mouse_move(&mut self, new_pos: (i32, i32)) {
-        if let Some(clicked) = &self.clicked {
+        if self.mouse_down {
             let delta = (
                 new_pos.0 - self.click_position.0,
                 new_pos.1 - self.click_position.1,
@@ -44,65 +85,14 @@ impl Gui {
                 }
             }
             if self.dragged {
-                clicked.borrow_mut().on_drag(delta);
+                self.mouse_action.on_drag(delta);
                 self.click_position = new_pos;
             }
         }
     }
 
     pub fn on_mouse_up(&mut self) {
-        self.clicked = None;
         self.dragged = false;
-    }
-}
-
-fn trace_hit(widget: &Rcrc<dyn Widget>, pixel: (i32, i32)) -> Rcrc<dyn Widget> {
-    let widget_ref = widget.borrow();
-    if let Some(child) = widget_ref.trace_hit(pixel) {
-        child
-    } else {
-        drop(widget_ref);
-        Rc::clone(widget)
-    }
-}
-
-pub trait Widget {
-    fn get_pos(&self) -> (i32, i32);
-    fn get_size(&self) -> (i32, i32);
-    fn borrow_children(&self) -> &[Rcrc<dyn Widget>] {
-        &[]
-    }
-
-    fn on_mouse_down(&mut self) {}
-    fn on_drag_start(&mut self) {}
-    fn on_drag(&mut self, _delta: (i32, i32)) {}
-    fn on_click(&mut self) {}
-
-    fn is_hit(&self, pixel: (i32, i32)) -> bool {
-        let size = self.get_size();
-        pixel.0 >= 0 && pixel.1 >= 0 && pixel.0 <= size.0 && pixel.1 <= size.1
-    }
-    fn trace_hit(&self, pixel: (i32, i32)) -> Option<Rcrc<dyn Widget>> {
-        for child in self.borrow_children() {
-            let child_ref = child.borrow();
-            let child_pos = child_ref.get_pos();
-            let child_pixel = (pixel.0 - child_pos.0, pixel.1 - child_pos.1);
-            if child_ref.is_hit(child_pixel) {
-                return Some(trace_hit(child, child_pixel));
-            }
-        }
-        None
-    }
-
-    fn draw_impl(&self, g: &mut GrahpicsWrapper);
-    fn draw(&self, g: &mut GrahpicsWrapper) {
-        g.push_state();
-        let pos = Widget::get_pos(self);
-        g.apply_offset(pos.0, pos.1);
-        self.draw_impl(g);
-        for child in self.borrow_children() {
-            child.borrow().draw(g);
-        }
-        g.pop_state();
+        self.mouse_down = false;
     }
 }
