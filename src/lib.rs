@@ -19,9 +19,19 @@ impl Instance {
         base_lib_status.expect("TODO: Nice error.");
 
         let mut module_graph = engine::ModuleGraph::new();
-        let mut inst = registry.borrow_module("base:note_input").unwrap().clone();
-        inst.pos = (10, 5);
-        module_graph.adopt_module(inst);
+        let mut input = registry.borrow_module("base:note_input").unwrap().clone();
+        input.pos = (10, 5);
+        let input = util::rcrc(input);
+        module_graph.add_module(input.clone());
+        let mut osc = registry.borrow_module("base:oscillator").unwrap().clone();
+        osc.pos = (50, 20);
+        osc.controls[0].borrow_mut().automation.push(engine::AutomationLane {
+            connection: (input.clone(), 2),
+            range: (0.0, 0.5)
+        });
+        let osc = util::rcrc(osc);
+        module_graph.add_module(osc.clone());
+        osc.borrow_mut().inputs[0].connection = Some((input.clone(), 1));
 
         let mut executor = engine::execution::ExecEnvironment::new(&registry);
         let code = module_graph.generate_code(512).expect("TODO: Nice error.");

@@ -1,67 +1,27 @@
 use crate::engine;
 use crate::gui::constants::*;
 use crate::gui::graphics::GrahpicsWrapper;
+use crate::gui::Widget;
 use crate::util::*;
 use std::f32::consts::PI;
 
-pub fn trace_hit(widget: &Rcrc<dyn Widget>, pixel: (i32, i32)) -> Rcrc<dyn Widget> {
-    let widget_ref = widget.borrow();
-    if let Some(child) = widget_ref.trace_hit(pixel) {
-        child
-    } else {
-        drop(widget_ref);
-        Rc::clone(widget)
-    }
-}
-
-pub trait Widget {
-    fn get_pos(&self) -> (i32, i32);
-    fn get_size(&self) -> (i32, i32);
-    fn borrow_children(&self) -> &[Rcrc<dyn Widget>] {
-        &[]
-    }
-
-    fn on_drag(&mut self, _delta: (i32, i32)) {}
-
-    fn is_hit(&self, pixel: (i32, i32)) -> bool {
-        let size = self.get_size();
-        pixel.0 >= 0 && pixel.1 >= 0 && pixel.0 <= size.0 && pixel.1 <= size.1
-    }
-    fn trace_hit(&self, pixel: (i32, i32)) -> Option<Rcrc<dyn Widget>> {
-        for child in self.borrow_children() {
-            let child_ref = child.borrow();
-            let child_pos = child_ref.get_pos();
-            let child_pixel = (pixel.0 - child_pos.0, pixel.1 - child_pos.1);
-            if child_ref.is_hit(child_pixel) {
-                return Some(trace_hit(child, child_pixel));
-            }
-        }
-        None
-    }
-
-    fn draw_impl(&self, g: &mut GrahpicsWrapper);
-    fn draw(&self, g: &mut GrahpicsWrapper) {
-        g.push_state();
-        let pos = Widget::get_pos(self);
-        g.apply_offset(pos.0, pos.1);
-        self.draw_impl(g);
-        for child in self.borrow_children() {
-            child.borrow().draw(g);
-        }
-        g.pop_state();
-    }
-}
-
 #[derive(Clone)]
 pub struct Knob {
+    module: Rcrc<engine::Module>,
     control: Rcrc<engine::Control>,
     pos: (i32, i32),
     label: String,
 }
 
 impl Knob {
-    pub fn create(control: Rcrc<engine::Control>, pos: (i32, i32), label: String) -> Knob {
+    pub fn create(
+        module: Rcrc<engine::Module>,
+        control: Rcrc<engine::Control>,
+        pos: (i32, i32),
+        label: String,
+    ) -> Knob {
         Knob {
+            module,
             control,
             pos,
             label,
@@ -95,6 +55,23 @@ impl Widget for Knob {
         let control = &*self.control.borrow();
         fn value_to_angle(range: (f32, f32), value: f32) -> f32 {
             value.from_range_to_range(range.0, range.1, PI, 0.0)
+        }
+
+        g.set_color(&COLOR_TEXT);
+        let self_module_pos = self.module.borrow().pos;
+        for lane in self.control.borrow().automation.iter() {
+            let (module, output_index) = &lane.connection;
+            let output_index = *output_index as i32;
+            let module_ref = module.borrow();
+            let ox = module_ref.pos.0
+                + fatgrid(module_ref.gui_outline.borrow().size.0)
+                + MODULE_IO_WIDTH * 2
+                - self.pos.0
+                - self_module_pos.0;
+            let oy = module_ref.pos.1 + coord(output_index) + GRID_1 / 2
+                - self.pos.1
+                - self_module_pos.1;
+            g.stroke_line(GRID_2 / 2, GRID_2 / 2, ox, oy, 2.0);
         }
 
         g.set_color(&COLOR_BG);
@@ -239,7 +216,22 @@ impl Widget for Module {
         g.set_color(&COLOR_SURFACE);
         g.fill_rect(MIW, 0, self.size.0 - MIW * 2, self.size.1);
 
+        let pos = self.get_pos();
         g.set_color(&COLOR_TEXT);
+        for (index, tab) in self.module.borrow().inputs.iter().enumerate() {
+            let index = index as i32;
+            let y = coord(index) + GRID_1 / 2;
+            if let Some((module, output_index)) = &tab.connection {
+                let output_index = *output_index as i32;
+                let module_ref = module.borrow();
+                let ox = module_ref.pos.0
+                    + fatgrid(module_ref.gui_outline.borrow().size.0)
+                    + MODULE_IO_WIDTH * 2
+                    - pos.0;
+                let oy = module_ref.pos.1 + coord(output_index) + GRID_1 / 2 - pos.1;
+                g.stroke_line(0, y, ox, oy, 5.0);
+            }
+        }
     }
 }
 

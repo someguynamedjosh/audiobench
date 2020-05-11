@@ -1,5 +1,6 @@
 use crate::gui::constants::*;
 use crate::gui::widgets;
+use crate::gui::Widget;
 use crate::util::*;
 use std::collections::HashSet;
 
@@ -30,7 +31,7 @@ impl Control {
 
 #[derive(Clone, Debug)]
 pub struct IOTab {
-    connection: Option<(Rcrc<Module>, usize)>,
+    pub connection: Option<(Rcrc<Module>, usize)>,
     code_name: String,
 }
 
@@ -45,8 +46,8 @@ impl IOTab {
 
 #[derive(Debug)]
 pub struct Module {
-    gui_outline: Rcrc<GuiOutline>,
-    controls: Vec<Rcrc<Control>>,
+    pub gui_outline: Rcrc<GuiOutline>,
+    pub controls: Vec<Rcrc<Control>>,
     pub pos: (i32, i32),
     pub inputs: Vec<IOTab>,
     pub outputs: Vec<IOTab>,
@@ -94,7 +95,7 @@ impl Module {
         }
     }
 
-    fn instantiate_widget(&self, outline: &WidgetOutline) -> Rcrc<dyn widgets::Widget> {
+    fn instantiate_widget(&self, module: Rcrc<Module>, outline: &WidgetOutline) -> Rcrc<dyn Widget> {
         fn convert_grid_pos(grid_pos: &(i32, i32)) -> (i32, i32) {
             (MODULE_IO_WIDTH + coord(grid_pos.0), coord(grid_pos.1))
         }
@@ -104,6 +105,7 @@ impl Module {
                 grid_pos,
                 label,
             } => rcrc(widgets::Knob::create(
+                module,
                 Rc::clone(&self.controls[*control_index]),
                 convert_grid_pos(grid_pos),
                 label.clone(),
@@ -119,7 +121,7 @@ impl Module {
         let control_widgets = outline
             .widget_outlines
             .iter()
-            .map(|wo| self_ref.instantiate_widget(wo))
+            .map(|wo| self_ref.instantiate_widget(Rc::clone(&self_rcrc), wo))
             .collect();
         drop(outline);
         drop(self_ref);
@@ -153,7 +155,7 @@ impl ModuleGraph {
         let module_widgets = self_ref
             .modules
             .iter()
-            .map(|module| rcrc(Module::build_gui(Rc::clone(module))) as Rcrc<dyn widgets::Widget>)
+            .map(|module| rcrc(Module::build_gui(Rc::clone(module))) as Rcrc<dyn Widget>)
             .collect();
         widgets::ModuleGraph::create(module_widgets)
     }
@@ -222,7 +224,9 @@ impl ModuleGraph {
         if control_ref.automation.len() == 0 {
             format!("{:01.1}", control_ref.value)
         } else {
-            unimplemented!()
+            // TODO:
+            let mut code = "0.0".to_owned();
+            code
         }
     }
 
@@ -291,8 +295,7 @@ impl ModuleGraph {
             for output_index in 0..module_ref.outputs.len() {
                 code.push_str(&format!(
                     "    AUTO module_{}_output_{},\n",
-                    index,
-                    output_index,
+                    index, output_index,
                 ));
             }
             code.push_str(");\n\n");
