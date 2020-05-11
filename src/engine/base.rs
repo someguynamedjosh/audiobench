@@ -96,7 +96,6 @@ impl Module {
 
     fn instantiate_widget(
         &self,
-        module: Rcrc<Module>,
         outline: &WidgetOutline,
     ) -> widgets::Knob {
         fn convert_grid_pos(grid_pos: &(i32, i32)) -> (i32, i32) {
@@ -123,7 +122,7 @@ impl Module {
         let control_widgets = outline
             .widget_outlines
             .iter()
-            .map(|wo| self_ref.instantiate_widget(Rc::clone(&self_rcrc), wo))
+            .map(|wo| self_ref.instantiate_widget(wo))
             .collect();
         drop(outline);
         drop(self_ref);

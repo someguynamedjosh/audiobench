@@ -7,6 +7,9 @@ pub enum MouseAction {
     None,
     ManipulateControl(Rcrc<engine::Control>),
     MoveModule(Rcrc<engine::Module>),
+    PanOffset(Rcrc<(i32, i32)>),
+    ConnectInput(Rcrc<engine::Module>, usize),
+    ConnectOutput(Rcrc<engine::Module>, usize),
 }
 
 impl MouseAction {
@@ -37,6 +40,60 @@ impl MouseAction {
                 module_ref.pos.0 += delta.0;
                 module_ref.pos.1 += delta.1;
             }
+            Self::PanOffset(offset) => {
+                let mut offset_ref = offset.borrow_mut();
+                offset_ref.0 += delta.0;
+                offset_ref.1 += delta.1;
+            }
+            Self::ConnectInput(..) => (),
+            Self::ConnectOutput(..) => (),
+        }
+    }
+
+    fn on_drop(&mut self, target: DropTarget) {
+        match self {
+            Self::None => (),
+            Self::ManipulateControl(..) => (),
+            Self::MoveModule(..) => {},
+            Self::PanOffset(..) => (),
+            Self::ConnectInput(in_module, in_index) => {
+                let mut in_ref = in_module.borrow_mut();
+                if let DropTarget::Output(out_module, out_index) = target {
+                    in_ref.inputs[*in_index].connection = Some((out_module, out_index));
+                } else {
+                    in_ref.inputs[*in_index].connection = None;
+                }
+            }
+            Self::ConnectOutput(out_module, out_index) => {
+                if let DropTarget::Input(in_module, in_index) = target {
+                    let mut in_ref = in_module.borrow_mut();
+                    in_ref.inputs[in_index].connection = Some((Rc::clone(out_module), *out_index));
+                } else if let DropTarget::Control(control) = target {
+                    let mut control_ref = control.borrow_mut();
+                    let range = control_ref.range;
+                    control_ref.automation.push(engine::AutomationLane {
+                        connection: (Rc::clone(out_module), *out_index),
+                        range,
+                    });
+                }
+            }
+        }
+    }
+}
+
+pub enum DropTarget {
+    None,
+    Control(Rcrc<engine::Control>),
+    Input(Rcrc<engine::Module>, usize),
+    Output(Rcrc<engine::Module>, usize),
+}
+
+impl DropTarget {
+    pub fn is_none(&self) -> bool {
+        if let Self::None = self {
+            true
+        } else {
+            false
         }
     }
 }
@@ -45,6 +102,7 @@ pub struct Gui {
     root_widget: widgets::ModuleGraph,
     mouse_action: MouseAction,
     click_position: (i32, i32),
+    mouse_pos: (i32, i32),
     mouse_down: bool,
     dragged: bool,
 }
@@ -55,13 +113,14 @@ impl Gui {
             root_widget: root,
             mouse_action: MouseAction::None,
             click_position: (0, 0),
+            mouse_pos: (0, 0),
             mouse_down: false,
             dragged: false,
         }
     }
 
     pub fn draw(&self, g: &mut GrahpicsWrapper) {
-        self.root_widget.draw(g);
+        self.root_widget.draw(g, self);
     }
 
     pub fn on_mouse_down(&mut self, pos: (i32, i32)) {
@@ -73,6 +132,7 @@ impl Gui {
     /// Minimum number of pixels the mouse must move before dragging starts.
     const MIN_DRAG_DELTA: i32 = 4;
     pub fn on_mouse_move(&mut self, new_pos: (i32, i32)) {
+        self.mouse_pos = new_pos;
         if self.mouse_down {
             let delta = (
                 new_pos.0 - self.click_position.0,
@@ -92,7 +152,23 @@ impl Gui {
     }
 
     pub fn on_mouse_up(&mut self) {
+        if self.dragged {
+            let drop_target = self.root_widget.get_drop_target_at(self.mouse_pos);
+            self.mouse_action.on_drop(drop_target);
+        }
         self.dragged = false;
         self.mouse_down = false;
+    }
+
+    pub(super) fn is_dragging(&self) -> bool {
+        self.dragged
+    }
+
+    pub(super) fn borrow_current_mouse_action(&self) -> &MouseAction {
+        &self.mouse_action
+    }
+
+    pub(super) fn get_current_mouse_pos(&self) -> (i32, i32) {
+        self.mouse_pos
     }
 }

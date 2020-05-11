@@ -51,6 +51,7 @@ const fn hex_color(hex: u32) -> (u8, u8, u8) {
     )
 }
 
+pub const COLOR_DEBUG: (u8, u8, u8) = hex_color(0xFF00FF);
 pub const COLOR_BG: (u8, u8, u8) = hex_color(0x121520);
 pub const COLOR_SURFACE: (u8, u8, u8) = hex_color(0x48525F);
 pub const COLOR_IO_AREA: (u8, u8, u8) = hex_color(0x2F434F);

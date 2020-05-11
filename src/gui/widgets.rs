@@ -1,12 +1,34 @@
 use crate::engine;
-use crate::gui::MouseAction;
 use crate::gui::constants::*;
 use crate::gui::graphics::GrahpicsWrapper;
+use crate::gui::{DropTarget, Gui, MouseAction};
 use crate::util::*;
 use std::f32::consts::PI;
 
 fn bound_check(coord: (i32, i32), bounds: (i32, i32)) -> bool {
     coord.0 >= 0 && coord.1 >= 0 && coord.0 <= bounds.0 && coord.1 <= bounds.1
+}
+
+fn tab_y(index: i32) -> i32 {
+    coord(index) + MODULE_IO_TAB_SIZE / 2
+}
+
+fn input_position(module: &engine::Module, input_index: i32) -> (i32, i32) {
+    let module_pos = module.pos;
+    (
+        module_pos.0,
+        module_pos.1 + tab_y(input_index),
+    )
+}
+
+fn output_position(module: &engine::Module, output_index: i32) -> (i32, i32) {
+    let module_pos = module.pos;
+    let module_size = module.gui_outline.borrow().size;
+    let module_width = fatgrid(module_size.0) + MODULE_IO_WIDTH * 2;
+    (
+        module_pos.0 + module_width,
+        module_pos.1 + tab_y(output_index),
+    )
 }
 
 #[derive(Clone)]
@@ -17,11 +39,7 @@ pub struct Knob {
 }
 
 impl Knob {
-    pub fn create(
-        control: Rcrc<engine::Control>,
-        pos: (i32, i32),
-        label: String,
-    ) -> Knob {
+    pub fn create(control: Rcrc<engine::Control>, pos: (i32, i32), label: String) -> Knob {
         Knob {
             control,
             pos,
@@ -35,6 +53,15 @@ impl Knob {
             MouseAction::ManipulateControl(Rc::clone(&self.control))
         } else {
             MouseAction::None
+        }
+    }
+
+    pub fn get_drop_target_at(&self, mouse_pos: (i32, i32)) -> DropTarget {
+        let mouse_pos = (mouse_pos.0 - self.pos.0, mouse_pos.1 - self.pos.1);
+        if bound_check(mouse_pos, (GRID_2, GRID_1)) {
+            DropTarget::Control(Rc::clone(&self.control))
+        } else {
+            DropTarget::None
         }
     }
 
@@ -52,12 +79,8 @@ impl Knob {
             let (module, output_index) = &lane.connection;
             let output_index = *output_index as i32;
             let module_ref = module.borrow();
-            let ox = module_ref.pos.0
-                + fatgrid(module_ref.gui_outline.borrow().size.0)
-                + MODULE_IO_WIDTH * 2
-                - parent_pos.0;
-            let oy = module_ref.pos.1 + coord(output_index) + GRID_1 / 2
-                - parent_pos.1;
+            let (ox, oy) = output_position(&*module_ref, output_index);
+            let (ox, oy) = (ox - parent_pos.0, oy - parent_pos.1);
             g.stroke_line(cx, cy, ox, oy, 2.0);
         }
 
@@ -124,14 +147,9 @@ impl IOTab {
         }
     }
 
-    pub fn respond_to_mouse_press(&self, mouse_pos: (i32, i32)) -> MouseAction {
+    pub fn mouse_in_bounds(&self, mouse_pos: (i32, i32)) -> bool {
         let mouse_pos = (mouse_pos.0 - self.pos.0, mouse_pos.1 - self.pos.1);
-        if bound_check(mouse_pos, (MODULE_IO_TAB_SIZE, MODULE_IO_TAB_SIZE)) {
-            // TODO: wire actions.
-            MouseAction::None
-        } else {
-            MouseAction::None
-        }
+        bound_check(mouse_pos, (MODULE_IO_TAB_SIZE, MODULE_IO_TAB_SIZE))
     }
 
     fn draw(&self, g: &mut GrahpicsWrapper) {
@@ -152,7 +170,8 @@ pub struct Module {
     module: Rcrc<engine::Module>,
     size: (i32, i32),
     label: String,
-    tabs: Vec<IOTab>,
+    inputs: Vec<IOTab>,
+    outputs: Vec<IOTab>,
     controls: Vec<Knob>,
 }
 
@@ -166,20 +185,22 @@ impl Module {
         const MIW: i32 = MODULE_IO_WIDTH;
         let size = (fatgrid(grid_size.0) + MIW * 2, fatgrid(grid_size.1));
         let module_ref = module.borrow();
-        let mut tabs = Vec::new();
+        let mut inputs = Vec::new();
         for index in 0..module_ref.inputs.len() as i32 {
-            tabs.push(IOTab::input(0, coord(index)));
+            inputs.push(IOTab::input(0, coord(index)));
         }
         let x = size.0 - MODULE_IO_TAB_SIZE;
+        let mut outputs = Vec::new();
         for index in 0..module_ref.outputs.len() as i32 {
-            tabs.push(IOTab::output(x, coord(index)));
+            outputs.push(IOTab::output(x, coord(index)));
         }
         drop(module_ref);
         Self {
             module,
             size,
             label,
-            tabs,
+            inputs,
+            outputs,
             controls,
         }
     }
@@ -200,13 +221,42 @@ impl Module {
                 return action;
             }
         }
-        for tab in &self.tabs {
-            let action = tab.respond_to_mouse_press(mouse_pos);
-            if !action.is_none() {
-                return action;
+        for (index, input) in self.inputs.iter().enumerate() {
+            if input.mouse_in_bounds(mouse_pos) {
+                return MouseAction::ConnectInput(Rc::clone(&self.module), index);
+            }
+        }
+        for (index, output) in self.outputs.iter().enumerate() {
+            if output.mouse_in_bounds(mouse_pos) {
+                return MouseAction::ConnectOutput(Rc::clone(&self.module), index);
             }
         }
         MouseAction::MoveModule(Rc::clone(&self.module))
+    }
+
+    pub fn get_drop_target_at(&self, mouse_pos: (i32, i32)) -> DropTarget {
+        let pos = self.get_pos();
+        let mouse_pos = (mouse_pos.0 - pos.0, mouse_pos.1 - pos.1);
+        if !bound_check(mouse_pos, self.size) {
+            return DropTarget::None;
+        }
+        for control in &self.controls {
+            let target = control.get_drop_target_at(mouse_pos);
+            if !target.is_none() {
+                return target;
+            }
+        }
+        for (index, input) in self.inputs.iter().enumerate() {
+            if input.mouse_in_bounds(mouse_pos) {
+                return DropTarget::Input(Rc::clone(&self.module), index);
+            }
+        }
+        for (index, output) in self.outputs.iter().enumerate() {
+            if output.mouse_in_bounds(mouse_pos) {
+                return DropTarget::Output(Rc::clone(&self.module), index);
+            }
+        }
+        DropTarget::None
     }
 
     fn draw(&self, g: &mut GrahpicsWrapper) {
@@ -229,17 +279,17 @@ impl Module {
             if let Some((module, output_index)) = &tab.connection {
                 let output_index = *output_index as i32;
                 let module_ref = module.borrow();
-                let ox = module_ref.pos.0
-                    + fatgrid(module_ref.gui_outline.borrow().size.0)
-                    + MODULE_IO_WIDTH * 2
-                    - pos.0;
-                let oy = module_ref.pos.1 + coord(output_index) + GRID_1 / 2 - pos.1;
+                let (ox, oy) = output_position(&*module_ref, output_index);
+                let (ox, oy) = (ox - pos.0, oy - pos.1);
                 g.stroke_line(0, y, ox, oy, 5.0);
             }
         }
 
-        for tab in &self.tabs {
-            tab.draw(g);
+        for input in &self.inputs {
+            input.draw(g);
+        }
+        for output in &self.outputs {
+            output.draw(g);
         }
         for control in &self.controls {
             control.draw(g, pos);
@@ -250,51 +300,69 @@ impl Module {
 }
 
 pub struct ModuleGraph {
-    pub pos: (i32, i32),
-    pub offset: (i32, i32),
-    pub size: (i32, i32),
+    offset: Rcrc<(i32, i32)>,
     modules: Vec<Module>,
 }
 
 impl ModuleGraph {
     pub fn create(modules: Vec<Module>) -> Self {
         Self {
-            pos: (0, 0),
-            offset: (0, 0),
-            size: (0, 0),
+            offset: rcrc((0, 0)),
             modules,
         }
     }
 
     pub fn respond_to_mouse_press(&self, mouse_pos: (i32, i32)) -> MouseAction {
-        let mouse_pos = (mouse_pos.0 - self.offset.0, mouse_pos.1 - self.offset.1);
+        let offset = self.offset.borrow();
+        let mouse_pos = (mouse_pos.0 - offset.0, mouse_pos.1 - offset.1);
         for module in &self.modules {
             let action = module.respond_to_mouse_press(mouse_pos);
             if !action.is_none() {
                 return action;
             }
         }
-        MouseAction::None
+        MouseAction::PanOffset(Rc::clone(&self.offset))
     }
 
-    pub fn draw(&self, g: &mut GrahpicsWrapper) {
+    pub fn get_drop_target_at(&self, mouse_pos: (i32, i32)) -> DropTarget {
+        let offset = self.offset.borrow();
+        let mouse_pos = (mouse_pos.0 - offset.0, mouse_pos.1 - offset.1);
+        for module in &self.modules {
+            let target = module.get_drop_target_at(mouse_pos);
+            if !target.is_none() {
+                return target;
+            }
+        }
+        DropTarget::None
+    }
+
+    pub fn draw(&self, g: &mut GrahpicsWrapper, gui_state: &Gui) {
+        let offset = self.offset.borrow();
         g.push_state();
-        g.apply_offset(self.pos.0, self.pos.1);
-        g.apply_offset(self.offset.0, self.offset.1);
+        g.apply_offset(offset.0, offset.1);
         for module in &self.modules {
             module.draw(g);
         }
-        g.pop_state();
-    }
-}
-
-impl Default for ModuleGraph {
-    fn default() -> ModuleGraph {
-        ModuleGraph {
-            pos: (0, 0),
-            offset: (0, 0),
-            size: (9999, 9999),
-            modules: Vec::new(),
+        if gui_state.is_dragging() {
+            let cma = gui_state.borrow_current_mouse_action();
+            if let MouseAction::ConnectInput(module, index) = cma {
+                let module_ref = module.borrow();
+                let (sx, sy) = input_position(&*module_ref, *index as i32);
+                let (mx, my) = gui_state.get_current_mouse_pos();
+                let offset = self.offset.borrow();
+                let (mx, my) = (mx - offset.0, my - offset.1);
+                g.set_color(&COLOR_DEBUG);
+                g.stroke_line(sx, sy, mx, my, 2.0);
+            } else if let MouseAction::ConnectOutput(module, index) = cma {
+                let module_ref = module.borrow();
+                let (sx, sy) = output_position(&*module_ref, *index as i32);
+                let (mx, my) = gui_state.get_current_mouse_pos();
+                let offset = self.offset.borrow();
+                let (mx, my) = (mx - offset.0, my - offset.1);
+                g.set_color(&COLOR_DEBUG);
+                g.stroke_line(sx, sy, mx, my, 2.0);
+            }
         }
+        g.pop_state();
     }
 }
