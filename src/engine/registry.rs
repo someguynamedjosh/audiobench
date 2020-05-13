@@ -1,5 +1,5 @@
 use crate::engine::yaml::{self, YamlNode};
-use crate::engine::{Control, GuiOutline, IOTab, Module, WidgetOutline};
+use crate::engine::parts::{Control, GuiOutline, IOTab, Module, WidgetOutline};
 use crate::util::*;
 use std::collections::{HashMap, HashSet};
 use std::fs::File;

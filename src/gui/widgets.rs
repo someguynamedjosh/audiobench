@@ -1,4 +1,4 @@
-use crate::engine;
+use crate::engine::parts as ep;
 use crate::gui::constants::*;
 use crate::gui::graphics::GrahpicsWrapper;
 use crate::gui::{DropTarget, Gui, MouseAction};
@@ -13,7 +13,7 @@ fn tab_y(index: i32) -> i32 {
     coord(index) + MODULE_IO_TAB_SIZE / 2
 }
 
-fn input_position(module: &engine::Module, input_index: i32) -> (i32, i32) {
+fn input_position(module: &ep::Module, input_index: i32) -> (i32, i32) {
     let module_pos = module.pos;
     (
         module_pos.0,
@@ -21,7 +21,7 @@ fn input_position(module: &engine::Module, input_index: i32) -> (i32, i32) {
     )
 }
 
-fn output_position(module: &engine::Module, output_index: i32) -> (i32, i32) {
+fn output_position(module: &ep::Module, output_index: i32) -> (i32, i32) {
     let module_pos = module.pos;
     let module_size = module.gui_outline.borrow().size;
     let module_width = fatgrid(module_size.0) + MODULE_IO_WIDTH * 2;
@@ -33,13 +33,13 @@ fn output_position(module: &engine::Module, output_index: i32) -> (i32, i32) {
 
 #[derive(Clone)]
 pub struct Knob {
-    control: Rcrc<engine::Control>,
+    control: Rcrc<ep::Control>,
     pos: (i32, i32),
     label: String,
 }
 
 impl Knob {
-    pub fn create(control: Rcrc<engine::Control>, pos: (i32, i32), label: String) -> Knob {
+    pub fn create(control: Rcrc<ep::Control>, pos: (i32, i32), label: String) -> Knob {
         Knob {
             control,
             pos,
@@ -167,7 +167,7 @@ impl IOTab {
 }
 
 pub struct Module {
-    module: Rcrc<engine::Module>,
+    module: Rcrc<ep::Module>,
     size: (i32, i32),
     label: String,
     inputs: Vec<IOTab>,
@@ -177,7 +177,7 @@ pub struct Module {
 
 impl Module {
     pub fn create(
-        module: Rcrc<engine::Module>,
+        module: Rcrc<ep::Module>,
         grid_size: (i32, i32),
         label: String,
         controls: Vec<Knob>,

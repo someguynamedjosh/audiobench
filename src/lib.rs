@@ -8,48 +8,24 @@ use gui::Gui;
 pub struct Instance {
     graphics_fns: GraphicsFunctions,
     gui: Option<Gui>,
-    registry: engine::registry::Registry,
-    module_graph: util::Rcrc<engine::ModuleGraph>,
-    executor: engine::execution::ExecEnvironment,
+    engine: engine::Engine,
 }
 
 impl Instance {
     fn new() -> Self {
-        let (registry, base_lib_status) = engine::registry::Registry::new();
-        base_lib_status.expect("TODO: Nice error.");
-
-        let mut module_graph = engine::ModuleGraph::new();
-        let mut input = registry.borrow_module("base:note_input").unwrap().clone();
-        input.pos = (10, 5);
-        module_graph.adopt_module(input);
-        let mut osc = registry.borrow_module("base:oscillator").unwrap().clone();
-        osc.pos = (50, 20);
-        module_graph.adopt_module(osc);
-        let mut output = registry.borrow_module("base:note_output").unwrap().clone();
-        output.pos = (90, 90);
-        module_graph.adopt_module(output);
-
-        let mut executor = engine::execution::ExecEnvironment::new(&registry);
-        let code = module_graph.generate_code(512).expect("TODO: Nice error.");
-        println!("{}", code);
-        if let Err(problem) = executor.compile(code) {
-            eprintln!("{}", problem);
-            std::process::abort();
-        }
+        let (engine, setup_status) = engine::Engine::new();
 
         Self {
             graphics_fns: GraphicsFunctions::placeholders(),
             gui: None,
-            registry,
-            module_graph: util::rcrc(module_graph),
-            executor,
+            engine,
         }
     }
 }
 
 impl Instance {
     pub fn render_audio(&mut self) -> &[f32] {
-        self.executor.execute().expect("TODO: Nice error.")
+        self.engine.render_audio()
     }
 
     pub fn create_ui(&mut self) {
@@ -59,8 +35,8 @@ impl Instance {
             debug_assert!(false, "create_gui called when GUI was already created!");
             eprintln!("WARNING: create_gui called when GUI was already created!");
         } else {
-            self.gui = Some(Gui::new(engine::ModuleGraph::build_gui(util::Rc::clone(
-                &self.module_graph,
+            self.gui = Some(Gui::new(engine::parts::ModuleGraph::build_gui(util::Rc::clone(
+                self.engine.borrow_module_graph_ref(),
             ))));
         }
     }
@@ -113,12 +89,7 @@ impl Instance {
             eprintln!("WARNING: mouse_up called, but no GUI exists.");
         }
         // TODO: Make a more robust solution for this.
-        let code = self.module_graph.borrow().generate_code(512).expect("TODO: Nice error.");
-        println!("{}", code);
-        if let Err(problem) = self.executor.compile(code) {
-            eprintln!("{}", problem);
-            std::process::abort();
-        }
+        self.engine.mark_module_graph_dirty();
     }
 }
 

@@ -1,15 +1,15 @@
-use crate::engine;
+use crate::engine::parts as ep;
 use crate::gui::graphics::GrahpicsWrapper;
 use crate::gui::widgets;
 use crate::util::*;
 
 pub enum MouseAction {
     None,
-    ManipulateControl(Rcrc<engine::Control>),
-    MoveModule(Rcrc<engine::Module>),
+    ManipulateControl(Rcrc<ep::Control>),
+    MoveModule(Rcrc<ep::Module>),
     PanOffset(Rcrc<(i32, i32)>),
-    ConnectInput(Rcrc<engine::Module>, usize),
-    ConnectOutput(Rcrc<engine::Module>, usize),
+    ConnectInput(Rcrc<ep::Module>, usize),
+    ConnectOutput(Rcrc<ep::Module>, usize),
 }
 
 impl MouseAction {
@@ -71,7 +71,7 @@ impl MouseAction {
                 } else if let DropTarget::Control(control) = target {
                     let mut control_ref = control.borrow_mut();
                     let range = control_ref.range;
-                    control_ref.automation.push(engine::AutomationLane {
+                    control_ref.automation.push(ep::AutomationLane {
                         connection: (Rc::clone(out_module), *out_index),
                         range,
                     });
@@ -83,9 +83,9 @@ impl MouseAction {
 
 pub enum DropTarget {
     None,
-    Control(Rcrc<engine::Control>),
-    Input(Rcrc<engine::Module>, usize),
-    Output(Rcrc<engine::Module>, usize),
+    Control(Rcrc<ep::Control>),
+    Input(Rcrc<ep::Module>, usize),
+    Output(Rcrc<ep::Module>, usize),
 }
 
 impl DropTarget {
