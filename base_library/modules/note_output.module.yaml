@@ -1,5 +1,6 @@
 inputs:
   audio:
+    type: audio
 outputs:
 controls:
 gui: 

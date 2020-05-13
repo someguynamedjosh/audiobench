@@ -267,20 +267,23 @@ impl Knob {
 }
 
 struct IOTab {
+    icon_index: usize,
     pos: (i32, i32),
     is_output: bool,
 }
 
 impl IOTab {
-    fn input(x: i32, y: i32) -> Self {
+    fn input(icon_index: usize, x: i32, y: i32) -> Self {
         Self {
+            icon_index,
             pos: (x, y),
             is_output: false,
         }
     }
 
-    fn output(x: i32, y: i32) -> Self {
+    fn output(icon_index: usize, x: i32, y: i32) -> Self {
         Self {
+            icon_index,
             pos: (x, y),
             is_output: true,
         }
@@ -300,6 +303,8 @@ impl IOTab {
         g.fill_rounded_rect(0, 0, MITS, MITS, MCS);
         let x = if self.is_output { MITS - MCS } else { 0 };
         g.fill_rect(x, 0, MCS, MITS);
+        const MITIP: i32 = MODULE_IO_TAB_ICON_PADDING;
+        g.draw_icon(self.icon_index, MITIP, MITIP, MITS - MITIP * 2);
 
         g.pop_state();
     }
@@ -325,13 +330,13 @@ impl Module {
         let size = (fatgrid(grid_size.0) + MIW * 2, fatgrid(grid_size.1));
         let module_ref = module.borrow();
         let mut inputs = Vec::new();
-        for index in 0..module_ref.inputs.len() as i32 {
-            inputs.push(IOTab::input(0, coord(index)));
+        for (index, input) in module_ref.input_tabs.iter().enumerate() {
+            inputs.push(IOTab::input(input.get_icon_index(), 0, coord(index as i32)));
         }
         let x = size.0 - MODULE_IO_TAB_SIZE;
         let mut outputs = Vec::new();
-        for index in 0..module_ref.output_tabs.len() as i32 {
-            outputs.push(IOTab::output(x, coord(index)));
+        for (index, output) in module_ref.output_tabs.iter().enumerate() {
+            outputs.push(IOTab::output(output.get_icon_index(), x, coord(index as i32)));
         }
         drop(module_ref);
         Self {

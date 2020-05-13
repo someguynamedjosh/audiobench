@@ -1,8 +1,11 @@
 inputs:
 outputs:
   time:
+    type: time
   pitch:
+    type: pitch
   velocity:
+    type: audio
 controls:
 gui: 
   label: Note Input

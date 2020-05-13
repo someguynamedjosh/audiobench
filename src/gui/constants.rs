@@ -45,6 +45,7 @@ pub const KNOB_MENU_LANE_GAP: i32 = 2;
 
 pub const MODULE_CORNER_SIZE: i32 = 4;
 pub const MODULE_IO_TAB_SIZE: i32 = GRID_1;
+pub const MODULE_IO_TAB_ICON_PADDING: i32 = 1;
 // Width of the area dedicated to input or output on each module.
 pub const MODULE_IO_WIDTH: i32 = MODULE_IO_TAB_SIZE + GRID_P;
 

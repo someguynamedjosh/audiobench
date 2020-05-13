@@ -1,4 +1,4 @@
-use crate::engine::parts::{Control, GuiOutline, IOTab, Module, WidgetOutline};
+use crate::engine::parts::{Control, GuiOutline, IOTab, Module, TabType, WidgetOutline};
 use crate::engine::yaml::{self, YamlNode};
 use crate::util::*;
 use std::collections::{HashMap, HashSet};
@@ -49,7 +49,11 @@ fn create_widget_outline_from_yaml(
     }
 }
 
-fn create_module_prototype_from_yaml(yaml: &YamlNode, module_id: &str) -> Result<Module, String> {
+fn create_module_prototype_from_yaml(
+    icon_indexes: &HashMap<String, usize>,
+    yaml: &YamlNode,
+    module_id: &str,
+) -> Result<Module, String> {
     let mut controls = Vec::new();
     let mut existing_controls = HashSet::new();
     for control_description in &yaml.unique_child("controls")?.children {
@@ -83,11 +87,21 @@ fn create_module_prototype_from_yaml(yaml: &YamlNode, module_id: &str) -> Result
 
     let mut inputs = Vec::new();
     for input_description in &yaml.unique_child("inputs")?.children {
-        inputs.push(IOTab::create(input_description.name.clone()));
+        let type_name = &input_description.unique_child("type")?.value;
+        let typ = TabType::from_str(type_name)
+            .map_err(|_| format!("ERROR: {} is not a valid input type.", type_name))?;
+        // The base library should always come with these icons.
+        let icon = *icon_indexes.get(typ.icon_name()).unwrap();
+        inputs.push(IOTab::create(typ, icon, input_description.name.clone()));
     }
     let mut outputs = Vec::new();
     for output_description in &yaml.unique_child("outputs")?.children {
-        outputs.push(IOTab::create(output_description.name.clone()));
+        let type_name = &output_description.unique_child("type")?.value;
+        let typ = TabType::from_str(type_name)
+            .map_err(|_| format!("ERROR: {} is not a valid output type.", type_name))?;
+        // The base library should always come with these icons.
+        let icon = *icon_indexes.get(typ.icon_name()).unwrap();
+        outputs.push(IOTab::create(typ, icon, output_description.name.clone()));
     }
 
     Ok(Module::create(
@@ -121,7 +135,7 @@ impl Registry {
             )
         })?;
         let yaml = yaml::parse_yaml(&buffer_as_text, name)?;
-        let module = create_module_prototype_from_yaml(&yaml, &module_id)?;
+        let module = create_module_prototype_from_yaml(&self.icon_indexes, &yaml, &module_id)?;
         self.modules.insert(module.internal_id.clone(), module);
         Ok(())
     }

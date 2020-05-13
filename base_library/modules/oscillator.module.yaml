@@ -1,14 +1,11 @@
 inputs:
   pitch:
     type: pitch 
-    icon: pitch 
   waveform:
     type: waveform
-    icon: waveform
 outputs:
   audio:
     type: audio
-    icon: audio
 controls:
   phase:
     min: -1

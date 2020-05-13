@@ -44,14 +44,53 @@ pub enum InputConnection {
     Zero,
 }
 
+#[derive(Clone, Copy, Debug)]
+pub enum TabType {
+    Time,
+    Pitch,
+    Waveform,
+    Audio,
+}
+
+impl TabType {
+    pub fn from_str(input: &str) -> Result<Self, ()> {
+        match input {
+            "time" => Ok(Self::Time),
+            "pitch" => Ok(Self::Pitch),
+            "waveform" => Ok(Self::Waveform),
+            "audio" => Ok(Self::Audio),
+            _ => Err(())
+        }
+    }
+
+    pub fn icon_name(&self) -> &'static str {
+        match self {
+            Self::Time => "base:time",
+            Self::Pitch => "base:pitch",
+            Self::Waveform => "base:waveform",
+            Self::Audio => "base:audio",
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct IOTab {
+    typ: TabType,
+    icon_index: usize,
     code_name: String,
 }
 
 impl IOTab {
-    pub fn create(code_name: String) -> Self {
-        Self { code_name }
+    pub fn create(typ: TabType, icon_index: usize, code_name: String) -> Self {
+        Self { typ, icon_index, code_name }
+    }
+
+    pub fn get_type(&self) -> TabType {
+        self.typ
+    }
+
+    pub fn get_icon_index(&self) -> usize {
+        self.icon_index
     }
 }
 

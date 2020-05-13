@@ -1,6 +1,5 @@
 # Things with no dependencies
-Icons for inputs and outputs
-    And typing to prevent making illegal connections
+prevent making illegal connections
 Default values for inputs
 MIDI input
 Allow changing the output buffer size.
@@ -19,3 +18,4 @@ Display numeric value of control when manually dragging it
 Recompile only when necessary
 Drop shadow draw function
 Layers for drawing
+Get a better icon for waveforms.

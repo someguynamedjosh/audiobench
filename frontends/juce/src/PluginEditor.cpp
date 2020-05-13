@@ -72,7 +72,7 @@ void writeLabel(void *gp, int x, int y, int w, char *text) {
 void drawIcon(void *gp, void *iconStore, int index, int x, int y, int size) {
     (*(std::vector<std::unique_ptr<Drawable>>*) iconStore)[index]->draw(
         *((Graphics*) gp), 1.0f, 
-        AffineTransform::scale(size / 18.0f).translated(x, y)
+        AffineTransform::scale(size / 24.0f).translated(x, y)
     );
 }
 
