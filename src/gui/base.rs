@@ -3,13 +3,21 @@ use crate::gui::graphics::GrahpicsWrapper;
 use crate::gui::widgets;
 use crate::util::*;
 
+pub struct MouseMods {
+    pub right_click: bool,
+}
+
 pub enum MouseAction {
     None,
     ManipulateControl(Rcrc<ep::Control>),
+    ManipulateLane(Rcrc<ep::Control>, usize),
+    ManipulateLaneStart(Rcrc<ep::Control>, usize),
+    ManipulateLaneEnd(Rcrc<ep::Control>, usize),
     MoveModule(Rcrc<ep::Module>),
     PanOffset(Rcrc<(i32, i32)>),
     ConnectInput(Rcrc<ep::Module>, usize),
     ConnectOutput(Rcrc<ep::Module>, usize),
+    OpenMenu(Box<widgets::KnobEditor>),
 }
 
 impl MouseAction {
@@ -23,7 +31,6 @@ impl MouseAction {
 
     fn on_drag(&mut self, delta: (i32, i32)) {
         match self {
-            Self::None => (),
             Self::ManipulateControl(control) => {
                 let delta = delta.0 - delta.1;
                 // How many pixels the user must drag across to cover the entire range of the knob.
@@ -34,6 +41,47 @@ impl MouseAction {
                 let range = control_ref.range;
                 let delta = delta * (range.1 - range.0) as f32;
                 control_ref.value = (control_ref.value + delta).clam(range.0, range.1);
+                for lane in &mut control_ref.automation {
+                    lane.range.0 = (lane.range.0 + delta).clam(range.0, range.1);
+                    lane.range.1 = (lane.range.1 + delta).clam(range.0, range.1);
+                }
+            }
+            Self::ManipulateLane(control, lane_index) => {
+                let delta = delta.0 - delta.1;
+                // How many pixels the user must drag across to cover the entire range of the knob.
+                const DRAG_PIXELS: f32 = 200.0;
+                let delta = delta as f32 / DRAG_PIXELS;
+
+                let mut control_ref = control.borrow_mut();
+                let range = control_ref.range;
+                let delta = delta * (range.1 - range.0) as f32;
+                let lane = &mut control_ref.automation[*lane_index];
+                lane.range.0 = (lane.range.0 + delta).clam(range.0, range.1);
+                lane.range.1 = (lane.range.1 + delta).clam(range.0, range.1);
+            }
+            Self::ManipulateLaneStart(control, lane_index) => {
+                let delta = delta.0 - delta.1;
+                // How many pixels the user must drag across to cover the entire range of the knob.
+                const DRAG_PIXELS: f32 = 200.0;
+                let delta = delta as f32 / DRAG_PIXELS;
+
+                let mut control_ref = control.borrow_mut();
+                let range = control_ref.range;
+                let delta = delta * (range.1 - range.0) as f32;
+                let lane = &mut control_ref.automation[*lane_index];
+                lane.range.0 = (lane.range.0 + delta).clam(range.0, range.1);
+            }
+            Self::ManipulateLaneEnd(control, lane_index) => {
+                let delta = delta.0 - delta.1;
+                // How many pixels the user must drag across to cover the entire range of the knob.
+                const DRAG_PIXELS: f32 = 200.0;
+                let delta = delta as f32 / DRAG_PIXELS;
+
+                let mut control_ref = control.borrow_mut();
+                let range = control_ref.range;
+                let delta = delta * (range.1 - range.0) as f32;
+                let lane = &mut control_ref.automation[*lane_index];
+                lane.range.1 = (lane.range.1 + delta).clam(range.0, range.1);
             }
             Self::MoveModule(module) => {
                 let mut module_ref = module.borrow_mut();
@@ -45,17 +93,12 @@ impl MouseAction {
                 offset_ref.0 += delta.0;
                 offset_ref.1 += delta.1;
             }
-            Self::ConnectInput(..) => (),
-            Self::ConnectOutput(..) => (),
+            _ => (),
         }
     }
 
     fn on_drop(&mut self, target: DropTarget) {
         match self {
-            Self::None => (),
-            Self::ManipulateControl(..) => (),
-            Self::MoveModule(..) => {},
-            Self::PanOffset(..) => (),
             Self::ConnectInput(in_module, in_index) => {
                 let mut in_ref = in_module.borrow_mut();
                 if let DropTarget::Output(out_module, out_index) = target {
@@ -77,6 +120,16 @@ impl MouseAction {
                     });
                 }
             }
+            _ => (),
+        }
+    }
+
+    fn on_click(&mut self, root_widget: &mut widgets::ModuleGraph) {
+        match self {
+            Self::OpenMenu(menu) => {
+                root_widget.open_menu(menu.clone());
+            }
+            _ => (),
         }
     }
 }
@@ -123,8 +176,8 @@ impl Gui {
         self.root_widget.draw(g, self);
     }
 
-    pub fn on_mouse_down(&mut self, pos: (i32, i32)) {
-        self.mouse_action = self.root_widget.respond_to_mouse_press(pos);
+    pub fn on_mouse_down(&mut self, pos: (i32, i32), mods: &MouseMods) {
+        self.mouse_action = self.root_widget.respond_to_mouse_press(pos, mods);
         self.mouse_down = true;
         self.click_position = pos;
     }
@@ -155,7 +208,10 @@ impl Gui {
         if self.dragged {
             let drop_target = self.root_widget.get_drop_target_at(self.mouse_pos);
             self.mouse_action.on_drop(drop_target);
+        } else {
+            self.mouse_action.on_click(&mut self.root_widget);
         }
+        self.mouse_action = MouseAction::None;
         self.dragged = false;
         self.mouse_down = false;
     }

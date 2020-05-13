@@ -32,11 +32,16 @@ pub const fn fatcoord(index: i32) -> i32 {
     GRID_1 * index + GRID_P * index
 }
 
-pub const KNOB_OUTSIDE_SPACE: i32 = 3;
+pub const KNOB_OUTSIDE_SPACE: i32 = 1;
 pub const KNOB_INSIDE_SPACE: i32 = 6;
 pub const KNOB_AUTOMATION_SPACE: i32 = GRID_2 / 2 - KNOB_OUTSIDE_SPACE - KNOB_INSIDE_SPACE;
 pub const KNOB_LANE_GAP: i32 = 1;
 pub const KNOB_MAX_LANE_SIZE: i32 = 4;
+
+pub const KNOB_MENU_LANE_SIZE: i32 = 16;
+pub const KNOB_MENU_KNOB_OR: i32 = 60;
+pub const KNOB_MENU_KNOB_IR: i32 = 40;
+pub const KNOB_MENU_LANE_GAP: i32 = 2;
 
 pub const MODULE_CORNER_SIZE: i32 = 4;
 pub const MODULE_IO_TAB_SIZE: i32 = GRID_1;

@@ -25,7 +25,7 @@ extern "C" {
     void ABCreateUI(ABInstanceRef);
     void ABDrawUI(ABInstanceRef, void *extraData);
     void ABDestroyUI(ABInstanceRef);
-    void ABUIMouseDown(ABInstanceRef, int, int);
+    void ABUIMouseDown(ABInstanceRef, int, int, bool);
     void ABUIMouseMove(ABInstanceRef, int, int);
     void ABUIMouseUp(ABInstanceRef);
 }

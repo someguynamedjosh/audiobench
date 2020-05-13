@@ -7,7 +7,7 @@ fn format_decimal(value: f32) -> String {
     let digits = 8i32;
     let digits = match value {
         v if v <= 0.0 => digits,
-        _ => digits - (value.abs().log10().min(5.0) as i32),
+        _ => digits - (value.abs().log10().min(digits as f32 - 1.0) as i32),
     };
     let digits = digits as usize;
     format!("{:.*}", digits, value)
@@ -249,6 +249,7 @@ impl ModuleGraph {
         } else {
             let mut code = self.generate_code_for_lane(&control_ref.automation[0]);
             for lane in &control_ref.automation[1..] {
+                code.push_str(" + ");
                 code.push_str(&self.generate_code_for_lane(lane));
             }
             code

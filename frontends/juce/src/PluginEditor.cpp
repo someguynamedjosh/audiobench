@@ -109,7 +109,7 @@ void AudioBenchAudioProcessorEditor::paint (Graphics& g)
 }
 
 void AudioBenchAudioProcessorEditor::mouseDown(const MouseEvent &event) {
-    ABUIMouseDown(processor.ab, event.x, event.y);
+    ABUIMouseDown(processor.ab, event.x, event.y, event.mods.isPopupMenu());
     repaint();
 }
 

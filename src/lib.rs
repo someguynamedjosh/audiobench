@@ -3,7 +3,7 @@ mod gui;
 mod util;
 
 use gui::graphics::{GrahpicsWrapper, GraphicsFunctions};
-use gui::Gui;
+use gui::{Gui, MouseMods};
 
 pub struct Instance {
     graphics_fns: GraphicsFunctions,
@@ -35,9 +35,9 @@ impl Instance {
             debug_assert!(false, "create_gui called when GUI was already created!");
             eprintln!("WARNING: create_gui called when GUI was already created!");
         } else {
-            self.gui = Some(Gui::new(engine::parts::ModuleGraph::build_gui(util::Rc::clone(
-                self.engine.borrow_module_graph_ref(),
-            ))));
+            self.gui = Some(Gui::new(engine::parts::ModuleGraph::build_gui(
+                util::Rc::clone(self.engine.borrow_module_graph_ref()),
+            )));
         }
     }
 
@@ -63,9 +63,10 @@ impl Instance {
         }
     }
 
-    pub fn mouse_down(&mut self, x: i32, y: i32) {
+    pub fn mouse_down(&mut self, x: i32, y: i32, right_click: bool) {
         if let Some(gui) = &mut self.gui {
-            gui.on_mouse_down((x, y));
+            let mods = MouseMods { right_click };
+            gui.on_mouse_down((x, y), &mods);
         } else {
             debug_assert!(false, "mouse_down called, but no GUI exists.");
             eprintln!("WARNING: mouse_down called, but no GUI exists.");
@@ -133,8 +134,8 @@ pub unsafe extern "C" fn ABDestroyUI(instance: *mut Instance) {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ABUIMouseDown(instance: *mut Instance, x: i32, y: i32) {
-    (*instance).mouse_down(x, y);
+pub unsafe extern "C" fn ABUIMouseDown(instance: *mut Instance, x: i32, y: i32, right_click: bool) {
+    (*instance).mouse_down(x, y, right_click);
 }
 
 #[no_mangle]
