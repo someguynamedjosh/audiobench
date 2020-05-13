@@ -16,6 +16,7 @@ pub struct ExecEnvironment {
     program: Option<nodespeak::llvmir::structure::Program>,
     input: InputData,
     output: OutputData,
+    static_data: Option<nodespeak::llvmir::structure::StaticData>,
 }
 
 impl ExecEnvironment {
@@ -39,12 +40,16 @@ impl ExecEnvironment {
             program: None,
             input,
             output,
+            static_data: None,
         }
     }
 
     pub fn compile(&mut self, source: String) -> Result<(), String> {
         self.compiler.add_source("<node graph>".to_owned(), source);
         self.program = Some(self.compiler.compile("<node graph>")?);
+        unsafe {
+            self.static_data = Some(self.program.as_ref().unwrap().create_static_data()?);
+        }
         Ok(())
     }
 
@@ -52,7 +57,11 @@ impl ExecEnvironment {
         if let Some(program) = &self.program {
             unsafe {
                 program
-                    .execute_data(&mut self.input, &mut self.output)
+                    .execute_data(
+                        &mut self.input,
+                        &mut self.output,
+                        self.static_data.as_mut().unwrap(),
+                    )
                     .map_err(|s| s.to_owned())?;
             }
             Ok(&self.output.global_audio_out)

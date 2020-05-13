@@ -18,7 +18,7 @@ panic = "abort"
 panic = "abort"
 
 [dependencies]
-nodespeak = "0.0"
+nodespeak = "0.1"
 num = "0.2"
 zip = "0.5"
 

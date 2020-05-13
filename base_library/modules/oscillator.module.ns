@@ -1,8 +1,14 @@
 [SAMPLES_PER_CHANNEL][2]FLOAT audio;
 
-FLOAT phase_now = phase; 
+static phase_now {
+    FLOAT phase_now = 0.0;
+}
+
 for i = 0 to SAMPLES_PER_CHANNEL {
-    audio[i][0] = Sin(phase_now) * amplitude;
+    audio[i][0] = Sin(phase_now * 6.28) * amplitude;
     audio[i][1] = audio[i][0];
-    phase_now = phase_now + 44100.0 / pitch;
+    phase_now = phase_now + pitch / 44100.0;
+    if phase_now > 1.0 {
+        phase_now = phase_now - 1.0;
+    }
 }
