@@ -45,21 +45,21 @@ pub enum InputConnection {
 }
 
 #[derive(Clone, Copy, Debug)]
-pub enum TabType {
+pub enum JackType {
     Time,
     Pitch,
     Waveform,
     Audio,
 }
 
-impl TabType {
+impl JackType {
     pub fn from_str(input: &str) -> Result<Self, ()> {
         match input {
             "time" => Ok(Self::Time),
             "pitch" => Ok(Self::Pitch),
             "waveform" => Ok(Self::Waveform),
             "audio" => Ok(Self::Audio),
-            _ => Err(())
+            _ => Err(()),
         }
     }
 
@@ -74,18 +74,22 @@ impl TabType {
 }
 
 #[derive(Clone, Debug)]
-pub struct IOTab {
-    typ: TabType,
+pub struct IOJack {
+    typ: JackType,
     icon_index: usize,
     code_name: String,
 }
 
-impl IOTab {
-    pub fn create(typ: TabType, icon_index: usize, code_name: String) -> Self {
-        Self { typ, icon_index, code_name }
+impl IOJack {
+    pub fn create(typ: JackType, icon_index: usize, code_name: String) -> Self {
+        Self {
+            typ,
+            icon_index,
+            code_name,
+        }
     }
 
-    pub fn get_type(&self) -> TabType {
+    pub fn get_type(&self) -> JackType {
         self.typ
     }
 
@@ -100,8 +104,8 @@ pub struct Module {
     pub controls: Vec<Rcrc<Control>>,
     pub pos: (i32, i32),
     pub inputs: Vec<InputConnection>,
-    pub input_tabs: Vec<IOTab>,
-    pub output_tabs: Vec<IOTab>,
+    pub input_jacks: Vec<IOJack>,
+    pub output_jacks: Vec<IOJack>,
     pub internal_id: String,
     pub code_resource: String,
 }
@@ -119,8 +123,8 @@ impl Clone for Module {
                 .collect(),
             pos: self.pos,
             inputs: self.inputs.clone(),
-            input_tabs: self.input_tabs.clone(),
-            output_tabs: self.output_tabs.clone(),
+            input_jacks: self.input_jacks.clone(),
+            output_jacks: self.output_jacks.clone(),
             internal_id: self.internal_id.clone(),
             code_resource: self.code_resource.clone(),
         }
@@ -131,8 +135,8 @@ impl Module {
     pub fn create(
         gui_outline: Rcrc<GuiOutline>,
         controls: Vec<Rcrc<Control>>,
-        input_tabs: Vec<IOTab>,
-        output_tabs: Vec<IOTab>,
+        input_jacks: Vec<IOJack>,
+        output_jacks: Vec<IOJack>,
         internal_id: String,
         code_resource: String,
     ) -> Self {
@@ -140,9 +144,9 @@ impl Module {
             gui_outline,
             controls,
             pos: (0, 0),
-            inputs: vec![InputConnection::Zero; input_tabs.len()],
-            input_tabs,
-            output_tabs,
+            inputs: vec![InputConnection::Zero; input_jacks.len()],
+            input_jacks,
+            output_jacks,
             internal_id,
             code_resource,
         }
@@ -326,7 +330,7 @@ impl ModuleGraph {
         for (index, module) in self.modules.iter().enumerate() {
             code.push_str(&format!("macro module_{}(\n", index));
             let module_ref = module.borrow();
-            for input in module_ref.input_tabs.iter() {
+            for input in module_ref.input_jacks.iter() {
                 code.push_str(&format!("    {}, \n", input.code_name));
             }
             for control in module_ref.controls.iter() {
@@ -334,7 +338,7 @@ impl ModuleGraph {
                 code.push_str(&format!("    {}, \n", control_ref.code_name));
             }
             code.push_str("):(\n");
-            for output in module_ref.output_tabs.iter() {
+            for output in module_ref.output_jacks.iter() {
                 code.push_str(&format!("    {}, \n", output.code_name));
             }
             code.push_str(") {\n");
@@ -346,11 +350,11 @@ impl ModuleGraph {
         for index in execution_order {
             let module_ref = self.modules[index].borrow();
             code.push_str(&format!("module_{}(\n", index));
-            for (input, tab) in module_ref.inputs.iter().zip(module_ref.input_tabs.iter()) {
+            for (input, jack) in module_ref.inputs.iter().zip(module_ref.input_jacks.iter()) {
                 code.push_str(&format!(
                     "    {}, // {}\n",
                     self.generate_code_for_input(input),
-                    &tab.code_name
+                    &jack.code_name
                 ));
             }
             for control in &module_ref.controls {
@@ -361,7 +365,7 @@ impl ModuleGraph {
                 ));
             }
             code.push_str("):(\n");
-            for output_index in 0..module_ref.output_tabs.len() {
+            for output_index in 0..module_ref.output_jacks.len() {
                 code.push_str(&format!(
                     "    AUTO module_{}_output_{},\n",
                     index, output_index,

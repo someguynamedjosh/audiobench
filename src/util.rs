@@ -5,7 +5,13 @@ pub trait FloatUtil: Sized + Copy {
     fn from_range(self, from_min: Self, from_max: Self) -> Self;
     /// Converts from the range [0,1] to [to_min, to_max]
     fn to_range(self, to_min: Self, to_max: Self) -> Self;
-    fn from_range_to_range(self, from_min: Self, from_max: Self, to_min: Self, to_max: Self) -> Self {
+    fn from_range_to_range(
+        self,
+        from_min: Self,
+        from_max: Self,
+        to_min: Self,
+        to_max: Self,
+    ) -> Self {
         self.from_range(from_min, from_max).to_range(to_min, to_max)
     }
 
@@ -42,7 +48,7 @@ pub fn format_decimal(value: f32, digits: i32) -> String {
     format!("{:.*}", digits, value)
 }
 
-pub use std::{rc::Rc, cell::RefCell};
+pub use std::{cell::RefCell, rc::Rc};
 
 pub type Rcrc<T> = Rc<RefCell<T>>;
 pub fn rcrc<T>(content: T) -> Rcrc<T> {

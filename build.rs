@@ -17,11 +17,15 @@ fn main() {
         let path = entry.path();
         let zip_key = path.strip_prefix(input_path.clone()).unwrap();
         if path.is_file() {
-            zip_writer.start_file_from_path(&zip_key, options.clone()).unwrap();
+            zip_writer
+                .start_file_from_path(&zip_key, options.clone())
+                .unwrap();
             let mut f = fs::File::open(path).unwrap();
             std::io::copy(&mut f, &mut zip_writer).unwrap();
         } else if zip_key.as_os_str().len() > 0 {
-            zip_writer.add_directory_from_path(&zip_key, options.clone()).unwrap();
+            zip_writer
+                .add_directory_from_path(&zip_key, options.clone())
+                .unwrap();
         }
     }
     zip_writer.finish().unwrap();

@@ -1,4 +1,4 @@
-use crate::engine::parts::{Control, GuiOutline, IOTab, Module, TabType, WidgetOutline};
+use crate::engine::parts::{Control, GuiOutline, IOJack, JackType, Module, WidgetOutline};
 use crate::engine::yaml::{self, YamlNode};
 use crate::util::*;
 use std::collections::{HashMap, HashSet};
@@ -88,20 +88,20 @@ fn create_module_prototype_from_yaml(
     let mut inputs = Vec::new();
     for input_description in &yaml.unique_child("inputs")?.children {
         let type_name = &input_description.unique_child("type")?.value;
-        let typ = TabType::from_str(type_name)
+        let typ = JackType::from_str(type_name)
             .map_err(|_| format!("ERROR: {} is not a valid input type.", type_name))?;
         // The base library should always come with these icons.
         let icon = *icon_indexes.get(typ.icon_name()).unwrap();
-        inputs.push(IOTab::create(typ, icon, input_description.name.clone()));
+        inputs.push(IOJack::create(typ, icon, input_description.name.clone()));
     }
     let mut outputs = Vec::new();
     for output_description in &yaml.unique_child("outputs")?.children {
         let type_name = &output_description.unique_child("type")?.value;
-        let typ = TabType::from_str(type_name)
+        let typ = JackType::from_str(type_name)
             .map_err(|_| format!("ERROR: {} is not a valid output type.", type_name))?;
         // The base library should always come with these icons.
         let icon = *icon_indexes.get(typ.icon_name()).unwrap();
-        outputs.push(IOTab::create(typ, icon, output_description.name.clone()));
+        outputs.push(IOJack::create(typ, icon, output_description.name.clone()));
     }
 
     Ok(Module::create(

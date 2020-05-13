@@ -9,13 +9,13 @@ fn bound_check(coord: (i32, i32), bounds: (i32, i32)) -> bool {
     coord.0 >= 0 && coord.1 >= 0 && coord.0 <= bounds.0 && coord.1 <= bounds.1
 }
 
-fn tab_y(index: i32) -> i32 {
-    coord(index) + MODULE_IO_TAB_SIZE / 2
+fn jack_y(index: i32) -> i32 {
+    coord(index) + MODULE_IO_JACK_SIZE / 2
 }
 
 fn input_position(module: &ep::Module, input_index: i32) -> (i32, i32) {
     let module_pos = module.pos;
-    (module_pos.0, module_pos.1 + tab_y(input_index))
+    (module_pos.0, module_pos.1 + jack_y(input_index))
 }
 
 fn output_position(module: &ep::Module, output_index: i32) -> (i32, i32) {
@@ -24,7 +24,7 @@ fn output_position(module: &ep::Module, output_index: i32) -> (i32, i32) {
     let module_width = fatgrid(module_size.0) + MODULE_IO_WIDTH * 2;
     (
         module_pos.0 + module_width,
-        module_pos.1 + tab_y(output_index),
+        module_pos.1 + jack_y(output_index),
     )
 }
 
@@ -60,7 +60,7 @@ impl KnobEditor {
             // Yes, the last 0 is intentional. The center of the knob is not vertically centered.
             let (cx, cy) = (mouse_pos.0 - self.size.0 / 2, mouse_pos.1 - self.size.0 / 2);
             // y coordinate is inverted from how it appears on screen.
-            let (fcx, fcy) = (cx as f32, -cy as f32); 
+            let (fcx, fcy) = (cx as f32, -cy as f32);
             let (angle, radius) = (fcy.atan2(fcx), (fcy * fcy + fcx * fcx).sqrt());
             let control = &*self.control.borrow();
             let auto_lanes = control.automation.len();
@@ -68,7 +68,7 @@ impl KnobEditor {
             if angle >= 0.0 && angle <= PI {
                 let radius = radius as i32;
                 if radius < KNOB_MENU_KNOB_IR {
-                    // Nothing interactable inside the knob.
+                    // Nothing interacjackle inside the knob.
                 } else if radius < KNOB_MENU_KNOB_OR {
                     return Some(MouseAction::ManipulateControl(Rc::clone(&self.control)));
                 } else {
@@ -266,13 +266,13 @@ impl Knob {
     }
 }
 
-struct IOTab {
+struct IOJack {
     icon_index: usize,
     pos: (i32, i32),
     is_output: bool,
 }
 
-impl IOTab {
+impl IOJack {
     fn input(icon_index: usize, x: i32, y: i32) -> Self {
         Self {
             icon_index,
@@ -291,19 +291,19 @@ impl IOTab {
 
     pub fn mouse_in_bounds(&self, mouse_pos: (i32, i32)) -> bool {
         let mouse_pos = (mouse_pos.0 - self.pos.0, mouse_pos.1 - self.pos.1);
-        bound_check(mouse_pos, (MODULE_IO_TAB_SIZE, MODULE_IO_TAB_SIZE))
+        bound_check(mouse_pos, (MODULE_IO_JACK_SIZE, MODULE_IO_JACK_SIZE))
     }
 
     fn draw(&self, g: &mut GrahpicsWrapper) {
         g.push_state();
         g.apply_offset(self.pos.0, self.pos.1);
 
-        const MITS: i32 = MODULE_IO_TAB_SIZE;
+        const MITS: i32 = MODULE_IO_JACK_SIZE;
         const MCS: i32 = MODULE_CORNER_SIZE;
         g.fill_rounded_rect(0, 0, MITS, MITS, MCS);
         let x = if self.is_output { MITS - MCS } else { 0 };
         g.fill_rect(x, 0, MCS, MITS);
-        const MITIP: i32 = MODULE_IO_TAB_ICON_PADDING;
+        const MITIP: i32 = MODULE_IO_JACK_ICON_PADDING;
         g.draw_icon(self.icon_index, MITIP, MITIP, MITS - MITIP * 2);
 
         g.pop_state();
@@ -314,8 +314,8 @@ pub struct Module {
     module: Rcrc<ep::Module>,
     size: (i32, i32),
     label: String,
-    inputs: Vec<IOTab>,
-    outputs: Vec<IOTab>,
+    inputs: Vec<IOJack>,
+    outputs: Vec<IOJack>,
     controls: Vec<Knob>,
 }
 
@@ -330,13 +330,21 @@ impl Module {
         let size = (fatgrid(grid_size.0) + MIW * 2, fatgrid(grid_size.1));
         let module_ref = module.borrow();
         let mut inputs = Vec::new();
-        for (index, input) in module_ref.input_tabs.iter().enumerate() {
-            inputs.push(IOTab::input(input.get_icon_index(), 0, coord(index as i32)));
+        for (index, input) in module_ref.input_jacks.iter().enumerate() {
+            inputs.push(IOJack::input(
+                input.get_icon_index(),
+                0,
+                coord(index as i32),
+            ));
         }
-        let x = size.0 - MODULE_IO_TAB_SIZE;
+        let x = size.0 - MODULE_IO_JACK_SIZE;
         let mut outputs = Vec::new();
-        for (index, output) in module_ref.output_tabs.iter().enumerate() {
-            outputs.push(IOTab::output(output.get_icon_index(), x, coord(index as i32)));
+        for (index, output) in module_ref.output_jacks.iter().enumerate() {
+            outputs.push(IOJack::output(
+                output.get_icon_index(),
+                x,
+                coord(index as i32),
+            ));
         }
         drop(module_ref);
         Self {
@@ -417,10 +425,10 @@ impl Module {
         g.fill_rect(MIW, 0, self.size.0 - MIW * 2, self.size.1);
 
         g.set_color(&COLOR_TEXT);
-        for (index, tab) in self.module.borrow().inputs.iter().enumerate() {
+        for (index, jack) in self.module.borrow().inputs.iter().enumerate() {
             let index = index as i32;
             let y = coord(index) + GRID_1 / 2;
-            if let ep::InputConnection::Wire(module, output_index) = tab {
+            if let ep::InputConnection::Wire(module, output_index) = jack {
                 let output_index = *output_index as i32;
                 let module_ref = module.borrow();
                 let (ox, oy) = output_position(&*module_ref, output_index);

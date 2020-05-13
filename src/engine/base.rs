@@ -1,6 +1,6 @@
 use crate::engine;
 use crate::util::*;
-use std::sync::{Mutex};
+use std::sync::Mutex;
 
 pub struct Engine {
     // Only read/mutated by UI thread.
@@ -56,7 +56,11 @@ impl Engine {
     }
 
     pub fn mark_module_graph_dirty(&mut self) {
-        let new_code = self.module_graph.borrow().generate_code(512).expect("TODO: Nice error.");
+        let new_code = self
+            .module_graph
+            .borrow()
+            .generate_code(512)
+            .expect("TODO: Nice error.");
         let mut code_ref = self.new_module_graph_code.lock().unwrap();
         *code_ref = Some(new_code);
     }
