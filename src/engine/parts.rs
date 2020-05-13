@@ -39,17 +39,19 @@ impl Control {
 }
 
 #[derive(Clone, Debug)]
+pub enum InputConnection {
+    Wire(Rcrc<Module>, usize),
+    Zero,
+}
+
+#[derive(Clone, Debug)]
 pub struct IOTab {
-    pub connection: Option<(Rcrc<Module>, usize)>,
     code_name: String,
 }
 
 impl IOTab {
     pub fn create(code_name: String) -> Self {
-        Self {
-            connection: None,
-            code_name,
-        }
+        Self { code_name }
     }
 }
 
@@ -58,8 +60,9 @@ pub struct Module {
     pub gui_outline: Rcrc<GuiOutline>,
     pub controls: Vec<Rcrc<Control>>,
     pub pos: (i32, i32),
-    pub inputs: Vec<IOTab>,
-    pub outputs: Vec<IOTab>,
+    pub inputs: Vec<InputConnection>,
+    pub input_tabs: Vec<IOTab>,
+    pub output_tabs: Vec<IOTab>,
     pub internal_id: String,
     pub code_resource: String,
 }
@@ -77,7 +80,8 @@ impl Clone for Module {
                 .collect(),
             pos: self.pos,
             inputs: self.inputs.clone(),
-            outputs: self.outputs.clone(),
+            input_tabs: self.input_tabs.clone(),
+            output_tabs: self.output_tabs.clone(),
             internal_id: self.internal_id.clone(),
             code_resource: self.code_resource.clone(),
         }
@@ -88,8 +92,8 @@ impl Module {
     pub fn create(
         gui_outline: Rcrc<GuiOutline>,
         controls: Vec<Rcrc<Control>>,
-        inputs: Vec<IOTab>,
-        outputs: Vec<IOTab>,
+        input_tabs: Vec<IOTab>,
+        output_tabs: Vec<IOTab>,
         internal_id: String,
         code_resource: String,
     ) -> Self {
@@ -97,8 +101,9 @@ impl Module {
             gui_outline,
             controls,
             pos: (0, 0),
-            inputs,
-            outputs,
+            inputs: vec![InputConnection::Zero; input_tabs.len()],
+            input_tabs,
+            output_tabs,
             internal_id,
             code_resource,
         }
@@ -185,7 +190,7 @@ impl ModuleGraph {
             let module_ref = module.borrow();
             let mut dependencies = HashSet::new();
             for input in &module_ref.inputs {
-                if let Some((module_ref, _)) = &input.connection {
+                if let InputConnection::Wire(module_ref, _) = &input {
                     dependencies.insert(self.index_of_module(module_ref).ok_or(())?);
                 }
             }
@@ -256,15 +261,14 @@ impl ModuleGraph {
         }
     }
 
-    fn generate_code_for_input(&self, input: &IOTab) -> String {
-        if let Some((module, output_index)) = &input.connection {
-            format!(
+    fn generate_code_for_input(&self, input: &InputConnection) -> String {
+        match input {
+            InputConnection::Wire(module, output_index) => format!(
                 "module_{}_output_{}",
                 self.index_of_module(&module).unwrap_or(2999999),
                 output_index
-            )
-        } else {
-            "0.0".to_owned()
+            ),
+            InputConnection::Zero => "0.0".to_owned(),
         }
     }
 
@@ -283,7 +287,7 @@ impl ModuleGraph {
         for (index, module) in self.modules.iter().enumerate() {
             code.push_str(&format!("macro module_{}(\n", index));
             let module_ref = module.borrow();
-            for input in module_ref.inputs.iter() {
+            for input in module_ref.input_tabs.iter() {
                 code.push_str(&format!("    {}, \n", input.code_name));
             }
             for control in module_ref.controls.iter() {
@@ -291,7 +295,7 @@ impl ModuleGraph {
                 code.push_str(&format!("    {}, \n", control_ref.code_name));
             }
             code.push_str("):(\n");
-            for output in module_ref.outputs.iter() {
+            for output in module_ref.output_tabs.iter() {
                 code.push_str(&format!("    {}, \n", output.code_name));
             }
             code.push_str(") {\n");
@@ -303,11 +307,11 @@ impl ModuleGraph {
         for index in execution_order {
             let module_ref = self.modules[index].borrow();
             code.push_str(&format!("module_{}(\n", index));
-            for input in &module_ref.inputs {
+            for (input, tab) in module_ref.inputs.iter().zip(module_ref.input_tabs.iter()) {
                 code.push_str(&format!(
                     "    {}, // {}\n",
                     self.generate_code_for_input(input),
-                    &input.code_name
+                    &tab.code_name
                 ));
             }
             for control in &module_ref.controls {
@@ -318,7 +322,7 @@ impl ModuleGraph {
                 ));
             }
             code.push_str("):(\n");
-            for output_index in 0..module_ref.outputs.len() {
+            for output_index in 0..module_ref.output_tabs.len() {
                 code.push_str(&format!(
                     "    AUTO module_{}_output_{},\n",
                     index, output_index,

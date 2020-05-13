@@ -330,7 +330,7 @@ impl Module {
         }
         let x = size.0 - MODULE_IO_TAB_SIZE;
         let mut outputs = Vec::new();
-        for index in 0..module_ref.outputs.len() as i32 {
+        for index in 0..module_ref.output_tabs.len() as i32 {
             outputs.push(IOTab::output(x, coord(index)));
         }
         drop(module_ref);
@@ -415,7 +415,7 @@ impl Module {
         for (index, tab) in self.module.borrow().inputs.iter().enumerate() {
             let index = index as i32;
             let y = coord(index) + GRID_1 / 2;
-            if let Some((module, output_index)) = &tab.connection {
+            if let ep::InputConnection::Wire(module, output_index) = tab {
                 let output_index = *output_index as i32;
                 let module_ref = module.borrow();
                 let (ox, oy) = output_position(&*module_ref, output_index);

@@ -102,15 +102,17 @@ impl MouseAction {
             Self::ConnectInput(in_module, in_index) => {
                 let mut in_ref = in_module.borrow_mut();
                 if let DropTarget::Output(out_module, out_index) = target {
-                    in_ref.inputs[*in_index].connection = Some((out_module, out_index));
+                    in_ref.inputs[*in_index] = ep::InputConnection::Wire(out_module, out_index);
                 } else {
-                    in_ref.inputs[*in_index].connection = None;
+                    // TODO: Better default.
+                    in_ref.inputs[*in_index] = ep::InputConnection::Zero;
                 }
             }
             Self::ConnectOutput(out_module, out_index) => {
                 if let DropTarget::Input(in_module, in_index) = target {
                     let mut in_ref = in_module.borrow_mut();
-                    in_ref.inputs[in_index].connection = Some((Rc::clone(out_module), *out_index));
+                    in_ref.inputs[in_index] =
+                        ep::InputConnection::Wire(Rc::clone(out_module), *out_index);
                 } else if let DropTarget::Control(control) = target {
                     let mut control_ref = control.borrow_mut();
                     let range = control_ref.range;
