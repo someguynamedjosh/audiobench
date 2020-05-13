@@ -68,4 +68,8 @@ impl Engine {
         }
         self.executor.execute().expect("TODO: Nice error.")
     }
+
+    pub fn borrow_registry(&self) -> &engine::registry::Registry {
+        &self.registry
+    }
 }

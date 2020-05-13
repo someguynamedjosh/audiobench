@@ -1,5 +1,5 @@
-use crate::engine::yaml::{self, YamlNode};
 use crate::engine::parts::{Control, GuiOutline, IOTab, Module, WidgetOutline};
+use crate::engine::yaml::{self, YamlNode};
 use crate::util::*;
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
@@ -103,6 +103,8 @@ fn create_module_prototype_from_yaml(yaml: &YamlNode, module_id: &str) -> Result
 pub struct Registry {
     modules: HashMap<String, Module>,
     scripts: HashMap<String, String>,
+    icon_indexes: HashMap<String, usize>,
+    icons: Vec<Vec<u8>>,
 }
 
 impl Registry {
@@ -124,11 +126,7 @@ impl Registry {
         Ok(())
     }
 
-    fn load_script_resource(
-        &mut self,
-        name: &str,
-        buffer: Vec<u8>,
-    ) -> Result<(), String> {
+    fn load_script_resource(&mut self, name: &str, buffer: Vec<u8>) -> Result<(), String> {
         let buffer_as_text = String::from_utf8(buffer).map_err(|e| {
             format!(
                 "ERROR: The file {} is not a valid UTF-8 text document, caused by:\nERROR: {}",
@@ -139,12 +137,45 @@ impl Registry {
         Ok(())
     }
 
+    fn strip_path_and_extension<'a>(full_path: &'a str, extension: &str) -> &'a str {
+        let last_slash = full_path.rfind("/").unwrap_or(0);
+        let extension_start = full_path.rfind(extension).unwrap_or(full_path.len());
+        &full_path[last_slash + 1..extension_start]
+    }
+
     fn load_library_impl(
         &mut self,
         lib_name: &str,
         lib_reader: impl Read + Seek,
     ) -> Result<(), String> {
         let mut reader = zip::ZipArchive::new(lib_reader).map_err(|e| format!("ERROR: {}", e))?;
+        // Modules can refer to icons, so load all the icons before all the modules.
+        for index in 0..reader.len() {
+            let mut file = reader.by_index(index).unwrap();
+            let name = format!("{}:{}", lib_name, file.name());
+            if name.ends_with("/") {
+                // We don't do anything special with directories.
+                continue;
+            }
+            let mut buffer = Vec::with_capacity(file.size() as usize);
+            file.read_to_end(&mut buffer).map_err(|e| {
+                format!(
+                    "ERROR: Failed to read resource {}, caused by:\nERROR: {}",
+                    file.name(),
+                    e
+                )
+            })?;
+            if name.ends_with(".icon.svg") {
+                let file_name = Self::strip_path_and_extension(file.name(), ".icon.svg");
+                let icon_id = format!("{}:{}", lib_name, file_name);
+                self.icon_indexes.insert(icon_id, self.icons.len());
+                self.icons.push(buffer);
+            } else {
+                // Don't error here, we'll wait to the second loop to check if a file really is
+                // unrecognized. That way we only have to maintain one set of conditions.
+            }
+        }
+        // Now load the modules and other files.
         for index in 0..reader.len() {
             let mut file = reader.by_index(index).unwrap();
             let name = format!("{}:{}", lib_name, file.name());
@@ -161,10 +192,7 @@ impl Registry {
                 )
             })?;
             if name.ends_with(".module.yaml") {
-                let file_name = file.name();
-                let last_slash = file_name.rfind('/').unwrap_or(0);
-                let extension_start = file_name.rfind(".module.yaml").unwrap_or(file_name.len());
-                let file_name = &file_name[last_slash + 1..extension_start];
+                let file_name = Self::strip_path_and_extension(file.name(), ".module.yaml");
                 let module_id = format!("{}:{}", lib_name, file_name);
                 self.load_module_resource(&name, &module_id, buffer)?;
             } else if name.ends_with(".ns") {
@@ -172,7 +200,7 @@ impl Registry {
             } else if name.ends_with(".md") {
                 // Ignore, probably just readme / license type stuff.
             } else if name.ends_with(".icon.svg") {
-                // TODO: Load icon.
+                // Already loaded earlier.
             } else {
                 return Err(format!(
                     "ERROR: Not sure what to do with the file {}.",
@@ -211,6 +239,8 @@ impl Registry {
         let mut registry = Self {
             modules: HashMap::new(),
             scripts: HashMap::new(),
+            icon_indexes: HashMap::new(),
+            icons: Vec::new(),
         };
 
         let base_library = std::include_bytes!(concat!(env!("OUT_DIR"), "/base.ablib"));
@@ -228,5 +258,17 @@ impl Registry {
 
     pub fn borrow_scripts(&self) -> &HashMap<String, String> {
         &self.scripts
+    }
+
+    pub fn lookup_icon(&self, name: &str) -> Option<usize> {
+        self.icon_indexes.get(name).cloned()
+    }
+
+    pub fn get_num_icons(&self) -> usize {
+        self.icons.len()
+    }
+
+    pub fn borrow_icon_data(&self, index: usize) -> &[u8] {
+        &self.icons[index][..]
     }
 }

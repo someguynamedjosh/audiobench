@@ -69,6 +69,13 @@ void writeLabel(void *gp, int x, int y, int w, char *text) {
     ((Graphics*) gp)->drawFittedText(str, x, y, w, 30, Justification::centredTop, 2);
 }
 
+void drawIcon(void *gp, void *iconStore, int index, int x, int y, int size) {
+    (*(std::vector<std::unique_ptr<Drawable>>*) iconStore)[index]->draw(
+        *((Graphics*) gp), 1.0f, 
+        AffineTransform::scale(size / 18.0f).translated(x, y)
+    );
+}
+
 //==============================================================================
 AudioBenchAudioProcessorEditor::AudioBenchAudioProcessorEditor (AudioBenchAudioProcessor& p)
     : AudioProcessorEditor (&p), processor (p)
@@ -87,7 +94,16 @@ AudioBenchAudioProcessorEditor::AudioBenchAudioProcessorEditor (AudioBenchAudioP
     fns.fillRoundedRect = fillRoundedRect;
     fns.fillPie = fillPie;
     fns.writeLabel = writeLabel;
+    fns.drawIcon = drawIcon;
     ABSetGraphicsFunctions(p.ab, fns);
+
+    int numIcons = ABGetNumIcons(p.ab);
+    for (int index = 0; index < numIcons; index++) {
+        void *svgData;
+        int dataSize;
+        ABGetIconData(p.ab, index, &svgData, &dataSize);
+        iconStore.push_back(Drawable::createFromImageData(svgData, dataSize));
+    }
 
     // Make sure that before the constructor has finished, you've set the
     // editor's size to whatever you need it to be.
@@ -105,15 +121,7 @@ void AudioBenchAudioProcessorEditor::paint (Graphics& g)
 {
     // Rust will pass the pointer to the Graphics object as the first argument to the drawing 
     // functions whenever it uses them.
-    ABDrawUI(processor.ab, (void*) &g);
-
-    void *svgData;
-    int dataSize;
-    ABGetSvgData(&svgData, &dataSize);
-    auto drawable = Drawable::createFromImageData(svgData, dataSize);
-    g.saveState();
-    drawable->draw(g, 1.0f, AffineTransform::scale(16.0f / 18.0f).translated(10.0f, 10.0f));
-    g.restoreState();
+    ABDrawUI(processor.ab, (void*) &g, (void*) &iconStore);
 }
 
 void AudioBenchAudioProcessorEditor::mouseDown(const MouseEvent &event) {

@@ -14,6 +14,7 @@ pub struct Instance {
 impl Instance {
     fn new() -> Self {
         let (engine, setup_status) = engine::Engine::new();
+        setup_status.expect("TODO: Nice error.");
 
         Self {
             graphics_fns: GraphicsFunctions::placeholders(),
@@ -24,6 +25,14 @@ impl Instance {
 }
 
 impl Instance {
+    pub fn get_num_icons(&self) -> usize {
+        self.engine.borrow_registry().get_num_icons()
+    }
+
+    pub fn borrow_icon_data(&self, icon_index: usize) -> &[u8] {
+        self.engine.borrow_registry().borrow_icon_data(icon_index)
+    }
+
     pub fn render_audio(&mut self) -> &[f32] {
         self.engine.render_audio()
     }
@@ -41,8 +50,8 @@ impl Instance {
         }
     }
 
-    pub fn draw_ui(&self, data: *mut i8) {
-        let mut g = GrahpicsWrapper::new(&self.graphics_fns, data);
+    pub fn draw_ui(&self, data: *mut i8, icon_store: *mut i8) {
+        let mut g = GrahpicsWrapper::new(&self.graphics_fns, data, icon_store);
         g.set_color(&gui::constants::COLOR_BG);
         g.clear();
         if let Some(gui) = &self.gui {
@@ -106,6 +115,23 @@ pub unsafe extern "C" fn ABDestroyInstance(instance: *mut Instance) {
 }
 
 #[no_mangle]
+pub unsafe extern "C" fn ABGetNumIcons(instance: *mut Instance) -> i32 {
+    (*instance).get_num_icons() as i32
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ABGetIconData(
+    instance: *mut Instance,
+    icon_index: i32,
+    data_buffer: *mut *const u8,
+    data_length: *mut i32,
+) {
+    let svg_data = (*instance).borrow_icon_data(icon_index as usize);
+    (*data_buffer) = svg_data.as_ptr();
+    (*data_length) = svg_data.len() as i32;
+}
+
+#[no_mangle]
 pub unsafe extern "C" fn ABRenderAudio(instance: *mut Instance) -> *const f32 {
     (*instance).render_audio().as_ptr()
 }
@@ -124,8 +150,12 @@ pub unsafe extern "C" fn ABCreateUI(instance: *mut Instance) {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ABDrawUI(instance: *mut Instance, graphics_data: *mut i8) {
-    (*instance).draw_ui(graphics_data);
+pub unsafe extern "C" fn ABDrawUI(
+    instance: *mut Instance,
+    graphics_data: *mut i8,
+    icon_store: *mut i8,
+) {
+    (*instance).draw_ui(graphics_data, icon_store);
 }
 
 #[no_mangle]
@@ -146,11 +176,4 @@ pub unsafe extern "C" fn ABUIMouseMove(instance: *mut Instance, x: i32, y: i32) 
 #[no_mangle]
 pub unsafe extern "C" fn ABUIMouseUp(instance: *mut Instance) {
     (*instance).mouse_up();
-}
-
-const SVG_DATA: &[u8] = std::include_bytes!("../base_library/icons/audio.icon.svg");
-#[no_mangle]
-pub unsafe extern "C" fn ABGetSvgData(data_buffer: *mut *const u8, data_length: *mut i32) {
-    (*data_buffer) = SVG_DATA.as_ptr();
-    (*data_length) = SVG_DATA.len() as i32;
 }
