@@ -28,4 +28,6 @@ extern "C" {
     void ABUIMouseDown(ABInstanceRef, int, int, bool);
     void ABUIMouseMove(ABInstanceRef, int, int);
     void ABUIMouseUp(ABInstanceRef);
+
+    void ABGetSvgData(void **dataBufferPtr, int *sizePtr);
 }

@@ -169,6 +169,10 @@ impl Registry {
                 self.load_module_resource(&name, &module_id, buffer)?;
             } else if name.ends_with(".ns") {
                 self.load_script_resource(&name, buffer)?;
+            } else if name.ends_with(".md") {
+                // Ignore, probably just readme / license type stuff.
+            } else if name.ends_with(".icon.svg") {
+                // TODO: Load icon.
             } else {
                 return Err(format!(
                     "ERROR: Not sure what to do with the file {}.",

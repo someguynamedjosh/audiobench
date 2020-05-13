@@ -147,3 +147,10 @@ pub unsafe extern "C" fn ABUIMouseMove(instance: *mut Instance, x: i32, y: i32) 
 pub unsafe extern "C" fn ABUIMouseUp(instance: *mut Instance) {
     (*instance).mouse_up();
 }
+
+const SVG_DATA: &[u8] = std::include_bytes!("../base_library/icons/audio.icon.svg");
+#[no_mangle]
+pub unsafe extern "C" fn ABGetSvgData(data_buffer: *mut *const u8, data_length: *mut i32) {
+    (*data_buffer) = SVG_DATA.as_ptr();
+    (*data_length) = SVG_DATA.len() as i32;
+}

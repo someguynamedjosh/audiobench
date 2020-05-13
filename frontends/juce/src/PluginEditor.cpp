@@ -106,6 +106,14 @@ void AudioBenchAudioProcessorEditor::paint (Graphics& g)
     // Rust will pass the pointer to the Graphics object as the first argument to the drawing 
     // functions whenever it uses them.
     ABDrawUI(processor.ab, (void*) &g);
+
+    void *svgData;
+    int dataSize;
+    ABGetSvgData(&svgData, &dataSize);
+    auto drawable = Drawable::createFromImageData(svgData, dataSize);
+    g.saveState();
+    drawable->draw(g, 1.0f, AffineTransform::scale(16.0f / 18.0f).translated(10.0f, 10.0f));
+    g.restoreState();
 }
 
 void AudioBenchAudioProcessorEditor::mouseDown(const MouseEvent &event) {
