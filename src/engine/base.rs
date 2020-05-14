@@ -27,6 +27,9 @@ impl Engine {
             let mut input = registry.borrow_module("base:note_input").unwrap().clone();
             input.pos = (10, 5);
             module_graph.adopt_module(input);
+            let mut env = registry.borrow_module("base:envelope").unwrap().clone();
+            env.pos = (300, 100);
+            module_graph.adopt_module(env);
             let mut osc = registry.borrow_module("base:oscillator").unwrap().clone();
             osc.pos = (50, 20);
             module_graph.adopt_module(osc);

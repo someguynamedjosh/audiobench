@@ -7,6 +7,7 @@ struct ActiveVoice {
     velocity: f32,
     elapsed_samples: usize,
     silent_samples: usize,
+    release_trigger: bool,
     static_data: nodespeak::llvmir::structure::StaticData,
 }
 
@@ -60,8 +61,9 @@ impl ExecEnvironment {
         self.program = Some(self.compiler.compile("<node graph>")?);
         // global_pitch: FLOAT
         // global_velocity: FLOAT
+        // global_note_status: FLOAT
         // global_note_time: [BL]FLOAT
-        self.input = vec![0.0; 2 + buffer_length];
+        self.input = vec![0.0; 3 + buffer_length];
         // global_audio_out: [BL][2]FLOAT
         self.output = vec![0.0; 2 * buffer_length];
         // Just an audio buffer, nothing special.
@@ -84,9 +86,12 @@ impl ExecEnvironment {
         input[0] = voice.pitch;
         // global_velocity
         input[1] = voice.velocity.to_range(-1.0, 1.0);
+        // global_note_status
+        input[2] = if voice.release_trigger { 1.0 } else { 0.0 };
+        voice.release_trigger = false;
         // global_note_time
         for i in 0..buffer_length {
-            input[i + 2] = (i + voice.elapsed_samples) as f32 * time_per_sample;
+            input[i + 3] = (i + voice.elapsed_samples) as f32 * time_per_sample;
         }
         unsafe {
             program
@@ -164,6 +169,7 @@ impl ExecEnvironment {
             velocity,
             elapsed_samples: 0,
             silent_samples: 0,
+            release_trigger: false,
             static_data: unsafe {
                 self.program
                     .as_ref()
@@ -176,7 +182,8 @@ impl ExecEnvironment {
 
     pub fn note_off(&mut self, note_index: i32) {
         assert!(note_index < 128);
-        if let Some(note) = self.held_notes[note_index as usize].take() {
+        if let Some(mut note) = self.held_notes[note_index as usize].take() {
+            note.release_trigger = true;
             self.decaying_notes.push(note);
         }
     }

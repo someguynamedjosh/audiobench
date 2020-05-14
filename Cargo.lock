@@ -105,9 +105,9 @@ dependencies = [
 
 [[package]]
 name = "cc"
-version = "1.0.52"
+version = "1.0.53"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c3d87b23d6a92cd03af510a5ade527033f6aa6fa92161e2d5863a907d4c5e31d"
+checksum = "404b1fe4f65288577753b17e3b36a04596ee784493ec249bf81c7f2d2acd751c"
 
 [[package]]
 name = "cfg-if"
@@ -228,9 +228,9 @@ dependencies = [
 
 [[package]]
 name = "nodespeak"
-version = "0.1.5"
+version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1e9b515367d2d32b3eed5d3748a1a69c5ff2ab7781f50ee429cbcafe89d79eac"
+checksum = "76e6f0fefb113be319cd4a4995486eae263245d72d1f0dacbeeca9decd1558c2"
 dependencies = [
  "colored",
  "libc",

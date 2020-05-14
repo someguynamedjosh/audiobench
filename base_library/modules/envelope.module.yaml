@@ -1,0 +1,48 @@
+inputs:
+  release_trigger:
+    type: trigger 
+outputs:
+  signal:
+    type: audio
+controls:
+  attack:
+    min: 0
+    max: 2
+    default: 0.01
+  decay:
+    min: 0
+    max: 2
+    default: 0.1
+  sustain:
+    min: 0
+    max: 1
+    default: 0.9
+  release:
+    min: 0
+    max: 5
+    default: 0.5
+gui: 
+  label: Envelope
+  width: 9
+  height: 2
+  widgets:
+    knob:
+      control: attack
+      label: Attack
+      x: 1
+      y: 0
+    knob:
+      control: decay 
+      label: Decay
+      x: 3
+      y: 0
+    knob:
+      control: sustain
+      label: Sustain 
+      x: 5
+      y: 0
+    knob:
+      control: release 
+      label: Release
+      x: 7
+      y: 0

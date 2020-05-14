@@ -1,5 +1,4 @@
 # Things with no dependencies
-Envelope module
 Edit controls in real time without recompiling
 Recompile only when necessary
 
@@ -13,6 +12,8 @@ Layers for drawing
 Get a better icon for waveforms.
 Friendly error messages
 Controls update with their actual value when a note is being played.
+Custom icons for inputs / outputs
+Labels for modules and io
 
 # Things with missing dependencies
 MIDI input

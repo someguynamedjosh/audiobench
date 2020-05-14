@@ -50,6 +50,7 @@ pub enum JackType {
     Pitch,
     Waveform,
     Audio,
+    Trigger,
 }
 
 impl JackType {
@@ -59,6 +60,7 @@ impl JackType {
             "pitch" => Ok(Self::Pitch),
             "waveform" => Ok(Self::Waveform),
             "audio" => Ok(Self::Audio),
+            "trigger" => Ok(Self::Trigger),
             _ => Err(()),
         }
     }
@@ -69,6 +71,7 @@ impl JackType {
             Self::Pitch => "base:pitch",
             Self::Waveform => "base:waveform",
             Self::Audio => "base:audio",
+            Self::Trigger => "base:trigger",
         }
     }
 
@@ -78,6 +81,7 @@ impl JackType {
             Self::Pitch => "global_pitch",
             Self::Waveform => "FlatWaveform",
             Self::Audio => "0.0",
+            Self::Trigger => "global_release_trigger",
         }
     }
 }
@@ -335,9 +339,11 @@ impl ModuleGraph {
             sample_rate, 
         ));
         code.push_str(concat!(
-            "input FLOAT global_pitch, global_velocity;\n",
+            "input FLOAT global_pitch, global_velocity, global_note_status;\n",
             "input [BUFFER_LENGTH][1]FLOAT global_note_time;\n",
             "output [BUFFER_LENGTH][2]FLOAT global_audio_out;\n",
+            "[BUFFER_LENGTH]BOOL global_release_trigger = FALSE;\n",
+            "if global_note_status == 1.0 { global_release_trigger[0] = TRUE; }\n",
             "macro FlatWaveform(phase):(value) { FLOAT value = 0.0; }\n",
             "\n",
         ));

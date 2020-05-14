@@ -1,0 +1,60 @@
+[BUFFER_LENGTH][1]FLOAT signal = -1.0;
+
+INT ATTACK_PHASE = 0;
+INT DECAY_PHASE = 1;
+INT HOLD_PHASE = 2;
+INT RELEASE_PHASE = 3;
+INT SILENT_PHASE = 4;
+
+static time, phase, last_value {
+    FLOAT time = 0.0;
+    INT phase = 0;
+    FLOAT last_value = 0.0;
+}
+
+FLOAT value;
+for i = 0 to BUFFER_LENGTH no_unroll {
+    if phase == ATTACK_PHASE {
+        value = time / attack;
+    } else if phase == DECAY_PHASE {
+        value = 1.0 - (1.0 - sustain) * (time / decay);
+    } else if phase == HOLD_PHASE {
+        value = sustain;
+    } else if phase == RELEASE_PHASE {
+        value = last_value * (1.0 - time / release);
+    } else { // SILENT_PHASE
+        value = 0.0;
+    }
+
+    signal[i][0] = value * 2.0 - 1.0;
+    time = time + 1.0 / SAMPLE_RATE;
+    
+    if release_trigger[i?] {
+        phase = RELEASE_PHASE;
+        time = 0.0;
+    } else if phase == ATTACK_PHASE {
+        last_value = value;
+        if time > attack {
+            time = time - attack;
+            if time > decay {
+                time = time - decay;
+                phase = HOLD_PHASE;
+            } else {
+                phase = DECAY_PHASE;
+            }
+        }
+    } else if phase == DECAY_PHASE {
+        last_value = value;
+        if time > decay {
+            time = time - decay;
+            phase = HOLD_PHASE;
+            last_value = sustain;
+        }
+    } else if phase == HOLD_PHASE {
+        // Do nothing.
+    } else if phase == RELEASE_PHASE {
+        if time > release {
+            phase = SILENT_PHASE;
+        }
+    }
+}
