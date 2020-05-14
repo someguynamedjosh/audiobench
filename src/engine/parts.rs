@@ -41,10 +41,10 @@ impl Control {
 #[derive(Clone, Debug)]
 pub enum InputConnection {
     Wire(Rcrc<Module>, usize),
-    Zero,
+    Default,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum JackType {
     Time,
     Pitch,
@@ -69,6 +69,15 @@ impl JackType {
             Self::Pitch => "base:pitch",
             Self::Waveform => "base:waveform",
             Self::Audio => "base:audio",
+        }
+    }
+
+    pub fn default_value(&self) -> &'static str {
+        match self {
+            Self::Time => "global_note_time",
+            Self::Pitch => "global_pitch",
+            Self::Waveform => "FlatWaveform",
+            Self::Audio => "0.0",
         }
     }
 }
@@ -144,7 +153,7 @@ impl Module {
             gui_outline,
             controls,
             pos: (0, 0),
-            inputs: vec![InputConnection::Zero; input_jacks.len()],
+            inputs: vec![InputConnection::Default; input_jacks.len()],
             input_jacks,
             output_jacks,
             internal_id,
@@ -304,14 +313,14 @@ impl ModuleGraph {
         }
     }
 
-    fn generate_code_for_input(&self, input: &InputConnection) -> String {
+    fn generate_code_for_input(&self, input: &InputConnection, typ: JackType) -> String {
         match input {
             InputConnection::Wire(module, output_index) => format!(
                 "module_{}_output_{}",
                 self.index_of_module(&module).unwrap_or(2999999),
                 output_index
             ),
-            InputConnection::Zero => "0.0".to_owned(),
+            InputConnection::Default => typ.default_value().to_owned(),
         }
     }
 
@@ -323,7 +332,9 @@ impl ModuleGraph {
         ));
         code.push_str(concat!(
             "input FLOAT global_pitch, global_velocity;\n",
+            "input [SAMPLES_PER_CHANNEL][1]FLOAT global_note_time;\n",
             "output [SAMPLES_PER_CHANNEL][2]FLOAT global_audio_out;\n",
+            "macro FlatWaveform(phase):(value) { FLOAT value = 0.0; }\n",
             "\n",
         ));
 
@@ -353,7 +364,7 @@ impl ModuleGraph {
             for (input, jack) in module_ref.inputs.iter().zip(module_ref.input_jacks.iter()) {
                 code.push_str(&format!(
                     "    {}, // {}\n",
-                    self.generate_code_for_input(input),
+                    self.generate_code_for_input(input, jack.typ),
                     &jack.code_name
                 ));
             }

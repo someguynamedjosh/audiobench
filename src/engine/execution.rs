@@ -4,6 +4,7 @@ use crate::engine::registry::Registry;
 pub struct InputData {
     global_pitch: f32,
     global_velocity: f32,
+    global_note_time: [f32; 512],
 }
 
 #[repr(C)]
@@ -31,6 +32,7 @@ impl ExecEnvironment {
         let input = InputData {
             global_pitch: 440.0,
             global_velocity: 440.0,
+            global_note_time: [0.0; 512],
         };
         let output = OutputData {
             global_audio_out: [0.0; 1024],

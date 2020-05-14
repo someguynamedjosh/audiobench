@@ -101,25 +101,34 @@ impl MouseAction {
         match self {
             Self::ConnectInput(in_module, in_index) => {
                 let mut in_ref = in_module.borrow_mut();
+                let in_type = in_ref.input_jacks[*in_index].get_type();
                 if let DropTarget::Output(out_module, out_index) = target {
-                    in_ref.inputs[*in_index] = ep::InputConnection::Wire(out_module, out_index);
+                    let out_type = out_module.borrow().output_jacks[out_index].get_type();
+                    if in_type == out_type {
+                        in_ref.inputs[*in_index] = ep::InputConnection::Wire(out_module, out_index);
+                    }
                 } else {
-                    // TODO: Better default.
-                    in_ref.inputs[*in_index] = ep::InputConnection::Zero;
+                    in_ref.inputs[*in_index] = ep::InputConnection::Default;
                 }
             }
             Self::ConnectOutput(out_module, out_index) => {
+                let out_type = out_module.borrow().output_jacks[*out_index].get_type();
                 if let DropTarget::Input(in_module, in_index) = target {
                     let mut in_ref = in_module.borrow_mut();
-                    in_ref.inputs[in_index] =
-                        ep::InputConnection::Wire(Rc::clone(out_module), *out_index);
+                    let in_type = in_ref.input_jacks[in_index].get_type();
+                    if in_type == out_type {
+                        in_ref.inputs[in_index] =
+                            ep::InputConnection::Wire(Rc::clone(out_module), *out_index);
+                    }
                 } else if let DropTarget::Control(control) = target {
-                    let mut control_ref = control.borrow_mut();
-                    let range = control_ref.range;
-                    control_ref.automation.push(ep::AutomationLane {
-                        connection: (Rc::clone(out_module), *out_index),
-                        range,
-                    });
+                    if out_type == ep::JackType::Audio {
+                        let mut control_ref = control.borrow_mut();
+                        let range = control_ref.range;
+                        control_ref.automation.push(ep::AutomationLane {
+                            connection: (Rc::clone(out_module), *out_index),
+                            range,
+                        });
+                    }
                 }
             }
             _ => (),

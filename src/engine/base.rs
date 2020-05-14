@@ -25,6 +25,9 @@ impl Engine {
             let mut osc = registry.borrow_module("base:oscillator").unwrap().clone();
             osc.pos = (50, 20);
             module_graph.adopt_module(osc);
+            let mut osc = registry.borrow_module("base:oscillator").unwrap().clone();
+            osc.pos = (50, 200);
+            module_graph.adopt_module(osc);
             let mut output = registry.borrow_module("base:note_output").unwrap().clone();
             output.pos = (90, 90);
             module_graph.adopt_module(output);
@@ -68,6 +71,7 @@ impl Engine {
     pub fn render_audio(&mut self) -> &[f32] {
         let mut new_code = self.new_module_graph_code.lock().unwrap();
         if let Some(code) = new_code.take() {
+            println!("{}", code);
             self.executor.compile(code).expect("TODO: Nice error.");
         }
         self.executor.execute().expect("TODO: Nice error.")
