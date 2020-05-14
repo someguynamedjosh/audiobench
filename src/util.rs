@@ -48,7 +48,7 @@ pub fn format_decimal(value: f32, digits: i32) -> String {
     format!("{:.*}", digits, value)
 }
 
-pub use std::{cell::RefCell, rc::Rc};
+pub use std::{cell::RefCell, rc::Rc, sync::Arc};
 
 pub type Rcrc<T> = Rc<RefCell<T>>;
 pub fn rcrc<T>(content: T) -> Rcrc<T> {

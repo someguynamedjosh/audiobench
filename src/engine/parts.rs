@@ -324,16 +324,20 @@ impl ModuleGraph {
         }
     }
 
-    pub fn generate_code(&self, samples_per_channel: i32) -> Result<String, ()> {
+    pub fn generate_code(&self, buffer_length: i32, sample_rate: i32) -> Result<String, ()> {
         let mut code = "".to_owned();
         code.push_str(&format!(
-            "INT SAMPLES_PER_CHANNEL = {};\n",
-            samples_per_channel
+            "INT BUFFER_LENGTH = {};\n",
+            buffer_length, 
+        ));
+        code.push_str(&format!(
+            "FLOAT SAMPLE_RATE = {}.0;\n",
+            sample_rate, 
         ));
         code.push_str(concat!(
             "input FLOAT global_pitch, global_velocity;\n",
-            "input [SAMPLES_PER_CHANNEL][1]FLOAT global_note_time;\n",
-            "output [SAMPLES_PER_CHANNEL][2]FLOAT global_audio_out;\n",
+            "input [BUFFER_LENGTH][1]FLOAT global_note_time;\n",
+            "output [BUFFER_LENGTH][2]FLOAT global_audio_out;\n",
             "macro FlatWaveform(phase):(value) { FLOAT value = 0.0; }\n",
             "\n",
         ));

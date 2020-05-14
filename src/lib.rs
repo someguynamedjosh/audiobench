@@ -33,6 +33,11 @@ impl Instance {
         self.engine.borrow_registry().borrow_icon_data(icon_index)
     }
 
+    pub fn set_buffer_length_and_sample_rate(&mut self, buffer_length: i32, sample_rate: i32) {
+        self.engine
+            .set_buffer_length_and_sample_rate(buffer_length, sample_rate)
+    }
+
     pub fn render_audio(&mut self) -> &[f32] {
         self.engine.render_audio()
     }
@@ -129,6 +134,15 @@ pub unsafe extern "C" fn ABGetIconData(
     let svg_data = (*instance).borrow_icon_data(icon_index as usize);
     (*data_buffer) = svg_data.as_ptr();
     (*data_length) = svg_data.len() as i32;
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ABSetBufferLengthAndSampleRate(
+    instance: *mut Instance,
+    buffer_length: i32,
+    sample_rate: i32,
+) {
+    (*instance).set_buffer_length_and_sample_rate(buffer_length, sample_rate)
 }
 
 #[no_mangle]

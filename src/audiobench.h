@@ -22,6 +22,7 @@ extern "C" {
     void ABDestroyInstance(ABInstanceRef);
     int ABGetNumIcons(ABInstanceRef);
     void ABGetIconData(ABInstanceRef, int iconIndex, void **dataBufferPtr, int *sizePtr);
+    float *ABSetBufferLengthAndSampleRate(ABInstanceRef, int, int);
     float *ABRenderAudio(ABInstanceRef);
     void ABSetGraphicsFunctions(ABInstanceRef, ABGraphicsFunctions);
 

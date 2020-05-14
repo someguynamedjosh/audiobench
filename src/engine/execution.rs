@@ -1,22 +1,11 @@
 use crate::engine::registry::Registry;
 
-#[repr(C)]
-pub struct InputData {
-    global_pitch: f32,
-    global_velocity: f32,
-    global_note_time: [f32; 512],
-}
-
-#[repr(C)]
-pub struct OutputData {
-    global_audio_out: [f32; 1024],
-}
-
 pub struct ExecEnvironment {
     compiler: nodespeak::Compiler,
     program: Option<nodespeak::llvmir::structure::Program>,
-    input: InputData,
-    output: OutputData,
+    input: Vec<f32>,
+    output: Vec<f32>,
+    buffer_length: usize,
     static_data: Option<nodespeak::llvmir::structure::StaticData>,
 }
 
@@ -29,26 +18,26 @@ impl ExecEnvironment {
             compiler.add_source(name.to_owned(), content.to_owned());
         }
 
-        let input = InputData {
-            global_pitch: 440.0,
-            global_velocity: 440.0,
-            global_note_time: [0.0; 512],
-        };
-        let output = OutputData {
-            global_audio_out: [0.0; 1024],
-        };
         Self {
             compiler,
             program: None,
-            input,
-            output,
+            input: Vec::new(),
+            output: Vec::new(),
+            buffer_length: 0,
             static_data: None,
         }
     }
 
-    pub fn compile(&mut self, source: String) -> Result<(), String> {
+    pub fn compile(&mut self, source: String, buffer_length: usize) -> Result<(), String> {
         self.compiler.add_source("<node graph>".to_owned(), source);
         self.program = Some(self.compiler.compile("<node graph>")?);
+        // global_pitch: FLOAT
+        // global_velocity: FLOAT
+        // global_note_time: [BL]FLOAT
+        self.input = vec![0.0; 2 + buffer_length];
+        // global_audio_out: [BL][2]FLOAT
+        self.output = vec![0.0; 2 * buffer_length];
+        self.buffer_length = buffer_length;
         unsafe {
             self.static_data = Some(self.program.as_ref().unwrap().create_static_data()?);
         }
@@ -56,19 +45,30 @@ impl ExecEnvironment {
     }
 
     pub fn execute(&mut self) -> Result<&[f32], String> {
+        // global_pitch
+        self.input[0] = 440.0;
+        // global_velocity
+        self.input[1] = 1.0;
         if let Some(program) = &self.program {
             unsafe {
                 program
-                    .execute_data(
-                        &mut self.input,
-                        &mut self.output,
+                    .execute_raw(
+                        vec_as_raw(&mut self.input),
+                        vec_as_raw(&mut self.output),
                         self.static_data.as_mut().unwrap(),
                     )
                     .map_err(|s| s.to_owned())?;
             }
-            Ok(&self.output.global_audio_out)
+            Ok(&self.output[0..self.buffer_length * 2])
         } else {
             Err("Program not compiled.".to_owned())
         }
+    }
+}
+
+fn vec_as_raw<T: Sized>(input: &mut Vec<T>) -> &mut [u8] {
+    unsafe {
+        let out_len = input.len() * std::mem::size_of::<T>();
+        std::slice::from_raw_parts_mut(input.as_mut_ptr() as *mut u8, out_len)
     }
 }

@@ -32,6 +32,7 @@ version = "0.1.0"
 dependencies = [
  "nodespeak",
  "num",
+ "single_value_channel",
  "walkdir",
  "zip",
 ]
@@ -449,6 +450,12 @@ dependencies = [
  "fake-simd",
  "opaque-debug",
 ]
+
+[[package]]
+name = "single_value_channel"
+version = "1.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fcbf0d4b0fde6c869e577fd41c50bd3da7179b61aafdd049a3c068a3fe00ba57"
 
 [[package]]
 name = "snailquote"
