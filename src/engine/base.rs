@@ -44,7 +44,9 @@ impl Engine {
             .expect("TODO: Nice error.");
         println!("{}", code);
 
-        if let Err(problem) = executor.compile(code, DEFAULT_BUFFER_LENGTH as usize) {
+        if let Err(problem) =
+            executor.compile(code, DEFAULT_BUFFER_LENGTH as usize, DEFAULT_SAMPLE_RATE)
+        {
             eprintln!("ERROR: Basic setup failed to compile:");
             eprintln!("{}", problem);
             std::process::abort();
@@ -86,11 +88,21 @@ impl Engine {
         }
     }
 
+    pub fn note_on(&mut self, index: i32, velocity: f32) {
+        self.executor.note_on(index, velocity)
+    }
+
+    pub fn note_off(&mut self, index: i32) {
+        self.executor.note_off(index)
+    }
+
     pub fn render_audio(&mut self) -> &[f32] {
         let mut new_code = self.new_module_graph_code.lock().unwrap();
         if let Some(code) = new_code.take() {
             println!("{}", code);
-            self.executor.compile(code, self.buffer_length as usize).expect("TODO: Nice error.");
+            self.executor
+                .compile(code, self.buffer_length as usize, self.sample_rate)
+                .expect("TODO: Nice error.");
         }
         self.executor.execute().expect("TODO: Nice error.")
     }

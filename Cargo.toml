@@ -18,6 +18,7 @@ panic = "abort"
 panic = "abort"
 
 [dependencies]
+array-macro = "1.0"
 nodespeak = "0.1"
 num = "0.2"
 single_value_channel = "1.2"

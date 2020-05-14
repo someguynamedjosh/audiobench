@@ -38,6 +38,14 @@ impl Instance {
             .set_buffer_length_and_sample_rate(buffer_length, sample_rate)
     }
 
+    pub fn note_on(&mut self, index: i32, velocity: f32) {
+        self.engine.note_on(index, velocity)
+    }
+
+    pub fn note_off(&mut self, index: i32) {
+        self.engine.note_off(index)
+    }
+
     pub fn render_audio(&mut self) -> &[f32] {
         self.engine.render_audio()
     }
@@ -143,6 +151,16 @@ pub unsafe extern "C" fn ABSetBufferLengthAndSampleRate(
     sample_rate: i32,
 ) {
     (*instance).set_buffer_length_and_sample_rate(buffer_length, sample_rate)
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ABNoteOn(instance: *mut Instance, index: i32, velocity: f32) {
+    (*instance).note_on(index, velocity)
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ABNoteOff(instance: *mut Instance, index: i32) {
+    (*instance).note_off(index)
 }
 
 #[no_mangle]

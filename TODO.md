@@ -1,6 +1,5 @@
 # Things with no dependencies
 Envelope module
-Multiple voices
 Edit controls in real time without recompiling
 Recompile only when necessary
 
@@ -13,6 +12,7 @@ Display numeric value of control when manually dragging it
 Layers for drawing
 Get a better icon for waveforms.
 Friendly error messages
+Controls update with their actual value when a note is being played.
 
 # Things with missing dependencies
 MIDI input

@@ -140,6 +140,35 @@ void AudioBenchAudioProcessor::processBlock (AudioBuffer<float>& buffer, MidiBuf
     auto totalNumInputChannels  = getTotalNumInputChannels();
     auto totalNumOutputChannels = getTotalNumOutputChannels();
 
+    // Doing two seperate loops prevents the problem where a note is turned on and off in the same
+    // buffer, but the on is processed after the off so the note just stays on forever.
+    for (auto meta : midiMessages) {
+        auto message = meta.getMessage();
+        if (message.isNoteOn()) {
+            ABNoteOn(ab, message.getNoteNumber(), message.getFloatVelocity());
+        }
+    }
+    for (auto meta : midiMessages) {
+        auto message = meta.getMessage();
+        if (message.isNoteOff()) {
+            ABNoteOff(ab, message.getNoteNumber());
+        }
+    }
+    // MIDI seems to do weird things, this may be helpful in the future.
+    // if (midiMessages.getNumEvents() > 0) {
+    //     std::cout << "=========" << std::endl;
+    // }
+    // for (auto meta : midiMessages) {
+    //     auto message = meta.getMessage();
+    //     if (message.isNoteOn()) {
+    //         std::cout << "On " << message.getNoteNumber() << std::endl;
+    //     } else if (message.isNoteOff()) {
+    //         std::cout << "Off " << message.getNoteNumber() << std::endl;
+    //     } else {
+    //         std::cout << "Weird message" << std::endl;
+    //     }
+    // }
+
     // In case we have more outputs than inputs, this code clears any output
     // channels that didn't contain input data, (because these aren't
     // guaranteed to be empty - they may contain garbage).
