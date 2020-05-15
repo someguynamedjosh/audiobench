@@ -1,4 +1,5 @@
 use crate::engine;
+use crate::engine::codegen;
 use crate::util::*;
 use std::sync::Mutex;
 
@@ -37,9 +38,9 @@ impl Engine {
         module_graph.adopt_module(output);
 
         let mut executor = engine::execution::ExecEnvironment::new(&registry);
-        let code = module_graph
-            .generate_code(DEFAULT_BUFFER_LENGTH, DEFAULT_SAMPLE_RATE)
-            .expect("TODO: Nice error.");
+        let code =
+            codegen::generate_code(&module_graph, DEFAULT_BUFFER_LENGTH, DEFAULT_SAMPLE_RATE)
+                .expect("TODO: Nice error");
         println!("{}", code);
 
         if let Err(problem) =
@@ -64,11 +65,11 @@ impl Engine {
     }
 
     pub fn mark_module_graph_dirty(&mut self) {
-        let new_code = self
-            .module_graph
-            .borrow()
-            .generate_code(self.buffer_length, self.sample_rate)
-            .expect("TODO: Nice error.");
+        let module_graph_ref = self.module_graph.borrow();
+        let new_code =
+            codegen::generate_code(&*module_graph_ref, self.buffer_length, self.sample_rate)
+                .expect("TODO: Nice error");
+        drop(module_graph_ref);
         let mut code_ref = self.new_module_graph_code.lock().unwrap();
         *code_ref = Some(new_code);
     }
@@ -94,7 +95,8 @@ impl Engine {
         let mut new_code = self.new_module_graph_code.lock().unwrap();
         if let Some(code) = new_code.take() {
             println!("{}", code);
-            let result = self.executor
+            let result = self
+                .executor
                 .compile(code, self.buffer_length as usize, self.sample_rate);
             if let Err(err) = result {
                 eprintln!("Compile failed!");

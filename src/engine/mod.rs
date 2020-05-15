@@ -1,4 +1,5 @@
 mod base;
+pub mod codegen;
 pub mod execution;
 pub mod parts;
 pub mod registry;
