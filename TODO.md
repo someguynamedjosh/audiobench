@@ -2,7 +2,6 @@
 Edit controls in real time without recompiling
 Controls update with their actual value when a note is being played.
 Recompile only when necessary
-Labels for modules and io
 Custom icons for inputs / outputs
 
 # Low-priority things without dependencies

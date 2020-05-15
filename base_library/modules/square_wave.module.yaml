@@ -2,6 +2,7 @@ inputs:
 outputs:
   Wave:
     type: waveform
+    label: Waveform
 controls:
   duty:
     min: 0.0

@@ -92,7 +92,13 @@ fn create_module_prototype_from_yaml(
             .map_err(|_| format!("ERROR: {} is not a valid input type.", type_name))?;
         // The base library should always come with these icons.
         let icon = *icon_indexes.get(typ.icon_name()).unwrap();
-        inputs.push(IOJack::create(typ, icon, input_description.name.clone()));
+        let label = input_description.unique_child("label")?.value.clone();
+        inputs.push(IOJack::create(
+            typ,
+            icon,
+            input_description.name.clone(),
+            label,
+        ));
     }
     let mut outputs = Vec::new();
     for output_description in &yaml.unique_child("outputs")?.children {
@@ -101,7 +107,13 @@ fn create_module_prototype_from_yaml(
             .map_err(|_| format!("ERROR: {} is not a valid output type.", type_name))?;
         // The base library should always come with these icons.
         let icon = *icon_indexes.get(typ.icon_name()).unwrap();
-        outputs.push(IOJack::create(typ, icon, output_description.name.clone()));
+        let label = output_description.unique_child("label")?.value.clone();
+        outputs.push(IOJack::create(
+            typ,
+            icon,
+            output_description.name.clone(),
+            label,
+        ));
     }
 
     Ok(Module::create(

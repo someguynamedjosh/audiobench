@@ -11,7 +11,7 @@ pub struct GraphicsFunctions {
     fill_rect: fn(*mut i8, i32, i32, i32, i32),
     fill_rounded_rect: fn(*mut i8, i32, i32, i32, i32, i32),
     fill_pie: fn(*mut i8, i32, i32, i32, i32, f32, f32),
-    write_label: fn(*mut i8, i32, i32, i32, *const u8),
+    write_text: fn(*mut i8, i32, i32, i32, i32, i32, u8, u8, i32, *const u8),
     draw_icon: fn(*mut i8, *mut i8, i32, i32, i32, i32),
 }
 
@@ -47,7 +47,18 @@ impl GraphicsFunctions {
         fn fill_pie(_data: *mut i8, _x: i32, _y: i32, _r: i32, _ir: i32, _sr: f32, _er: f32) {
             panic!("ERROR: Graphics functions not set by frontend!");
         }
-        fn write_label(_data: *mut i8, _x: i32, _y: i32, _w: i32, _text: *const u8) {
+        fn write_text(
+            _data: *mut i8,
+            _font_size: i32,
+            _x: i32,
+            _y: i32,
+            _w: i32,
+            _h: i32,
+            _halign: u8,
+            _valign: u8,
+            _max_lines: i32,
+            _text: *const u8,
+        ) {
             panic!("ERROR: Graphics functions not set by frontend!");
         }
         fn draw_icon(_data: *mut i8, _icon_store: *mut i8, _index: i32, _x: i32, _y: i32, _s: i32) {
@@ -64,10 +75,24 @@ impl GraphicsFunctions {
             fill_rect,
             fill_rounded_rect,
             fill_pie,
-            write_label,
+            write_text,
             draw_icon,
         }
     }
+}
+
+#[repr(i8)]
+pub enum HAlign {
+    Left = 0,
+    Center = 1,
+    Right = 2,
+}
+
+#[repr(i8)]
+pub enum VAlign {
+    Top = 0,
+    Center = 1,
+    Bottom = 2,
 }
 
 pub struct GrahpicsWrapper<'a> {
@@ -146,11 +171,37 @@ impl<'a> GrahpicsWrapper<'a> {
     }
 
     pub fn write_label(&mut self, x: i32, y: i32, w: i32, text: &str) {
+        self.write_text(12, x, y, w, 30, HAlign::Center, VAlign::Top, 2, text)
+    }
+
+    pub fn write_text(
+        &mut self,
+        font_size: i32,
+        x: i32,
+        y: i32,
+        w: i32,
+        h: i32,
+        halign: HAlign,
+        valign: VAlign,
+        max_lines: i32,
+        text: &str,
+    ) {
         // TODO: Assert that text is ASCII.
         let raw_text = text.as_bytes();
         let mut raw_text = Vec::from(raw_text);
         raw_text.push(0);
-        (self.graphics_fns.write_label)(self.aux_data, x, y, w, raw_text.as_ptr());
+        (self.graphics_fns.write_text)(
+            self.aux_data,
+            font_size,
+            x,
+            y,
+            w,
+            h,
+            halign as u8,
+            valign as u8,
+            max_lines,
+            raw_text.as_ptr(),
+        );
     }
 
     pub fn draw_icon(&mut self, index: usize, x: i32, y: i32, size: i32) {

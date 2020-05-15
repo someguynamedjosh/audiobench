@@ -13,7 +13,7 @@ struct ABGraphicsFunctions {
     void (*fillRect)(void*, int, int, int, int);
     void (*fillRoundedRect)(void*, int, int, int, int, int);
     void (*fillPie)(void*, int, int, int, int, float, float);
-    void (*writeLabel)(void*, int, int, int, char*);
+    void (*writeText)(void*, int, int, int, int, int, char, char, int, char*);
     void (*drawIcon)(void*, void*, int, int, int, int);
 };
 

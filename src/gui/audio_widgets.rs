@@ -1,13 +1,9 @@
 use crate::engine::parts as ep;
 use crate::gui::constants::*;
-use crate::gui::graphics::GrahpicsWrapper;
+use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
 use crate::gui::{DropTarget, Gui, MouseAction, MouseMods};
 use crate::util::*;
 use std::f32::consts::PI;
-
-fn bound_check(coord: (i32, i32), bounds: (i32, i32)) -> bool {
-    coord.0 >= 0 && coord.1 >= 0 && coord.0 <= bounds.0 && coord.1 <= bounds.1
-}
 
 fn jack_y(index: i32) -> i32 {
     coord(index) + MODULE_IO_JACK_SIZE / 2
@@ -56,7 +52,7 @@ impl KnobEditor {
         mods: &MouseMods,
     ) -> Option<MouseAction> {
         let mouse_pos = (mouse_pos.0 - self.pos.0, mouse_pos.1 - self.pos.1);
-        if bound_check(mouse_pos, self.size) {
+        if mouse_pos.inside(self.size) {
             // Yes, the last 0 is intentional. The center of the knob is not vertically centered.
             let (cx, cy) = (mouse_pos.0 - self.size.0 / 2, mouse_pos.1 - self.size.0 / 2);
             // y coordinate is inverted from how it appears on screen.
@@ -101,14 +97,14 @@ impl KnobEditor {
 
     pub fn get_drop_target_at(&self, mouse_pos: (i32, i32)) -> DropTarget {
         let mouse_pos = (mouse_pos.0 - self.pos.0, mouse_pos.1 - self.pos.1);
-        if bound_check(mouse_pos, self.size) {
+        if mouse_pos.inside(self.size) {
             DropTarget::None
         } else {
             DropTarget::None
         }
     }
 
-    fn draw(&self, g: &mut GrahpicsWrapper) {
+    fn draw(&self, g: &mut GrahpicsWrapper, mouse_pos: (i32, i32)) {
         g.push_state();
 
         g.apply_offset(self.pos.0, self.pos.1);
@@ -176,7 +172,7 @@ impl Knob {
         parent_pos: (i32, i32),
     ) -> MouseAction {
         let mouse_pos = (mouse_pos.0 - self.pos.0, mouse_pos.1 - self.pos.1);
-        if bound_check(mouse_pos, (GRID_2, GRID_1)) {
+        if mouse_pos.inside((GRID_2, GRID_1)) {
             if mods.right_click {
                 let pos = (
                     self.pos.0 + parent_pos.0 + GRID_2 / 2,
@@ -197,7 +193,7 @@ impl Knob {
 
     pub fn get_drop_target_at(&self, mouse_pos: (i32, i32)) -> DropTarget {
         let mouse_pos = (mouse_pos.0 - self.pos.0, mouse_pos.1 - self.pos.1);
-        if bound_check(mouse_pos, (GRID_2, GRID_1)) {
+        if mouse_pos.inside((GRID_2, GRID_1)) {
             DropTarget::Control(Rc::clone(&self.control))
         } else {
             DropTarget::None
@@ -267,22 +263,25 @@ impl Knob {
 }
 
 struct IOJack {
+    label: String,
     icon_index: usize,
     pos: (i32, i32),
     is_output: bool,
 }
 
 impl IOJack {
-    fn input(icon_index: usize, x: i32, y: i32) -> Self {
+    fn input(label: String, icon_index: usize, x: i32, y: i32) -> Self {
         Self {
+            label,
             icon_index,
             pos: (x, y),
             is_output: false,
         }
     }
 
-    fn output(icon_index: usize, x: i32, y: i32) -> Self {
+    fn output(label: String, icon_index: usize, x: i32, y: i32) -> Self {
         Self {
+            label,
             icon_index,
             pos: (x, y),
             is_output: true,
@@ -291,10 +290,10 @@ impl IOJack {
 
     pub fn mouse_in_bounds(&self, mouse_pos: (i32, i32)) -> bool {
         let mouse_pos = (mouse_pos.0 - self.pos.0, mouse_pos.1 - self.pos.1);
-        bound_check(mouse_pos, (MODULE_IO_JACK_SIZE, MODULE_IO_JACK_SIZE))
+        mouse_pos.inside((MODULE_IO_JACK_SIZE, MODULE_IO_JACK_SIZE))
     }
 
-    fn draw(&self, g: &mut GrahpicsWrapper) {
+    fn draw(&self, g: &mut GrahpicsWrapper, show_label: bool) {
         g.push_state();
         g.apply_offset(self.pos.0, self.pos.1);
 
@@ -305,6 +304,24 @@ impl IOJack {
         g.fill_rect(x, 0, MCS, MITS);
         const MITIP: i32 = MODULE_IO_JACK_ICON_PADDING;
         g.draw_icon(self.icon_index, MITIP, MITIP, MITS - MITIP * 2);
+
+        if show_label {
+            g.write_text(
+                12,
+                if self.is_output { MITS + 2 } else { -102 },
+                0,
+                100,
+                MITS,
+                if self.is_output {
+                    HAlign::Left
+                } else {
+                    HAlign::Right
+                },
+                VAlign::Center,
+                1,
+                &self.label,
+            )
+        }
 
         g.pop_state();
     }
@@ -332,6 +349,7 @@ impl Module {
         let mut inputs = Vec::new();
         for (index, input) in module_ref.input_jacks.iter().enumerate() {
             inputs.push(IOJack::input(
+                input.borrow_label().to_owned(),
                 input.get_icon_index(),
                 0,
                 coord(index as i32),
@@ -341,6 +359,7 @@ impl Module {
         let mut outputs = Vec::new();
         for (index, output) in module_ref.output_jacks.iter().enumerate() {
             outputs.push(IOJack::output(
+                output.borrow_label().to_owned(),
                 output.get_icon_index(),
                 x,
                 coord(index as i32),
@@ -364,7 +383,7 @@ impl Module {
     pub fn respond_to_mouse_press(&self, mouse_pos: (i32, i32), mods: &MouseMods) -> MouseAction {
         let pos = self.get_pos();
         let mouse_pos = (mouse_pos.0 - pos.0, mouse_pos.1 - pos.1);
-        if !bound_check(mouse_pos, self.size) {
+        if !mouse_pos.inside(self.size) {
             return MouseAction::None;
         }
         for control in &self.controls {
@@ -389,7 +408,7 @@ impl Module {
     pub fn get_drop_target_at(&self, mouse_pos: (i32, i32)) -> DropTarget {
         let pos = self.get_pos();
         let mouse_pos = (mouse_pos.0 - pos.0, mouse_pos.1 - pos.1);
-        if !bound_check(mouse_pos, self.size) {
+        if !mouse_pos.inside(self.size) {
             return DropTarget::None;
         }
         for control in &self.controls {
@@ -411,10 +430,11 @@ impl Module {
         DropTarget::None
     }
 
-    fn draw(&self, g: &mut GrahpicsWrapper) {
+    fn draw(&self, g: &mut GrahpicsWrapper, mouse_pos: (i32, i32)) {
         let pos = self.get_pos();
         g.push_state();
         g.apply_offset(pos.0, pos.1);
+        let mouse_pos = mouse_pos.sub(pos);
 
         const MCS: i32 = MODULE_CORNER_SIZE;
         const MIW: i32 = MODULE_IO_WIDTH;
@@ -437,11 +457,25 @@ impl Module {
             }
         }
 
+        g.set_color(&COLOR_TEXT);
+        g.write_text(
+            12,
+            MODULE_IO_WIDTH,
+            -20,
+            self.size.0,
+            20,
+            HAlign::Left,
+            VAlign::Bottom,
+            1,
+            &self.label,
+        );
+
+        let hovering = mouse_pos.inside(self.size);
         for input in &self.inputs {
-            input.draw(g);
+            input.draw(g, hovering);
         }
         for output in &self.outputs {
-            output.draw(g);
+            output.draw(g, hovering);
         }
         for control in &self.controls {
             control.draw(g, pos);
@@ -524,17 +558,16 @@ impl ModuleGraph {
         let offset = self.offset.borrow();
         g.push_state();
         g.apply_offset(offset.0 + self.pos.0, offset.1 + self.pos.1);
+        let (mx, my) = gui_state.get_current_mouse_pos();
+        let (mx, my) = (mx - offset.0 - self.pos.0, my - offset.1 - self.pos.1);
         for module in &self.modules {
-            module.draw(g);
+            module.draw(g, (mx, my));
         }
         if let Some(widget) = &self.detail_menu_widget {
-            widget.draw(g);
+            widget.draw(g, (mx, my));
         }
         if gui_state.is_dragging() {
             let cma = gui_state.borrow_current_mouse_action();
-            let (mx, my) = gui_state.get_current_mouse_pos();
-            let offset = self.offset.borrow();
-            let (mx, my) = (mx - offset.0 - self.pos.0, my - offset.1 - self.pos.1);
             if let MouseAction::ConnectInput(module, index) = cma {
                 let module_ref = module.borrow();
                 let (sx, sy) = input_position(&*module_ref, *index as i32);

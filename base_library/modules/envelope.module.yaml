@@ -1,9 +1,11 @@
 inputs:
   release_trigger:
     type: trigger 
+    label: Release Trigger
 outputs:
   signal:
     type: audio
+    label: Signal
 controls:
   attack:
     min: 0

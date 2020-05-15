@@ -2,10 +2,13 @@ inputs:
 outputs:
   time:
     type: time
+    label: Time
   pitch:
     type: pitch
+    label: Pitch
   velocity:
     type: audio
+    label: Velocity
 controls:
 gui: 
   label: Note Input

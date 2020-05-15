@@ -1,11 +1,14 @@
 inputs:
   pitch:
     type: pitch 
+    label: Pitch
   Waveform:
     type: waveform
+    label: Waveform
 outputs:
   audio:
     type: audio
+    label: Audio
 controls:
   phase_offset:
     min: -1

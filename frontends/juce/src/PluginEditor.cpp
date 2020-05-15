@@ -63,10 +63,28 @@ void fillPie(void *gp, int x, int y, int r, int ir, float sr, float er) {
     ((Graphics*) gp)->fillPath(pie);
 }
 
-void writeLabel(void *gp, int x, int y, int w, char *text) {
+void writeText(
+    void *gp, int fontSize, int x, int y, int w, int h, char halign, 
+    char valign, int maxLines, char *text
+) {
+    int justification = 0;
+    if (halign == 0) {
+        justification |= Justification::left;
+    } else if (halign == 1) {
+        justification |= Justification::horizontallyCentred;
+    } else if (halign == 2) {
+        justification |= Justification::right;
+    }
+    if (valign == 0) {
+        justification |= Justification::top;
+    } else if (valign == 1) {
+        justification |= Justification::verticallyCentred;
+    } else if (valign == 2) {
+        justification |= Justification::bottom;
+    }
     String str = String(text);
-    ((Graphics*) gp)->setFont(12.0f);
-    ((Graphics*) gp)->drawFittedText(str, x, y, w, 30, Justification::centredTop, 2);
+    ((Graphics*) gp)->setFont((float) fontSize);
+    ((Graphics*) gp)->drawFittedText(str, x, y, w, h, justification, maxLines);
 }
 
 void drawIcon(void *gp, void *iconStore, int index, int x, int y, int size) {
@@ -93,7 +111,7 @@ AudioBenchAudioProcessorEditor::AudioBenchAudioProcessorEditor (AudioBenchAudioP
     fns.fillRect = fillRect;
     fns.fillRoundedRect = fillRoundedRect;
     fns.fillPie = fillPie;
-    fns.writeLabel = writeLabel;
+    fns.writeText = writeText;
     fns.drawIcon = drawIcon;
     ABSetGraphicsFunctions(p.ab, fns);
 
