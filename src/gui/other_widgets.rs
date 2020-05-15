@@ -149,20 +149,26 @@ pub struct ModuleLibrary {
     size: (i32, i32),
     vertical_stacking: i32,
     entries: Vec<ModuleLibraryEntry>,
+    alphabetical_order: Vec<usize>,
 }
 
 impl ModuleLibrary {
     pub fn create(registry: &Registry, pos: (i32, i32), size: (i32, i32)) -> Self {
-        let entries = registry
+        let entries: Vec<_> = registry
             .iterate_over_modules()
             .map(|module| ModuleLibraryEntry::from(module))
             .collect();
         let vertical_stacking = size.1 / (ModuleLibraryEntry::HEIGHT + GRID_P);
+        let mut alphabetical_order: Vec<_> = (0..entries.len()).collect();
+        alphabetical_order.sort_by(|a, b| {
+            entries[*a].name.cmp(&entries[*b].name)
+        });
         Self {
             pos,
             size,
             vertical_stacking,
             entries,
+            alphabetical_order,
         }
     }
 
@@ -177,7 +183,8 @@ impl ModuleLibrary {
             + mouse_pos.1 / (ModuleLibraryEntry::HEIGHT + GRID_P);
         let clicked_index = clicked_index as usize;
         if clicked_index < self.entries.len() {
-            MouseAction::AddModule(self.entries[clicked_index].prototype.clone())
+            let entry_index = self.alphabetical_order[clicked_index];
+            MouseAction::AddModule(self.entries[entry_index].prototype.clone())
         } else {
             MouseAction::None
         }
@@ -187,7 +194,8 @@ impl ModuleLibrary {
         g.push_state();
         g.apply_offset(self.pos.0, self.pos.1);
 
-        for (index, entry) in self.entries.iter().enumerate() {
+        for (index, entry_index) in self.alphabetical_order.iter().enumerate() {
+            let entry = &self.entries[*entry_index];
             let index = index as i32;
             let (x, y) = (
                 (index / self.vertical_stacking) * (ModuleLibraryEntry::WIDTH + GRID_P) + GRID_P,
