@@ -92,14 +92,15 @@ impl ModuleLibraryEntry {
     const HEIGHT: i32 = fatgrid(1);
 
     fn from(module: &ep::Module) -> Self {
-        let name = module.gui_outline.borrow().label.clone();
-        let input_icons = module
-            .input_jacks
+        let template_ref = module.template.borrow();
+        let name = template_ref.label.clone();
+        let input_icons = template_ref
+            .inputs
             .iter()
             .map(|jack| jack.get_icon_index())
             .collect();
-        let output_icons = module
-            .output_jacks
+        let output_icons = template_ref
+            .outputs
             .iter()
             .map(|jack| jack.get_icon_index())
             .collect();
@@ -160,9 +161,7 @@ impl ModuleLibrary {
             .collect();
         let vertical_stacking = size.1 / (ModuleLibraryEntry::HEIGHT + GRID_P);
         let mut alphabetical_order: Vec<_> = (0..entries.len()).collect();
-        alphabetical_order.sort_by(|a, b| {
-            entries[*a].name.cmp(&entries[*b].name)
-        });
+        alphabetical_order.sort_by(|a, b| entries[*a].name.cmp(&entries[*b].name));
         Self {
             pos,
             size,

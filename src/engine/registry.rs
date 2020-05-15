@@ -1,4 +1,4 @@
-use crate::engine::parts::{Control, GuiOutline, IOJack, JackType, Module, WidgetOutline};
+use crate::engine::parts::{Control, IOJack, JackType, Module, ModuleTemplate, WidgetOutline};
 use crate::engine::yaml::{self, YamlNode};
 use crate::util::*;
 use std::collections::{HashMap, HashSet};
@@ -52,7 +52,6 @@ fn create_widget_outline_from_yaml(
 fn create_module_prototype_from_yaml(
     icon_indexes: &HashMap<String, usize>,
     yaml: &YamlNode,
-    module_id: &str,
 ) -> Result<Module, String> {
     let mut controls = Vec::new();
     let mut existing_controls = HashSet::new();
@@ -79,11 +78,6 @@ fn create_module_prototype_from_yaml(
             &controls,
         )?);
     }
-    let gui = GuiOutline {
-        label,
-        size: (width, height),
-        widget_outlines: widgets,
-    };
 
     let mut inputs = Vec::new();
     for input_description in &yaml.unique_child("inputs")?.children {
@@ -116,14 +110,16 @@ fn create_module_prototype_from_yaml(
         ));
     }
 
-    Ok(Module::create(
-        rcrc(gui),
-        controls,
+    let template = ModuleTemplate {
+        label,
+        code_resource: yaml.name.replace(".module.yaml", ".module.ns"),
+        size: (width, height),
+        widget_outlines: widgets,
         inputs,
         outputs,
-        module_id.to_owned(),
-        yaml.name.replace(".module.yaml", ".module.ns"),
-    ))
+    };
+
+    Ok(Module::create(rcrc(template), controls))
 }
 
 pub struct Registry {
@@ -147,8 +143,8 @@ impl Registry {
             )
         })?;
         let yaml = yaml::parse_yaml(&buffer_as_text, name)?;
-        let module = create_module_prototype_from_yaml(&self.icon_indexes, &yaml, &module_id)?;
-        self.modules.insert(module.internal_id.clone(), module);
+        let module = create_module_prototype_from_yaml(&self.icon_indexes, &yaml)?;
+        self.modules.insert(module_id.to_owned(), module);
         Ok(())
     }
 

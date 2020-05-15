@@ -112,9 +112,12 @@ impl MouseAction {
         match self {
             Self::ConnectInput(in_module, in_index) => {
                 let mut in_ref = in_module.borrow_mut();
-                let in_type = in_ref.input_jacks[in_index].get_type();
+                let template_ref = in_ref.template.borrow();
+                let in_type = template_ref.inputs[in_index].get_type();
+                drop(template_ref);
                 if let DropTarget::Output(out_module, out_index) = target {
-                    let out_type = out_module.borrow().output_jacks[out_index].get_type();
+                    let out_type =
+                        out_module.borrow().template.borrow().outputs[out_index].get_type();
                     if in_type == out_type {
                         in_ref.inputs[in_index] = ep::InputConnection::Wire(out_module, out_index);
                     }
@@ -123,10 +126,10 @@ impl MouseAction {
                 }
             }
             Self::ConnectOutput(out_module, out_index) => {
-                let out_type = out_module.borrow().output_jacks[out_index].get_type();
+                let out_type = out_module.borrow().template.borrow().inputs[out_index].get_type();
                 if let DropTarget::Input(in_module, in_index) = target {
                     let mut in_ref = in_module.borrow_mut();
-                    let in_type = in_ref.input_jacks[in_index].get_type();
+                    let in_type = in_ref.template.borrow().inputs[in_index].get_type();
                     if in_type == out_type {
                         in_ref.inputs[in_index] = ep::InputConnection::Wire(out_module, out_index);
                     }

@@ -16,7 +16,7 @@ fn input_position(module: &ep::Module, input_index: i32) -> (i32, i32) {
 
 fn output_position(module: &ep::Module, output_index: i32) -> (i32, i32) {
     let module_pos = module.pos;
-    let module_size = module.gui_outline.borrow().size;
+    let module_size = module.template.borrow().size;
     let module_width = fatgrid(module_size.0) + MODULE_IO_WIDTH * 2;
     (
         module_pos.0 + module_width,
@@ -218,7 +218,14 @@ impl Knob {
         g.set_color(&COLOR_KNOB);
         let zero_angle = value_to_angle(control.range, 0.0);
         let value_angle = value_to_angle(control.range, control.value);
-        g.fill_pie(0, 0, grid(2), KNOB_INSIDE_SPACE * 2, zero_angle, value_angle);
+        g.fill_pie(
+            0,
+            0,
+            grid(2),
+            KNOB_INSIDE_SPACE * 2,
+            zero_angle,
+            value_angle,
+        );
         g.set_color(&COLOR_TEXT);
         g.write_label(0, grid(1) + GRID_P, grid(2), &self.label);
 
@@ -320,7 +327,7 @@ impl IOJack {
 
 fn widget_from_outline(controls: &Vec<Rcrc<ep::Control>>, outline: &ep::WidgetOutline) -> Knob {
     fn convert_grid_pos(grid_pos: (i32, i32)) -> (i32, i32) {
-        (coord(grid_pos.0), coord(grid_pos.1))
+        (MODULE_IO_WIDTH + coord(grid_pos.0), coord(grid_pos.1))
     }
     match outline {
         ep::WidgetOutline::Knob {
@@ -347,20 +354,19 @@ impl Module {
     pub fn create(module: Rcrc<ep::Module>) -> Self {
         const MIW: i32 = MODULE_IO_WIDTH;
         let module_ref = module.borrow();
-        let gui_ref = module_ref.gui_outline.borrow();
-        let grid_size = gui_ref.size;
-        let label = gui_ref.label.clone();
+        let template_ref = module_ref.template.borrow();
+        let grid_size = template_ref.size;
+        let label = template_ref.label.clone();
         let module_controls = &module_ref.controls;
-        let controls = gui_ref
+        let controls = template_ref
             .widget_outlines
             .iter()
             .map(|wo| widget_from_outline(module_controls, wo))
             .collect();
-        drop(gui_ref);
 
         let size = (fatgrid(grid_size.0) + MIW * 2, fatgrid(grid_size.1));
         let mut inputs = Vec::new();
-        for (index, input) in module_ref.input_jacks.iter().enumerate() {
+        for (index, input) in template_ref.inputs.iter().enumerate() {
             inputs.push(IOJack::input(
                 input.borrow_label().to_owned(),
                 input.get_icon_index(),
@@ -370,7 +376,7 @@ impl Module {
         }
         let x = size.0 - MODULE_IO_JACK_SIZE;
         let mut outputs = Vec::new();
-        for (index, output) in module_ref.output_jacks.iter().enumerate() {
+        for (index, output) in template_ref.outputs.iter().enumerate() {
             outputs.push(IOJack::output(
                 output.borrow_label().to_owned(),
                 output.get_icon_index(),
@@ -378,7 +384,9 @@ impl Module {
                 coord(index as i32),
             ));
         }
+        drop(template_ref);
         drop(module_ref);
+
         Self {
             module,
             size,

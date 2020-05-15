@@ -117,14 +117,14 @@ impl IOJack {
 
 #[derive(Debug)]
 pub struct Module {
-    pub gui_outline: Rcrc<GuiOutline>,
+    pub template: Rcrc<ModuleTemplate>,
     pub controls: Vec<Rcrc<Control>>,
     pub pos: (i32, i32),
     pub inputs: Vec<InputConnection>,
-    pub input_jacks: Vec<IOJack>,
-    pub output_jacks: Vec<IOJack>,
-    pub internal_id: String,
-    pub code_resource: String,
+    // pub input_jacks: Vec<IOJack>,
+    // pub output_jacks: Vec<IOJack>,
+    // pub internal_id: String,
+    // pub code_resource: String,
 }
 
 impl Clone for Module {
@@ -132,7 +132,7 @@ impl Clone for Module {
         // gui_outline should point to the same data, but controls should point to unique copies
         // of the controls.
         Self {
-            gui_outline: Rc::clone(&self.gui_outline),
+            template: Rc::clone(&self.template),
             controls: self
                 .controls
                 .iter()
@@ -140,32 +140,21 @@ impl Clone for Module {
                 .collect(),
             pos: self.pos,
             inputs: self.inputs.clone(),
-            input_jacks: self.input_jacks.clone(),
-            output_jacks: self.output_jacks.clone(),
-            internal_id: self.internal_id.clone(),
-            code_resource: self.code_resource.clone(),
         }
     }
 }
 
 impl Module {
     pub fn create(
-        gui_outline: Rcrc<GuiOutline>,
+        template: Rcrc<ModuleTemplate>,
         controls: Vec<Rcrc<Control>>,
-        input_jacks: Vec<IOJack>,
-        output_jacks: Vec<IOJack>,
-        internal_id: String,
-        code_resource: String,
     ) -> Self {
+        let num_inputs = template.borrow().inputs.len();
         Self {
-            gui_outline,
+            template,
             controls,
             pos: (0, 0),
-            inputs: vec![InputConnection::Default; input_jacks.len()],
-            input_jacks,
-            output_jacks,
-            internal_id,
-            code_resource,
+            inputs: vec![InputConnection::Default; num_inputs],
         }
     }
 }
@@ -316,7 +305,8 @@ impl ModuleGraph {
         for (index, module) in self.modules.iter().enumerate() {
             code.push_str(&format!("macro module_{}(\n", index));
             let module_ref = module.borrow();
-            for input in module_ref.input_jacks.iter() {
+            let template_ref = module_ref.template.borrow();
+            for input in template_ref.inputs.iter() {
                 code.push_str(&format!("    {}, \n", input.code_name));
             }
             for control in module_ref.controls.iter() {
@@ -324,19 +314,20 @@ impl ModuleGraph {
                 code.push_str(&format!("    {}, \n", control_ref.code_name));
             }
             code.push_str("):(\n");
-            for output in module_ref.output_jacks.iter() {
+            for output in template_ref.outputs.iter() {
                 code.push_str(&format!("    {}, \n", output.code_name));
             }
             code.push_str(") {\n");
-            code.push_str(&format!("    include \"{}\";\n", module_ref.code_resource));
+            code.push_str(&format!("    include \"{}\";\n", template_ref.code_resource));
             code.push_str("}\n\n");
         }
 
         let execution_order = self.compute_execution_order()?;
         for index in execution_order {
             let module_ref = self.modules[index].borrow();
+            let template_ref = module_ref.template.borrow();
             code.push_str(&format!("module_{}(\n", index));
-            for (input, jack) in module_ref.inputs.iter().zip(module_ref.input_jacks.iter()) {
+            for (input, jack) in module_ref.inputs.iter().zip(template_ref.inputs.iter()) {
                 code.push_str(&format!(
                     "    {}, // {}\n",
                     self.generate_code_for_input(input, jack.typ),
@@ -351,7 +342,7 @@ impl ModuleGraph {
                 ));
             }
             code.push_str("):(\n");
-            for output_index in 0..module_ref.output_jacks.len() {
+            for output_index in 0..template_ref.outputs.len() {
                 code.push_str(&format!(
                     "    AUTO module_{}_output_{},\n",
                     index, output_index,
@@ -365,10 +356,13 @@ impl ModuleGraph {
 }
 
 #[derive(Debug)]
-pub struct GuiOutline {
+pub struct ModuleTemplate {
     pub label: String,
+    pub code_resource: String,
     pub size: (i32, i32),
     pub widget_outlines: Vec<WidgetOutline>,
+    pub inputs: Vec<IOJack>,
+    pub outputs: Vec<IOJack>,
 }
 
 #[derive(Debug)]
