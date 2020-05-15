@@ -95,16 +95,7 @@ impl KnobEditor {
         }
     }
 
-    pub fn get_drop_target_at(&self, mouse_pos: (i32, i32)) -> DropTarget {
-        let mouse_pos = (mouse_pos.0 - self.pos.0, mouse_pos.1 - self.pos.1);
-        if mouse_pos.inside(self.size) {
-            DropTarget::None
-        } else {
-            DropTarget::None
-        }
-    }
-
-    fn draw(&self, g: &mut GrahpicsWrapper, mouse_pos: (i32, i32)) {
+    fn draw(&self, g: &mut GrahpicsWrapper) {
         g.push_state();
 
         g.apply_offset(self.pos.0, self.pos.1);
@@ -172,11 +163,11 @@ impl Knob {
         parent_pos: (i32, i32),
     ) -> MouseAction {
         let mouse_pos = (mouse_pos.0 - self.pos.0, mouse_pos.1 - self.pos.1);
-        if mouse_pos.inside((GRID_2, GRID_1)) {
+        if mouse_pos.inside((grid(2), grid(1))) {
             if mods.right_click {
                 let pos = (
-                    self.pos.0 + parent_pos.0 + GRID_2 / 2,
-                    self.pos.1 + parent_pos.1 + GRID_2 / 2,
+                    self.pos.0 + parent_pos.0 + grid(2) / 2,
+                    self.pos.1 + parent_pos.1 + grid(2) / 2,
                 );
                 MouseAction::OpenMenu(Box::new(KnobEditor::create(
                     Rc::clone(&self.control),
@@ -193,7 +184,7 @@ impl Knob {
 
     pub fn get_drop_target_at(&self, mouse_pos: (i32, i32)) -> DropTarget {
         let mouse_pos = (mouse_pos.0 - self.pos.0, mouse_pos.1 - self.pos.1);
-        if mouse_pos.inside((GRID_2, GRID_1)) {
+        if mouse_pos.inside((grid(2), grid(1))) {
             DropTarget::Control(Rc::clone(&self.control))
         } else {
             DropTarget::None
@@ -209,7 +200,7 @@ impl Knob {
         }
 
         g.set_color(&COLOR_TEXT);
-        let (cx, cy) = (self.pos.0 + GRID_2 / 2, self.pos.1 + GRID_2 / 2);
+        let (cx, cy) = (self.pos.0 + grid(2) / 2, self.pos.1 + grid(2) / 2);
         for lane in self.control.borrow().automation.iter() {
             let (module, output_index) = &lane.connection;
             let output_index = *output_index as i32;
@@ -223,13 +214,13 @@ impl Knob {
         g.apply_offset(self.pos.0, self.pos.1);
 
         g.set_color(&COLOR_BG);
-        g.fill_pie(0, 0, GRID_2, KNOB_INSIDE_SPACE * 2, 0.0, PI);
+        g.fill_pie(0, 0, grid(2), KNOB_INSIDE_SPACE * 2, 0.0, PI);
         g.set_color(&COLOR_KNOB);
         let zero_angle = value_to_angle(control.range, 0.0);
         let value_angle = value_to_angle(control.range, control.value);
-        g.fill_pie(0, 0, GRID_2, KNOB_INSIDE_SPACE * 2, zero_angle, value_angle);
+        g.fill_pie(0, 0, grid(2), KNOB_INSIDE_SPACE * 2, zero_angle, value_angle);
         g.set_color(&COLOR_TEXT);
-        g.write_label(0, GRID_1 + GRID_P, GRID_2, &self.label);
+        g.write_label(0, grid(1) + GRID_P, grid(2), &self.label);
 
         if control.automation.len() > 0 {
             let num_lanes = control.automation.len() as i32;
@@ -242,9 +233,9 @@ impl Knob {
                     g.set_color(&COLOR_AUTOMATION);
                 }
                 let index = index as i32;
-                let outer_diameter = GRID_2 - (KNOB_OUTSIDE_SPACE * 2) - lane_size * index * 2;
+                let outer_diameter = grid(2) - (KNOB_OUTSIDE_SPACE * 2) - lane_size * index * 2;
                 let inner_diameter = outer_diameter - (lane_size - KNOB_LANE_GAP) * 2;
-                let inset = (GRID_2 - outer_diameter) / 2;
+                let inset = (grid(2) - outer_diameter) / 2;
                 let min_angle = value_to_angle(control.range, lane.range.0);
                 let max_angle = value_to_angle(control.range, lane.range.1);
                 g.fill_pie(
@@ -327,6 +318,22 @@ impl IOJack {
     }
 }
 
+fn widget_from_outline(controls: &Vec<Rcrc<ep::Control>>, outline: &ep::WidgetOutline) -> Knob {
+    fn convert_grid_pos(grid_pos: (i32, i32)) -> (i32, i32) {
+        (coord(grid_pos.0), coord(grid_pos.1))
+    }
+    match outline {
+        ep::WidgetOutline::Knob {
+            control_index,
+            grid_pos,
+            label,
+        } => {
+            let pos = convert_grid_pos(*grid_pos);
+            Knob::create(Rc::clone(&controls[*control_index]), pos, label.clone())
+        }
+    }
+}
+
 pub struct Module {
     module: Rcrc<ep::Module>,
     size: (i32, i32),
@@ -337,15 +344,21 @@ pub struct Module {
 }
 
 impl Module {
-    pub fn create(
-        module: Rcrc<ep::Module>,
-        grid_size: (i32, i32),
-        label: String,
-        controls: Vec<Knob>,
-    ) -> Self {
+    pub fn create(module: Rcrc<ep::Module>) -> Self {
         const MIW: i32 = MODULE_IO_WIDTH;
-        let size = (fatgrid(grid_size.0) + MIW * 2, fatgrid(grid_size.1));
         let module_ref = module.borrow();
+        let gui_ref = module_ref.gui_outline.borrow();
+        let grid_size = gui_ref.size;
+        let label = gui_ref.label.clone();
+        let module_controls = &module_ref.controls;
+        let controls = gui_ref
+            .widget_outlines
+            .iter()
+            .map(|wo| widget_from_outline(module_controls, wo))
+            .collect();
+        drop(gui_ref);
+
+        let size = (fatgrid(grid_size.0) + MIW * 2, fatgrid(grid_size.1));
         let mut inputs = Vec::new();
         for (index, input) in module_ref.input_jacks.iter().enumerate() {
             inputs.push(IOJack::input(
@@ -447,7 +460,7 @@ impl Module {
         g.set_color(&COLOR_TEXT);
         for (index, jack) in self.module.borrow().inputs.iter().enumerate() {
             let index = index as i32;
-            let y = coord(index) + GRID_1 / 2;
+            let y = coord(index) + grid(1) / 2;
             if let ep::InputConnection::Wire(module, output_index) = jack {
                 let output_index = *output_index as i32;
                 let module_ref = module.borrow();
@@ -495,7 +508,13 @@ pub struct ModuleGraph {
 }
 
 impl ModuleGraph {
-    pub fn create(graph: Rcrc<ep::ModuleGraph>, modules: Vec<Module>) -> Self {
+    pub fn create(graph: Rcrc<ep::ModuleGraph>) -> Self {
+        let modules = graph
+            .borrow()
+            .borrow_modules()
+            .iter()
+            .map(|module_rc| Module::create(Rc::clone(module_rc)))
+            .collect();
         Self {
             pos: (0, 0),
             offset: rcrc((0, 0)),
@@ -510,7 +529,7 @@ impl ModuleGraph {
         module.pos = (-module.pos.0, -module.pos.1);
         let module = rcrc(module);
         self.graph.borrow_mut().add_module(Rc::clone(&module));
-        self.modules.push(ep::Module::build_gui(module));
+        self.modules.push(Module::create(module));
     }
 
     pub fn respond_to_mouse_press(
@@ -564,7 +583,7 @@ impl ModuleGraph {
             module.draw(g, (mx, my));
         }
         if let Some(widget) = &self.detail_menu_widget {
-            widget.draw(g, (mx, my));
+            widget.draw(g);
         }
         if gui_state.is_dragging() {
             let cma = gui_state.borrow_current_mouse_action();

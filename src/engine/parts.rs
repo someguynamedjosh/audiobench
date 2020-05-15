@@ -1,5 +1,3 @@
-use crate::gui::constants::*;
-use crate::gui::audio_widgets;
 use crate::util::*;
 use std::collections::HashSet;
 
@@ -170,39 +168,6 @@ impl Module {
             code_resource,
         }
     }
-
-    fn instantiate_widget(&self, outline: &WidgetOutline) -> audio_widgets::Knob {
-        fn convert_grid_pos(grid_pos: &(i32, i32)) -> (i32, i32) {
-            (MODULE_IO_WIDTH + coord(grid_pos.0), coord(grid_pos.1))
-        }
-        match outline {
-            WidgetOutline::Knob {
-                control_index,
-                grid_pos,
-                label,
-            } => audio_widgets::Knob::create(
-                Rc::clone(&self.controls[*control_index]),
-                convert_grid_pos(grid_pos),
-                label.clone(),
-            ),
-        }
-    }
-
-    pub fn build_gui(self_rcrc: Rcrc<Self>) -> audio_widgets::Module {
-        let self_ref = self_rcrc.borrow();
-        let outline = self_ref.gui_outline.borrow();
-        let label = outline.label.clone();
-        let size = outline.size.clone();
-        let control_widgets = outline
-            .widget_outlines
-            .iter()
-            .map(|wo| self_ref.instantiate_widget(wo))
-            .collect();
-        drop(outline);
-        drop(self_ref);
-
-        audio_widgets::Module::create(self_rcrc, size, label, control_widgets)
-    }
 }
 
 #[derive(Debug)]
@@ -225,15 +190,8 @@ impl ModuleGraph {
         self.modules.push(rcrc(module));
     }
 
-    pub fn build_gui(self_rcrc: Rcrc<Self>) -> audio_widgets::ModuleGraph {
-        let self_ref = self_rcrc.borrow();
-        let module_widgets = self_ref
-            .modules
-            .iter()
-            .map(|module| Module::build_gui(Rc::clone(module)))
-            .collect();
-        drop(self_ref);
-        audio_widgets::ModuleGraph::create(self_rcrc, module_widgets)
+    pub fn borrow_modules(&self) -> &[Rcrc<Module>] {
+        &self.modules[..]
     }
 
     fn index_of_module(&self, module: &Rcrc<Module>) -> Option<usize> {

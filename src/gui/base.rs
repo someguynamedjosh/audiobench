@@ -196,7 +196,7 @@ impl Gui {
         let size = (640, 480);
         let y = other_widgets::MenuBar::HEIGHT;
 
-        let mut graph = ep::ModuleGraph::build_gui(graph_ref);
+        let mut graph = audio_widgets::ModuleGraph::create(graph_ref);
         graph.pos.1 = y;
         let module_library =
             other_widgets::ModuleLibrary::create(registry, (0, y), (size.0, size.1 - y));
@@ -265,7 +265,7 @@ impl Gui {
         match action {
             GuiAction::OpenMenu(menu) => self.graph.open_menu(menu),
             GuiAction::SwitchScreen(new_index) => self.current_screen = new_index,
-            GuiAction::AddModule(mut module) => {
+            GuiAction::AddModule(module) => {
                 self.graph.add_module(module);
             }
         }

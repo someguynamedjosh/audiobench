@@ -13,7 +13,7 @@ pub struct MenuBar {
 }
 
 impl MenuBar {
-    pub const HEIGHT: i32 = FATGRID_1;
+    pub const HEIGHT: i32 = fatgrid(1);
 
     pub fn create(registry: &Registry) -> Self {
         Self {
@@ -28,7 +28,7 @@ impl MenuBar {
         if !bound_check(mouse_pos, (99999, Self::HEIGHT)) {
             return MouseAction::None;
         }
-        let new_screen = mouse_pos.0 / (GRID_P + GRID_1);
+        let new_screen = mouse_pos.0 / (GRID_P + grid(1));
         if new_screen < self.tab_icons.len() as i32 {
             MouseAction::SwitchScreen(new_screen as usize)
         } else {
@@ -89,7 +89,7 @@ struct ModuleLibraryEntry {
 
 impl ModuleLibraryEntry {
     const WIDTH: i32 = fatgrid(6);
-    const HEIGHT: i32 = FATGRID_1;
+    const HEIGHT: i32 = fatgrid(1);
 
     fn from(module: &ep::Module) -> Self {
         let name = module.gui_outline.borrow().label.clone();
@@ -114,7 +114,7 @@ impl ModuleLibraryEntry {
     fn draw(&self, g: &mut GrahpicsWrapper) {
         const MCS: i32 = MODULE_CORNER_SIZE;
         const BAND_SIZE: i32 = GRID_P;
-        const ICON_SPACE: i32 = FATGRID_1 / 2;
+        const ICON_SPACE: i32 = fatgrid(1) / 2;
         const ICON_PADDING: i32 = 2;
         const ICON_SIZE: i32 = (ICON_SPACE * 2 - ICON_PADDING * 4) / 2;
 

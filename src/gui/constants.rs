@@ -1,25 +1,19 @@
 /// Pixels of padding between grid squares.
 pub const GRID_P: i32 = 8;
 /// Number of pixels a single grid square takes.
-pub const GRID_1: i32 = 20;
+const GRID_1: i32 = 20;
 
 /// Computes the amount of space (in pixels) taken by the given number of grid tiles, with
 /// padding between each tile.
 pub const fn grid(num_spaces: i32) -> i32 {
     GRID_1 * num_spaces + GRID_P * (num_spaces - 1)
 }
-/// Space used by 2 grid squares.
-pub const GRID_2: i32 = grid(2);
 
 /// Like grid, but returns the amount of space used including extra outside padding. Use  
 /// alongside the fatcoord function.
 pub const fn fatgrid(num_spaces: i32) -> i32 {
     GRID_1 * num_spaces + GRID_P * (num_spaces + 1)
 }
-/// Space used by 1 fat grid square.
-pub const FATGRID_1: i32 = fatgrid(1);
-/// Space used by 2 fat grid squares.
-pub const FATGRID_2: i32 = fatgrid(2);
 
 /// Computes the coordinate where the provided grid cell begins. For example, 0 would return
 /// GRID_P and 1 would return GRID_1 + GRID_P * 2.
@@ -33,7 +27,7 @@ pub const fn fatcoord(index: i32) -> i32 {
 
 pub const KNOB_OUTSIDE_SPACE: i32 = 1;
 pub const KNOB_INSIDE_SPACE: i32 = 6;
-pub const KNOB_AUTOMATION_SPACE: i32 = GRID_2 / 2 - KNOB_OUTSIDE_SPACE - KNOB_INSIDE_SPACE;
+pub const KNOB_AUTOMATION_SPACE: i32 = grid(2) / 2 - KNOB_OUTSIDE_SPACE - KNOB_INSIDE_SPACE;
 pub const KNOB_LANE_GAP: i32 = 1;
 pub const KNOB_MAX_LANE_SIZE: i32 = 4;
 
