@@ -226,7 +226,8 @@ impl ModuleGraph {
             .iter()
             .map(|module| Module::build_gui(Rc::clone(module)))
             .collect();
-        audio_widgets::ModuleGraph::create(module_widgets)
+        drop(self_ref);
+        audio_widgets::ModuleGraph::create(self_rcrc, module_widgets)
     }
 
     fn index_of_module(&self, module: &Rcrc<Module>) -> Option<usize> {

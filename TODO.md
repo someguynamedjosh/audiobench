@@ -3,7 +3,7 @@ Edit controls in real time without recompiling
 Controls update with their actual value when a note is being played.
 Recompile only when necessary
 Waveform module(s)
-Add modules from a menu
+Add sorting to the add modules menu
 Labels for modules and io
 Custom icons for inputs / outputs
 
@@ -15,6 +15,7 @@ Display numeric value of control when manually dragging it
 Layers for drawing
 Get a better icon for waveforms.
 Friendly error messages
+Make the add modules menu look nice
 
 # Things with missing dependencies
 Drop shadow draw function

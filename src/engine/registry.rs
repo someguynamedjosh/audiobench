@@ -270,6 +270,10 @@ impl Registry {
         self.modules.get(id)
     }
 
+    pub fn iterate_over_modules(&self) -> impl Iterator<Item = &Module> {
+        self.modules.values()
+    }
+
     pub fn borrow_scripts(&self) -> &HashMap<String, String> {
         &self.scripts
     }

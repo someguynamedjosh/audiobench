@@ -1,11 +1,19 @@
-use crate::engine::registry::Registry;
 use crate::engine::parts as ep;
+use crate::engine::registry::Registry;
 use crate::gui::graphics::GrahpicsWrapper;
 use crate::gui::{audio_widgets, other_widgets};
 use crate::util::*;
 
 pub struct MouseMods {
     pub right_click: bool,
+}
+
+// Describes an action the GUI object should perform. Prevents passing a bunch of arguments to
+// MouseAction functions for each action that needs to modify something in the GUI.
+pub enum GuiAction {
+    OpenMenu(Box<audio_widgets::KnobEditor>),
+    SwitchScreen(usize),
+    AddModule(ep::Module),
 }
 
 pub enum MouseAction {
@@ -19,6 +27,8 @@ pub enum MouseAction {
     ConnectInput(Rcrc<ep::Module>, usize),
     ConnectOutput(Rcrc<ep::Module>, usize),
     OpenMenu(Box<audio_widgets::KnobEditor>),
+    SwitchScreen(usize),
+    AddModule(ep::Module),
 }
 
 impl MouseAction {
@@ -98,35 +108,34 @@ impl MouseAction {
         }
     }
 
-    fn on_drop(&mut self, target: DropTarget) {
+    fn on_drop(self, target: DropTarget) -> Option<GuiAction> {
         match self {
             Self::ConnectInput(in_module, in_index) => {
                 let mut in_ref = in_module.borrow_mut();
-                let in_type = in_ref.input_jacks[*in_index].get_type();
+                let in_type = in_ref.input_jacks[in_index].get_type();
                 if let DropTarget::Output(out_module, out_index) = target {
                     let out_type = out_module.borrow().output_jacks[out_index].get_type();
                     if in_type == out_type {
-                        in_ref.inputs[*in_index] = ep::InputConnection::Wire(out_module, out_index);
+                        in_ref.inputs[in_index] = ep::InputConnection::Wire(out_module, out_index);
                     }
                 } else {
-                    in_ref.inputs[*in_index] = ep::InputConnection::Default;
+                    in_ref.inputs[in_index] = ep::InputConnection::Default;
                 }
             }
             Self::ConnectOutput(out_module, out_index) => {
-                let out_type = out_module.borrow().output_jacks[*out_index].get_type();
+                let out_type = out_module.borrow().output_jacks[out_index].get_type();
                 if let DropTarget::Input(in_module, in_index) = target {
                     let mut in_ref = in_module.borrow_mut();
                     let in_type = in_ref.input_jacks[in_index].get_type();
                     if in_type == out_type {
-                        in_ref.inputs[in_index] =
-                            ep::InputConnection::Wire(Rc::clone(out_module), *out_index);
+                        in_ref.inputs[in_index] = ep::InputConnection::Wire(out_module, out_index);
                     }
                 } else if let DropTarget::Control(control) = target {
                     if out_type == ep::JackType::Audio {
                         let mut control_ref = control.borrow_mut();
                         let range = control_ref.range;
                         control_ref.automation.push(ep::AutomationLane {
-                            connection: (Rc::clone(out_module), *out_index),
+                            connection: (out_module, out_index),
                             range,
                         });
                     }
@@ -134,15 +143,17 @@ impl MouseAction {
             }
             _ => (),
         }
+        None
     }
 
-    fn on_click(&mut self, root_widget: &mut audio_widgets::ModuleGraph) {
+    fn on_click(self) -> Option<GuiAction> {
         match self {
-            Self::OpenMenu(menu) => {
-                root_widget.open_menu(menu.clone());
-            }
+            Self::OpenMenu(menu) => return Some(GuiAction::OpenMenu(menu)),
+            Self::SwitchScreen(screen_index) => return Some(GuiAction::SwitchScreen(screen_index)),
+            Self::AddModule(module) => return Some(GuiAction::AddModule(module)),
             _ => (),
         }
+        None
     }
 }
 
@@ -163,15 +174,15 @@ impl DropTarget {
     }
 }
 
-enum Screen {
-    Graph,
-    ModuleLibrary,
-}
+const MODULE_GRAPH_SCREEN: usize = 0;
+const MODULE_LIBRARY_SCREEN: usize = 1;
 
 pub struct Gui {
-    current_screen: Screen,
+    size: (i32, i32),
+    current_screen: usize,
     menu_bar: other_widgets::MenuBar,
     graph: audio_widgets::ModuleGraph,
+    module_library: other_widgets::ModuleLibrary,
 
     mouse_action: MouseAction,
     click_position: (i32, i32),
@@ -182,10 +193,20 @@ pub struct Gui {
 
 impl Gui {
     pub fn new(registry: &Registry, graph_ref: Rcrc<ep::ModuleGraph>) -> Self {
+        let size = (640, 480);
+        let y = other_widgets::MenuBar::HEIGHT;
+
+        let mut graph = ep::ModuleGraph::build_gui(graph_ref);
+        graph.pos.1 = y;
+        let module_library =
+            other_widgets::ModuleLibrary::create(registry, (0, y), (size.0, size.1 - y));
+
         Self {
-            current_screen: Screen::Graph,
+            size,
+            current_screen: MODULE_GRAPH_SCREEN,
             menu_bar: other_widgets::MenuBar::create(registry),
-            graph: ep::ModuleGraph::build_gui(graph_ref),
+            graph,
+            module_library,
 
             mouse_action: MouseAction::None,
             click_position: (0, 0),
@@ -196,21 +217,23 @@ impl Gui {
     }
 
     pub fn draw(&self, g: &mut GrahpicsWrapper) {
-        g.push_state();
-        self.graph.draw(g, self);
-        let current_screen_index = match self.current_screen {
-            Screen::Graph => 0,
-            Screen::ModuleLibrary => 1,
-        };
-        // TODO: Dynamic width.
-        self.menu_bar.draw(640, current_screen_index, g);
-        g.pop_state();
+        match self.current_screen {
+            MODULE_GRAPH_SCREEN => self.graph.draw(g, self),
+            MODULE_LIBRARY_SCREEN => self.module_library.draw(g),
+            _ => unreachable!(),
+        }
+        self.menu_bar.draw(self.size.0, self.current_screen, g);
     }
 
     pub fn on_mouse_down(&mut self, pos: (i32, i32), mods: &MouseMods) {
-        self.mouse_action = self.menu_bar.respond_to_mouse_press(pos, mods);
-        if self.mouse_action.is_none() {
-            self.mouse_action = self.graph.respond_to_mouse_press(pos, mods);
+        if pos.1 <= other_widgets::MenuBar::HEIGHT {
+            self.mouse_action = self.menu_bar.respond_to_mouse_press(pos, mods);
+        } else {
+            self.mouse_action = match self.current_screen {
+                MODULE_GRAPH_SCREEN => self.graph.respond_to_mouse_press(pos, mods),
+                MODULE_LIBRARY_SCREEN => self.module_library.respond_to_mouse_press(pos, mods),
+                _ => unreachable!(),
+            };
         }
         self.mouse_down = true;
         self.click_position = pos;
@@ -238,14 +261,25 @@ impl Gui {
         }
     }
 
-    pub fn on_mouse_up(&mut self) {
-        if self.dragged {
-            let drop_target = self.graph.get_drop_target_at(self.mouse_pos);
-            self.mouse_action.on_drop(drop_target);
-        } else {
-            self.mouse_action.on_click(&mut self.graph);
+    fn perform_action(&mut self, action: GuiAction) {
+        match action {
+            GuiAction::OpenMenu(menu) => self.graph.open_menu(menu),
+            GuiAction::SwitchScreen(new_index) => self.current_screen = new_index,
+            GuiAction::AddModule(mut module) => {
+                self.graph.add_module(module);
+            }
         }
-        self.mouse_action = MouseAction::None;
+    }
+
+    pub fn on_mouse_up(&mut self) {
+        let mouse_action = std::mem::replace(&mut self.mouse_action, MouseAction::None);
+        let gui_action = if self.dragged {
+            let drop_target = self.graph.get_drop_target_at(self.mouse_pos);
+            mouse_action.on_drop(drop_target)
+        } else {
+            mouse_action.on_click()
+        };
+        gui_action.map(|action| self.perform_action(action));
         self.dragged = false;
         self.mouse_down = false;
     }

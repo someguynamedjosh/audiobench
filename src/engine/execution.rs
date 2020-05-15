@@ -70,6 +70,16 @@ impl ExecEnvironment {
         self.accumulator = vec![0.0; 2 * buffer_length];
         self.buffer_length = buffer_length;
         self.time_per_sample = 1.0 / sample_rate as f32;
+
+        let pref = self.program.as_ref().unwrap();
+        for held_note in self.held_notes.iter_mut() {
+            if let Some(voice) = held_note {
+                voice.static_data = unsafe {
+                    pref.create_static_data()?
+                };
+            }
+        }
+        self.decaying_notes.clear();
         Ok(())
     }
 

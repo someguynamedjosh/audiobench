@@ -452,19 +452,31 @@ impl Module {
 }
 
 pub struct ModuleGraph {
+    pub pos: (i32, i32),
     offset: Rcrc<(i32, i32)>,
+    graph: Rcrc<ep::ModuleGraph>,
     modules: Vec<Module>,
     // Box because eventually this is going to be dyn.
     detail_menu_widget: Option<Box<KnobEditor>>,
 }
 
 impl ModuleGraph {
-    pub fn create(modules: Vec<Module>) -> Self {
+    pub fn create(graph: Rcrc<ep::ModuleGraph>, modules: Vec<Module>) -> Self {
         Self {
+            pos: (0, 0),
             offset: rcrc((0, 0)),
+            graph,
             modules,
             detail_menu_widget: None,
         }
+    }
+
+    pub fn add_module(&mut self, mut module: ep::Module) {
+        module.pos = *self.offset.borrow();
+        module.pos = (-module.pos.0, -module.pos.1);
+        let module = rcrc(module);
+        self.graph.borrow_mut().add_module(Rc::clone(&module));
+        self.modules.push(ep::Module::build_gui(module));
     }
 
     pub fn respond_to_mouse_press(
@@ -473,7 +485,10 @@ impl ModuleGraph {
         mods: &MouseMods,
     ) -> MouseAction {
         let offset = self.offset.borrow();
-        let mouse_pos = (mouse_pos.0 - offset.0, mouse_pos.1 - offset.1);
+        let mouse_pos = (
+            mouse_pos.0 - offset.0 - self.pos.0,
+            mouse_pos.1 - offset.1 - self.pos.1,
+        );
         if let Some(widget) = &self.detail_menu_widget {
             if let Some(action) = widget.respond_to_mouse_press(mouse_pos, mods) {
                 return action;
@@ -492,7 +507,10 @@ impl ModuleGraph {
 
     pub fn get_drop_target_at(&self, mouse_pos: (i32, i32)) -> DropTarget {
         let offset = self.offset.borrow();
-        let mouse_pos = (mouse_pos.0 - offset.0, mouse_pos.1 - offset.1);
+        let mouse_pos = (
+            mouse_pos.0 - offset.0 - self.pos.0,
+            mouse_pos.1 - offset.1 - self.pos.1,
+        );
         for module in &self.modules {
             let target = module.get_drop_target_at(mouse_pos);
             if !target.is_none() {
@@ -505,7 +523,7 @@ impl ModuleGraph {
     pub fn draw(&self, g: &mut GrahpicsWrapper, gui_state: &Gui) {
         let offset = self.offset.borrow();
         g.push_state();
-        g.apply_offset(offset.0, offset.1);
+        g.apply_offset(offset.0 + self.pos.0, offset.1 + self.pos.1);
         for module in &self.modules {
             module.draw(g);
         }
@@ -514,20 +532,17 @@ impl ModuleGraph {
         }
         if gui_state.is_dragging() {
             let cma = gui_state.borrow_current_mouse_action();
+            let (mx, my) = gui_state.get_current_mouse_pos();
+            let offset = self.offset.borrow();
+            let (mx, my) = (mx - offset.0 - self.pos.0, my - offset.1 - self.pos.1);
             if let MouseAction::ConnectInput(module, index) = cma {
                 let module_ref = module.borrow();
                 let (sx, sy) = input_position(&*module_ref, *index as i32);
-                let (mx, my) = gui_state.get_current_mouse_pos();
-                let offset = self.offset.borrow();
-                let (mx, my) = (mx - offset.0, my - offset.1);
                 g.set_color(&COLOR_DEBUG);
                 g.stroke_line(sx, sy, mx, my, 2.0);
             } else if let MouseAction::ConnectOutput(module, index) = cma {
                 let module_ref = module.borrow();
                 let (sx, sy) = output_position(&*module_ref, *index as i32);
-                let (mx, my) = gui_state.get_current_mouse_pos();
-                let offset = self.offset.borrow();
-                let (mx, my) = (mx - offset.0, my - offset.1);
                 g.set_color(&COLOR_DEBUG);
                 g.stroke_line(sx, sy, mx, my, 2.0);
             }
