@@ -1,6 +1,7 @@
+use crate::engine::registry::Registry;
 use crate::engine::parts as ep;
 use crate::gui::graphics::GrahpicsWrapper;
-use crate::gui::widgets;
+use crate::gui::{audio_widgets, other_widgets};
 use crate::util::*;
 
 pub struct MouseMods {
@@ -17,7 +18,7 @@ pub enum MouseAction {
     PanOffset(Rcrc<(i32, i32)>),
     ConnectInput(Rcrc<ep::Module>, usize),
     ConnectOutput(Rcrc<ep::Module>, usize),
-    OpenMenu(Box<widgets::KnobEditor>),
+    OpenMenu(Box<audio_widgets::KnobEditor>),
 }
 
 impl MouseAction {
@@ -135,7 +136,7 @@ impl MouseAction {
         }
     }
 
-    fn on_click(&mut self, root_widget: &mut widgets::ModuleGraph) {
+    fn on_click(&mut self, root_widget: &mut audio_widgets::ModuleGraph) {
         match self {
             Self::OpenMenu(menu) => {
                 root_widget.open_menu(menu.clone());
@@ -162,8 +163,16 @@ impl DropTarget {
     }
 }
 
+enum Screen {
+    Graph,
+    ModuleLibrary,
+}
+
 pub struct Gui {
-    root_widget: widgets::ModuleGraph,
+    current_screen: Screen,
+    menu_bar: other_widgets::MenuBar,
+    graph: audio_widgets::ModuleGraph,
+
     mouse_action: MouseAction,
     click_position: (i32, i32),
     mouse_pos: (i32, i32),
@@ -172,9 +181,12 @@ pub struct Gui {
 }
 
 impl Gui {
-    pub fn new(root: widgets::ModuleGraph) -> Self {
+    pub fn new(registry: &Registry, graph_ref: Rcrc<ep::ModuleGraph>) -> Self {
         Self {
-            root_widget: root,
+            current_screen: Screen::Graph,
+            menu_bar: other_widgets::MenuBar::create(registry),
+            graph: ep::ModuleGraph::build_gui(graph_ref),
+
             mouse_action: MouseAction::None,
             click_position: (0, 0),
             mouse_pos: (0, 0),
@@ -184,11 +196,22 @@ impl Gui {
     }
 
     pub fn draw(&self, g: &mut GrahpicsWrapper) {
-        self.root_widget.draw(g, self);
+        g.push_state();
+        self.graph.draw(g, self);
+        let current_screen_index = match self.current_screen {
+            Screen::Graph => 0,
+            Screen::ModuleLibrary => 1,
+        };
+        // TODO: Dynamic width.
+        self.menu_bar.draw(640, current_screen_index, g);
+        g.pop_state();
     }
 
     pub fn on_mouse_down(&mut self, pos: (i32, i32), mods: &MouseMods) {
-        self.mouse_action = self.root_widget.respond_to_mouse_press(pos, mods);
+        self.mouse_action = self.menu_bar.respond_to_mouse_press(pos, mods);
+        if self.mouse_action.is_none() {
+            self.mouse_action = self.graph.respond_to_mouse_press(pos, mods);
+        }
         self.mouse_down = true;
         self.click_position = pos;
     }
@@ -217,10 +240,10 @@ impl Gui {
 
     pub fn on_mouse_up(&mut self) {
         if self.dragged {
-            let drop_target = self.root_widget.get_drop_target_at(self.mouse_pos);
+            let drop_target = self.graph.get_drop_target_at(self.mouse_pos);
             self.mouse_action.on_drop(drop_target);
         } else {
-            self.mouse_action.on_click(&mut self.root_widget);
+            self.mouse_action.on_click(&mut self.graph);
         }
         self.mouse_action = MouseAction::None;
         self.dragged = false;

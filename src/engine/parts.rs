@@ -1,5 +1,5 @@
 use crate::gui::constants::*;
-use crate::gui::widgets;
+use crate::gui::audio_widgets;
 use crate::util::*;
 use std::collections::HashSet;
 
@@ -165,7 +165,7 @@ impl Module {
         }
     }
 
-    fn instantiate_widget(&self, outline: &WidgetOutline) -> widgets::Knob {
+    fn instantiate_widget(&self, outline: &WidgetOutline) -> audio_widgets::Knob {
         fn convert_grid_pos(grid_pos: &(i32, i32)) -> (i32, i32) {
             (MODULE_IO_WIDTH + coord(grid_pos.0), coord(grid_pos.1))
         }
@@ -174,7 +174,7 @@ impl Module {
                 control_index,
                 grid_pos,
                 label,
-            } => widgets::Knob::create(
+            } => audio_widgets::Knob::create(
                 Rc::clone(&self.controls[*control_index]),
                 convert_grid_pos(grid_pos),
                 label.clone(),
@@ -182,7 +182,7 @@ impl Module {
         }
     }
 
-    pub fn build_gui(self_rcrc: Rcrc<Self>) -> widgets::Module {
+    pub fn build_gui(self_rcrc: Rcrc<Self>) -> audio_widgets::Module {
         let self_ref = self_rcrc.borrow();
         let outline = self_ref.gui_outline.borrow();
         let label = outline.label.clone();
@@ -195,7 +195,7 @@ impl Module {
         drop(outline);
         drop(self_ref);
 
-        widgets::Module::create(self_rcrc, size, label, control_widgets)
+        audio_widgets::Module::create(self_rcrc, size, label, control_widgets)
     }
 }
 
@@ -219,14 +219,14 @@ impl ModuleGraph {
         self.modules.push(rcrc(module));
     }
 
-    pub fn build_gui(self_rcrc: Rcrc<Self>) -> widgets::ModuleGraph {
+    pub fn build_gui(self_rcrc: Rcrc<Self>) -> audio_widgets::ModuleGraph {
         let self_ref = self_rcrc.borrow();
         let module_widgets = self_ref
             .modules
             .iter()
             .map(|module| Module::build_gui(Rc::clone(module)))
             .collect();
-        widgets::ModuleGraph::create(module_widgets)
+        audio_widgets::ModuleGraph::create(module_widgets)
     }
 
     fn index_of_module(&self, module: &Rcrc<Module>) -> Option<usize> {

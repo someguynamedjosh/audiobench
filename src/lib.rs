@@ -6,31 +6,38 @@ use gui::graphics::{GrahpicsWrapper, GraphicsFunctions};
 use gui::{Gui, MouseMods};
 
 pub struct Instance {
+    engine: engine::Engine,
+    registry: engine::registry::Registry,
     graphics_fns: GraphicsFunctions,
     gui: Option<Gui>,
-    engine: engine::Engine,
 }
 
 impl Instance {
     fn new() -> Self {
-        let (engine, setup_status) = engine::Engine::new();
-        setup_status.expect("TODO: Nice error.");
+        let (registry, registry_load_result) = engine::registry::Registry::new();
+        if let Err(err) = registry_load_result {
+            eprintln!("Registry encountered error while loading:");
+            eprintln!("{}", err);
+            panic!("TODO: Nice error handling.");
+        }
+        let engine = engine::Engine::new(&registry);
 
         Self {
+            engine,
+            registry,
             graphics_fns: GraphicsFunctions::placeholders(),
             gui: None,
-            engine,
         }
     }
 }
 
 impl Instance {
     pub fn get_num_icons(&self) -> usize {
-        self.engine.borrow_registry().get_num_icons()
+        self.registry.get_num_icons()
     }
 
     pub fn borrow_icon_data(&self, icon_index: usize) -> &[u8] {
-        self.engine.borrow_registry().borrow_icon_data(icon_index)
+        self.registry.borrow_icon_data(icon_index)
     }
 
     pub fn set_buffer_length_and_sample_rate(&mut self, buffer_length: i32, sample_rate: i32) {
@@ -57,9 +64,8 @@ impl Instance {
             debug_assert!(false, "create_gui called when GUI was already created!");
             eprintln!("WARNING: create_gui called when GUI was already created!");
         } else {
-            self.gui = Some(Gui::new(engine::parts::ModuleGraph::build_gui(
-                util::Rc::clone(self.engine.borrow_module_graph_ref()),
-            )));
+            let graph = util::Rc::clone(self.engine.borrow_module_graph_ref());
+            self.gui = Some(Gui::new(&self.registry, graph));
         }
     }
 

@@ -14,32 +14,27 @@ pub struct Engine {
     /// This value is set to Some() when the audio rendering code should be recompiled.
     new_module_graph_code: Mutex<Option<String>>,
     // Only read/mutated by audio thread.
-    registry: engine::registry::Registry,
     executor: engine::execution::ExecEnvironment,
 }
 
 impl Engine {
-    pub fn new() -> (Self, Result<(), String>) {
-        let (registry, base_lib_status) = engine::registry::Registry::new();
-
+    pub fn new(registry: &engine::registry::Registry) -> Self {
         let mut module_graph = engine::parts::ModuleGraph::new();
-        if base_lib_status.is_ok() {
-            let mut input = registry.borrow_module("base:note_input").unwrap().clone();
-            input.pos = (10, 5);
-            module_graph.adopt_module(input);
-            let mut env = registry.borrow_module("base:envelope").unwrap().clone();
-            env.pos = (300, 100);
-            module_graph.adopt_module(env);
-            let mut osc = registry.borrow_module("base:oscillator").unwrap().clone();
-            osc.pos = (50, 20);
-            module_graph.adopt_module(osc);
-            let mut osc = registry.borrow_module("base:oscillator").unwrap().clone();
-            osc.pos = (50, 200);
-            module_graph.adopt_module(osc);
-            let mut output = registry.borrow_module("base:note_output").unwrap().clone();
-            output.pos = (90, 90);
-            module_graph.adopt_module(output);
-        }
+        let mut input = registry.borrow_module("base:note_input").unwrap().clone();
+        input.pos = (10, 5);
+        module_graph.adopt_module(input);
+        let mut env = registry.borrow_module("base:envelope").unwrap().clone();
+        env.pos = (300, 100);
+        module_graph.adopt_module(env);
+        let mut osc = registry.borrow_module("base:oscillator").unwrap().clone();
+        osc.pos = (50, 20);
+        module_graph.adopt_module(osc);
+        let mut osc = registry.borrow_module("base:oscillator").unwrap().clone();
+        osc.pos = (50, 200);
+        module_graph.adopt_module(osc);
+        let mut output = registry.borrow_module("base:note_output").unwrap().clone();
+        output.pos = (90, 90);
+        module_graph.adopt_module(output);
 
         let mut executor = engine::execution::ExecEnvironment::new(&registry);
         let code = module_graph
@@ -55,17 +50,13 @@ impl Engine {
             std::process::abort();
         }
 
-        (
-            Self {
-                module_graph: rcrc(module_graph),
-                buffer_length: DEFAULT_BUFFER_LENGTH,
-                sample_rate: DEFAULT_SAMPLE_RATE,
-                new_module_graph_code: Mutex::new(None),
-                registry,
-                executor,
-            },
-            base_lib_status,
-        )
+        Self {
+            module_graph: rcrc(module_graph),
+            buffer_length: DEFAULT_BUFFER_LENGTH,
+            sample_rate: DEFAULT_SAMPLE_RATE,
+            new_module_graph_code: Mutex::new(None),
+            executor,
+        }
     }
 
     pub fn borrow_module_graph_ref(&self) -> &Rcrc<engine::parts::ModuleGraph> {
@@ -108,9 +99,5 @@ impl Engine {
                 .expect("TODO: Nice error.");
         }
         self.executor.execute().expect("TODO: Nice error.")
-    }
-
-    pub fn borrow_registry(&self) -> &engine::registry::Registry {
-        &self.registry
     }
 }
