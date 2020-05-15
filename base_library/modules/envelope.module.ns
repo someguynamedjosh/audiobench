@@ -12,8 +12,8 @@ static time, phase, last_value {
     FLOAT last_value = 0.0;
 }
 
-FLOAT value;
 for i = 0 to BUFFER_LENGTH no_unroll {
+    FLOAT value;
     if phase == ATTACK_PHASE {
         value = time / attack;
     } else if phase == DECAY_PHASE {
