@@ -345,7 +345,7 @@ impl ModuleGraph {
             "output [BUFFER_LENGTH][2]FLOAT global_audio_out;\n",
             "[BUFFER_LENGTH]BOOL global_release_trigger = FALSE;\n",
             "if global_note_status == 1.0 { global_release_trigger[0] = TRUE; }\n",
-            "macro FlatWaveform(phase):(value) { FLOAT value = 0.0; }\n",
+            "macro FlatWaveform(buffer_pos, phase):(value) { FLOAT value = 0.0; }\n",
             "\n",
         ));
 

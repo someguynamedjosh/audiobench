@@ -94,9 +94,13 @@ impl Engine {
         let mut new_code = self.new_module_graph_code.lock().unwrap();
         if let Some(code) = new_code.take() {
             println!("{}", code);
-            self.executor
-                .compile(code, self.buffer_length as usize, self.sample_rate)
-                .expect("TODO: Nice error.");
+            let result = self.executor
+                .compile(code, self.buffer_length as usize, self.sample_rate);
+            if let Err(err) = result {
+                eprintln!("Compile failed!");
+                eprintln!("{}", err);
+                panic!("TODO: Nice error.")
+            }
         }
         self.executor.execute().expect("TODO: Nice error.")
     }

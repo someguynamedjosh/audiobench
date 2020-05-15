@@ -28,8 +28,8 @@ impl MenuBar {
         if !bound_check(mouse_pos, (99999, Self::HEIGHT)) {
             return MouseAction::None;
         }
-        if mouse_pos.0 < coord(self.tab_icons.len() as i32) {
-            let new_screen = mouse_pos.0 / (GRID_P + GRID_1);
+        let new_screen = mouse_pos.0 / (GRID_P + GRID_1);
+        if new_screen < self.tab_icons.len() as i32 {
             MouseAction::SwitchScreen(new_screen as usize)
         } else {
             MouseAction::None

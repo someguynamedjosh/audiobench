@@ -1,0 +1,19 @@
+inputs:
+outputs:
+  Wave:
+    type: waveform
+controls:
+  duty:
+    min: 0.0
+    max: 1.0
+    default: 0.5
+gui: 
+  label: Square Wave
+  width: 2
+  height: 2
+  widgets:
+    knob:
+      control: duty
+      label: Duty
+      x: 0
+      y: 0

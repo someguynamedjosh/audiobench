@@ -1,0 +1,10 @@
+inputs:
+outputs:
+  Wave:
+    type: waveform
+controls:
+gui: 
+  label: Sine Wave
+  width: 2
+  height: 2
+  widgets:
