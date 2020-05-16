@@ -41,10 +41,10 @@ impl Engine {
         let code =
             codegen::generate_code(&module_graph, DEFAULT_BUFFER_LENGTH, DEFAULT_SAMPLE_RATE)
                 .expect("TODO: Nice error");
-        println!("{}", code);
+        println!("{}", code.code);
 
         if let Err(problem) =
-            executor.compile(code, DEFAULT_BUFFER_LENGTH as usize, DEFAULT_SAMPLE_RATE)
+            executor.compile(code.code, DEFAULT_BUFFER_LENGTH as usize, DEFAULT_SAMPLE_RATE)
         {
             eprintln!("ERROR: Basic setup failed to compile:");
             eprintln!("{}", problem);
@@ -71,7 +71,7 @@ impl Engine {
                 .expect("TODO: Nice error");
         drop(module_graph_ref);
         let mut code_ref = self.new_module_graph_code.lock().unwrap();
-        *code_ref = Some(new_code);
+        *code_ref = Some(new_code.code);
     }
 
     pub fn set_buffer_length_and_sample_rate(&mut self, buffer_length: i32, sample_rate: i32) {

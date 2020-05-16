@@ -1,15 +1,55 @@
 use crate::engine::parts::*;
 use crate::util::*;
 
+pub struct CodegenResult {
+    pub code: String,
+    pub aux_data_collector: AuxDataCollector,
+}
+
+// This packages changes made by the user to knobs and automation into a format that can be read
+// by the nodespeak parameter, so that trivial changes don't necessitate a recompile.
+pub struct AuxDataCollector {
+    ordered_controls: Vec<Rcrc<Control>>,
+    data_length: usize,
+}
+
+impl AuxDataCollector {
+    pub fn collect_data(&self) -> Vec<f32> {
+        let mut data = Vec::with_capacity(self.data_length);
+        for control in &self.ordered_controls {
+            let control_ref = control.borrow();
+            if control_ref.automation.len() == 0 {
+                data.push(control_ref.value);
+            } else {
+                for lane in &control_ref.automation {
+                    // algebraic simplification of remapping value [-1, 1] -> [0, 1] -> [min, max]
+                    let a = (lane.range.1 - lane.range.0) / 2.0;
+                    let b = a + lane.range.0;
+                    data.push(a);
+                    data.push(b);
+                }
+            }
+        }
+        debug_assert!(data.len() == self.data_length);
+        data
+    }
+
+    pub fn get_data_length(&self) -> usize {
+        self.data_length
+    }
+}
+
 pub fn generate_code(
     for_graph: &ModuleGraph,
     buffer_length: i32,
     sample_rate: i32,
-) -> Result<String, ()> {
+) -> Result<CodegenResult, ()> {
     let execution_order = for_graph.compute_execution_order()?;
     let generator = CodeGenerator {
         graph: for_graph,
         execution_order,
+        current_aux_data_item: 0,
+        aux_data_control_order: Vec::new(),
     };
     Ok(generator.generate_code(buffer_length, sample_rate))
 }
@@ -17,6 +57,8 @@ pub fn generate_code(
 struct CodeGenerator<'a> {
     graph: &'a ModuleGraph,
     execution_order: Vec<usize>,
+    current_aux_data_item: usize,
+    aux_data_control_order: Vec<Rcrc<Control>>,
 }
 
 fn format_decimal(value: f32) -> String {
@@ -30,28 +72,33 @@ fn format_decimal(value: f32) -> String {
 }
 
 impl<'a> CodeGenerator<'a> {
-    fn generate_code_for_lane(&self, lane: &AutomationLane) -> String {
-        let (target_min, target_max) = lane.range;
-        // algebraic simplification of remapping value [-1, 1] -> [0, 1] -> [min, max]
-        let a = (target_max - target_min) / 2.0;
-        let b = a + target_min;
+    fn next_aux_value(&mut self) -> String {
+        self.current_aux_data_item += 1;
+        format!("global_aux_data[{}]", self.current_aux_data_item - 1)
+    }
+
+    fn generate_code_for_lane(&mut self, lane: &AutomationLane) -> String {
         let mod_index = self
             .graph
             .index_of_module(&lane.connection.0)
             .unwrap_or(3999999);
+        // The two values in the aux data are computed based on the min and max of the automation
+        // channel such that mulitplying by the first and adding the second will generate the
+        // appropriate transformation. See AuxDataCollector::collect_data for more.
         format!(
             "module_{}_output_{} * {} + {}",
             mod_index,
             lane.connection.1,
-            format_decimal(a),
-            format_decimal(b)
+            self.next_aux_value(),
+            self.next_aux_value(),
         )
     }
 
-    fn generate_code_for_control(&self, control: &Rcrc<Control>) -> String {
+    fn generate_code_for_control(&mut self, control: &Rcrc<Control>) -> String {
+        self.aux_data_control_order.push(Rc::clone(control));
         let control_ref = control.borrow();
         if control_ref.automation.len() == 0 {
-            format_decimal(control_ref.value)
+            self.next_aux_value()
         } else {
             let mut code = self.generate_code_for_lane(&control_ref.automation[0]);
             for lane in &control_ref.automation[1..] {
@@ -62,7 +109,7 @@ impl<'a> CodeGenerator<'a> {
         }
     }
 
-    fn generate_code_for_input(&self, input: &InputConnection, typ: JackType) -> String {
+    fn generate_code_for_input(&mut self, input: &InputConnection, typ: JackType) -> String {
         match input {
             InputConnection::Wire(module, output_index) => format!(
                 "module_{}_output_{}",
@@ -73,20 +120,23 @@ impl<'a> CodeGenerator<'a> {
         }
     }
 
-    fn generate_code(&self, buffer_length: i32, sample_rate: i32) -> String {
-        let mut code = "".to_owned();
-        code.push_str(&format!("INT BUFFER_LENGTH = {};\n", buffer_length,));
-        code.push_str(&format!("FLOAT SAMPLE_RATE = {}.0;\n", sample_rate,));
-        code.push_str(concat!(
+    fn generate_code(mut self, buffer_length: i32, sample_rate: i32) -> CodegenResult {
+        let mut header = "".to_owned();
+        header.push_str(&format!("INT BUFFER_LENGTH = {};\n", buffer_length,));
+        header.push_str(&format!("FLOAT SAMPLE_RATE = {}.0;\n", sample_rate,));
+        header.push_str(concat!(
             "input FLOAT global_pitch, global_velocity, global_note_status;\n",
             "input [BUFFER_LENGTH][1]FLOAT global_note_time;\n",
             "output [BUFFER_LENGTH][2]FLOAT global_audio_out;\n",
             "[BUFFER_LENGTH]BOOL global_release_trigger = FALSE;\n",
+        ));
+
+        let mut code = "".to_owned();
+        code.push_str(concat!(
             "if global_note_status == 1.0 { global_release_trigger[0] = TRUE; }\n",
             "macro FlatWaveform(buffer_pos, phase):(value) { FLOAT value = 0.0; }\n",
             "\n",
         ));
-
         for (index, module) in self.graph.borrow_modules().iter().enumerate() {
             code.push_str(&format!("macro module_{}(\n", index));
             let module_ref = module.borrow();
@@ -110,8 +160,8 @@ impl<'a> CodeGenerator<'a> {
             code.push_str("}\n\n");
         }
 
-        for index in &self.execution_order {
-            let module_ref = self.graph.borrow_modules()[*index].borrow();
+        for index in std::mem::replace(&mut self.execution_order, Vec::new()) {
+            let module_ref = self.graph.borrow_modules()[index].borrow();
             let template_ref = module_ref.template.borrow();
             code.push_str(&format!("module_{}(\n", index));
             for (input, jack) in module_ref.inputs.iter().zip(template_ref.inputs.iter()) {
@@ -138,6 +188,25 @@ impl<'a> CodeGenerator<'a> {
             code.push_str(");\n\n");
         }
 
-        code
+        if self.current_aux_data_item > 0 {
+            header.push_str(&format!(
+                "input [{}]FLOAT global_aux_data;\n",
+                self.current_aux_data_item
+            ));
+        }
+        let Self {
+            aux_data_control_order,
+            current_aux_data_item,
+            ..
+        } = self;
+        let aux_data_collector = AuxDataCollector {
+            ordered_controls: aux_data_control_order,
+            data_length: current_aux_data_item,
+        };
+
+        CodegenResult {
+            code: format!("{}\n{}", header, code),
+            aux_data_collector,
+        }
     }
 }
