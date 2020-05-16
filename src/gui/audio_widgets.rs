@@ -1,7 +1,8 @@
 use crate::engine::parts as ep;
+use crate::gui::action::{DropTarget, MouseAction};
 use crate::gui::constants::*;
 use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
-use crate::gui::{DropTarget, Gui, MouseAction, MouseMods};
+use crate::gui::{Gui, MouseMods};
 use crate::util::*;
 use std::f32::consts::PI;
 

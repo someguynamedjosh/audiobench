@@ -72,7 +72,7 @@ impl Engine {
         &self.module_graph
     }
 
-    pub fn on_structure_change(&mut self) {
+    pub fn reload_structure(&mut self) {
         let module_graph_ref = self.module_graph.borrow();
         let new_gen =
             codegen::generate_code(&*module_graph_ref, self.buffer_length, self.sample_rate)
@@ -83,7 +83,7 @@ impl Engine {
         self.aux_data_collector = new_gen.aux_data_collector;
     }
 
-    pub fn on_value_change(&mut self) {
+    pub fn reload_values(&mut self) {
         let mut aux_in_ref = self.new_aux_input_values.lock().unwrap();
         *aux_in_ref = Some(self.aux_data_collector.collect_data());
     }
@@ -93,7 +93,7 @@ impl Engine {
         if buffer_length != self.buffer_length || sample_rate != self.sample_rate {
             self.buffer_length = buffer_length;
             self.sample_rate = sample_rate;
-            self.on_structure_change();
+            self.reload_structure();
         }
     }
 

@@ -32,6 +32,18 @@ impl Instance {
 }
 
 impl Instance {
+    fn perform_action(&mut self, action: gui::action::InstanceAction) {
+        println!("ACTION");
+        match action {
+            gui::action::InstanceAction::ReloadAuxData => {
+                self.engine.reload_values();
+            }
+            gui::action::InstanceAction::ReloadStructure => {
+                self.engine.reload_structure();
+            }
+        }
+    }
+
     pub fn get_num_icons(&self) -> usize {
         self.registry.get_num_icons()
     }
@@ -103,24 +115,22 @@ impl Instance {
 
     pub fn mouse_move(&mut self, x: i32, y: i32) {
         if let Some(gui) = &mut self.gui {
-            gui.on_mouse_move((x, y));
+            let action = gui.on_mouse_move((x, y));
+            action.map(|a| self.perform_action(a));
         } else {
             debug_assert!(false, "mouse_move called, but no GUI exists.");
             eprintln!("WARNING: mouse_move called, but no GUI exists.");
         }
-        // TODO: Make a more robust solution for this.
-        self.engine.on_value_change();
     }
 
     pub fn mouse_up(&mut self) {
         if let Some(gui) = &mut self.gui {
-            gui.on_mouse_up();
+            let action = gui.on_mouse_up();
+            action.map(|a| self.perform_action(a));
         } else {
             debug_assert!(false, "mouse_up called, but no GUI exists.");
             eprintln!("WARNING: mouse_up called, but no GUI exists.");
         }
-        // TODO: Make a more robust solution for this.
-        self.engine.on_structure_change();
     }
 }
 

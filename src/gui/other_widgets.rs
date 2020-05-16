@@ -1,8 +1,9 @@
 use crate::engine::parts as ep;
 use crate::engine::registry::Registry;
+use crate::gui::action::MouseAction;
 use crate::gui::constants::*;
 use crate::gui::graphics::GrahpicsWrapper;
-use crate::gui::{MouseAction, MouseMods};
+use crate::gui::MouseMods;
 
 fn bound_check(coord: (i32, i32), bounds: (i32, i32)) -> bool {
     coord.0 >= 0 && coord.1 >= 0 && coord.0 <= bounds.0 && coord.1 <= bounds.1
