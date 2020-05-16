@@ -9,11 +9,14 @@ const DEFAULT_SAMPLE_RATE: i32 = 44100;
 pub struct Engine {
     // Only read/mutated by UI thread.
     module_graph: Rcrc<engine::parts::ModuleGraph>,
+    aux_data_collector: codegen::AuxDataCollector,
     buffer_length: i32,
     sample_rate: i32,
     // Shared.
     /// This value is set to Some() when the audio rendering code should be recompiled.
-    new_module_graph_code: Mutex<Option<String>>,
+    new_module_graph_code: Mutex<Option<(String, Vec<f32>)>>,
+    /// This value is set to Some() when the aux input values should change.
+    new_aux_input_values: Mutex<Option<Vec<f32>>>,
     // Only read/mutated by audio thread.
     executor: engine::execution::ExecEnvironment,
 }
@@ -38,14 +41,17 @@ impl Engine {
         module_graph.adopt_module(output);
 
         let mut executor = engine::execution::ExecEnvironment::new(&registry);
-        let code =
+        let gen_result =
             codegen::generate_code(&module_graph, DEFAULT_BUFFER_LENGTH, DEFAULT_SAMPLE_RATE)
                 .expect("TODO: Nice error");
-        println!("{}", code.code);
+        println!("{}", gen_result.code);
 
-        if let Err(problem) =
-            executor.compile(code.code, DEFAULT_BUFFER_LENGTH as usize, DEFAULT_SAMPLE_RATE)
-        {
+        if let Err(problem) = executor.compile(
+            gen_result.code,
+            gen_result.aux_data_collector.collect_data(),
+            DEFAULT_BUFFER_LENGTH as usize,
+            DEFAULT_SAMPLE_RATE,
+        ) {
             eprintln!("ERROR: Basic setup failed to compile:");
             eprintln!("{}", problem);
             std::process::abort();
@@ -53,9 +59,11 @@ impl Engine {
 
         Self {
             module_graph: rcrc(module_graph),
+            aux_data_collector: gen_result.aux_data_collector,
             buffer_length: DEFAULT_BUFFER_LENGTH,
             sample_rate: DEFAULT_SAMPLE_RATE,
             new_module_graph_code: Mutex::new(None),
+            new_aux_input_values: Mutex::new(None),
             executor,
         }
     }
@@ -64,14 +72,20 @@ impl Engine {
         &self.module_graph
     }
 
-    pub fn mark_module_graph_dirty(&mut self) {
+    pub fn on_structure_change(&mut self) {
         let module_graph_ref = self.module_graph.borrow();
-        let new_code =
+        let new_gen =
             codegen::generate_code(&*module_graph_ref, self.buffer_length, self.sample_rate)
                 .expect("TODO: Nice error");
         drop(module_graph_ref);
         let mut code_ref = self.new_module_graph_code.lock().unwrap();
-        *code_ref = Some(new_code.code);
+        *code_ref = Some((new_gen.code, new_gen.aux_data_collector.collect_data()));
+        self.aux_data_collector = new_gen.aux_data_collector;
+    }
+
+    pub fn on_value_change(&mut self) {
+        let mut aux_in_ref = self.new_aux_input_values.lock().unwrap();
+        *aux_in_ref = Some(self.aux_data_collector.collect_data());
     }
 
     pub fn set_buffer_length_and_sample_rate(&mut self, buffer_length: i32, sample_rate: i32) {
@@ -79,7 +93,7 @@ impl Engine {
         if buffer_length != self.buffer_length || sample_rate != self.sample_rate {
             self.buffer_length = buffer_length;
             self.sample_rate = sample_rate;
-            self.mark_module_graph_dirty();
+            self.on_structure_change();
         }
     }
 
@@ -92,12 +106,19 @@ impl Engine {
     }
 
     pub fn render_audio(&mut self) -> &[f32] {
+        let mut new_aux_data = self.new_aux_input_values.lock().unwrap();
+        if let Some(new_aux_data) = new_aux_data.take() {
+            self.executor.change_aux_input_data(&new_aux_data[..]);
+        }
         let mut new_code = self.new_module_graph_code.lock().unwrap();
-        if let Some(code) = new_code.take() {
+        if let Some((code, starting_aux_data)) = new_code.take() {
             println!("{}", code);
-            let result = self
-                .executor
-                .compile(code, self.buffer_length as usize, self.sample_rate);
+            let result = self.executor.compile(
+                code,
+                starting_aux_data,
+                self.buffer_length as usize,
+                self.sample_rate,
+            );
             if let Err(err) = result {
                 eprintln!("Compile failed!");
                 eprintln!("{}", err);

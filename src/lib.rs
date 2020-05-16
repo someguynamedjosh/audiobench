@@ -108,6 +108,8 @@ impl Instance {
             debug_assert!(false, "mouse_move called, but no GUI exists.");
             eprintln!("WARNING: mouse_move called, but no GUI exists.");
         }
+        // TODO: Make a more robust solution for this.
+        self.engine.on_value_change();
     }
 
     pub fn mouse_up(&mut self) {
@@ -118,7 +120,7 @@ impl Instance {
             eprintln!("WARNING: mouse_up called, but no GUI exists.");
         }
         // TODO: Make a more robust solution for this.
-        self.engine.mark_module_graph_dirty();
+        self.engine.on_structure_change();
     }
 }
 

@@ -54,6 +54,7 @@ impl ExecEnvironment {
     pub fn compile(
         &mut self,
         source: String,
+        mut starting_aux_data: Vec<f32>,
         buffer_length: usize,
         sample_rate: i32,
     ) -> Result<(), String> {
@@ -63,7 +64,9 @@ impl ExecEnvironment {
         // global_velocity: FLOAT
         // global_note_status: FLOAT
         // global_note_time: [BL]FLOAT
+        // global_aux_data: [starting_aux_data.len()]FLOAT
         self.input = vec![0.0; 3 + buffer_length];
+        self.input.append(&mut starting_aux_data);
         // global_audio_out: [BL][2]FLOAT
         self.output = vec![0.0; 2 * buffer_length];
         // Just an audio buffer, nothing special.
@@ -71,16 +74,18 @@ impl ExecEnvironment {
         self.buffer_length = buffer_length;
         self.time_per_sample = 1.0 / sample_rate as f32;
 
-        let pref = self.program.as_ref().unwrap();
+        // TODO?: Better handling for this
         for held_note in self.held_notes.iter_mut() {
-            if let Some(voice) = held_note {
-                voice.static_data = unsafe {
-                    pref.create_static_data()?
-                };
-            }
+            *held_note = None;
         }
         self.decaying_notes.clear();
         Ok(())
+    }
+
+    pub fn change_aux_input_data(&mut self, new_aux_input_data: &[f32]) {
+        let other_inputs_len = 3 + self.buffer_length;
+        debug_assert!(new_aux_input_data.len() == self.input.len() - other_inputs_len);
+        self.input[other_inputs_len..].clone_from_slice(new_aux_input_data);
     }
 
     fn execute_impl(
