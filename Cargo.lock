@@ -228,9 +228,9 @@ dependencies = [
 
 [[package]]
 name = "nodespeak"
-version = "0.1.9"
+version = "0.1.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "10aa46252ee4a8b76a873c9ac1e8a1ff97be1bacc4f5d5d651ee6f3327a7edd9"
+checksum = "e578911c0da67822e5c912b9526e8e8a0ae6a6ac6c7f7a15b1da16b4d3da7323"
 dependencies = [
  "colored",
  "libc",
@@ -386,9 +386,9 @@ dependencies = [
 
 [[package]]
 name = "quote"
-version = "1.0.5"
+version = "1.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "42934bc9c8ab0d3b273a16d8551c8f0fcff46be73276ca083ec2414c15c4ba5e"
+checksum = "54a21852a652ad6f610c9510194f398ff6f8692e334fd1145fed931f7fbe44ea"
 dependencies = [
  "proc-macro2",
 ]

@@ -20,16 +20,17 @@ controls:
     default: 1
 gui: 
   label: Oscillator
-  width: 4
+  width: 5
   height: 2
   widgets:
     knob:
-      control: phase_offset
-      label: Phase
-      x: 0
-      y: 0
-    knob:
       control: amplitude
       label: Amplitude
-      x: 2
+      x: 3
       y: 0
+    waveform_graph:
+      x: 0
+      y: 0
+      w: 3
+      h: 2
+      feedback_name: graph_feedback

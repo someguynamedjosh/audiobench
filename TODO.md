@@ -1,17 +1,18 @@
 # Things with no dependencies
 Tooltips and interaction hints
 Widget for displaying waveforms
-Widget for displaying envelopes
 Snap / Precision modifier keys for dragging controls
 Some way to reset the value of a control
+Layers for drawing
+A way to remove automation channels and modules
 
 # Things with missing dependencies
 Drop shadow draw function
+Better wire arrangement
 
 # Low-priority things without dependencies
 Output silent audio while recompiling instead of hanging the thread
 Display numeric value of control when manually dragging it
-Layers for drawing
 Get a better icon for waveforms
 Better nothing icon
 Friendly error messages

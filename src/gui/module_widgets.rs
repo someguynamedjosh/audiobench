@@ -3,7 +3,7 @@ use crate::gui::action::{DropTarget, MouseAction};
 use crate::gui::audio_widgets::Module;
 use crate::gui::constants::*;
 use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
-use crate::gui::{Gui, MouseMods};
+use crate::gui::MouseMods;
 use crate::util::*;
 use std::f32::consts::PI;
 
@@ -30,6 +30,11 @@ pub enum WidgetOutline {
         grid_pos: (i32, i32),
         label: String,
     },
+    WaveformGraph {
+        grid_pos: (i32, i32),
+        grid_size: (i32, i32),
+        feedback_name: String,
+    },
     EnvelopeGraph {
         grid_pos: (i32, i32),
         grid_size: (i32, i32),
@@ -42,6 +47,10 @@ impl WidgetOutline {
         match self {
             Self::Knob { control_index, .. } => FeedbackDataRequirement::Control {
                 control_index: *control_index,
+            },
+            Self::WaveformGraph { feedback_name, .. } => FeedbackDataRequirement::Custom {
+                code_name: feedback_name.clone(),
+                size: 60,
             },
             Self::EnvelopeGraph { feedback_name, .. } => FeedbackDataRequirement::Custom {
                 code_name: feedback_name.clone(),
@@ -75,6 +84,14 @@ pub fn widget_from_outline(
             Rc::clone(&controls[*control_index]),
             convert_grid_pos(*grid_pos),
             label.clone(),
+        )),
+        WidgetOutline::WaveformGraph {
+            grid_pos,
+            grid_size,
+            ..
+        } => Box::new(WaveformGraph::create(
+            convert_grid_pos(*grid_pos),
+            convert_grid_size(*grid_size),
         )),
         WidgetOutline::EnvelopeGraph {
             grid_pos,
@@ -239,6 +256,64 @@ impl ModuleWidget for Knob {
                     max_angle,
                 );
             }
+        }
+
+        g.pop_state();
+    }
+}
+
+#[derive(Clone)]
+pub struct WaveformGraph {
+    pos: (i32, i32),
+    size: (i32, i32),
+}
+
+impl WaveformGraph {
+    fn create(pos: (i32, i32), size: (i32, i32)) -> Self {
+        Self { pos, size }
+    }
+}
+
+impl ModuleWidget for WaveformGraph {
+    fn respond_to_mouse_press(
+        &self,
+        mouse_pos: (i32, i32),
+        mods: &MouseMods,
+        parent_pos: (i32, i32),
+    ) -> MouseAction {
+        MouseAction::None
+    }
+
+    fn get_drop_target_at(&self, mouse_pos: (i32, i32)) -> DropTarget {
+        DropTarget::None
+    }
+
+    fn draw(
+        &self,
+        g: &mut GrahpicsWrapper,
+        highlight: bool,
+        parent_pos: (i32, i32),
+        feedback_data: &[f32],
+    ) {
+        g.push_state();
+
+        const CS: i32 = CORNER_SIZE;
+        g.apply_offset(self.pos.0, self.pos.1);
+        g.set_color(&COLOR_BG);
+        g.fill_rounded_rect(0, 0, self.size.0, self.size.1, CS);
+
+        g.set_color(&COLOR_TEXT);
+        let space_per_segment = self.size.0 as f32 / (feedback_data.len() - 1) as f32;
+        let mut old_x = 0;
+        let mut old_y =
+            feedback_data[0].from_range_to_range(-1.0, 1.0, self.size.1 as f32, 0.0) as i32;
+        for index in 1..feedback_data.len() {
+            let x = (index as f32 * space_per_segment) as i32;
+            let y =
+                feedback_data[index].from_range_to_range(-1.0, 1.0, self.size.1 as f32, 0.0) as i32;
+            g.stroke_line(old_x, old_y, x, y, 1.0);
+            old_x = x;
+            old_y = y;
         }
 
         g.pop_state();

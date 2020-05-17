@@ -5,13 +5,22 @@ static phase {
     [2]FLOAT phase = 0.0;
 }
 
+if global_update_feedback_data {
+    [60]FLOAT feedback;
+    for i = 0 to 60 no_unroll {
+        FLOAT fphase = Itof(i) / 59.0;
+        feedback[i] = Waveform(0, fphase)[0?];
+    }
+    SetGraphFeedback(feedback);
+}
+
 INT OVERSAMPLING = 4;
 for i = 0 to BUFFER_LENGTH no_unroll {
     // TODO: Add language features so that we don't have to do this.
-    AUTO value = amplitude[i?] * Waveform(i, (phase + 2.0 + phase_offset[i?]) % 1.0);
+    AUTO value = amplitude[i?] * Waveform(i, phase);
     value = 0.0;
     for subsample = 0 to OVERSAMPLING {
-        value = value + amplitude[i?] * Waveform(i, (phase + 2.0 + phase_offset[i?]) % 1.0);
+        value = value + amplitude[i?] * Waveform(i, phase);
         phase = (phase + pitch / SAMPLE_RATE / Itof(OVERSAMPLING)) % 1.0;
     }
     audio[i] = value / Itof(OVERSAMPLING);
