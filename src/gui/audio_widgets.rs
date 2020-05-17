@@ -192,7 +192,13 @@ impl Knob {
         }
     }
 
-    fn draw(&self, g: &mut GrahpicsWrapper, parent_pos: (i32, i32), feedback_data: &[f32]) {
+    fn draw(
+        &self,
+        g: &mut GrahpicsWrapper,
+        highlight: bool,
+        parent_pos: (i32, i32),
+        feedback_data: &[f32],
+    ) {
         g.push_state();
 
         let control = &*self.control.borrow();
@@ -214,9 +220,16 @@ impl Knob {
         // Applying the offset later makes connections easier to render.
         g.apply_offset(self.pos.0, self.pos.1);
 
-        g.set_color(&COLOR_BG);
+        if highlight {
+            g.set_color(&COLOR_TEXT);
+        } else {
+            g.set_color(&COLOR_BG);
+        }
         g.fill_pie(0, 0, grid(2), KNOB_INSIDE_SPACE * 2, 0.0, PI);
         g.set_color(&COLOR_KNOB);
+        if highlight {
+            g.set_alpha(0.5);
+        }
         let zero_angle = value_to_angle(control.range, 0.0);
         // If manual, show the manual value. If automated, show the most recent value recorded
         // from when a note was actually playing.
@@ -234,6 +247,7 @@ impl Knob {
             zero_angle,
             value_angle,
         );
+        g.set_alpha(1.0);
         g.set_color(&COLOR_TEXT);
         g.write_label(0, grid(1) + GRID_P, grid(2), &self.label);
 
@@ -242,11 +256,7 @@ impl Knob {
             let lane_size = KNOB_AUTOMATION_SPACE / num_lanes;
             let lane_size = lane_size.min(KNOB_MAX_LANE_SIZE).max(2);
             for (index, lane) in control.automation.iter().enumerate() {
-                if index == 1 {
-                    g.set_color(&COLOR_AUTOMATION_FOCUSED);
-                } else {
-                    g.set_color(&COLOR_AUTOMATION);
-                }
+                g.set_color(&COLOR_AUTOMATION);
                 let index = index as i32;
                 let outer_diameter = grid(2) - (KNOB_OUTSIDE_SPACE * 2) - lane_size * index * 2;
                 let inner_diameter = outer_diameter - (lane_size - KNOB_LANE_GAP) * 2;
@@ -293,18 +303,31 @@ impl InputJack {
     }
 
     fn mouse_in_bounds(&self, mouse_pos: (i32, i32)) -> bool {
-        let mouse_pos = (mouse_pos.0 - self.pos.0 + JACK_SIZE, mouse_pos.1 - self.pos.1);
+        let mouse_pos = (
+            mouse_pos.0 - self.pos.0 + JACK_SIZE,
+            mouse_pos.1 - self.pos.1,
+        );
         mouse_pos.inside((JACK_SIZE * 2, JACK_SIZE))
     }
 
-    fn draw(&self, g: &mut GrahpicsWrapper, default: Option<&ep::DefaultInput>, show_label: bool) {
+    fn draw(
+        &self,
+        g: &mut GrahpicsWrapper,
+        default: Option<&ep::DefaultInput>,
+        show_label: bool,
+        mute: bool,
+    ) {
         g.push_state();
         g.apply_offset(self.pos.0, self.pos.1);
         const JS: i32 = JACK_SIZE;
         const CS: i32 = CORNER_SIZE;
         const JIP: i32 = JACK_ICON_PADDING;
 
-        g.set_color(&COLOR_TEXT);
+        if mute {
+            g.set_color(&COLOR_MUTED_TEXT);
+        } else {
+            g.set_color(&COLOR_TEXT);
+        }
         if let Some(default) = &default {
             const X: i32 = -JS;
             const Y: i32 = (JS - JS) / 2;
@@ -331,16 +354,16 @@ impl InputJack {
         }
         g.draw_icon(self.icon, JIP, JIP, JS - JIP * 2);
 
-        if show_label {
+        if show_label && !mute {
             const H: HAlign = HAlign::Right;
             const B: VAlign = VAlign::Bottom;
             const C: VAlign = VAlign::Center;
             const T: VAlign = VAlign::Top;
             if let Some(default) = &default {
                 const X: i32 = -104 - JS;
-                g.write_text(12, X, -JS/2, 100, JS, H, B, 1, &self.label);
+                g.write_text(12, X, -JS / 2, 100, JS, H, B, 1, &self.label);
                 let text = format!("({})", default.name);
-                g.write_text(12, X, JS/2, 100, JS, H, T, 1, &text);
+                g.write_text(12, X, JS / 2, 100, JS, H, T, 1, &text);
             } else {
                 g.write_text(12, -104, 0, 100, JS, H, C, 1, &self.label);
             }
@@ -379,13 +402,17 @@ impl OutputJack {
         mouse_pos.inside((JACK_SIZE, JACK_SIZE))
     }
 
-    fn draw(&self, g: &mut GrahpicsWrapper, show_label: bool) {
+    fn draw(&self, g: &mut GrahpicsWrapper, show_label: bool, mute: bool) {
         g.push_state();
         g.apply_offset(self.pos.0, self.pos.1);
 
         const JS: i32 = JACK_SIZE;
         const CS: i32 = CORNER_SIZE;
-        g.set_color(&COLOR_TEXT);
+        if mute {
+            g.set_color(&COLOR_MUTED_TEXT);
+        } else {
+            g.set_color(&COLOR_TEXT);
+        }
         g.fill_rounded_rect(0, 0, JS, JS, CS);
         g.fill_rect(JS - CS, 0, CS, JS);
 
@@ -405,7 +432,7 @@ impl OutputJack {
         }
         g.draw_icon(self.icon, JIP, JIP, JS - JIP * 2);
 
-        if show_label {
+        if show_label && !mute {
             const H: HAlign = HAlign::Left;
             const V: VAlign = VAlign::Center;
             g.write_text(12, JS + 4, 0, 100, JS, H, V, 1, &self.label);
@@ -559,7 +586,12 @@ impl Module {
         DropTarget::None
     }
 
-    fn draw(&self, g: &mut GrahpicsWrapper, mouse_pos: (i32, i32)) {
+    fn draw(
+        &self,
+        g: &mut GrahpicsWrapper,
+        mouse_pos: (i32, i32),
+        highlight: Option<(bool, ep::JackType)>,
+    ) {
         let pos = self.get_pos();
         g.push_state();
         g.apply_offset(pos.0, pos.1);
@@ -605,27 +637,41 @@ impl Module {
         let hovering = mouse_pos.inside(self.size);
         for input_index in 0..self.inputs.len() {
             let input = &self.inputs[input_index];
+            let jack = &template_ref.inputs[input_index];
+            let mute = if let Some((outs, typ)) = highlight {
+                outs || typ != jack.get_type()
+            } else {
+                false
+            };
             if let ep::InputConnection::Default(default_index) = module_ref.inputs[input_index] {
-                let jack = &template_ref.inputs[input_index];
                 input.draw(
                     g,
                     Some(&jack.borrow_default_options()[default_index]),
                     hovering,
+                    mute,
                 );
             } else {
-                input.draw(g, None, hovering);
+                input.draw(g, None, hovering, mute);
             }
         }
-        for output in &self.outputs {
-            output.draw(g, hovering);
+        for output_index in 0..self.outputs.len() {
+            let output = &self.outputs[output_index];
+            let jack = &template_ref.outputs[output_index];
+            let mute = if let Some((outs, typ)) = highlight {
+                !outs || typ != jack.get_type()
+            } else {
+                false
+            };
+            output.draw(g, hovering, mute);
         }
         let feedback_data_ref = module_ref.feedback_data.as_ref().unwrap().borrow();
         let feedback_data = &feedback_data_ref[..];
         let mut fdi = 0;
+        let highlight = highlight == Some((false, ep::JackType::Audio));
         for control in &self.controls {
             // This will change when we get more types of widgets.
             let segment_len = 1;
-            control.draw(g, pos, &feedback_data[fdi..fdi + segment_len]);
+            control.draw(g, highlight, pos, &feedback_data[fdi..fdi + segment_len]);
             fdi += segment_len;
         }
 
@@ -714,8 +760,24 @@ impl ModuleGraph {
         g.apply_offset(offset.0 + self.pos.0, offset.1 + self.pos.1);
         let (mx, my) = gui_state.get_current_mouse_pos();
         let (mx, my) = (mx - offset.0 - self.pos.0, my - offset.1 - self.pos.1);
+        let highlight = if gui_state.is_dragging() {
+            let cma = gui_state.borrow_current_mouse_action();
+            if let MouseAction::ConnectInput(module, index) = cma {
+                let typ = module.borrow().template.borrow().inputs[*index].get_type();
+                // Highlight outputs with typ.
+                Some((true, typ))
+            } else if let MouseAction::ConnectOutput(module, index) = cma {
+                let typ = module.borrow().template.borrow().outputs[*index].get_type();
+                // Highlight inputs with typ.
+                Some((false, typ))
+            } else {
+                None
+            }
+        } else {
+            None
+        };
         for module in &self.modules {
-            module.draw(g, (mx, my));
+            module.draw(g, (mx, my), highlight);
         }
         if let Some(widget) = &self.detail_menu_widget {
             widget.draw(g);

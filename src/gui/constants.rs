@@ -60,3 +60,4 @@ pub const COLOR_KNOB: (u8, u8, u8) = hex_color(0xFF0022);
 pub const COLOR_AUTOMATION: (u8, u8, u8) = hex_color(0xC7D5E8);
 pub const COLOR_AUTOMATION_FOCUSED: (u8, u8, u8) = hex_color(0x54bdff);
 pub const COLOR_TEXT: (u8, u8, u8) = (0xFF, 0xFF, 0xFF);
+pub const COLOR_MUTED_TEXT: (u8, u8, u8) = (0x77, 0x77, 0x77);
