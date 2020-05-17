@@ -43,6 +43,18 @@ fn create_widget_outline_from_yaml(
                 label,
             })
         }
+        "envelope_graph" => {
+            let grid_size = (
+                yaml.unique_child("w")?.i32()?,
+                yaml.unique_child("h")?.i32()?,
+            );
+            let feedback_name = yaml.unique_child("feedback_name")?.value.clone();
+            Ok(WidgetOutline::EnvelopeGraph {
+                grid_pos,
+                grid_size,
+                feedback_name,
+            })
+        }
         _ => Err(format!(
             "ERROR: Invalid widget {}, caused by:\nERROR: {} is not a valid widget type.",
             &yaml.full_name, &yaml.name

@@ -177,7 +177,7 @@ pub struct Module {
     label: String,
     inputs: Vec<InputJack>,
     outputs: Vec<OutputJack>,
-    controls: Vec<Box<dyn ModuleWidget>>,
+    widgets: Vec<(Box<dyn ModuleWidget>, usize)>,
 }
 
 impl Drop for Module {
@@ -216,7 +216,7 @@ impl Module {
         let grid_size = template_ref.size;
         let label = template_ref.label.clone();
         let module_controls = &module_ref.controls;
-        let controls = template_ref
+        let widgets = template_ref
             .widget_outlines
             .iter()
             .map(|wo| module_widgets::widget_from_outline(module_controls, wo))
@@ -260,7 +260,7 @@ impl Module {
             label,
             inputs,
             outputs,
-            controls,
+            widgets,
         }
     }
 
@@ -274,8 +274,8 @@ impl Module {
         if !mouse_pos.inside(self.size) {
             return MouseAction::None;
         }
-        for control in &self.controls {
-            let action = control.respond_to_mouse_press(mouse_pos, mods, pos);
+        for (widget, _) in &self.widgets {
+            let action = widget.respond_to_mouse_press(mouse_pos, mods, pos);
             if !action.is_none() {
                 return action;
             }
@@ -299,8 +299,8 @@ impl Module {
         if !mouse_pos.inside(self.size) {
             return DropTarget::None;
         }
-        for control in &self.controls {
-            let target = control.get_drop_target_at(mouse_pos);
+        for (widget, _) in &self.widgets {
+            let target = widget.get_drop_target_at(mouse_pos);
             if !target.is_none() {
                 return target;
             }
@@ -400,10 +400,8 @@ impl Module {
         let feedback_data = &feedback_data_ref[..];
         let mut fdi = 0;
         let highlight = highlight == Some((false, ep::JackType::Audio));
-        for control in &self.controls {
-            // This will change when we get more types of widgets.
-            let segment_len = 1;
-            control.draw(g, highlight, pos, &feedback_data[fdi..fdi + segment_len]);
+        for (widget, segment_len) in &self.widgets{
+            widget.draw(g, highlight, pos, &feedback_data[fdi..fdi + segment_len]);
             fdi += segment_len;
         }
 

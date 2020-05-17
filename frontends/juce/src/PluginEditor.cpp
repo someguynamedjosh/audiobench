@@ -37,7 +37,7 @@ void clear(void *gp) {
 }
 
 void strokeLine(void *gp, int x1, int y1, int x2, int y2, float weight) {
-    ((Graphics*) gp)->drawLine(x1, y1, x2, y2, weight);
+    ((Graphics*) gp)->drawLine(x1 - 0.5f, y1 - 0.5f, x2 - 0.5f, y2 - 0.5f, weight);
 }
 
 void fillRect(void *gp, int x, int y, int w, int h) {

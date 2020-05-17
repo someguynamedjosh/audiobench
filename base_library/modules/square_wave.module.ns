@@ -1,14 +1,9 @@
 macro Wave(buffer_pos, phase):(value) {
-    // TODO: Language features so this doesn't have to be stereo.
-    [2]FLOAT value;
+    // TODO: Language features so that this can be stereo.
+    FLOAT value;
     if phase[0?] < duty[buffer_pos?][0?] {
-        value[0] = 1.0;
+        value = 1.0;
     } else {
-        value[0] = -1.0;
-    }
-    if phase[1?] < duty[buffer_pos?][1?] {
-        value[1] = 1.0;
-    } else {
-        value[1] = -1.0;
+        value = -1.0;
     }
 }

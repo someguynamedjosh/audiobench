@@ -32,25 +32,31 @@ controls:
 gui: 
   label: Envelope
   width: 8
-  height: 2
+  height: 4
   widgets:
     knob:
       control: attack
       label: Attack
       x: 0
-      y: 0
+      y: 2
     knob:
       control: decay 
       label: Decay
       x: 2
-      y: 0
+      y: 2
     knob:
       control: sustain
       label: Sustain 
       x: 4
-      y: 0
+      y: 2
     knob:
       control: release 
       label: Release
       x: 6
+      y: 2
+    envelope_graph:
+      x: 0
       y: 0
+      w: 8
+      h: 2
+      feedback_name: graph_feedback

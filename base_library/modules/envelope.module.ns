@@ -15,13 +15,14 @@ static time, phase, last_value {
 for i = 0 to BUFFER_LENGTH no_unroll {
     FLOAT value;
     if phase == ATTACK_PHASE {
-        value = time / attack;
+        // Prevent div/0 errors.
+        value = time / (attack[i?][0?] + 0.001);
     } else if phase == DECAY_PHASE {
-        value = 1.0 - (1.0 - sustain) * (time / decay);
+        value = 1.0 - (1.0 - sustain[i?][0?]) * (time / decay[i?][0?]);
     } else if phase == HOLD_PHASE {
-        value = sustain;
+        value = sustain[i?][0?];
     } else if phase == RELEASE_PHASE {
-        value = last_value * (1.0 - time / release);
+        value = last_value * (1.0 - time / release[i?][0?]);
     } else { // SILENT_PHASE
         value = 0.0;
     }
@@ -37,10 +38,10 @@ for i = 0 to BUFFER_LENGTH no_unroll {
         time = 0.0;
     } else if phase == ATTACK_PHASE {
         last_value = value;
-        if time > attack {
-            time = time - attack;
-            if time > decay {
-                time = time - decay;
+        if time > attack[i?][0?] {
+            time = time - attack[i?][0?];
+            if time > decay[i?][0?] {
+                time = time - decay[i?][0?];
                 phase = HOLD_PHASE;
             } else {
                 phase = DECAY_PHASE;
@@ -48,16 +49,39 @@ for i = 0 to BUFFER_LENGTH no_unroll {
         }
     } else if phase == DECAY_PHASE {
         last_value = value;
-        if time > decay {
-            time = time - decay;
+        if time > decay[i?][0?] {
+            time = time - decay[i?][0?];
             phase = HOLD_PHASE;
-            last_value = sustain;
+            last_value = sustain[i?][0?];
         }
     } else if phase == HOLD_PHASE {
         // Do nothing.
     } else if phase == RELEASE_PHASE {
-        if time > release {
+        if time > release[i?][0?] {
             phase = SILENT_PHASE;
         }
     }
+}
+
+if global_update_feedback_data {
+    FLOAT real_time;
+    if phase == ATTACK_PHASE {
+        real_time = time;
+    } else if phase == DECAY_PHASE {
+        real_time = attack[0?][0?] + time;
+    } else if phase == HOLD_PHASE {
+        real_time = attack[0?][0?] + decay[0?][0?];
+    } else if phase == RELEASE_PHASE {
+        real_time = attack[0?][0?] + decay[0?][0?] + time;
+    } else if phase == SILENT_PHASE {
+        real_time = attack[0?][0?] + decay[0?][0?] + release[0?][0?];
+    }
+    SetGraphFeedback([
+        attack[0?][0?],
+        decay[0?][0?],
+        sustain[0?][0?],
+        release[0?][0?],
+        real_time,
+        signal[0][0?],
+    ]);
 }
