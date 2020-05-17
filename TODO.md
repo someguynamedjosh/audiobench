@@ -14,8 +14,10 @@ Get a better icon for waveforms.
 Friendly error messages
 Make the add modules menu look nice
 
+# Code organization stuff
 Control -> Parameter?
 Parameter -> AutoParam, ComplexParam?
+use fewer i32s, replace with usizes when it would be helpful.
 
 # Things with missing dependencies
 Drop shadow draw function

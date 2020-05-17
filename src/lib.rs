@@ -33,14 +33,9 @@ impl Instance {
 
 impl Instance {
     fn perform_action(&mut self, action: gui::action::InstanceAction) {
-        println!("ACTION");
         match action {
-            gui::action::InstanceAction::ReloadAuxData => {
-                self.engine.reload_values();
-            }
-            gui::action::InstanceAction::ReloadStructure => {
-                self.engine.reload_structure();
-            }
+            gui::action::InstanceAction::ReloadAuxData => self.engine.reload_values(),
+            gui::action::InstanceAction::ReloadStructure => self.engine.reload_structure(),
         }
     }
 

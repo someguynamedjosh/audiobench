@@ -1,32 +1,15 @@
 use crate::engine::registry::Registry;
-use crate::util::*;
-use array_macro::array;
-
-struct ActiveVoice {
-    pitch: f32,
-    velocity: f32,
-    elapsed_samples: usize,
-    silent_samples: usize,
-    release_trigger: bool,
-    static_data: nodespeak::llvmir::structure::StaticData,
-}
-
-const NUM_MIDI_NOTES: usize = 128;
-// Notes must be silent for at least this amount of time before they will be shut off.
-const MIN_SILENT_TIME: f32 = 0.1;
-// Notes must have every sample be of this magnitude or less to be considered silent.
-const SILENT_CUTOFF: f32 = 1e-5;
+use nodespeak::llvmir::structure::{Program, StaticData};
 
 pub struct ExecEnvironment {
     compiler: nodespeak::Compiler,
-    program: Option<nodespeak::llvmir::structure::Program>,
+    program: Option<Program>,
     input: Vec<f32>,
+    // How much space the required inputs like pitch and time take up.
+    default_inputs_len: usize,
     output: Vec<f32>,
-    accumulator: Vec<f32>,
     buffer_length: usize,
-    time_per_sample: f32,
-    held_notes: [Option<ActiveVoice>; NUM_MIDI_NOTES],
-    decaying_notes: Vec<ActiveVoice>,
+    sample_rate: i32,
 }
 
 impl ExecEnvironment {
@@ -42,13 +25,45 @@ impl ExecEnvironment {
             compiler,
             program: None,
             input: Vec::new(),
+            default_inputs_len: 3 + 0,
             output: Vec::new(),
-            accumulator: Vec::new(),
             buffer_length: 0,
-            time_per_sample: 0.0,
-            held_notes: array![None; NUM_MIDI_NOTES],
-            decaying_notes: Vec::new(),
+            sample_rate: 1, // Prevent accidental div/0 errors.
         }
+    }
+
+    pub fn get_current_buffer_length(&self) -> usize { 
+        self.buffer_length
+    }
+
+    pub fn get_current_sample_rate(&self) -> i32 {
+        self.sample_rate
+    }
+
+    pub fn set_pitch_input(&mut self, pitch: f32) {
+        self.input[0] = pitch;
+    }
+
+    pub fn set_velocity_input(&mut self, velocity: f32) {
+        self.input[1] = velocity;
+    }
+
+    pub fn set_note_status_input(&mut self, note_status: f32) {
+        self.input[2] = note_status;
+    }
+
+    pub fn set_note_time_input(&mut self, base: f32, increment: f32) {
+        let time_input = &mut self.input[3..self.buffer_length+3];
+        let mut value = base;
+        for index in 0..self.buffer_length {
+            time_input[index] = value;
+            value += increment;
+        }
+    }
+
+    pub fn change_aux_input_data(&mut self, new_aux_input_data: &[f32]) {
+        debug_assert!(new_aux_input_data.len() == self.input.len() - self.default_inputs_len);
+        self.input[self.default_inputs_len..].clone_from_slice(new_aux_input_data);
     }
 
     pub fn compile(
@@ -65,148 +80,47 @@ impl ExecEnvironment {
         // global_note_status: FLOAT
         // global_note_time: [BL]FLOAT
         // global_aux_data: [starting_aux_data.len()]FLOAT
-        self.input = vec![0.0; 3 + buffer_length];
+        self.default_inputs_len = 3 + buffer_length;
+        self.input = vec![0.0; self.default_inputs_len];
         self.input.append(&mut starting_aux_data);
         // global_audio_out: [BL][2]FLOAT
         self.output = vec![0.0; 2 * buffer_length];
-        // Just an audio buffer, nothing special.
-        self.accumulator = vec![0.0; 2 * buffer_length];
         self.buffer_length = buffer_length;
-        self.time_per_sample = 1.0 / sample_rate as f32;
-
-        // TODO?: Better handling for this
-        for held_note in self.held_notes.iter_mut() {
-            *held_note = None;
-        }
-        self.decaying_notes.clear();
+        self.sample_rate = sample_rate;
         Ok(())
     }
 
-    pub fn change_aux_input_data(&mut self, new_aux_input_data: &[f32]) {
-        let other_inputs_len = 3 + self.buffer_length;
-        debug_assert!(new_aux_input_data.len() == self.input.len() - other_inputs_len);
-        self.input[other_inputs_len..].clone_from_slice(new_aux_input_data);
-    }
-
-    fn execute_impl(
-        program: &nodespeak::llvmir::structure::Program,
-        accumulator: &mut Vec<f32>,
-        voice: &mut ActiveVoice,
-        input: &mut Vec<f32>,
-        output: &mut Vec<f32>,
-        buffer_length: usize,
-        time_per_sample: f32,
-    ) -> Result<(), String> {
-        // global_pitch
-        input[0] = voice.pitch;
-        // global_velocity
-        input[1] = voice.velocity.to_range(-1.0, 1.0);
-        // global_note_status
-        input[2] = if voice.release_trigger { 1.0 } else { 0.0 };
-        voice.release_trigger = false;
-        // global_note_time
-        for i in 0..buffer_length {
-            input[i + 3] = (i + voice.elapsed_samples) as f32 * time_per_sample;
-        }
-        unsafe {
-            program
-                .execute_raw(
-                    vec_as_raw(input),
-                    vec_as_raw(output),
-                    &mut voice.static_data,
-                )
-                .map_err(|s| s.to_owned())?;
-        }
-        let mut all_silent = true;
-        for i in 0..buffer_length * 2 {
-            accumulator[i] += output[i];
-            if output[i].abs() > SILENT_CUTOFF {
-                all_silent = false;
-            }
-        }
-        voice.elapsed_samples += buffer_length;
-        if all_silent {
-            voice.silent_samples += buffer_length;
-        } else {
-            voice.silent_samples = 0;
-        }
-        Ok(())
-    }
-
-    pub fn execute(&mut self) -> Result<&[f32], String> {
-        for i in 0..self.buffer_length * 2 {
-            self.accumulator[i] = 0.0;
-        }
+    pub fn create_static_data(&mut self) -> Result<StaticData, String> {
         let program = if let Some(program) = &self.program {
             program
         } else {
-            return Err("Program executed before compiled!".to_owned());
+            return Err("Cannot create static data when program is not compiled.".to_owned());
         };
-        for note in self.held_notes.iter_mut() {
-            if let Some(note) = note {
-                Self::execute_impl(
-                    &program,
-                    &mut self.accumulator,
-                    note,
-                    &mut self.input,
-                    &mut self.output,
-                    self.buffer_length,
-                    self.time_per_sample,
-                )?;
-            }
-        }
-        for note in self.decaying_notes.iter_mut() {
-            Self::execute_impl(
-                &program,
-                &mut self.accumulator,
-                note,
-                &mut self.input,
-                &mut self.output,
-                self.buffer_length,
-                self.time_per_sample,
-            )?;
-        }
-        let min_silent_samples = (MIN_SILENT_TIME / self.time_per_sample) as usize;
-        // Iterate backwards because we are deleting things.
-        for note_index in (0..self.decaying_notes.len()).rev() {
-            if self.decaying_notes[note_index].silent_samples >= min_silent_samples {
-                self.decaying_notes.remove(note_index);
-            }
-        }
-        Ok(&self.accumulator[..])
-    }
-
-    pub fn note_on(&mut self, note_index: i32, velocity: f32) {
-        assert!(note_index < 128);
-        debug_assert!(self.program.is_some());
-        self.held_notes[note_index as usize] = Some(ActiveVoice {
-            pitch: equal_tempered_tuning(note_index),
-            velocity,
-            elapsed_samples: 0,
-            silent_samples: 0,
-            release_trigger: false,
-            static_data: unsafe {
-                self.program
-                    .as_ref()
-                    .unwrap()
-                    .create_static_data()
-                    .expect("TODO: Nice error")
-            },
+        Ok(unsafe {
+            program.create_static_data()?
         })
     }
 
-    pub fn note_off(&mut self, note_index: i32) {
-        assert!(note_index < 128);
-        if let Some(mut note) = self.held_notes[note_index as usize].take() {
-            note.release_trigger = true;
-            self.decaying_notes.push(note);
+    pub fn execute(
+        &mut self,
+        static_data: &mut StaticData,
+    ) -> Result<&[f32], String> {
+        let program = if let Some(program) = &self.program {
+            program
+        } else {
+            return Err("Program executed before compiled.".to_owned());
+        };
+        unsafe {
+            program
+                .execute_raw(
+                    vec_as_raw(&mut self.input),
+                    vec_as_raw(&mut self.output),
+                    static_data,
+                )
+                .map_err(|s| s.to_owned())?;
         }
+        Ok(&self.output[..self.buffer_length * 2])
     }
-}
-
-fn equal_tempered_tuning(index: i32) -> f32 {
-    // MIDI note 69 is 440Hz. 12 notes is an octave (double / half frequency).
-    440.0 * (2.0f32).powf((index - 69) as f32 / 12.0)
 }
 
 fn vec_as_raw<T: Sized>(input: &mut Vec<T>) -> &mut [u8] {
