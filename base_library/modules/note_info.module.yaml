@@ -1,0 +1,26 @@
+inputs:
+outputs:
+  time:
+    type: time
+    label: Time
+  pitch:
+    type: pitch
+    label: Pitch
+  velocity:
+    type: audio
+    label: Velocity
+    icon: base:note_down
+  note_start:
+    type: trigger
+    label: Note Start
+    icon: base:note_down
+  note_release:
+    type: trigger
+    label: Note Release
+    icon: base:note_up
+controls:
+gui: 
+  label: Note Info 
+  width: 2
+  height: 5
+  widgets:

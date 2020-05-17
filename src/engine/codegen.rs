@@ -238,12 +238,14 @@ impl<'a> CodeGenerator<'a> {
             "input FLOAT global_pitch, global_velocity, global_note_status, global_should_update;\n",
             "input [BUFFER_LENGTH][1]FLOAT global_note_time;\n",
             "output [BUFFER_LENGTH][2]FLOAT global_audio_out;\n",
-            "[BUFFER_LENGTH]BOOL global_release_trigger = FALSE;\n",
         ));
 
         let mut code = "".to_owned();
         code.push_str(concat!(
+            "[BUFFER_LENGTH]BOOL global_release_trigger = FALSE;\n",
             "if global_note_status == 1.0 { global_release_trigger[0] = TRUE; }\n",
+            "[BUFFER_LENGTH]BOOL global_start_trigger = FALSE;\n",
+            "if global_note_status == 2.0 { global_start_trigger[0] = TRUE; }\n",
             "BOOL global_update_feedback_data = global_should_update == 1.0;\n",
             "macro FlatWaveform(buffer_pos, phase):(value) { FLOAT value = 0.0; }\n",
             "\n",

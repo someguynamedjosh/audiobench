@@ -7,6 +7,7 @@ struct ActiveVoice {
     velocity: f32,
     elapsed_samples: usize,
     silent_samples: usize,
+    start_trigger: bool,
     release_trigger: bool,
     static_data: nodespeak::llvmir::structure::StaticData,
 }
@@ -71,7 +72,8 @@ impl NoteManager {
             if let Some(voice) = note {
                 executor.set_pitch_input(voice.pitch);
                 executor.set_velocity_input(voice.velocity.to_range(-1.0, 1.0));
-                executor.set_note_status_input(0.0);
+                executor.set_note_status_input(if voice.start_trigger { 2.0 } else { 0.0 });
+                voice.start_trigger = false;
                 executor.set_note_time_input(
                     voice.elapsed_samples as f32 * time_per_sample,
                     time_per_sample,
@@ -161,6 +163,7 @@ impl NoteManager {
             velocity,
             elapsed_samples: 0,
             silent_samples: 0,
+            start_trigger: false,
             release_trigger: false,
             static_data: executor.create_static_data().expect("TODO: Nice error"),
         })

@@ -29,7 +29,10 @@ for i = 0 to BUFFER_LENGTH no_unroll {
     signal[i][0] = value * 2.0 - 1.0;
     time = time + 1.0 / SAMPLE_RATE;
     
-    if release_trigger[i?] {
+    if reset_trigger[i?] {
+        phase = ATTACK_PHASE;
+        time = 0.0;
+    } else if release_trigger[i?] {
         phase = RELEASE_PHASE;
         time = 0.0;
     } else if phase == ATTACK_PHASE {

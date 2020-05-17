@@ -1,12 +1,13 @@
 # Things with no dependencies
 Visual indicators for default values for inputs
-Custom icons for inputs / outputs
+Multiple options for default values for inputs
+Tooltips and interaction hints
+Highlight compatible inputs / outputs (/ controls?) when dragging wires
 Widget for displaying waveforms
 Widget for displaying envelopes
 
 # Things with missing dependencies
 Drop shadow draw function
-Multiple options for default values for inputs
 
 # Low-priority things without dependencies
 Output silent audio while recompiling instead of hanging the thread

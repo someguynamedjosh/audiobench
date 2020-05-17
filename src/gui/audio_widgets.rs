@@ -318,36 +318,41 @@ impl IOJack {
         g.push_state();
         g.apply_offset(self.pos.0, self.pos.1);
 
-        const MIJS: i32 = JACK_SIZE;
+        const JS: i32 = JACK_SIZE;
         const CS: i32 = CORNER_SIZE;
         g.set_color(&COLOR_TEXT);
-        g.fill_rounded_rect(0, 0, MIJS, MIJS, CS);
-        let x = if self.is_output { MIJS - CS } else { 0 };
-        g.fill_rect(x, 0, CS, MIJS);
-        const MIJIP: i32 = JACK_ICON_PADDING;
+        g.fill_rounded_rect(0, 0, JS, JS, CS);
+        let x = if self.is_output { JS - CS } else { 0 };
+        g.fill_rect(x, 0, CS, JS);
+        const JIP: i32 = JACK_ICON_PADDING;
         if let Some(custom_icon) = self.custom_icon_index {
             const JSIS: i32 = JACK_SMALL_ICON_SIZE;
-            const INSET: i32 = MIJS - JSIS;
+            let mini_x = if self.is_output {
+                -JSIS / 2
+            } else {
+                JS - JSIS / 2
+            };
+            const MINI_Y: i32 = JS - JSIS - JIP;
             g.fill_rounded_rect(
-                INSET - CS + JSIS / 2,
-                INSET - MIJIP * 2,
-                JSIS + CS + MIJIP,
-                JSIS + MIJIP * 2,
+                mini_x - JIP,
+                MINI_Y - JIP,
+                JSIS + JIP * 2,
+                JSIS + JIP * 2,
                 CS,
             );
-            g.draw_icon(custom_icon, MIJIP, MIJIP, MIJS - MIJIP * 2);
-            g.draw_icon(self.icon_index, INSET + JSIS / 2, INSET - MIJIP, JSIS);
+            g.draw_icon(self.icon_index, mini_x, MINI_Y, JSIS);
+            g.draw_icon(custom_icon, JIP, JIP, JS - JIP * 2);
         } else {
-            g.draw_icon(self.icon_index, MIJIP, MIJIP, MIJS - MIJIP * 2);
+            g.draw_icon(self.icon_index, JIP, JIP, JS - JIP * 2);
         }
 
         if show_label {
             g.write_text(
                 12,
-                if self.is_output { MIJS + 2 } else { -102 },
+                if self.is_output { JS + 2 } else { -102 },
                 0,
                 100,
-                MIJS,
+                JS,
                 if self.is_output {
                     HAlign::Left
                 } else {

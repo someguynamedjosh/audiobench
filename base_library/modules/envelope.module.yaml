@@ -23,7 +23,7 @@ controls:
   sustain:
     min: 0
     max: 1
-    default: 0.9
+    default: 1.0
   release:
     min: 0
     max: 5

@@ -53,9 +53,9 @@ pub struct Engine {
 impl Engine {
     pub fn new(registry: &engine::registry::Registry) -> Self {
         let mut module_graph = engine::parts::ModuleGraph::new();
-        let mut input = registry.borrow_module("base:note_input").unwrap().clone();
-        input.pos = (10, 5);
-        module_graph.adopt_module(input);
+        let mut info = registry.borrow_module("base:note_info").unwrap().clone();
+        info.pos = (10, 5);
+        module_graph.adopt_module(info);
         let mut env = registry.borrow_module("base:envelope").unwrap().clone();
         env.pos = (300, 100);
         module_graph.adopt_module(env);
