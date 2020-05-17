@@ -1,5 +1,5 @@
 use crate::engine::parts as ep;
-use crate::gui::{audio_widgets};
+use crate::gui::audio_widgets;
 use crate::util::*;
 
 // Describes an action that should be performed on an instance level.
@@ -164,6 +164,17 @@ impl MouseAction {
             Self::OpenMenu(menu) => return Some(GuiAction::OpenMenu(menu)),
             Self::SwitchScreen(screen_index) => return Some(GuiAction::SwitchScreen(screen_index)),
             Self::AddModule(module) => return Some(GuiAction::AddModule(module)),
+            Self::ConnectInput(module, input_index) => {
+                let mut module_ref = module.borrow_mut();
+                let num_options = module_ref.template.borrow().inputs[input_index]
+                    .borrow_default_options()
+                    .len();
+                if let ep::InputConnection::Default(index) = &mut module_ref.inputs[input_index] {
+                    *index += 1;
+                    *index %= num_options;
+                }
+                return Some(GuiAction::Elevate(InstanceAction::ReloadStructure));
+            }
             _ => (),
         }
         None

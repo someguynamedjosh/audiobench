@@ -80,6 +80,7 @@ fn create_module_prototype_from_yaml(
     }
 
     let mut inputs = Vec::new();
+    let mut default_inputs = Vec::new();
     for input_description in &yaml.unique_child("inputs")?.children {
         let type_name = &input_description.unique_child("type")?.value;
         let typ = JackType::from_str(type_name)
@@ -96,6 +97,18 @@ fn create_module_prototype_from_yaml(
             None
         };
         let label = input_description.unique_child("label")?.value.clone();
+        default_inputs.push(
+            if let Ok(node) = input_description.unique_child("default") {
+                let index = node.i32()? as usize;
+                if index >= typ.get_num_defaults() {
+                    0
+                } else {
+                    index
+                }
+            } else {
+                0
+            },
+        );
         inputs.push(IOJack::create(
             icon_indexes,
             typ,
@@ -146,7 +159,7 @@ fn create_module_prototype_from_yaml(
         feedback_data_len,
     };
 
-    Ok(Module::create(rcrc(template), controls))
+    Ok(Module::create(rcrc(template), controls, default_inputs))
 }
 
 pub struct Registry {

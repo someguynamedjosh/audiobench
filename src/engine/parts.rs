@@ -125,6 +125,10 @@ impl JackType {
             })
             .collect()
     }
+
+    pub fn get_num_defaults(&self) -> usize {
+        self.default_option_descriptions().len()
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -209,13 +213,20 @@ impl Clone for Module {
 }
 
 impl Module {
-    pub fn create(template: Rcrc<ModuleTemplate>, controls: Vec<Rcrc<Control>>) -> Self {
+    pub fn create(
+        template: Rcrc<ModuleTemplate>,
+        controls: Vec<Rcrc<Control>>,
+        default_inputs: Vec<usize>,
+    ) -> Self {
         let num_inputs = template.borrow().inputs.len();
         Self {
             template,
             controls,
             pos: (0, 0),
-            inputs: vec![InputConnection::Default(0); num_inputs],
+            inputs: default_inputs
+                .into_iter()
+                .map(|i| InputConnection::Default(i))
+                .collect(),
             feedback_data: None,
         }
     }

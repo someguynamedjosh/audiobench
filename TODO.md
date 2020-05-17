@@ -1,5 +1,4 @@
 # Things with no dependencies
-Multiple options for default values for inputs
 Tooltips and interaction hints
 Highlight compatible inputs / outputs (/ controls?) when dragging wires
 Widget for displaying waveforms

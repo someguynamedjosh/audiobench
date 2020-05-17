@@ -293,8 +293,8 @@ impl InputJack {
     }
 
     fn mouse_in_bounds(&self, mouse_pos: (i32, i32)) -> bool {
-        let mouse_pos = (mouse_pos.0 - self.pos.0, mouse_pos.1 - self.pos.1);
-        mouse_pos.inside((JACK_SIZE, JACK_SIZE))
+        let mouse_pos = (mouse_pos.0 - self.pos.0 + JACK_SIZE, mouse_pos.1 - self.pos.1);
+        mouse_pos.inside((JACK_SIZE * 2, JACK_SIZE))
     }
 
     fn draw(&self, g: &mut GrahpicsWrapper, default: Option<&ep::DefaultInput>, show_label: bool) {
@@ -333,13 +333,16 @@ impl InputJack {
 
         if show_label {
             const H: HAlign = HAlign::Right;
-            const V: VAlign = VAlign::Center;
+            const B: VAlign = VAlign::Bottom;
+            const C: VAlign = VAlign::Center;
+            const T: VAlign = VAlign::Top;
             if let Some(default) = &default {
                 const X: i32 = -104 - JS;
-                let text = format!("{}\nDefault: {}", &self.label, default.name);
-                g.write_text(12, X, 0, 100, JS, H, V, 1, &text);
+                g.write_text(12, X, -JS/2, 100, JS, H, B, 1, &self.label);
+                let text = format!("({})", default.name);
+                g.write_text(12, X, JS/2, 100, JS, H, T, 1, &text);
             } else {
-                g.write_text(12, -104, 0, 100, JS, H, V, 1, &self.label);
+                g.write_text(12, -104, 0, 100, JS, H, C, 1, &self.label);
             }
         }
 

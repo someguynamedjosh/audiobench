@@ -7,6 +7,7 @@ inputs:
     type: trigger 
     icon: base:note_up
     label: Release Trigger
+    default: 1
 outputs:
   signal:
     type: audio
@@ -30,26 +31,26 @@ controls:
     default: 0.5
 gui: 
   label: Envelope
-  width: 9
+  width: 8
   height: 2
   widgets:
     knob:
       control: attack
       label: Attack
-      x: 1
+      x: 0
       y: 0
     knob:
       control: decay 
       label: Decay
-      x: 3
+      x: 2
       y: 0
     knob:
       control: sustain
       label: Sustain 
-      x: 5
+      x: 4
       y: 0
     knob:
       control: release 
       label: Release
-      x: 7
+      x: 6
       y: 0
