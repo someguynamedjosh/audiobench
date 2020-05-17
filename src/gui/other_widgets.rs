@@ -19,7 +19,7 @@ impl MenuBar {
     pub fn create(registry: &Registry) -> Self {
         Self {
             tab_icons: vec![
-                registry.lookup_icon("base:module").unwrap(),
+                registry.lookup_icon("base:note").unwrap(),
                 registry.lookup_icon("base:add").unwrap(),
             ],
         }
@@ -45,7 +45,7 @@ impl MenuBar {
 
         const GP: i32 = GRID_P;
         const GP2: i32 = GRID_P / 2;
-        const MCS: i32 = MODULE_CORNER_SIZE;
+        const CS: i32 = CORNER_SIZE;
 
         g.set_color(&COLOR_IO_AREA);
         g.fill_rounded_rect(
@@ -53,7 +53,7 @@ impl MenuBar {
             coord(0) - GP2,
             grid(self.tab_icons.len() as i32) + GP,
             grid(1) + GP,
-            MCS,
+            CS,
         );
 
         g.fill_rounded_rect(
@@ -61,7 +61,7 @@ impl MenuBar {
             coord(0) - GP2,
             width,
             grid(1) + GP,
-            MCS,
+            CS,
         );
 
         for (index, icon) in self.tab_icons.iter().enumerate() {
@@ -73,7 +73,7 @@ impl MenuBar {
                     coord(0) - GP2,
                     grid(1) + GP,
                     grid(1) + GP,
-                    MCS,
+                    CS,
                 );
             }
             g.draw_icon(*icon, coord(index), coord(0), grid(1));
@@ -114,7 +114,7 @@ impl ModuleLibraryEntry {
     }
 
     fn draw(&self, g: &mut GrahpicsWrapper) {
-        const MCS: i32 = MODULE_CORNER_SIZE;
+        const CS: i32 = CORNER_SIZE;
         const BAND_SIZE: i32 = GRID_P;
         const ICON_SPACE: i32 = fatgrid(1) / 2;
         const ICON_PADDING: i32 = 2;
@@ -124,9 +124,9 @@ impl ModuleLibraryEntry {
         let port_space = ICON_PADDING + (ICON_PADDING + ICON_SIZE) * num_ports;
         g.set_color(&COLOR_SURFACE);
         let main_width = Self::WIDTH - port_space;
-        g.fill_rounded_rect(0, 0, main_width + BAND_SIZE, Self::HEIGHT, MCS);
+        g.fill_rounded_rect(0, 0, main_width + BAND_SIZE, Self::HEIGHT, CS);
         g.set_color(&COLOR_TEXT);
-        g.fill_rounded_rect(main_width, 0, port_space + BAND_SIZE, Self::HEIGHT, MCS);
+        g.fill_rounded_rect(main_width, 0, port_space + BAND_SIZE, Self::HEIGHT, CS);
         g.set_color(&COLOR_IO_AREA);
         g.fill_rect(main_width, 0, BAND_SIZE, Self::HEIGHT);
         g.fill_rect(main_width + BAND_SIZE, Self::HEIGHT / 2, port_space, 1);

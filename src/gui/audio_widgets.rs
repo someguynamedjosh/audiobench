@@ -7,7 +7,7 @@ use crate::util::*;
 use std::f32::consts::PI;
 
 fn jack_y(index: i32) -> i32 {
-    coord(index) + MODULE_IO_JACK_SIZE / 2
+    coord(index) + JACK_SIZE / 2
 }
 
 fn input_position(module: &ep::Module, input_index: i32) -> (i32, i32) {
@@ -101,7 +101,7 @@ impl KnobEditor {
 
         g.apply_offset(self.pos.0, self.pos.1);
         g.set_color(&COLOR_SURFACE);
-        g.fill_rounded_rect(0, 0, self.size.0, self.size.1, MODULE_CORNER_SIZE);
+        g.fill_rounded_rect(0, 0, self.size.0, self.size.1, CORNER_SIZE);
 
         let control = &*self.control.borrow();
         fn value_to_angle(range: (f32, f32), value: f32) -> f32 {
@@ -271,24 +271,39 @@ impl Knob {
 struct IOJack {
     label: String,
     icon_index: usize,
+    custom_icon_index: Option<usize>,
     pos: (i32, i32),
     is_output: bool,
 }
 
 impl IOJack {
-    fn input(label: String, icon_index: usize, x: i32, y: i32) -> Self {
+    fn input(
+        label: String,
+        icon_index: usize,
+        custom_icon_index: Option<usize>,
+        x: i32,
+        y: i32,
+    ) -> Self {
         Self {
             label,
             icon_index,
+            custom_icon_index,
             pos: (x, y),
             is_output: false,
         }
     }
 
-    fn output(label: String, icon_index: usize, x: i32, y: i32) -> Self {
+    fn output(
+        label: String,
+        icon_index: usize,
+        custom_icon_index: Option<usize>,
+        x: i32,
+        y: i32,
+    ) -> Self {
         Self {
             label,
             icon_index,
+            custom_icon_index,
             pos: (x, y),
             is_output: true,
         }
@@ -296,28 +311,43 @@ impl IOJack {
 
     pub fn mouse_in_bounds(&self, mouse_pos: (i32, i32)) -> bool {
         let mouse_pos = (mouse_pos.0 - self.pos.0, mouse_pos.1 - self.pos.1);
-        mouse_pos.inside((MODULE_IO_JACK_SIZE, MODULE_IO_JACK_SIZE))
+        mouse_pos.inside((JACK_SIZE, JACK_SIZE))
     }
 
     fn draw(&self, g: &mut GrahpicsWrapper, show_label: bool) {
         g.push_state();
         g.apply_offset(self.pos.0, self.pos.1);
 
-        const MITS: i32 = MODULE_IO_JACK_SIZE;
-        const MCS: i32 = MODULE_CORNER_SIZE;
-        g.fill_rounded_rect(0, 0, MITS, MITS, MCS);
-        let x = if self.is_output { MITS - MCS } else { 0 };
-        g.fill_rect(x, 0, MCS, MITS);
-        const MITIP: i32 = MODULE_IO_JACK_ICON_PADDING;
-        g.draw_icon(self.icon_index, MITIP, MITIP, MITS - MITIP * 2);
+        const MIJS: i32 = JACK_SIZE;
+        const CS: i32 = CORNER_SIZE;
+        g.set_color(&COLOR_TEXT);
+        g.fill_rounded_rect(0, 0, MIJS, MIJS, CS);
+        let x = if self.is_output { MIJS - CS } else { 0 };
+        g.fill_rect(x, 0, CS, MIJS);
+        const MIJIP: i32 = JACK_ICON_PADDING;
+        if let Some(custom_icon) = self.custom_icon_index {
+            const JSIS: i32 = JACK_SMALL_ICON_SIZE;
+            const INSET: i32 = MIJS - JSIS;
+            g.fill_rounded_rect(
+                INSET - CS + JSIS / 2,
+                INSET - MIJIP * 2,
+                JSIS + CS + MIJIP,
+                JSIS + MIJIP * 2,
+                CS,
+            );
+            g.draw_icon(custom_icon, MIJIP, MIJIP, MIJS - MIJIP * 2);
+            g.draw_icon(self.icon_index, INSET + JSIS / 2, INSET - MIJIP, JSIS);
+        } else {
+            g.draw_icon(self.icon_index, MIJIP, MIJIP, MIJS - MIJIP * 2);
+        }
 
         if show_label {
             g.write_text(
                 12,
-                if self.is_output { MITS + 2 } else { -102 },
+                if self.is_output { MIJS + 2 } else { -102 },
                 0,
                 100,
-                MITS,
+                MIJS,
                 if self.is_output {
                     HAlign::Left
                 } else {
@@ -384,16 +414,18 @@ impl Module {
             inputs.push(IOJack::input(
                 input.borrow_label().to_owned(),
                 input.get_icon_index(),
+                input.get_custom_icon_index(),
                 0,
                 coord(index as i32),
             ));
         }
-        let x = size.0 - MODULE_IO_JACK_SIZE;
+        let x = size.0 - JACK_SIZE;
         let mut outputs = Vec::new();
         for (index, output) in template_ref.outputs.iter().enumerate() {
             outputs.push(IOJack::output(
                 output.borrow_label().to_owned(),
                 output.get_icon_index(),
+                output.get_custom_icon_index(),
                 x,
                 coord(index as i32),
             ));
@@ -476,11 +508,11 @@ impl Module {
         g.apply_offset(pos.0, pos.1);
         let mouse_pos = mouse_pos.sub(pos);
 
-        const MCS: i32 = MODULE_CORNER_SIZE;
+        const CS: i32 = CORNER_SIZE;
         const MIW: i32 = MODULE_IO_WIDTH;
 
         g.set_color(&COLOR_IO_AREA);
-        g.fill_rounded_rect(0, 0, self.size.0, self.size.1, MCS);
+        g.fill_rounded_rect(0, 0, self.size.0, self.size.1, CS);
         g.set_color(&COLOR_SURFACE);
         g.fill_rect(MIW, 0, self.size.0 - MIW * 2, self.size.1);
 

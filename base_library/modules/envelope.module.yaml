@@ -1,6 +1,11 @@
 inputs:
+  reset_trigger:
+    type: trigger 
+    icon: base:reset
+    label: Reset Trigger
   release_trigger:
     type: trigger 
+    icon: base:note_up
     label: Release Trigger
 outputs:
   signal:

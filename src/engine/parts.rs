@@ -78,15 +78,23 @@ impl JackType {
 pub struct IOJack {
     typ: JackType,
     icon_index: usize,
+    custom_icon_index: Option<usize>,
     code_name: String,
     label: String,
 }
 
 impl IOJack {
-    pub fn create(typ: JackType, icon_index: usize, code_name: String, label: String) -> Self {
+    pub fn create(
+        typ: JackType,
+        icon_index: usize,
+        custom_icon_index: Option<usize>,
+        code_name: String,
+        label: String,
+    ) -> Self {
         Self {
             typ,
             icon_index,
+            custom_icon_index,
             code_name,
             label,
         }
@@ -98,6 +106,10 @@ impl IOJack {
 
     pub fn get_icon_index(&self) -> usize {
         self.icon_index
+    }
+
+    pub fn get_custom_icon_index(&self) -> Option<usize> {
+        self.custom_icon_index
     }
 
     pub fn borrow_label(&self) -> &str {

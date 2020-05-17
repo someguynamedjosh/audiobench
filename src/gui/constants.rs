@@ -36,11 +36,12 @@ pub const KNOB_MENU_KNOB_OR: i32 = 60;
 pub const KNOB_MENU_KNOB_IR: i32 = 40;
 pub const KNOB_MENU_LANE_GAP: i32 = 2;
 
-pub const MODULE_CORNER_SIZE: i32 = 4;
-pub const MODULE_IO_JACK_SIZE: i32 = GRID_1;
-pub const MODULE_IO_JACK_ICON_PADDING: i32 = 1;
+pub const CORNER_SIZE: i32 = 4;
+pub const JACK_SIZE: i32 = GRID_1;
+pub const JACK_ICON_PADDING: i32 = 1;
+pub const JACK_SMALL_ICON_SIZE: i32 = 12;
 // Width of the area dedicated to input or output on each module.
-pub const MODULE_IO_WIDTH: i32 = MODULE_IO_JACK_SIZE + GRID_P;
+pub const MODULE_IO_WIDTH: i32 = JACK_SIZE + GRID_P;
 
 const fn hex_color(hex: u32) -> (u8, u8, u8) {
     (

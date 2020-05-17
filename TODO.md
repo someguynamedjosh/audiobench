@@ -1,12 +1,14 @@
 # Things with no dependencies
-Edit controls in real time without recompiling
-Controls update with their actual value when a note is being played.
-Recompile only when necessary
+Visual indicators for default values for inputs
 Custom icons for inputs / outputs
+Widget for displaying waveforms
+Widget for displaying envelopes
+
+# Things with missing dependencies
+Drop shadow draw function
+Multiple options for default values for inputs
 
 # Low-priority things without dependencies
-Multiple options for default values for inputs
-Visual indicators for default values for inputs
 Output silent audio while recompiling instead of hanging the thread
 Display numeric value of control when manually dragging it
 Layers for drawing
@@ -18,6 +20,3 @@ Make the add modules menu look nice
 Control -> Parameter?
 Parameter -> AutoParam, ComplexParam?
 use fewer i32s, replace with usizes when it would be helpful.
-
-# Things with missing dependencies
-Drop shadow draw function
