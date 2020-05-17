@@ -37,7 +37,15 @@ impl NoteManager {
         self.decaying_notes.clear();
     }
 
-    pub fn render_all_notes(&mut self, executor: &mut ExecEnvironment, render_into: &mut [f32]) -> Result<(), String> {
+    // Optionally returns a vector containing feedback data collected while rendering notes.
+    pub fn render_all_notes(
+        &mut self,
+        executor: &mut ExecEnvironment,
+        render_into: &mut [f32],
+        mut collect_feedback_data: bool,
+    ) -> Result<Option<Vec<f32>>, String> {
+        let mut feedback_data = None;
+
         let buffer_length = executor.get_current_buffer_length();
         let sample_rate = executor.get_current_sample_rate();
         let time_per_sample = 1.0 / sample_rate as f32;
@@ -45,6 +53,20 @@ impl NoteManager {
         for i in 0..buffer_length * 2 {
             render_into[i] = 0.0;
         }
+
+        let mut shortest_voice_duration = std::usize::MAX;
+        for note in self.held_notes.iter() {
+            if let Some(voice) = note {
+                shortest_voice_duration = shortest_voice_duration.min(voice.elapsed_samples);
+            }
+        }
+        // If there are no held notes then it is okay to display info about a decaying note.
+        if shortest_voice_duration == std::usize::MAX {
+            for voice in self.decaying_notes.iter() {
+                shortest_voice_duration = shortest_voice_duration.min(voice.elapsed_samples);
+            }
+        }
+
         for note in self.held_notes.iter_mut() {
             if let Some(voice) = note {
                 executor.set_pitch_input(voice.pitch);
@@ -55,7 +77,21 @@ impl NoteManager {
                     time_per_sample,
                 );
 
-                let voice_audio = executor.execute(&mut voice.static_data)?;
+                let record_feedback_now =
+                    if voice.elapsed_samples == shortest_voice_duration && collect_feedback_data {
+                        collect_feedback_data = false;
+                        executor.set_should_update_input(1.0);
+                        true
+                    } else {
+                        executor.set_should_update_input(0.0);
+                        false
+                    };
+
+                executor.execute(&mut voice.static_data)?;
+                if record_feedback_now {
+                    feedback_data = Some(Vec::from(executor.borrow_feedback_data()));
+                }
+                let voice_audio = executor.borrow_audio_out();
                 debug_assert!(voice_audio.len() == render_into.len());
                 for i in 0..voice_audio.len() {
                     render_into[i] += voice_audio[i];
@@ -76,7 +112,21 @@ impl NoteManager {
                 time_per_sample,
             );
 
-            let voice_audio = executor.execute(&mut voice.static_data)?;
+            let record_feedback_now =
+                if voice.elapsed_samples == shortest_voice_duration && collect_feedback_data {
+                    collect_feedback_data = false;
+                    executor.set_should_update_input(1.0);
+                    true
+                } else {
+                    executor.set_should_update_input(0.0);
+                    false
+                };
+
+            executor.execute(&mut voice.static_data)?;
+            if record_feedback_now {
+                feedback_data = Some(Vec::from(executor.borrow_feedback_data()));
+            }
+            let voice_audio = executor.borrow_audio_out();
             let mut all_silent = true;
             for i in 0..voice_audio.len() {
                 render_into[i] += voice_audio[i];
@@ -101,7 +151,7 @@ impl NoteManager {
                 self.decaying_notes.remove(note_index);
             }
         }
-        Ok(())
+        Ok(feedback_data)
     }
 
     pub fn note_on(&mut self, executor: &mut ExecEnvironment, note_index: i32, velocity: f32) {

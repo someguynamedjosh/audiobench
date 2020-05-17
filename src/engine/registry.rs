@@ -110,6 +110,10 @@ fn create_module_prototype_from_yaml(
         ));
     }
 
+    let feedback_data_len = widgets.iter().fold(0, |counter, item| {
+        counter + item.get_feedback_data_requirement().size()
+    });
+
     let template = ModuleTemplate {
         label,
         code_resource: yaml.name.replace(".module.yaml", ".module.ns"),
@@ -117,6 +121,7 @@ fn create_module_prototype_from_yaml(
         widget_outlines: widgets,
         inputs,
         outputs,
+        feedback_data_len,
     };
 
     Ok(Module::create(rcrc(template), controls))

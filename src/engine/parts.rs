@@ -115,10 +115,7 @@ pub struct Module {
     pub controls: Vec<Rcrc<Control>>,
     pub pos: (i32, i32),
     pub inputs: Vec<InputConnection>,
-    // pub input_jacks: Vec<IOJack>,
-    // pub output_jacks: Vec<IOJack>,
-    // pub internal_id: String,
-    // pub code_resource: String,
+    pub feedback_data: Option<Rcrc<Vec<f32>>>,
 }
 
 impl Clone for Module {
@@ -134,21 +131,20 @@ impl Clone for Module {
                 .collect(),
             pos: self.pos,
             inputs: self.inputs.clone(),
+            feedback_data: None,
         }
     }
 }
 
 impl Module {
-    pub fn create(
-        template: Rcrc<ModuleTemplate>,
-        controls: Vec<Rcrc<Control>>,
-    ) -> Self {
+    pub fn create(template: Rcrc<ModuleTemplate>, controls: Vec<Rcrc<Control>>) -> Self {
         let num_inputs = template.borrow().inputs.len();
         Self {
             template,
             controls,
             pos: (0, 0),
             inputs: vec![InputConnection::Default; num_inputs],
+            feedback_data: None,
         }
     }
 }
@@ -245,6 +241,7 @@ pub struct ModuleTemplate {
     pub widget_outlines: Vec<WidgetOutline>,
     pub inputs: Vec<IOJack>,
     pub outputs: Vec<IOJack>,
+    pub feedback_data_len: usize,
 }
 
 #[derive(Debug)]
@@ -254,4 +251,30 @@ pub enum WidgetOutline {
         grid_pos: (i32, i32),
         label: String,
     },
+}
+
+pub enum FeedbackDataRequirement {
+    None,
+    Control { control_index: usize },
+    Custom { code_name: String, size: usize },
+}
+
+impl FeedbackDataRequirement {
+    pub fn size(&self) -> usize {
+        match self {
+            Self::None => 0,
+            Self::Control { .. } => 1,
+            Self::Custom { size, .. } => *size,
+        }
+    }
+}
+
+impl WidgetOutline {
+    pub fn get_feedback_data_requirement(&self) -> FeedbackDataRequirement {
+        match self {
+            Self::Knob { control_index, .. } => FeedbackDataRequirement::Control {
+                control_index: *control_index,
+            },
+        }
+    }
 }

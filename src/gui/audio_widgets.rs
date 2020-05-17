@@ -157,7 +157,7 @@ impl Knob {
         }
     }
 
-    pub fn respond_to_mouse_press(
+    fn respond_to_mouse_press(
         &self,
         mouse_pos: (i32, i32),
         mods: &MouseMods,
@@ -183,7 +183,7 @@ impl Knob {
         }
     }
 
-    pub fn get_drop_target_at(&self, mouse_pos: (i32, i32)) -> DropTarget {
+    fn get_drop_target_at(&self, mouse_pos: (i32, i32)) -> DropTarget {
         let mouse_pos = (mouse_pos.0 - self.pos.0, mouse_pos.1 - self.pos.1);
         if mouse_pos.inside((grid(2), grid(1))) {
             DropTarget::Control(Rc::clone(&self.control))
@@ -192,7 +192,7 @@ impl Knob {
         }
     }
 
-    fn draw(&self, g: &mut GrahpicsWrapper, parent_pos: (i32, i32)) {
+    fn draw(&self, g: &mut GrahpicsWrapper, parent_pos: (i32, i32), feedback_data: &[f32]) {
         g.push_state();
 
         let control = &*self.control.borrow();
@@ -218,7 +218,14 @@ impl Knob {
         g.fill_pie(0, 0, grid(2), KNOB_INSIDE_SPACE * 2, 0.0, PI);
         g.set_color(&COLOR_KNOB);
         let zero_angle = value_to_angle(control.range, 0.0);
-        let value_angle = value_to_angle(control.range, control.value);
+        // If manual, show the manual value. If automated, show the most recent value recorded
+        // from when a note was actually playing.
+        let value = if control.automation.len() > 0 {
+            feedback_data[0]
+        } else {
+            control.value
+        };
+        let value_angle = value_to_angle(control.range, value);
         g.fill_pie(
             0,
             0,
@@ -351,10 +358,16 @@ pub struct Module {
     controls: Vec<Knob>,
 }
 
+impl Drop for Module {
+    fn drop(&mut self) {
+        self.module.borrow_mut().feedback_data = None;
+    }
+}
+
 impl Module {
     pub fn create(module: Rcrc<ep::Module>) -> Self {
         const MIW: i32 = MODULE_IO_WIDTH;
-        let module_ref = module.borrow();
+        let mut module_ref = module.borrow_mut();
         let template_ref = module_ref.template.borrow();
         let grid_size = template_ref.size;
         let label = template_ref.label.clone();
@@ -385,7 +398,12 @@ impl Module {
                 coord(index as i32),
             ));
         }
+
+        let feedback_data_len = template_ref.feedback_data_len;
         drop(template_ref);
+        // There should only be one instance of the GUI at a time.
+        assert!(module_ref.feedback_data.is_none());
+        module_ref.feedback_data = Some(rcrc(vec![0.0; feedback_data_len]));
         drop(module_ref);
 
         Self {
@@ -499,8 +517,15 @@ impl Module {
         for output in &self.outputs {
             output.draw(g, hovering);
         }
+        let module_ref = self.module.borrow();
+        let feedback_data_ref = module_ref.feedback_data.as_ref().unwrap().borrow();
+        let feedback_data = &feedback_data_ref[..];
+        let mut fdi = 0;
         for control in &self.controls {
-            control.draw(g, pos);
+            // This will change when we get more types of widgets.
+            let segment_len = 1;
+            control.draw(g, pos, &feedback_data[fdi..fdi + segment_len]);
+            fdi += segment_len;
         }
 
         g.pop_state();

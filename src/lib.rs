@@ -76,7 +76,10 @@ impl Instance {
         }
     }
 
-    pub fn draw_ui(&self, data: *mut i8, icon_store: *mut i8) {
+    pub fn draw_ui(&mut self, data: *mut i8, icon_store: *mut i8) {
+        // If the engine has new feedback data (from audio being played) then copy it over before
+        // we render the UI so it will show up in the UI.
+        self.engine.display_new_feedback_data();
         let mut g = GrahpicsWrapper::new(&self.graphics_fns, data, icon_store);
         g.set_color(&gui::constants::COLOR_BG);
         g.clear();

@@ -127,6 +127,10 @@ AudioBenchAudioProcessorEditor::AudioBenchAudioProcessorEditor (AudioBenchAudioP
     // editor's size to whatever you need it to be.
     setSize (640, 480);
     ABCreateUI(processor.ab);
+    // Our timer method repaints the screen. The number here is then basically the (maximum) FPS 
+    // that our GUI will run at. Ideally, this should be related to the interval that feedback data
+    // is copied from the audio thread to the GUI thread, which can be found in src/engine/base.rs
+    startTimerHz(40);
 }
 
 AudioBenchAudioProcessorEditor::~AudioBenchAudioProcessorEditor()
@@ -144,22 +148,18 @@ void AudioBenchAudioProcessorEditor::paint (Graphics& g)
 
 void AudioBenchAudioProcessorEditor::mouseDown(const MouseEvent &event) {
     ABUIMouseDown(processor.ab, event.x, event.y, event.mods.isPopupMenu());
-    repaint();
 }
 
 void AudioBenchAudioProcessorEditor::mouseMove(const MouseEvent &event) {
     ABUIMouseMove(processor.ab, event.x, event.y);
-    repaint();
 }
 
 void AudioBenchAudioProcessorEditor::mouseDrag(const MouseEvent &event) {
     ABUIMouseMove(processor.ab, event.x, event.y);
-    repaint();
 }
 
 void AudioBenchAudioProcessorEditor::mouseUp(const MouseEvent &event) {
     ABUIMouseUp(processor.ab);
-    repaint();
 }
 
 void AudioBenchAudioProcessorEditor::resized()

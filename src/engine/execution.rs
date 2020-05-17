@@ -25,14 +25,14 @@ impl ExecEnvironment {
             compiler,
             program: None,
             input: Vec::new(),
-            default_inputs_len: 3 + 0,
+            default_inputs_len: 4 + 0,
             output: Vec::new(),
             buffer_length: 0,
             sample_rate: 1, // Prevent accidental div/0 errors.
         }
     }
 
-    pub fn get_current_buffer_length(&self) -> usize { 
+    pub fn get_current_buffer_length(&self) -> usize {
         self.buffer_length
     }
 
@@ -52,8 +52,12 @@ impl ExecEnvironment {
         self.input[2] = note_status;
     }
 
+    pub fn set_should_update_input(&mut self, should_update: f32) {
+        self.input[3] = should_update;
+    }
+
     pub fn set_note_time_input(&mut self, base: f32, increment: f32) {
-        let time_input = &mut self.input[3..self.buffer_length+3];
+        let time_input = &mut self.input[4..self.buffer_length + 4];
         let mut value = base;
         for index in 0..self.buffer_length {
             time_input[index] = value;
@@ -72,6 +76,7 @@ impl ExecEnvironment {
         mut starting_aux_data: Vec<f32>,
         buffer_length: usize,
         sample_rate: i32,
+        feedback_data_len: usize,
     ) -> Result<(), String> {
         self.compiler.add_source("<node graph>".to_owned(), source);
         self.program = Some(self.compiler.compile("<node graph>")?);
@@ -80,11 +85,11 @@ impl ExecEnvironment {
         // global_note_status: FLOAT
         // global_note_time: [BL]FLOAT
         // global_aux_data: [starting_aux_data.len()]FLOAT
-        self.default_inputs_len = 3 + buffer_length;
+        self.default_inputs_len = 4 + buffer_length;
         self.input = vec![0.0; self.default_inputs_len];
         self.input.append(&mut starting_aux_data);
         // global_audio_out: [BL][2]FLOAT
-        self.output = vec![0.0; 2 * buffer_length];
+        self.output = vec![0.0; 2 * buffer_length + feedback_data_len];
         self.buffer_length = buffer_length;
         self.sample_rate = sample_rate;
         Ok(())
@@ -96,15 +101,10 @@ impl ExecEnvironment {
         } else {
             return Err("Cannot create static data when program is not compiled.".to_owned());
         };
-        Ok(unsafe {
-            program.create_static_data()?
-        })
+        Ok(unsafe { program.create_static_data()? })
     }
 
-    pub fn execute(
-        &mut self,
-        static_data: &mut StaticData,
-    ) -> Result<&[f32], String> {
+    pub fn execute(&mut self, static_data: &mut StaticData) -> Result<(), String> {
         let program = if let Some(program) = &self.program {
             program
         } else {
@@ -119,7 +119,15 @@ impl ExecEnvironment {
                 )
                 .map_err(|s| s.to_owned())?;
         }
-        Ok(&self.output[..self.buffer_length * 2])
+        Ok(())
+    }
+
+    pub fn borrow_audio_out(&self) -> &[f32] {
+        &self.output[..self.buffer_length * 2]
+    }
+
+    pub fn borrow_feedback_data(&self) -> &[f32] {
+        &self.output[self.buffer_length * 2..]
     }
 }
 

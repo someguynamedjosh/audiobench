@@ -16,7 +16,7 @@
 //==============================================================================
 /**
 */
-class AudioBenchAudioProcessorEditor  : public AudioProcessorEditor
+class AudioBenchAudioProcessorEditor  : public AudioProcessorEditor, public Timer
 {
 public:
     AudioBenchAudioProcessorEditor (AudioBenchAudioProcessor&);
@@ -29,6 +29,7 @@ public:
     void mouseMove(const MouseEvent &event) override;
     void mouseDrag(const MouseEvent &event) override;
     void mouseUp(const MouseEvent &event) override;
+    void timerCallback() override { repaint(); }
 
 private:
     // This reference is provided as a quick way for your editor to
