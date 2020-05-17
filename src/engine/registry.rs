@@ -1,5 +1,6 @@
-use crate::engine::parts::{Control, IOJack, JackType, Module, ModuleTemplate, WidgetOutline};
+use crate::engine::parts::{Control, IOJack, JackType, Module, ModuleTemplate};
 use crate::engine::yaml::{self, YamlNode};
+use crate::gui::module_widgets::WidgetOutline;
 use crate::util::*;
 use std::collections::{HashMap, HashSet};
 use std::fs::File;

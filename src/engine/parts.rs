@@ -1,3 +1,4 @@
+use crate::gui::module_widgets::WidgetOutline;
 use crate::util::*;
 use std::collections::{HashMap, HashSet};
 
@@ -325,39 +326,4 @@ pub struct ModuleTemplate {
     pub inputs: Vec<IOJack>,
     pub outputs: Vec<IOJack>,
     pub feedback_data_len: usize,
-}
-
-#[derive(Debug)]
-pub enum WidgetOutline {
-    Knob {
-        control_index: usize,
-        grid_pos: (i32, i32),
-        label: String,
-    },
-}
-
-pub enum FeedbackDataRequirement {
-    None,
-    Control { control_index: usize },
-    Custom { code_name: String, size: usize },
-}
-
-impl FeedbackDataRequirement {
-    pub fn size(&self) -> usize {
-        match self {
-            Self::None => 0,
-            Self::Control { .. } => 1,
-            Self::Custom { size, .. } => *size,
-        }
-    }
-}
-
-impl WidgetOutline {
-    pub fn get_feedback_data_requirement(&self) -> FeedbackDataRequirement {
-        match self {
-            Self::Knob { control_index, .. } => FeedbackDataRequirement::Control {
-                control_index: *control_index,
-            },
-        }
-    }
 }

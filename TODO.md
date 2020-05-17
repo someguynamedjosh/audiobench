@@ -1,8 +1,9 @@
 # Things with no dependencies
 Tooltips and interaction hints
-Highlight compatible inputs / outputs (/ controls?) when dragging wires
 Widget for displaying waveforms
 Widget for displaying envelopes
+Snap / Precision modifier keys for dragging controls
+Some way to reset the value of a control
 
 # Things with missing dependencies
 Drop shadow draw function

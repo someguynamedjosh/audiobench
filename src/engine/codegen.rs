@@ -1,4 +1,5 @@
 use crate::engine::parts::*;
+use crate::gui::module_widgets::FeedbackDataRequirement;
 use crate::util::*;
 
 pub struct CodegenResult {

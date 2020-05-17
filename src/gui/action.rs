@@ -1,5 +1,5 @@
 use crate::engine::parts as ep;
-use crate::gui::audio_widgets;
+use crate::gui::module_widgets;
 use crate::util::*;
 
 // Describes an action that should be performed on an instance level.
@@ -13,7 +13,7 @@ pub enum InstanceAction {
 // Describes an action the GUI object should perform. Prevents passing a bunch of arguments to
 // MouseAction functions for each action that needs to modify something in the GUI.
 pub enum GuiAction {
-    OpenMenu(Box<audio_widgets::KnobEditor>),
+    OpenMenu(Box<module_widgets::KnobEditor>),
     SwitchScreen(usize),
     AddModule(ep::Module),
     Elevate(InstanceAction),
@@ -29,7 +29,7 @@ pub enum MouseAction {
     PanOffset(Rcrc<(i32, i32)>),
     ConnectInput(Rcrc<ep::Module>, usize),
     ConnectOutput(Rcrc<ep::Module>, usize),
-    OpenMenu(Box<audio_widgets::KnobEditor>),
+    OpenMenu(Box<module_widgets::KnobEditor>),
     SwitchScreen(usize),
     AddModule(ep::Module),
 }

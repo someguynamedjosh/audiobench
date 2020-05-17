@@ -129,7 +129,7 @@ impl Engine {
 
     /// Feedback data is generated on the audio thread. This method uses a mutex to retrieve that
     /// data and copy it so that it can be displayed in the GUI. Nothing will happen if there is no
-    /// new data so this is okay to call relatively often. It also does not block on waiting for 
+    /// new data so this is okay to call relatively often. It also does not block on waiting for
     /// the mutex.
     pub fn display_new_feedback_data(&mut self) {
         if let Ok(mut ctd) = self.ctd_mux.try_lock() {
