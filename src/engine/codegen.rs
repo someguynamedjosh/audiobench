@@ -154,14 +154,16 @@ impl<'a> CodeGenerator<'a> {
         }
     }
 
-    fn generate_code_for_input(&mut self, input: &InputConnection, typ: JackType) -> String {
-        match input {
+    fn generate_code_for_input(&mut self, connection: &InputConnection, jack: &IOJack) -> String {
+        match connection {
             InputConnection::Wire(module, output_index) => format!(
                 "module_{}_output_{}",
                 self.graph.index_of_module(&module).unwrap_or(2999999),
                 output_index
             ),
-            InputConnection::Default => typ.default_value().to_owned(),
+            InputConnection::Default(index) => {
+                jack.borrow_default_options()[*index].code.to_owned()
+            }
         }
     }
 
@@ -264,7 +266,7 @@ impl<'a> CodeGenerator<'a> {
             for (input, jack) in module_ref.inputs.iter().zip(template_ref.inputs.iter()) {
                 code.push_str(&format!(
                     "    {}, // {}\n",
-                    self.generate_code_for_input(input, jack.get_type()),
+                    self.generate_code_for_input(input, jack),
                     jack.borrow_code_name()
                 ));
             }

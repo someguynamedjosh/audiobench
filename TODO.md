@@ -1,5 +1,4 @@
 # Things with no dependencies
-Visual indicators for default values for inputs
 Multiple options for default values for inputs
 Tooltips and interaction hints
 Highlight compatible inputs / outputs (/ controls?) when dragging wires
@@ -13,7 +12,8 @@ Drop shadow draw function
 Output silent audio while recompiling instead of hanging the thread
 Display numeric value of control when manually dragging it
 Layers for drawing
-Get a better icon for waveforms.
+Get a better icon for waveforms
+Better nothing icon
 Friendly error messages
 Make the add modules menu look nice
 

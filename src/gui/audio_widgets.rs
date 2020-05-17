@@ -12,13 +12,13 @@ fn jack_y(index: i32) -> i32 {
 
 fn input_position(module: &ep::Module, input_index: i32) -> (i32, i32) {
     let module_pos = module.pos;
-    (module_pos.0, module_pos.1 + jack_y(input_index))
+    (module_pos.0 + JACK_SIZE, module_pos.1 + jack_y(input_index))
 }
 
 fn output_position(module: &ep::Module, output_index: i32) -> (i32, i32) {
     let module_pos = module.pos;
     let module_size = module.template.borrow().size;
-    let module_width = fatgrid(module_size.0) + MODULE_IO_WIDTH * 2;
+    let module_width = fatgrid(module_size.0) + MODULE_IO_WIDTH * 2 + JACK_SIZE;
     (
         module_pos.0 + module_width,
         module_pos.1 + jack_y(output_index),
@@ -268,48 +268,110 @@ impl Knob {
     }
 }
 
-struct IOJack {
+struct InputJack {
     label: String,
-    icon_index: usize,
-    custom_icon_index: Option<usize>,
+    icon: usize,
+    small_icon: Option<usize>,
     pos: (i32, i32),
-    is_output: bool,
 }
 
-impl IOJack {
-    fn input(
-        label: String,
-        icon_index: usize,
-        custom_icon_index: Option<usize>,
-        x: i32,
-        y: i32,
-    ) -> Self {
+impl InputJack {
+    fn create(label: String, mut icon: usize, custom_icon: Option<usize>, x: i32, y: i32) -> Self {
+        let small_icon = if let Some(custom) = custom_icon {
+            let small_icon = icon;
+            icon = custom;
+            Some(small_icon)
+        } else {
+            None
+        };
         Self {
             label,
-            icon_index,
-            custom_icon_index,
+            icon,
+            small_icon,
             pos: (x, y),
-            is_output: false,
         }
     }
 
-    fn output(
-        label: String,
-        icon_index: usize,
-        custom_icon_index: Option<usize>,
-        x: i32,
-        y: i32,
-    ) -> Self {
+    fn mouse_in_bounds(&self, mouse_pos: (i32, i32)) -> bool {
+        let mouse_pos = (mouse_pos.0 - self.pos.0, mouse_pos.1 - self.pos.1);
+        mouse_pos.inside((JACK_SIZE, JACK_SIZE))
+    }
+
+    fn draw(&self, g: &mut GrahpicsWrapper, default: Option<&ep::DefaultInput>, show_label: bool) {
+        g.push_state();
+        g.apply_offset(self.pos.0, self.pos.1);
+        const JS: i32 = JACK_SIZE;
+        const CS: i32 = CORNER_SIZE;
+        const JIP: i32 = JACK_ICON_PADDING;
+
+        g.set_color(&COLOR_TEXT);
+        if let Some(default) = &default {
+            const X: i32 = -JS;
+            const Y: i32 = (JS - JS) / 2;
+            g.fill_pie(-JS, 0, JS, 0, 0.0, PI * 2.0);
+            g.fill_rect(-JS / 2, 0, JS / 2, JS);
+            g.draw_icon(default.icon, X + JIP, Y + JIP, JS - JIP * 2);
+        }
+
+        g.fill_rounded_rect(0, 0, JS, JS, CS);
+        g.fill_rect(0, 0, CS, JS);
+
+        if let Some(small_icon) = self.small_icon {
+            const JSIS: i32 = JACK_SMALL_ICON_SIZE;
+            const MINI_X: i32 = JS - JSIS / 2;
+            const MINI_Y: i32 = JS - JSIS - JIP;
+            g.fill_rounded_rect(
+                MINI_X - JIP,
+                MINI_Y - JIP,
+                JSIS + JIP * 2,
+                JSIS + JIP * 2,
+                CS,
+            );
+            g.draw_icon(small_icon, MINI_X, MINI_Y, JSIS);
+        }
+        g.draw_icon(self.icon, JIP, JIP, JS - JIP * 2);
+
+        if show_label {
+            const H: HAlign = HAlign::Right;
+            const V: VAlign = VAlign::Center;
+            if let Some(default) = &default {
+                const X: i32 = -104 - JS;
+                let text = format!("{}\nDefault: {}", &self.label, default.name);
+                g.write_text(12, X, 0, 100, JS, H, V, 1, &text);
+            } else {
+                g.write_text(12, -104, 0, 100, JS, H, V, 1, &self.label);
+            }
+        }
+
+        g.pop_state();
+    }
+}
+
+struct OutputJack {
+    label: String,
+    icon: usize,
+    small_icon: Option<usize>,
+    pos: (i32, i32),
+}
+
+impl OutputJack {
+    fn create(label: String, mut icon: usize, custom_icon: Option<usize>, x: i32, y: i32) -> Self {
+        let small_icon = if let Some(custom) = custom_icon {
+            let small_icon = icon;
+            icon = custom;
+            Some(small_icon)
+        } else {
+            None
+        };
         Self {
             label,
-            icon_index,
-            custom_icon_index,
+            icon,
+            small_icon,
             pos: (x, y),
-            is_output: true,
         }
     }
 
-    pub fn mouse_in_bounds(&self, mouse_pos: (i32, i32)) -> bool {
+    fn mouse_in_bounds(&self, mouse_pos: (i32, i32)) -> bool {
         let mouse_pos = (mouse_pos.0 - self.pos.0, mouse_pos.1 - self.pos.1);
         mouse_pos.inside((JACK_SIZE, JACK_SIZE))
     }
@@ -322,46 +384,28 @@ impl IOJack {
         const CS: i32 = CORNER_SIZE;
         g.set_color(&COLOR_TEXT);
         g.fill_rounded_rect(0, 0, JS, JS, CS);
-        let x = if self.is_output { JS - CS } else { 0 };
-        g.fill_rect(x, 0, CS, JS);
+        g.fill_rect(JS - CS, 0, CS, JS);
+
         const JIP: i32 = JACK_ICON_PADDING;
-        if let Some(custom_icon) = self.custom_icon_index {
+        if let Some(small_icon) = self.small_icon {
             const JSIS: i32 = JACK_SMALL_ICON_SIZE;
-            let mini_x = if self.is_output {
-                -JSIS / 2
-            } else {
-                JS - JSIS / 2
-            };
+            const MINI_X: i32 = -JSIS / 2;
             const MINI_Y: i32 = JS - JSIS - JIP;
             g.fill_rounded_rect(
-                mini_x - JIP,
+                MINI_X - JIP,
                 MINI_Y - JIP,
                 JSIS + JIP * 2,
                 JSIS + JIP * 2,
                 CS,
             );
-            g.draw_icon(self.icon_index, mini_x, MINI_Y, JSIS);
-            g.draw_icon(custom_icon, JIP, JIP, JS - JIP * 2);
-        } else {
-            g.draw_icon(self.icon_index, JIP, JIP, JS - JIP * 2);
+            g.draw_icon(small_icon, MINI_X, MINI_Y, JSIS);
         }
+        g.draw_icon(self.icon, JIP, JIP, JS - JIP * 2);
 
         if show_label {
-            g.write_text(
-                12,
-                if self.is_output { JS + 2 } else { -102 },
-                0,
-                100,
-                JS,
-                if self.is_output {
-                    HAlign::Left
-                } else {
-                    HAlign::Right
-                },
-                VAlign::Center,
-                1,
-                &self.label,
-            )
+            const H: HAlign = HAlign::Left;
+            const V: VAlign = VAlign::Center;
+            g.write_text(12, JS + 4, 0, 100, JS, H, V, 1, &self.label);
         }
 
         g.pop_state();
@@ -370,7 +414,10 @@ impl IOJack {
 
 fn widget_from_outline(controls: &Vec<Rcrc<ep::Control>>, outline: &ep::WidgetOutline) -> Knob {
     fn convert_grid_pos(grid_pos: (i32, i32)) -> (i32, i32) {
-        (MODULE_IO_WIDTH + coord(grid_pos.0), coord(grid_pos.1))
+        (
+            MODULE_IO_WIDTH + JACK_SIZE + coord(grid_pos.0),
+            coord(grid_pos.1),
+        )
     }
     match outline {
         ep::WidgetOutline::Knob {
@@ -388,8 +435,8 @@ pub struct Module {
     module: Rcrc<ep::Module>,
     size: (i32, i32),
     label: String,
-    inputs: Vec<IOJack>,
-    outputs: Vec<IOJack>,
+    inputs: Vec<InputJack>,
+    outputs: Vec<OutputJack>,
     controls: Vec<Knob>,
 }
 
@@ -413,25 +460,27 @@ impl Module {
             .map(|wo| widget_from_outline(module_controls, wo))
             .collect();
 
-        let size = (fatgrid(grid_size.0) + MIW * 2, fatgrid(grid_size.1));
+        let size = (
+            fatgrid(grid_size.0) + MIW * 2 + JACK_SIZE,
+            fatgrid(grid_size.1),
+        );
         let mut inputs = Vec::new();
         for (index, input) in template_ref.inputs.iter().enumerate() {
-            inputs.push(IOJack::input(
+            inputs.push(InputJack::create(
                 input.borrow_label().to_owned(),
                 input.get_icon_index(),
                 input.get_custom_icon_index(),
-                0,
+                JACK_SIZE,
                 coord(index as i32),
             ));
         }
-        let x = size.0 - JACK_SIZE;
         let mut outputs = Vec::new();
         for (index, output) in template_ref.outputs.iter().enumerate() {
-            outputs.push(IOJack::output(
+            outputs.push(OutputJack::create(
                 output.borrow_label().to_owned(),
                 output.get_icon_index(),
                 output.get_custom_icon_index(),
-                x,
+                size.0 - JACK_SIZE,
                 coord(index as i32),
             ));
         }
@@ -514,12 +563,13 @@ impl Module {
         let mouse_pos = mouse_pos.sub(pos);
 
         const CS: i32 = CORNER_SIZE;
+        const JS: i32 = JACK_SIZE;
         const MIW: i32 = MODULE_IO_WIDTH;
 
         g.set_color(&COLOR_IO_AREA);
-        g.fill_rounded_rect(0, 0, self.size.0, self.size.1, CS);
+        g.fill_rounded_rect(JS, 0, self.size.0 - JS, self.size.1, CS);
         g.set_color(&COLOR_SURFACE);
-        g.fill_rect(MIW, 0, self.size.0 - MIW * 2, self.size.1);
+        g.fill_rect(JS + MIW, 0, self.size.0 - MIW * 2 - JS, self.size.1);
 
         g.set_color(&COLOR_TEXT);
         for (index, jack) in self.module.borrow().inputs.iter().enumerate() {
@@ -530,7 +580,7 @@ impl Module {
                 let module_ref = module.borrow();
                 let (ox, oy) = output_position(&*module_ref, output_index);
                 let (ox, oy) = (ox - pos.0, oy - pos.1);
-                g.stroke_line(0, y, ox, oy, 5.0);
+                g.stroke_line(JS, y, ox, oy, 5.0);
             }
         }
 
@@ -547,14 +597,25 @@ impl Module {
             &self.label,
         );
 
+        let module_ref = self.module.borrow();
+        let template_ref = module_ref.template.borrow();
         let hovering = mouse_pos.inside(self.size);
-        for input in &self.inputs {
-            input.draw(g, hovering);
+        for input_index in 0..self.inputs.len() {
+            let input = &self.inputs[input_index];
+            if let ep::InputConnection::Default(default_index) = module_ref.inputs[input_index] {
+                let jack = &template_ref.inputs[input_index];
+                input.draw(
+                    g,
+                    Some(&jack.borrow_default_options()[default_index]),
+                    hovering,
+                );
+            } else {
+                input.draw(g, None, hovering);
+            }
         }
         for output in &self.outputs {
             output.draw(g, hovering);
         }
-        let module_ref = self.module.borrow();
         let feedback_data_ref = module_ref.feedback_data.as_ref().unwrap().borrow();
         let feedback_data = &feedback_data_ref[..];
         let mut fdi = 0;

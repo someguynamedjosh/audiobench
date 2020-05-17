@@ -1,5 +1,5 @@
 use crate::util::*;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 #[derive(Clone, Debug)]
 pub struct AutomationLane {
@@ -29,7 +29,7 @@ impl Control {
 #[derive(Clone, Debug)]
 pub enum InputConnection {
     Wire(Rcrc<Module>, usize),
-    Default,
+    Default(usize),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -39,6 +39,19 @@ pub enum JackType {
     Waveform,
     Audio,
     Trigger,
+}
+
+struct DefaultInputDescription {
+    name: &'static str,
+    code: &'static str,
+    icon: &'static str,
+}
+
+#[derive(Clone, Debug)]
+pub struct DefaultInput {
+    pub name: &'static str,
+    pub code: &'static str,
+    pub icon: usize,
 }
 
 impl JackType {
@@ -63,14 +76,54 @@ impl JackType {
         }
     }
 
-    pub fn default_value(&self) -> &'static str {
+    fn default_option_descriptions(&self) -> &'static [DefaultInputDescription] {
         match self {
-            Self::Time => "global_note_time",
-            Self::Pitch => "global_pitch",
-            Self::Waveform => "FlatWaveform",
-            Self::Audio => "0.0",
-            Self::Trigger => "global_release_trigger",
+            Self::Time => &[DefaultInputDescription {
+                name: "Note Time",
+                code: "global_note_time",
+                icon: "base:note",
+            }],
+            Self::Pitch => &[DefaultInputDescription {
+                name: "Note Pitch",
+                code: "global_pitch",
+                icon: "base:note",
+            }],
+            Self::Waveform => &[DefaultInputDescription {
+                name: "Silence",
+                code: "FlatWaveform",
+                // TODO: Better icon.
+                icon: "base:nothing",
+            }],
+            Self::Audio => &[DefaultInputDescription {
+                name: "Silence",
+                code: "0.0",
+                icon: "base:nothing",
+            }],
+            Self::Trigger => &[
+                DefaultInputDescription {
+                    name: "Note Start",
+                    code: "global_start_trigger",
+                    icon: "base:note_down",
+                },
+                DefaultInputDescription {
+                    name: "Note Release",
+                    code: "global_release_trigger",
+                    icon: "base:note_up",
+                },
+            ],
         }
+    }
+
+    fn default_options(&self, icon_indexes: &HashMap<String, usize>) -> Vec<DefaultInput> {
+        self.default_option_descriptions()
+            .iter()
+            .map(|desc| DefaultInput {
+                name: desc.name,
+                code: desc.code,
+                // The base library should have all the listed icons.
+                icon: *icon_indexes.get(desc.icon).unwrap(),
+            })
+            .collect()
     }
 }
 
@@ -81,10 +134,12 @@ pub struct IOJack {
     custom_icon_index: Option<usize>,
     code_name: String,
     label: String,
+    default_options: Vec<DefaultInput>,
 }
 
 impl IOJack {
     pub fn create(
+        icon_indexes: &HashMap<String, usize>,
         typ: JackType,
         icon_index: usize,
         custom_icon_index: Option<usize>,
@@ -97,6 +152,7 @@ impl IOJack {
             custom_icon_index,
             code_name,
             label,
+            default_options: typ.default_options(icon_indexes),
         }
     }
 
@@ -118,6 +174,10 @@ impl IOJack {
 
     pub fn borrow_code_name(&self) -> &str {
         &self.code_name
+    }
+
+    pub fn borrow_default_options(&self) -> &[DefaultInput] {
+        &self.default_options[..]
     }
 }
 
@@ -155,7 +215,7 @@ impl Module {
             template,
             controls,
             pos: (0, 0),
-            inputs: vec![InputConnection::Default; num_inputs],
+            inputs: vec![InputConnection::Default(0); num_inputs],
             feedback_data: None,
         }
     }

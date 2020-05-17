@@ -130,7 +130,7 @@ impl MouseAction {
                         in_ref.inputs[in_index] = ep::InputConnection::Wire(out_module, out_index);
                     }
                 } else {
-                    in_ref.inputs[in_index] = ep::InputConnection::Default;
+                    in_ref.inputs[in_index] = ep::InputConnection::Default(0);
                 }
                 return Some(GuiAction::Elevate(InstanceAction::ReloadStructure));
             }

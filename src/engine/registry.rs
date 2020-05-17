@@ -97,6 +97,7 @@ fn create_module_prototype_from_yaml(
         };
         let label = input_description.unique_child("label")?.value.clone();
         inputs.push(IOJack::create(
+            icon_indexes,
             typ,
             icon,
             custom_icon,
@@ -122,6 +123,7 @@ fn create_module_prototype_from_yaml(
         };
         let label = output_description.unique_child("label")?.value.clone();
         outputs.push(IOJack::create(
+            icon_indexes,
             typ,
             icon,
             custom_icon,
