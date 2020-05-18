@@ -1,6 +1,6 @@
 use crate::engine::parts as ep;
 use crate::gui::action::{DropTarget, MouseAction};
-use crate::gui::audio_widgets::Module;
+use crate::gui::audio_widgets::{Module, WireTracker};
 use crate::gui::constants::*;
 use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
 use crate::gui::MouseMods;
@@ -60,7 +60,7 @@ impl WidgetOutline {
     }
 }
 
-pub fn widget_from_outline(
+pub(in crate::gui) fn widget_from_outline(
     controls: &Vec<Rcrc<ep::Control>>,
     outline: &WidgetOutline,
     // usize is the amount of feedback data the widget uses.
@@ -106,7 +106,7 @@ pub fn widget_from_outline(
     (widget, feedback_data_len)
 }
 
-pub trait ModuleWidget {
+pub(in crate::gui) trait ModuleWidget {
     fn respond_to_mouse_press(
         &self,
         mouse_pos: (i32, i32),
@@ -114,6 +114,7 @@ pub trait ModuleWidget {
         parent_pos: (i32, i32),
     ) -> MouseAction;
     fn get_drop_target_at(&self, mouse_pos: (i32, i32)) -> DropTarget;
+    fn add_wires(&self, wire_tracker: &mut WireTracker) { }
     fn draw(
         &self,
         g: &mut GrahpicsWrapper,
@@ -176,6 +177,17 @@ impl ModuleWidget for Knob {
         }
     }
 
+    fn add_wires(&self, wire_tracker: &mut WireTracker) {
+        let (cx, cy) = (self.pos.0 + grid(2) / 2, self.pos.1 + grid(2) / 2);
+        for lane in self.control.borrow().automation.iter() {
+            let (module, output_index) = &lane.connection;
+            let output_index = *output_index as i32;
+            let module_ref = module.borrow();
+            let (ox, oy) = Module::output_position(&*module_ref, output_index);
+            wire_tracker.add_wire((ox, oy), (cx, cy));
+        }
+    }
+
     fn draw(
         &self,
         g: &mut GrahpicsWrapper,
@@ -191,17 +203,6 @@ impl ModuleWidget for Knob {
         }
 
         g.set_color(&COLOR_TEXT);
-        let (cx, cy) = (self.pos.0 + grid(2) / 2, self.pos.1 + grid(2) / 2);
-        for lane in self.control.borrow().automation.iter() {
-            let (module, output_index) = &lane.connection;
-            let output_index = *output_index as i32;
-            let module_ref = module.borrow();
-            let (ox, oy) = Module::output_position(&*module_ref, output_index);
-            let (ox, oy) = (ox - parent_pos.0, oy - parent_pos.1);
-            g.stroke_line(cx, cy, ox, oy, 2.0);
-        }
-
-        // Applying the offset later makes connections easier to render.
         g.apply_offset(self.pos.0, self.pos.1);
 
         if highlight {

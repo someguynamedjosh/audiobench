@@ -5,6 +5,7 @@ Snap / Precision modifier keys for dragging controls
 Some way to reset the value of a control
 Layers for drawing
 A way to remove automation channels and modules
+Average together multiple automation channels (instead of add)
 
 # Things with missing dependencies
 Drop shadow draw function
@@ -17,6 +18,9 @@ Get a better icon for waveforms
 Better nothing icon
 Friendly error messages
 Make the add modules menu look nice
+Options to change how automation channels are mixed together
+Highlight connections when hovering over things like outputs and automation
+lanes to see more easily what's connected to what
 
 # Code organization stuff
 Control -> Parameter?

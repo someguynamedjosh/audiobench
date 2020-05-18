@@ -44,6 +44,12 @@ pub const JACK_SMALL_ICON_SIZE: i32 = 12;
 // Width of the area dedicated to input or output on each module.
 pub const MODULE_IO_WIDTH: i32 = JACK_SIZE + GRID_P;
 
+pub const WIRE_MIN_SEGMENT_LENGTH: i32 = 22;
+// Amount of x and y offset required to create a 45 degree line MIN_WIRE_SEGMENT_LENGTH long
+pub const WIRE_MIN_DIAGONAL_SIZE: i32 =
+    (WIRE_MIN_SEGMENT_LENGTH as f32 * std::f32::consts::SQRT_2 / 2.0) as i32;
+pub const WIRE_SPACING: i32 = GRID_P;
+
 const fn hex_color(hex: u32) -> (u8, u8, u8) {
     (
         ((hex >> 16) & 0xFF) as u8,

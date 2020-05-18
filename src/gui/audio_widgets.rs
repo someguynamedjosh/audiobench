@@ -7,6 +7,261 @@ use crate::gui::{Gui, MouseMods};
 use crate::util::*;
 use std::f32::consts::PI;
 
+// This code is not intended to be maintainable. It was created by madly scribbling on graph paper
+// for five hours. If it is broken the only way to fix it is to start over.
+fn draw_automation_wire(
+    g: &mut GrahpicsWrapper,
+    face_down: bool,
+    x1: i32,
+    y1: i32,
+    x2: i32,
+    mut y2: i32,
+) {
+    const S: i32 = WIRE_MIN_SEGMENT_LENGTH;
+    const D: i32 = WIRE_MIN_DIAGONAL_SIZE;
+    const SD: i32 = S + D;
+    const W: f32 = 2.0;
+    let mut stroke_line: Box<dyn FnMut(i32, i32, i32, i32)> = if face_down {
+        let pivot = y1;
+        y2 = pivot - (y2 - pivot);
+        Box::new(move |x1, y1, x2, y2| {
+            let y1 = pivot - (y1 - pivot);
+            let y2 = pivot - (y2 - pivot);
+            g.stroke_line(x1, y1, x2, y2, W);
+        })
+    } else {
+        Box::new(|x1, y1, x2, y2| {
+            g.stroke_line(x1, y1, x2, y2, W);
+        })
+    };
+    let dx = x2 - x1;
+    let dy = y2 - y1;
+    if dx <= -D {
+        if dy >= D {
+            stroke_line(x1, y1, x1 + S, y1);
+            stroke_line(x1 + S, y1, x1 + SD, y1 + D);
+            let down_segment_length = dy - D;
+            let left_segment_length = -dx - D;
+            let diagonal = down_segment_length.min(left_segment_length) / 2;
+            let dsl = down_segment_length - diagonal + S;
+            let lsl = left_segment_length - diagonal + S;
+            let diagonal = diagonal + D;
+            stroke_line(x1 + SD, y1 + D, x1 + SD, y1 + D + dsl);
+            stroke_line(x1 + SD, y1 + D + dsl, x1 + SD - diagonal, y2 + SD);
+            stroke_line(x2 + D + lsl, y2 + SD, x2 + D, y2 + SD);
+            stroke_line(x2 + D, y2 + SD, x2, y2 + S);
+            stroke_line(x2, y2 + S, x2, y2);
+        } else if dy <= -SD * 2 - D {
+            stroke_line(x1, y1, x1 + S, y1);
+            stroke_line(x1 + S, y1, x1 + SD, y1 - D);
+            stroke_line(x1 + SD, y1 - D, x1 + SD, y1 - SD);
+            stroke_line(x1 + SD, y1 - SD, x1 + S, y1 - SD - D);
+            let up_segment_length = -SD * 2 - D - dy;
+            let left_segment_length = -dx - D;
+            let diagonal = up_segment_length.min(left_segment_length) / 2;
+            let usl = up_segment_length - diagonal + S;
+            // let lsl = left_segment_length - diagonal + S;
+            let diagonal = diagonal + D;
+            stroke_line(x1 + S, y1 - SD - D, x2 + diagonal, y1 - SD - D);
+            stroke_line(x2 + diagonal, y1 - SD - D, x2, y2 + usl);
+            stroke_line(x2, y2 + usl, x2, y2);
+        } else {
+            stroke_line(x1, y1, x1 + S, y1);
+            stroke_line(x1 + S, y1, x1 + SD, y1 + D);
+            stroke_line(x1 + SD, y1 + D, x1 + SD, y1 + SD);
+            stroke_line(x1 + SD, y1 + SD, x1 + S, y1 + SD + D);
+            let left_segment_length = -dx - D;
+            let up_segment_length = D - dy;
+            let diagonal = left_segment_length.min(up_segment_length) / 2;
+            let usl = up_segment_length - diagonal + S;
+            let lsl = left_segment_length - diagonal + S;
+            // let diagonal = diagonal + D;
+            stroke_line(x1 + S, y1 + SD + D, x1 + S - lsl, y1 + SD + D);
+            stroke_line(x1 + S - lsl, y1 + SD + D, x2, y2 + usl);
+            stroke_line(x2, y2 + usl, x2, y2);
+        }
+    } else if dx >= SD && dy <= -SD {
+        let right_segment_length = dx - SD;
+        let up_segment_length = -SD - dy;
+        let diagonal = right_segment_length.min(up_segment_length) / 2;
+        let rsl = right_segment_length - diagonal + S;
+        // let usl = up_segment_length - diagonal + S;
+        let diagonal = diagonal + D;
+        stroke_line(x1, y1, x1 + rsl, y1);
+        stroke_line(x1 + rsl, y1, x2, y1 - diagonal);
+        stroke_line(x2, y1 - diagonal, x2, y2);
+    } else if dx >= -D && dy <= -SD * 2 - D {
+        let right_segment_length = dx + D;
+        let up_segment_length = -SD * 2 - D - dy;
+        let diagonal = right_segment_length.min(up_segment_length) / 2;
+        let rsl = right_segment_length - diagonal + S;
+        let usl = up_segment_length - diagonal + S;
+        let diag = diagonal + D;
+        stroke_line(x1, y1, x1 + rsl, y1);
+        stroke_line(x1 + rsl, y1, x2 + SD + D, y1 - diag);
+        stroke_line(x2 + SD + D, y1 - diag, x2 + SD + D, y1 - diag - S);
+        stroke_line(x2 + SD + D, y1 - diag - S, x2 + SD, y2 + usl + D);
+        stroke_line(x2 + SD, y2 + D + usl, x2 + D, y2 + D + usl);
+        stroke_line(x2 + D, y2 + D + usl, x2, y2 + usl);
+        stroke_line(x2, y2 + usl, x2, y2);
+    } else if dx >= SD * 2 + D && dy >= D {
+        let right_segment_length = dx - SD * 2 - D;
+        let down_segment_length = dy - D;
+        let diagonal = right_segment_length.min(down_segment_length) / 2;
+        // let rsl = right_segment_length - diagonal + S;
+        let dsl = down_segment_length - diagonal + S;
+        let diagonal = diagonal + D;
+        stroke_line(x1, y1, x1 + S, y1);
+        stroke_line(x1 + S, y1, x1 + SD, y1 + D);
+        stroke_line(x1 + SD, y1 + D, x1 + SD, y1 + D + dsl);
+        stroke_line(x1 + SD, y1 + D + dsl, x1 + SD + diagonal, y2 + SD);
+        stroke_line(x1 + SD + diagonal, y2 + SD, x2 - D, y2 + SD);
+        stroke_line(x2 - D, y2 + SD, x2, y2 + S);
+        stroke_line(x2, y2 + S, x2, y2);
+    } else if dx >= SD * 2 + D {
+        let right_segment_length = dx - SD * 2 - D;
+        let up_segment_length = -dy + D;
+        let diagonal = right_segment_length.min(up_segment_length) / 2;
+        // let rsl = right_segment_length - diagonal + S;
+        let usl = up_segment_length - diagonal + S;
+        let diagonal = diagonal + D;
+        stroke_line(x1, y1, x1 + S, y1);
+        stroke_line(x1 + S, y1, x1 + SD, y1 + D);
+        stroke_line(x1 + SD, y1 + D, x1 + SD, y1 + SD);
+        stroke_line(x1 + SD, y1 + SD, x1 + SD + D, y1 + SD + D);
+        stroke_line(x1 + SD + D, y1 + SD + D, x2 - diagonal, y1 + SD + D);
+        stroke_line(x2 - diagonal, y1 + SD + D, x2, y2 + usl);
+        stroke_line(x2, y2 + usl, x2, y2);
+    } else if dy >= D {
+        let down_segment_length = dy - D;
+        let right_segment_length = dx + D;
+        let diagonal = down_segment_length.min(right_segment_length) / 2;
+        // let dsl = down_segment_length - diagonal + S;
+        let rsl = right_segment_length - diagonal + S;
+        let diagonal = diagonal + D;
+        stroke_line(x1, y1, x1 + rsl, y1);
+        stroke_line(x1 + rsl, y1, x1 + rsl + diagonal, y1 + diagonal);
+        stroke_line(x2 + SD + D, y1 + diagonal, x2 + SD + D, y2 + S);
+        stroke_line(x2 + SD + D, y2 + S, x2 + SD, y2 + SD);
+        stroke_line(x2 + SD, y2 + SD, x2 + D, y2 + SD);
+        stroke_line(x2 + D, y2 + SD, x2, y2 + S);
+        stroke_line(x2, y2 + S, x2, y2);
+    } else {
+        let usl = D - dy + S;
+        let rsl = dx + D + S;
+        stroke_line(x1, y1, x1 + rsl, y1);
+        stroke_line(x1 + rsl, y1, x1 + rsl + D, y1 + D);
+        stroke_line(x1 + rsl + D, y1 + D, x1 + rsl + D, y1 + SD);
+        stroke_line(x1 + rsl + D, y1 + SD, x1 + rsl, y1 + SD + D);
+        stroke_line(x1 + rsl, y1 + SD + D, x2 + D, y1 + SD + D);
+        stroke_line(x2 + D, y1 + SD + D, x2, y2 + usl);
+        stroke_line(x2, y2 + usl, x2, y2);
+    }
+}
+
+// x1, y1 is coord of input, x2, y2 is coord of output.
+fn draw_io_wire(g: &mut GrahpicsWrapper, x1: i32, y1: i32, x2: i32, mut y2: i32) {
+    const S: i32 = WIRE_MIN_SEGMENT_LENGTH;
+    const D: i32 = WIRE_MIN_DIAGONAL_SIZE;
+    const SD: i32 = S + D;
+    const W: f32 = 2.0;
+    let mut stroke_line: Box<dyn FnMut(i32, i32, i32, i32)> = if y2 < y1 {
+        let pivot = y1;
+        // Since pivot is y1, y1 remains unchanged.
+        y2 = pivot - (y2 - pivot);
+        Box::new(move |x1, y1, x2, y2| {
+            let y1 = pivot - (y1 - pivot);
+            let y2 = pivot - (y2 - pivot);
+            g.stroke_line(x1, y1, x2, y2, W);
+        })
+    } else {
+        Box::new(|x1, y1, x2, y2| {
+            g.stroke_line(x1, y1, x2, y2, W);
+        })
+    };
+    let dx = x2 - x1;
+    let dy = y2 - y1;
+    if -dx - S * 2 >= dy {
+        let diagonal = dy;
+        let lsl = (-dx - diagonal) / 2;
+        stroke_line(x1, y1, x1 - lsl, y1);
+        stroke_line(x1 - lsl, y1, x2 + lsl, y2);
+        stroke_line(x2 + lsl, y2, x2, y2);
+    } else if dx <= -SD * 2 && dy >= SD + D {
+        let left_segment_length = -dx - SD * 2;
+        let up_segment_length = dy - SD - D;
+        let diag = left_segment_length.min(up_segment_length) / 2;
+        let lsl = left_segment_length - diag + S;
+        // let usl = up_segment_length - diag + S;
+        let diag = diag + D;
+        stroke_line(x1, y1, x1 - S, y1);
+        stroke_line(x1 - S, y1, x1 - SD, y1 + D);
+        stroke_line(x1 - SD, y1 + D, x1 - SD, y2 - diag);
+        stroke_line(x1 - SD, y2 - diag, x2 + lsl, y2);
+        stroke_line(x2 + lsl, y2, x2, y2);
+    } else if dx >= -S && dy >= 2 * S + 4 * D {
+        let right_segment_length = dx + S;
+        let up_segment_length = dy - 2 * S - 4 * D;
+        let diag = right_segment_length.min(up_segment_length) / 2;
+        let rsl = right_segment_length - diag + S;
+        let usl = up_segment_length - diag + S;
+        // let diag = diag + D;
+        stroke_line(x1, y1, x1 - S, y1);
+        stroke_line(x1 - S, y1, x1 - SD, y1 + D);
+        stroke_line(x1 - SD, y1 + D, x1 - SD, y1 + SD);
+        stroke_line(x1 - SD, y1 + SD, x1 - S, y1 + SD + D);
+        stroke_line(x1 - S, y1 + SD + D, x1 - S + rsl, y1 + SD + D);
+        stroke_line(x1 - S + rsl, y1 + SD + D, x2 + SD, y2 - D - usl);
+        stroke_line(x2 + SD, y2 - D - usl, x2 + SD, y2 - D);
+        stroke_line(x2 + SD, y2 - D, x2 + S, y2);
+        stroke_line(x2 + S, y2, x2, y2);
+    } else if dy >= 2 * S + 4 * D {
+        let left_segment_length = -dx - S;
+        let up_segment_length = dy - 2 * S - 4 * D;
+        let diag = left_segment_length.min(up_segment_length) / 2;
+        let lsl = left_segment_length - diag + S;
+        let usl = up_segment_length - diag + S;
+        let diag = diag + D;
+        stroke_line(x1, y1, x1 - S, y1);
+        stroke_line(x1 - S, y1, x1 - SD, y1 + D);
+        stroke_line(x1 - SD, y1 + D, x1 - SD, y1 + SD);
+        stroke_line(x1 - SD, y1 + SD, x1 - S, y1 + SD + D);
+        stroke_line(x1 - S, y1 + SD + D, x1, y1 + SD + D);
+        stroke_line(x1, y1 + SD + D, x1 + D, y2 - diag - usl);
+        stroke_line(x1 + D, y2 - diag - usl, x1 + D, y2 - diag);
+        stroke_line(x1 + D, y2 - diag, x2 + lsl, y2);
+        stroke_line(x2 + lsl, y2, x2, y2);
+    } else if dx >= -S {
+        let right_segment_length = dx + S;
+        let up_segment_length = dy;
+        let diag = right_segment_length.min(up_segment_length) / 2;
+        // let rsl = right_segment_length - diag + S;
+        let usl = up_segment_length - diag + S;
+        let diag = diag + D;
+        stroke_line(x1, y1, x1 - S, y1);
+        stroke_line(x1 - S, y1, x1 - SD, y1 - D);
+        stroke_line(x1 - SD, y1 - D, x1 - SD, y1 - SD);
+        stroke_line(x1 - SD, y1 - SD, x1 - D, y1 - SD - D);
+        stroke_line(x1 - D, y1 - SD - D, x2 + SD - diag, y1 - SD - D);
+        stroke_line(x2 + SD - diag, y1 - SD - D, x2 + SD, y2 - D - usl);
+        stroke_line(x2 + SD, y2 - D - usl, x2 + SD, y2 - D);
+        stroke_line(x2 + SD, y2 - D, x2 + S, y2);
+        stroke_line(x2 + S, y2, x2, y2);
+    } else {
+        // let lsl = -dx;
+        // let usl = dy + S;
+        stroke_line(x1, y1, x2, y1);
+        stroke_line(x2, y1, x2 - D, y1 - D);
+        stroke_line(x2 - D, y1 - D, x2 - D, y1 - SD);
+        stroke_line(x2 - D, y1 - SD, x2, y1 - SD - D);
+        stroke_line(x2, y1 - SD - D, x2 + S, y1 - SD - D);
+        stroke_line(x2 + S, y1 - SD - D, x2 + SD, y1 - SD);
+        stroke_line(x2 + SD, y1 - SD, x2 + SD, y2 - D);
+        stroke_line(x2 + SD, y2 - D, x2 + S, y2);
+        stroke_line(x2 + S, y2, x2, y2);
+    }
+}
+
 struct InputJack {
     label: String,
     icon: usize,
@@ -171,6 +426,79 @@ impl OutputJack {
     }
 }
 
+#[derive(Clone)]
+pub(in crate::gui) struct WireTracker {
+    module_height: i32,
+    top_slots: Vec<bool>,
+    bottom_slots: Vec<bool>,
+    wires: Vec<((i32, i32), (i32, i32), bool)>,
+}
+
+impl WireTracker {
+    fn new(module_size: (i32, i32)) -> Self {
+        let num_slots = (module_size.0 - MODULE_IO_WIDTH * 2 - JACK_SIZE) / WIRE_SPACING;
+        Self {
+            module_height: module_size.1,
+            top_slots: vec![false; num_slots as usize],
+            bottom_slots: vec![false; num_slots as usize],
+            wires: Vec::new(),
+        }
+    }
+    pub fn add_wire(&mut self, source_coord: (i32, i32), widget_coord: (i32, i32)) {
+        let slot_index = ((widget_coord.0 - MODULE_IO_WIDTH - JACK_SIZE) / WIRE_SPACING) as usize;
+        let slot_index = slot_index.min(self.top_slots.len() - 1);
+        let top = widget_coord.1 <= self.module_height / 2;
+        let slots = if top {
+            &mut self.top_slots
+        } else {
+            &mut self.bottom_slots
+        };
+        let mut left_slot = slot_index;
+        let mut right_slot = slot_index;
+        let empty_slot;
+        loop {
+            if !slots[left_slot] {
+                empty_slot = left_slot;
+                break;
+            }
+            if !slots[right_slot] {
+                empty_slot = right_slot;
+                break;
+            }
+            if left_slot > 0 {
+                left_slot -= 1;
+            }
+            if right_slot < slots.len() - 1 {
+                right_slot += 1;
+            } else if left_slot == 0 {
+                // No empty slot. This prevents an infinite loop.
+                empty_slot = slot_index;
+                break;
+            }
+        }
+        slots[empty_slot] = true;
+
+        let (endx, endy) = (
+            empty_slot as i32 * WIRE_SPACING + WIRE_SPACING / 2 + MODULE_IO_WIDTH + JACK_SIZE,
+            if top { 0 } else { self.module_height },
+        );
+        self.wires.push((source_coord, (endx, endy), top));
+    }
+
+    pub fn draw_wires(self, g: &mut GrahpicsWrapper, target_offset: (i32, i32)) {
+        for (source, target, face_down) in self.wires {
+            draw_automation_wire(
+                g,
+                face_down,
+                source.0,
+                source.1,
+                target.0 + target_offset.0,
+                target.1 + target_offset.1,
+            );
+        }
+    }
+}
+
 pub struct Module {
     module: Rcrc<ep::Module>,
     size: (i32, i32),
@@ -325,6 +653,25 @@ impl Module {
         highlight: Option<(bool, ep::JackType)>,
     ) {
         let pos = self.get_pos();
+
+        let mut wire_tracker = WireTracker::new(self.size);
+        for (widget, _) in &self.widgets {
+            widget.add_wires(&mut wire_tracker);
+        }
+        let wire_tracker_2 = wire_tracker.clone();
+        g.set_color(&COLOR_TEXT);
+        wire_tracker.draw_wires(g, pos);
+        for (index, jack) in self.module.borrow().inputs.iter().enumerate() {
+            let index = index as i32;
+            let y = coord(index) + grid(1) / 2;
+            if let ep::InputConnection::Wire(module, output_index) = jack {
+                let output_index = *output_index as i32;
+                let module_ref = module.borrow();
+                let (ox, oy) = Self::output_position(&*module_ref, output_index);
+                draw_io_wire(g, pos.0 + JACK_SIZE, pos.1 + y, ox, oy);
+            }
+        }
+
         g.push_state();
         g.apply_offset(pos.0, pos.1);
         let mouse_pos = mouse_pos.sub(pos);
@@ -337,19 +684,6 @@ impl Module {
         g.fill_rounded_rect(JS, 0, self.size.0 - JS, self.size.1, CS);
         g.set_color(&COLOR_SURFACE);
         g.fill_rect(JS + MIW, 0, self.size.0 - MIW * 2 - JS, self.size.1);
-
-        g.set_color(&COLOR_TEXT);
-        for (index, jack) in self.module.borrow().inputs.iter().enumerate() {
-            let index = index as i32;
-            let y = coord(index) + grid(1) / 2;
-            if let ep::InputConnection::Wire(module, output_index) = jack {
-                let output_index = *output_index as i32;
-                let module_ref = module.borrow();
-                let (ox, oy) = Self::output_position(&*module_ref, output_index);
-                let (ox, oy) = (ox - pos.0, oy - pos.1);
-                g.stroke_line(JS, y, ox, oy, 5.0);
-            }
-        }
 
         g.set_color(&COLOR_TEXT);
         g.write_text(
@@ -400,12 +734,15 @@ impl Module {
         let feedback_data = &feedback_data_ref[..];
         let mut fdi = 0;
         let highlight = highlight == Some((false, ep::JackType::Audio));
-        for (widget, segment_len) in &self.widgets{
+        for (widget, segment_len) in &self.widgets {
             widget.draw(g, highlight, pos, &feedback_data[fdi..fdi + segment_len]);
             fdi += segment_len;
         }
 
         g.pop_state();
+        g.set_color(&COLOR_TEXT);
+        g.set_alpha(0.2);
+        wire_tracker_2.draw_wires(g, pos);
     }
 }
 
