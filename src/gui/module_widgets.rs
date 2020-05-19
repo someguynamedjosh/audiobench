@@ -196,10 +196,12 @@ impl ModuleWidget for Knob {
         feedback_data: &[f32],
     ) {
         g.push_state();
+        const MIN_ANGLE: f32 = PI * 1.15;
+        const MAX_ANGLE: f32 = -PI * 0.15;
 
         let control = &*self.control.borrow();
         fn value_to_angle(range: (f32, f32), value: f32) -> f32 {
-            value.from_range_to_range(range.0, range.1, PI, 0.0)
+            value.from_range_to_range(range.0, range.1, MIN_ANGLE, MAX_ANGLE)
         }
 
         g.set_color(&COLOR_TEXT);
@@ -210,7 +212,7 @@ impl ModuleWidget for Knob {
         } else {
             g.set_color(&COLOR_BG);
         }
-        g.fill_pie(0, 0, grid(2), KNOB_INSIDE_SPACE * 2, 0.0, PI);
+        g.fill_pie(0, 0, grid(2), KNOB_INSIDE_SPACE * 2, MIN_ANGLE, MAX_ANGLE);
         g.set_color(&COLOR_KNOB);
         if highlight {
             g.set_alpha(0.5);
@@ -234,7 +236,9 @@ impl ModuleWidget for Knob {
         );
         g.set_alpha(1.0);
         g.set_color(&COLOR_TEXT);
-        g.write_label(0, grid(1) + GRID_P, grid(2), &self.label);
+        const H: HAlign = HAlign::Center;
+        const V: VAlign = VAlign::Bottom;
+        g.write_text(12, 0, 0, grid(2), grid(2), H, V, 1, &self.label);
 
         if control.automation.len() > 0 {
             let num_lanes = control.automation.len() as i32;
