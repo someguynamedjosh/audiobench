@@ -646,20 +646,11 @@ impl Module {
         DropTarget::None
     }
 
-    fn draw(
-        &self,
-        g: &mut GrahpicsWrapper,
-        mouse_pos: (i32, i32),
-        highlight: Option<(bool, ep::JackType)>,
-    ) {
-        let pos = self.get_pos();
-
+    fn draw_wires(&self, g: &mut GrahpicsWrapper, pos: (i32, i32)) {
         let mut wire_tracker = WireTracker::new(self.size);
         for (widget, _) in &self.widgets {
             widget.add_wires(&mut wire_tracker);
         }
-        let wire_tracker_2 = wire_tracker.clone();
-        g.set_color(&COLOR_TEXT);
         wire_tracker.draw_wires(g, pos);
         for (index, jack) in self.module.borrow().inputs.iter().enumerate() {
             let index = index as i32;
@@ -671,78 +662,105 @@ impl Module {
                 draw_io_wire(g, pos.0 + JACK_SIZE, pos.1 + y, ox, oy);
             }
         }
+    }
 
-        g.push_state();
-        g.apply_offset(pos.0, pos.1);
-        let mouse_pos = mouse_pos.sub(pos);
+    fn draw(
+        &self,
+        g: &mut GrahpicsWrapper,
+        mouse_pos: (i32, i32),
+        highlight: Option<(bool, ep::JackType)>,
+        layer_index: i32,
+    ) {
+        let pos = self.get_pos();
 
-        const CS: i32 = CORNER_SIZE;
-        const JS: i32 = JACK_SIZE;
-        const MIW: i32 = MODULE_IO_WIDTH;
+        if layer_index == 0 {
+            g.draw_inset_box_shadow(
+                pos.0 + JACK_SIZE,
+                pos.1,
+                self.size.0 - JACK_SIZE,
+                self.size.1,
+                DROP_SHADOW_RADIUS,
+                CORNER_SIZE,
+            );
+        } else if layer_index == 1 {
+            g.set_color(&COLOR_TEXT);
+            self.draw_wires(g, pos);
+        } else if layer_index == 2 {
+            g.push_state();
+            g.apply_offset(pos.0, pos.1);
+            let mouse_pos = mouse_pos.sub(pos);
 
-        g.set_color(&COLOR_IO_AREA);
-        g.fill_rounded_rect(JS, 0, self.size.0 - JS, self.size.1, CS);
-        g.set_color(&COLOR_SURFACE);
-        g.fill_rect(JS + MIW, 0, self.size.0 - MIW * 2 - JS, self.size.1);
+            const CS: i32 = CORNER_SIZE;
+            const JS: i32 = JACK_SIZE;
+            const MIW: i32 = MODULE_IO_WIDTH;
 
-        g.set_color(&COLOR_TEXT);
-        g.write_text(
-            12,
-            MODULE_IO_WIDTH,
-            -20,
-            self.size.0,
-            20,
-            HAlign::Left,
-            VAlign::Bottom,
-            1,
-            &self.label,
-        );
+            g.set_color(&COLOR_IO_AREA);
+            g.fill_rounded_rect(JS, 0, self.size.0 - JS, self.size.1, CS);
+            g.set_color(&COLOR_SURFACE);
+            g.fill_rect(JS + MIW, 0, self.size.0 - MIW * 2 - JS, self.size.1);
 
-        let module_ref = self.module.borrow();
-        let template_ref = module_ref.template.borrow();
-        let hovering = mouse_pos.inside(self.size);
-        for input_index in 0..self.inputs.len() {
-            let input = &self.inputs[input_index];
-            let jack = &template_ref.inputs[input_index];
-            let mute = if let Some((outs, typ)) = highlight {
-                outs || typ != jack.get_type()
-            } else {
-                false
-            };
-            if let ep::InputConnection::Default(default_index) = module_ref.inputs[input_index] {
-                input.draw(
-                    g,
-                    Some(&jack.borrow_default_options()[default_index]),
-                    hovering,
-                    mute,
-                );
-            } else {
-                input.draw(g, None, hovering, mute);
+            g.set_color(&COLOR_TEXT);
+            g.write_text(
+                12,
+                MODULE_IO_WIDTH,
+                -20,
+                self.size.0,
+                20,
+                HAlign::Left,
+                VAlign::Bottom,
+                1,
+                &self.label,
+            );
+
+            let module_ref = self.module.borrow();
+            let template_ref = module_ref.template.borrow();
+            let hovering = mouse_pos.inside(self.size);
+            for input_index in 0..self.inputs.len() {
+                let input = &self.inputs[input_index];
+                let jack = &template_ref.inputs[input_index];
+                let mute = if let Some((outs, typ)) = highlight {
+                    outs || typ != jack.get_type()
+                } else {
+                    false
+                };
+                if let ep::InputConnection::Default(default_index) = module_ref.inputs[input_index]
+                {
+                    input.draw(
+                        g,
+                        Some(&jack.borrow_default_options()[default_index]),
+                        hovering,
+                        mute,
+                    );
+                } else {
+                    input.draw(g, None, hovering, mute);
+                }
             }
-        }
-        for output_index in 0..self.outputs.len() {
-            let output = &self.outputs[output_index];
-            let jack = &template_ref.outputs[output_index];
-            let mute = if let Some((outs, typ)) = highlight {
-                !outs || typ != jack.get_type()
-            } else {
-                false
-            };
-            output.draw(g, hovering, mute);
-        }
-        let feedback_data_ref = module_ref.feedback_data.as_ref().unwrap().borrow();
-        let feedback_data = &feedback_data_ref[..];
-        let mut fdi = 0;
-        let highlight = highlight == Some((false, ep::JackType::Audio));
-        for (widget, segment_len) in &self.widgets {
-            widget.draw(g, highlight, pos, &feedback_data[fdi..fdi + segment_len]);
-            fdi += segment_len;
-        }
+            for output_index in 0..self.outputs.len() {
+                let output = &self.outputs[output_index];
+                let jack = &template_ref.outputs[output_index];
+                let mute = if let Some((outs, typ)) = highlight {
+                    !outs || typ != jack.get_type()
+                } else {
+                    false
+                };
+                output.draw(g, hovering, mute);
+            }
+            let feedback_data_ref = module_ref.feedback_data.as_ref().unwrap().borrow();
+            let feedback_data = &feedback_data_ref[..];
+            let mut fdi = 0;
+            let highlight = highlight == Some((false, ep::JackType::Audio));
+            for (widget, segment_len) in &self.widgets {
+                widget.draw(g, highlight, pos, &feedback_data[fdi..fdi + segment_len]);
+                fdi += segment_len;
+            }
 
-        g.pop_state();
-        g.set_color(&COLOR_TEXT);
-        g.set_alpha(0.2);
-        wire_tracker_2.draw_wires(g, pos);
+            g.pop_state();
+            g.set_color(&COLOR_TEXT);
+        } else if layer_index == 3 {
+            g.set_color(&COLOR_TEXT);
+            g.set_alpha(0.2);
+            self.draw_wires(g, pos);
+        }
     }
 }
 
@@ -843,8 +861,10 @@ impl ModuleGraph {
         } else {
             None
         };
-        for module in &self.modules {
-            module.draw(g, (mx, my), highlight);
+        for layer in 0..4 {
+            for module in &self.modules {
+                module.draw(g, (mx, my), highlight, layer);
+            }
         }
         if let Some(widget) = &self.detail_menu_widget {
             widget.draw(g);

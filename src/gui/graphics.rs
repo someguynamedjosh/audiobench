@@ -13,6 +13,7 @@ pub struct GraphicsFunctions {
     fill_pie: fn(*mut i8, i32, i32, i32, i32, f32, f32),
     write_text: fn(*mut i8, i32, i32, i32, i32, i32, u8, u8, i32, *const u8),
     draw_icon: fn(*mut i8, *mut i8, i32, i32, i32, i32),
+    draw_box_shadow: fn(*mut i8, i32, i32, i32, i32, i32),
 }
 
 impl GraphicsFunctions {
@@ -64,6 +65,9 @@ impl GraphicsFunctions {
         fn draw_icon(_data: *mut i8, _icon_store: *mut i8, _index: i32, _x: i32, _y: i32, _s: i32) {
             panic!("ERROR: Graphics functions not set by frontend!");
         }
+        fn draw_box_shadow(_data: *mut i8, _x: i32, _y: i32, _w: i32, _h: i32, _r: i32) {
+            panic!("ERROR: Graphics functions not set by frontend!");
+        }
         Self {
             push_state,
             pop_state,
@@ -77,6 +81,7 @@ impl GraphicsFunctions {
             fill_pie,
             write_text,
             draw_icon,
+            draw_box_shadow,
         }
     }
 }
@@ -206,5 +211,25 @@ impl<'a> GrahpicsWrapper<'a> {
 
     pub fn draw_icon(&mut self, index: usize, x: i32, y: i32, size: i32) {
         (self.graphics_fns.draw_icon)(self.aux_data, self.icon_store, index as i32, x, y, size);
+    }
+
+    pub fn draw_box_shadow(&mut self, x: i32, y: i32, w: i32, h: i32, radius: i32) {
+        (self.graphics_fns.draw_box_shadow)(self.aux_data, x, y, w, h, radius);
+    }
+
+    pub fn draw_inset_box_shadow(
+        &mut self,
+        mut x: i32,
+        mut y: i32,
+        mut w: i32,
+        mut h: i32,
+        radius: i32,
+        inset: i32,
+    ) {
+        x += inset;
+        y += inset;
+        w -= inset * 2;
+        h -= inset * 2;
+        self.draw_box_shadow(x, y, w, h, radius);
     }
 }

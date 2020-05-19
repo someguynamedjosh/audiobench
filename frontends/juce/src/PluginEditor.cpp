@@ -94,6 +94,27 @@ void drawIcon(void *gp, void *iconStore, int index, int x, int y, int size) {
     );
 }
 
+void drawDropShadow(void *gp, int x, int y, int w, int h, int radius) {
+    Graphics *g = (Graphics*) gp;
+    auto black = Colours::black.withAlpha(0.5f);
+    g->setGradientFill(ColourGradient(black, x, y, Colours::transparentBlack, x, y - radius, false));
+    g->fillRect(x, y - radius, w, radius);
+    g->setGradientFill(ColourGradient(black, x, y, Colours::transparentBlack, x, y - radius, true));
+    g->fillRect(x - radius, y - radius, radius, radius);
+    g->setGradientFill(ColourGradient(black, x + w, y, Colours::transparentBlack, x + w, y - radius, true));
+    g->fillRect(x + w, y - radius, radius, radius);
+    g->setGradientFill(ColourGradient(black, x, y + h, Colours::transparentBlack, x, y + h + radius, false));
+    g->fillRect(x, y + h, w, radius);
+    g->setGradientFill(ColourGradient(black, x, y + h, Colours::transparentBlack, x, y + h + radius, true));
+    g->fillRect(x - radius, y + h, radius, radius);
+    g->setGradientFill(ColourGradient(black, x + w, y + h, Colours::transparentBlack, x + w, y + h + radius, true));
+    g->fillRect(x + w, y + h, radius, radius);
+    g->setGradientFill(ColourGradient(black, x, y, Colours::transparentBlack, x - radius, y, false));
+    g->fillRect(x - radius, y, radius, h);
+    g->setGradientFill(ColourGradient(black, x + w, y, Colours::transparentBlack, x + w + radius, y, false));
+    g->fillRect(x + w, y, radius, h);
+}
+
 //==============================================================================
 AudioBenchAudioProcessorEditor::AudioBenchAudioProcessorEditor (AudioBenchAudioProcessor& p)
     : AudioProcessorEditor (&p), processor (p)
@@ -113,6 +134,7 @@ AudioBenchAudioProcessorEditor::AudioBenchAudioProcessorEditor (AudioBenchAudioP
     fns.fillPie = fillPie;
     fns.writeText = writeText;
     fns.drawIcon = drawIcon;
+    fns.drawDropShadow = drawDropShadow;
     ABSetGraphicsFunctions(p.ab, fns);
 
     int numIcons = ABGetNumIcons(p.ab);
