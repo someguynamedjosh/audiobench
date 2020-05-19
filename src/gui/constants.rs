@@ -37,7 +37,8 @@ pub const KNOB_MENU_KNOB_IR: i32 = 40;
 pub const KNOB_MENU_LANE_GAP: i32 = 2;
 
 pub const CORNER_SIZE: i32 = 4;
-pub const DROP_SHADOW_RADIUS: i32 = 30;
+pub const MODULE_SHADOW_RADIUS: i32 = 25;
+pub const POPUP_SHADOW_RADIUS: i32 = 40;
 pub const JACK_SIZE: i32 = GRID_1;
 pub const JACK_DEFAULT_SIZE: i32 = JACK_SIZE - 4;
 pub const JACK_ICON_PADDING: i32 = 1;

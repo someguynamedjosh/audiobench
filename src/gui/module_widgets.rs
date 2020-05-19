@@ -114,7 +114,7 @@ pub(in crate::gui) trait ModuleWidget {
         parent_pos: (i32, i32),
     ) -> MouseAction;
     fn get_drop_target_at(&self, mouse_pos: (i32, i32)) -> DropTarget;
-    fn add_wires(&self, wire_tracker: &mut WireTracker) { }
+    fn add_wires(&self, wire_tracker: &mut WireTracker) {}
     fn draw(
         &self,
         g: &mut GrahpicsWrapper,
@@ -480,8 +480,11 @@ impl KnobEditor {
         g.push_state();
 
         g.apply_offset(self.pos.0, self.pos.1);
+        const BSR: i32 = POPUP_SHADOW_RADIUS;
+        const CS: i32 = CORNER_SIZE;
+        g.draw_inset_box_shadow(0, 0, self.size.0, self.size.1, BSR, CS);
         g.set_color(&COLOR_SURFACE);
-        g.fill_rounded_rect(0, 0, self.size.0, self.size.1, CORNER_SIZE);
+        g.fill_rounded_rect(0, 0, self.size.0, self.size.1, CS);
 
         let control = &*self.control.borrow();
         fn value_to_angle(range: (f32, f32), value: f32) -> f32 {

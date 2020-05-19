@@ -679,7 +679,7 @@ impl Module {
                 pos.1,
                 self.size.0 - JACK_SIZE,
                 self.size.1,
-                DROP_SHADOW_RADIUS,
+                MODULE_SHADOW_RADIUS,
                 CORNER_SIZE,
             );
         } else if layer_index == 1 {

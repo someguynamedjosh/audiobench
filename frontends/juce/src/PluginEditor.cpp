@@ -96,7 +96,7 @@ void drawIcon(void *gp, void *iconStore, int index, int x, int y, int size) {
 
 void drawDropShadow(void *gp, int x, int y, int w, int h, int radius) {
     Graphics *g = (Graphics*) gp;
-    auto black = Colours::black.withAlpha(0.5f);
+    auto black = Colours::black.withAlpha(0.4f);
     g->setGradientFill(ColourGradient(black, x, y, Colours::transparentBlack, x, y - radius, false));
     g->fillRect(x, y - radius, w, radius);
     g->setGradientFill(ColourGradient(black, x, y, Colours::transparentBlack, x, y - radius, true));
