@@ -1,3 +1,12 @@
-macro Wave(buffer_pos, phase):(value) {
+macro Waveform(buffer_pos, phase):(value) {
     AUTO value = Sin(phase * TAU);
+}
+
+if global_update_feedback_data {
+    [60]FLOAT feedback;
+    for i = 0 to 60 no_unroll {
+        FLOAT fphase = Itof(i) / 59.0;
+        feedback[i] = Waveform(0, fphase)[0?];
+    }
+    SetGraphFeedback(feedback);
 }

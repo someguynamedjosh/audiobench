@@ -5,15 +5,6 @@ static phase {
     [2]FLOAT phase = 0.0;
 }
 
-if global_update_feedback_data {
-    [60]FLOAT feedback;
-    for i = 0 to 60 no_unroll {
-        FLOAT fphase = Itof(i) / 59.0;
-        feedback[i] = Waveform(0, fphase)[0?];
-    }
-    SetGraphFeedback(feedback);
-}
-
 INT OVERSAMPLING = 4;
 for i = 0 to BUFFER_LENGTH no_unroll {
     // TODO: Add language features so that we don't have to do this.

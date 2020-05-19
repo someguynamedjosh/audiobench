@@ -1,11 +1,17 @@
 inputs:
 outputs:
-  Wave:
+  Waveform:
     type: waveform
     label: Waveform
 controls:
 gui: 
   label: Sine Wave
-  width: 2
+  width: 3
   height: 2
   widgets:
+    waveform_graph:
+      x: 0
+      y: 0
+      w: 3
+      h: 2
+      feedback_name: graph_feedback

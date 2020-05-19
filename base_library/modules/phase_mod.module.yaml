@@ -1,21 +1,27 @@
 inputs:
+  Carrier:
+    type: waveform
+    label: Carrier
+  Modulator:
+    type: waveform
+    label: Modulator
 outputs:
   Waveform:
     type: waveform
     label: Waveform
 controls:
-  duty:
-    min: 0.0
-    max: 1.0
+  intensity:
+    min: 0
+    max: 1
     default: 0.5
 gui: 
-  label: Square Wave
+  label: Phase Mod.
   width: 5
   height: 2
   widgets:
     knob:
-      control: duty
-      label: Duty
+      control: intensity
+      label: Intensity
       x: 0
       y: 0
     waveform_graph:

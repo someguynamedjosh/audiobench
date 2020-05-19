@@ -1,11 +1,8 @@
 macro Waveform(buffer_pos, phase):(value) {
-    // TODO: Language features so that this can be stereo.
-    FLOAT value;
-    if phase[0?] < duty[buffer_pos?][0?] {
-        value = 1.0;
-    } else {
-        value = -1.0;
-    }
+    AUTO phase_offset = Modulator(buffer_pos, phase) * intensity[buffer_pos?];
+    // TODO: Half / full modulation.
+    AUTO real_phase = (phase + phase_offset + 1.0) % 1.0;
+    AUTO value = Carrier(buffer_pos, real_phase);
 }
 
 if global_update_feedback_data {

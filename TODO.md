@@ -6,6 +6,7 @@ A way to remove automation channels and modules
 Average together multiple automation channels (instead of add)
 Waveform modification modules like AM/PM/FM
 Complex controls, specifically a way to select something from a list of options.
+Master volume control
 
 # Things with missing dependencies
 
@@ -22,6 +23,7 @@ lanes to see more easily what's connected to what
 scroll to zoom
 save and load presets
 syntax highlighting for nodescript
+Play a pretend note when moving knobs so you can see its effect without playing your own note.
 
 # Code organization stuff
 Control -> Parameter?
