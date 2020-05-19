@@ -1,4 +1,4 @@
-use crate::engine::parts::{Control, IOJack, JackType, Module, ModuleTemplate};
+use crate::engine::parts::{ComplexControl, Control, IOJack, JackType, Module, ModuleTemplate};
 use crate::engine::yaml::{self, YamlNode};
 use crate::gui::module_widgets::WidgetOutline;
 use crate::util::*;
@@ -17,6 +17,7 @@ fn create_control_from_yaml(yaml: &YamlNode) -> Result<Rcrc<Control>, String> {
 fn create_widget_outline_from_yaml(
     yaml: &YamlNode,
     controls: &Vec<Rcrc<Control>>,
+    complex_controls: &Vec<Rcrc<ComplexControl>>,
 ) -> Result<WidgetOutline, String> {
     let x = yaml.unique_child("x")?.i32()?;
     let y = yaml.unique_child("y")?.i32()?;
@@ -28,6 +29,17 @@ fn create_widget_outline_from_yaml(
             .ok_or_else(|| {
                 format!(
                     "ERROR: Invalid widget {}, caused by:\nERROR: No control named {}.",
+                    &yaml.full_name, name
+                )
+            })
+    };
+    let find_complex_control_index = |name: &str| {
+        complex_controls
+            .iter()
+            .position(|item| &item.borrow().code_name == name)
+            .ok_or_else(|| {
+                format!(
+                    "ERROR: Invalid widget {}, caused by:\nERROR: No complex control named {}.",
                     &yaml.full_name, name
                 )
             })
@@ -91,6 +103,18 @@ fn create_module_prototype_from_yaml(
         controls.push(create_control_from_yaml(&control_description)?);
     }
 
+    let mut complex_controls = Vec::new();
+    if let Ok(child) = &yaml.unique_child("complex_controls") {
+        for description in &child.children {
+            // TODO: Error for duplicate control
+            // TODO: Some kind of system for detecting bad initial values?
+            complex_controls.push(rcrc(ComplexControl {
+                code_name: description.name.clone(),
+                value: description.value.clone(),
+            }));
+        }
+    }
+
     let gui_description = yaml.unique_child("gui")?;
     let widgets_description = gui_description.unique_child("widgets")?;
     let label = gui_description.unique_child("label")?.value.clone();
@@ -101,6 +125,7 @@ fn create_module_prototype_from_yaml(
         widgets.push(create_widget_outline_from_yaml(
             widget_description,
             &controls,
+            &complex_controls,
         )?);
     }
 
@@ -184,7 +209,12 @@ fn create_module_prototype_from_yaml(
         feedback_data_len,
     };
 
-    Ok(Module::create(rcrc(template), controls, default_inputs))
+    Ok(Module::create(
+        rcrc(template),
+        controls,
+        complex_controls,
+        default_inputs,
+    ))
 }
 
 pub struct Registry {

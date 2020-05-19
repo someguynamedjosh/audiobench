@@ -28,6 +28,12 @@ impl Control {
 }
 
 #[derive(Clone, Debug)]
+pub struct ComplexControl {
+    pub code_name: String,
+    pub value: String,
+}
+
+#[derive(Clone, Debug)]
 pub enum InputConnection {
     Wire(Rcrc<Module>, usize),
     Default(usize),
@@ -190,6 +196,7 @@ impl IOJack {
 pub struct Module {
     pub template: Rcrc<ModuleTemplate>,
     pub controls: Vec<Rcrc<Control>>,
+    pub complex_controls: Vec<Rcrc<ComplexControl>>,
     pub pos: (i32, i32),
     pub inputs: Vec<InputConnection>,
     pub feedback_data: Option<Rcrc<Vec<f32>>>,
@@ -206,6 +213,7 @@ impl Clone for Module {
                 .iter()
                 .map(|control_ref| rcrc((*control_ref.borrow()).clone()))
                 .collect(),
+            complex_controls: self.complex_controls.clone(),
             pos: self.pos,
             inputs: self.inputs.clone(),
             feedback_data: None,
@@ -217,12 +225,13 @@ impl Module {
     pub fn create(
         template: Rcrc<ModuleTemplate>,
         controls: Vec<Rcrc<Control>>,
+        complex_controls: Vec<Rcrc<ComplexControl>>,
         default_inputs: Vec<usize>,
     ) -> Self {
-        let num_inputs = template.borrow().inputs.len();
         Self {
             template,
             controls,
+            complex_controls,
             pos: (0, 0),
             inputs: default_inputs
                 .into_iter()

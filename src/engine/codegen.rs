@@ -225,6 +225,13 @@ impl<'a> CodeGenerator<'a> {
             code.push_str("    }\n");
         }
         code.push_str(&custom_feedback_code);
+        for cc in &module_ref.complex_controls {
+            let cc_ref = cc.borrow();
+            code.push_str(&format!(
+                "    AUTO {} = {};\n",
+                cc_ref.code_name, cc_ref.value
+            ));
+        }
 
         code.push_str(&format!(
             "    include \"{}\";\n",

@@ -1,15 +1,13 @@
 # Things with no dependencies
 Tooltips and interaction hints
-Widget for displaying waveforms
-Snap / Precision modifier keys for dragging controls
+Snap / Precision modifier keys for dragging controls (and for moving modules)
 Some way to reset the value of a control
-Layers for drawing
 A way to remove automation channels and modules
 Average together multiple automation channels (instead of add)
+Waveform modification modules like AM/PM/FM
+Complex controls, specifically a way to select something from a list of options.
 
 # Things with missing dependencies
-Drop shadow draw function
-Better wire arrangement
 
 # Low-priority things without dependencies
 Output silent audio while recompiling instead of hanging the thread
@@ -21,6 +19,9 @@ Make the add modules menu look nice
 Options to change how automation channels are mixed together
 Highlight connections when hovering over things like outputs and automation
 lanes to see more easily what's connected to what
+scroll to zoom
+save and load presets
+syntax highlighting for nodescript
 
 # Code organization stuff
 Control -> Parameter?
