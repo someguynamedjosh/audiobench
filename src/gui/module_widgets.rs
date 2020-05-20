@@ -149,7 +149,7 @@ impl ModuleWidget for Knob {
         parent_pos: (i32, i32),
     ) -> MouseAction {
         let mouse_pos = (mouse_pos.0 - self.pos.0, mouse_pos.1 - self.pos.1);
-        if mouse_pos.inside((grid(2), grid(1))) {
+        if mouse_pos.inside((grid(2), grid(2))) {
             if mods.right_click {
                 let pos = (
                     self.pos.0 + parent_pos.0 + grid(2) / 2,
@@ -170,7 +170,7 @@ impl ModuleWidget for Knob {
 
     fn get_drop_target_at(&self, mouse_pos: (i32, i32)) -> DropTarget {
         let mouse_pos = (mouse_pos.0 - self.pos.0, mouse_pos.1 - self.pos.1);
-        if mouse_pos.inside((grid(2), grid(1))) {
+        if mouse_pos.inside((grid(2), grid(2))) {
             DropTarget::Control(Rc::clone(&self.control))
         } else {
             DropTarget::None

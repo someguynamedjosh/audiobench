@@ -1,15 +1,13 @@
-[BUFFER_LENGTH][2]FLOAT audio;
+DATA_TYPE SAMPLE = amplitude[0?]:TYPE + Waveform(0, 0.0):TYPE + pitch:TYPE;
+[BUFFER_LENGTH]SAMPLE audio;
 
-// TODO: Add language features so that this doesn't have to always be stereo.
 static phase {
-    [2]FLOAT phase = 0.0;
+    SAMPLE phase = 0.0;
 }
 
 INT OVERSAMPLING = 4;
 for i = 0 to BUFFER_LENGTH no_unroll {
-    // TODO: Add language features so that we don't have to do this.
-    AUTO value = amplitude[i?] * Waveform(i, phase);
-    value = 0.0;
+    SAMPLE value = 0.0;
     for subsample = 0 to OVERSAMPLING {
         value = value + amplitude[i?] * Waveform(i, phase);
         phase = (phase + pitch / SAMPLE_RATE / Itof(OVERSAMPLING)) % 1.0;
