@@ -1,0 +1,32 @@
+inputs:
+  Carrier:
+    type: waveform
+    label: Carrier
+  Modulator:
+    type: waveform
+    label: Modulator
+outputs:
+  Waveform:
+    type: waveform
+    label: Waveform
+controls:
+  intensity:
+    min: 0
+    max: 1
+    default: 0.5
+gui: 
+  label: Amplitude Mod.
+  width: 5
+  height: 2
+  widgets:
+    knob:
+      control: intensity
+      label: Intensity
+      x: 0
+      y: 0
+    waveform_graph:
+      x: 2
+      y: 0
+      w: 3
+      h: 2
+      feedback_name: graph_feedback

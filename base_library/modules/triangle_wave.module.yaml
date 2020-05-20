@@ -1,0 +1,26 @@
+inputs:
+outputs:
+  Waveform:
+    type: waveform
+    label: Waveform
+controls:
+  peak_phase:
+    min: 0.0
+    max: 1.0
+    default: 1.0
+gui: 
+  label: Triangle Wave
+  width: 5
+  height: 2
+  widgets:
+    knob:
+      control: peak_phase
+      label: Peak Phase
+      x: 0
+      y: 0
+    waveform_graph:
+      x: 2
+      y: 0
+      w: 3
+      h: 2
+      feedback_name: graph_feedback
