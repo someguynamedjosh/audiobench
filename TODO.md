@@ -1,7 +1,8 @@
 # Things with no dependencies
 Constantize font size.
 Tooltips and interaction hints
-Fix right-click menu being broken.
+Tooltips for menu bar tabs
+Tooltips for module library
 Make screens enums instead of constants.
 Snap / Precision modifier keys for dragging controls (and for moving modules)
 Some way to reset the value of a control
@@ -17,6 +18,7 @@ save and load presets
 Make the add modules menu look nice
 
 # Low-priority things without dependencies
+Control suffixes.
 Some kind of Nodespeak library to simplify common tasks like updating waveform displays.
 Output silent audio while recompiling instead of hanging the thread
 Display numeric value of control when manually dragging it
@@ -30,6 +32,8 @@ scroll to zoom
 Play a pretend note when moving knobs so you can see its effect without playing your own note.
 
 # Code organization stuff
+Use more TupleUtil functions
+ModuleLibrary -> ModuleCatalog
 Control -> Parameter?
 Parameter -> AutoParam, ComplexParam?
 use fewer i32s, replace with usizes when it would be helpful.

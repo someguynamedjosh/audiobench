@@ -106,8 +106,10 @@ impl Gui {
         registry: &Registry,
         new_pos: (i32, i32),
     ) -> Option<InstanceAction> {
+        let mut retval = None;
         self.mouse_pos = new_pos;
-        let new_tooltip = if self.mouse_down {
+        let mut new_tooltip = None;
+        if self.mouse_down {
             let delta = (
                 new_pos.0 - self.click_position.0,
                 new_pos.1 - self.click_position.1,
@@ -119,19 +121,19 @@ impl Gui {
                 }
             }
             if self.dragged {
-                let gui_action = self.mouse_action.on_drag(delta);
+                let (gui_action, tooltip) = self.mouse_action.on_drag(delta);
+                new_tooltip = tooltip;
                 self.click_position = new_pos;
-                return gui_action
+                retval = gui_action
                     .map(|action| self.perform_action(registry, action))
                     .flatten();
             }
-            // TODO: Tooltips while dragging.
-            None
-        } else {
+        }
+        if new_tooltip.is_none()  {
             // TODO: Module library tooltips?
-            match self.current_screen {
+            new_tooltip = match self.current_screen {
                 MODULE_GRAPH_SCREEN => self.graph.get_tooltip_at(new_pos),
-                _ => None
+                _ => None,
             }
         };
         if let Some(tooltip) = new_tooltip {
@@ -139,7 +141,7 @@ impl Gui {
         } else {
             self.menu_bar.set_tooltip(Tooltip::default());
         }
-        None
+        retval
     }
 
     fn perform_action(&mut self, registry: &Registry, action: GuiAction) -> Option<InstanceAction> {

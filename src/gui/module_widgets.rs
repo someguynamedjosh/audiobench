@@ -204,6 +204,7 @@ impl ModuleWidget for Knob {
                 Rc::clone(&self.control),
                 pos,
                 self.label.clone(),
+                self.tooltip.clone(),
             )))
         } else {
             MouseAction::ManipulateControl(Rc::clone(&self.control))
@@ -555,10 +556,16 @@ pub struct KnobEditor {
     pos: (i32, i32),
     size: (i32, i32),
     label: String,
+    tooltip: String,
 }
 
 impl KnobEditor {
-    fn create(control: Rcrc<ep::Control>, center_pos: (i32, i32), label: String) -> Self {
+    fn create(
+        control: Rcrc<ep::Control>,
+        center_pos: (i32, i32),
+        label: String,
+        tooltip: String,
+    ) -> Self {
         let num_channels = control.borrow().automation.len().max(2) as i32;
         let required_radius =
             (KNOB_MENU_LANE_SIZE + KNOB_MENU_LANE_GAP) * num_channels + KNOB_MENU_KNOB_OR + GRID_P;
@@ -568,14 +575,23 @@ impl KnobEditor {
             pos: (center_pos.0 - size.0 / 2, center_pos.1 - size.1 / 2),
             size,
             label,
+            tooltip,
         }
+    }
+
+    pub(in crate::gui) fn get_pos(&self) -> (i32, i32) {
+        self.pos
+    }
+
+    pub(in crate::gui) fn get_bounds(&self) -> (i32, i32) {
+        self.size
     }
 
     pub(in crate::gui) fn respond_to_mouse_press(
         &self,
         local_pos: (i32, i32),
         mods: &MouseMods,
-    ) -> Option<MouseAction> {
+    ) -> MouseAction {
         // Yes, the last 0 is intentional. The center of the knob is not vertically centered.
         let (cx, cy) = (local_pos.0 - self.size.0 / 2, local_pos.1 - self.size.0 / 2);
         // y coordinate is inverted from how it appears on screen.
@@ -589,7 +605,7 @@ impl KnobEditor {
             if radius < KNOB_MENU_KNOB_IR {
                 // Nothing interactable inside the knob.
             } else if radius < KNOB_MENU_KNOB_OR {
-                return Some(MouseAction::ManipulateControl(Rc::clone(&self.control)));
+                return MouseAction::ManipulateControl(Rc::clone(&self.control));
             } else {
                 let radius = radius - KNOB_MENU_KNOB_OR;
                 let lane = (radius / (KNOB_MENU_LANE_SIZE + KNOB_MENU_LANE_GAP)) as usize;
@@ -602,17 +618,54 @@ impl KnobEditor {
                     let min_angle = lane_range.0.from_range_to_range(range.0, range.1, PI, 0.0);
                     let max_angle = lane_range.1.from_range_to_range(range.0, range.1, PI, 0.0);
                     // TODO: Handle inverted lanes.
-                    return Some(if angle > min_angle {
+                    return if angle > min_angle {
                         MouseAction::ManipulateLaneStart(Rc::clone(&self.control), lane)
                     } else if angle < max_angle {
                         MouseAction::ManipulateLaneEnd(Rc::clone(&self.control), lane)
                     } else {
                         MouseAction::ManipulateLane(Rc::clone(&self.control), lane)
-                    });
+                    };
                 }
             }
         }
-        Some(MouseAction::None)
+        MouseAction::None
+    }
+
+    pub(in crate::gui) fn get_tooltip_at(&self, local_pos: (i32, i32)) -> Option<Tooltip> {
+        // Yes, the last 0 is intentional. The center of the knob is not vertically centered.
+        let (cx, cy) = (local_pos.0 - self.size.0 / 2, local_pos.1 - self.size.0 / 2);
+        // y coordinate is inverted from how it appears on screen.
+        let (fcx, fcy) = (cx as f32, -cy as f32);
+        let (angle, radius) = (fcy.atan2(fcx), (fcy * fcy + fcx * fcx).sqrt());
+        let control = &*self.control.borrow();
+        let auto_lanes = control.automation.len();
+        // Clicked somewhere in the top "half" where the main knob and automation lanes are.
+        if !(angle >= 0.0 && angle <= PI) {
+            return None;
+        }
+        let radius = radius as i32;
+        if radius < KNOB_MENU_KNOB_IR {
+            return None;
+            // Nothing interactable inside the knob.
+        }
+        if radius < KNOB_MENU_KNOB_OR {
+            return Some(Tooltip {
+                text: self.tooltip.clone(),
+                interaction: InteractionHint::LeftClickAndDrag.into(),
+            });
+        }
+        let radius = radius - KNOB_MENU_KNOB_OR;
+        let lane = (radius / (KNOB_MENU_LANE_SIZE + KNOB_MENU_LANE_GAP)) as usize;
+        if lane < auto_lanes {
+            return Some(Tooltip {
+                text: format!(
+                    "Automation lane #{}, click + drag on empty space to move one end at a time.",
+                    lane + 1,
+                ),
+                interaction: InteractionHint::LeftClickAndDrag.into(),
+            });
+        }
+        None
     }
 
     pub(in crate::gui) fn draw(&self, g: &mut GrahpicsWrapper) {

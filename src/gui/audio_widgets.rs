@@ -6,7 +6,6 @@ use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
 use crate::gui::module_widgets::{self, KnobEditor, ModuleWidget};
 use crate::gui::{Gui, InteractionHint, MouseMods, Tooltip};
 use crate::util::*;
-use std::borrow::Cow;
 use std::f32::consts::PI;
 
 // This code is not intended to be maintainable. It was created by madly scribbling on graph paper
@@ -634,8 +633,8 @@ impl Module {
             return MouseAction::None;
         }
         for (widget, _) in &self.widgets {
-            let pos = widget.get_position();
-            let local_pos = (mouse_pos.0 - pos.0, mouse_pos.1 - pos.1);
+            let wpos = widget.get_position();
+            let local_pos = mouse_pos.sub(wpos);
             if local_pos.inside(widget.get_bounds()) {
                 let action = widget.respond_to_mouse_press(local_pos, mods, pos);
                 if !action.is_none() {
@@ -877,8 +876,9 @@ impl ModuleGraph {
             mouse_pos.1 - offset.1 - self.pos.1,
         );
         if let Some(widget) = &self.detail_menu_widget {
-            if let Some(action) = widget.respond_to_mouse_press(mouse_pos, mods) {
-                return action;
+            let local_pos = mouse_pos.sub(widget.get_pos());
+            if local_pos.inside(widget.get_bounds()) {
+                return widget.respond_to_mouse_press(local_pos, mods);
             } else {
                 self.detail_menu_widget = None;
             }
@@ -913,6 +913,12 @@ impl ModuleGraph {
             mouse_pos.0 - offset.0 - self.pos.0,
             mouse_pos.1 - offset.1 - self.pos.1,
         );
+        if let Some(dmw) = &self.detail_menu_widget {
+            let local_pos = mouse_pos.sub(dmw.get_pos());
+            if local_pos.inside(dmw.get_bounds()) {
+                return dmw.get_tooltip_at(local_pos);
+            }
+        }
         for module in &self.modules {
             if let Some(tooltip) = module.get_tooltip_at(mouse_pos) {
                 return Some(tooltip);

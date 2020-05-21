@@ -1,5 +1,6 @@
 use crate::engine::parts as ep;
 use crate::gui::module_widgets;
+use crate::gui::{InteractionHint, Tooltip};
 use crate::util::*;
 
 // Describes an action that should be performed on an instance level.
@@ -52,7 +53,10 @@ impl MouseAction {
         }
     }
 
-    pub(in crate::gui) fn on_drag(&mut self, delta: (i32, i32)) -> Option<GuiAction> {
+    pub(in crate::gui) fn on_drag(
+        &mut self,
+        delta: (i32, i32),
+    ) -> (Option<GuiAction>, Option<Tooltip>) {
         match self {
             Self::ManipulateControl(control) => {
                 let delta = delta.0 - delta.1;
@@ -68,7 +72,13 @@ impl MouseAction {
                     lane.range.0 = (lane.range.0 + delta).clam(range.0, range.1);
                     lane.range.1 = (lane.range.1 + delta).clam(range.0, range.1);
                 }
-                return Some(GuiAction::Elevate(InstanceAction::ReloadAuxData));
+                return (
+                    Some(GuiAction::Elevate(InstanceAction::ReloadAuxData)),
+                    Some(Tooltip {
+                        text: format_decimal(control_ref.value, 4),
+                        interaction: InteractionHint::LeftClickAndDrag.into(),
+                    }),
+                );
             }
             Self::ManipulateLane(control, lane_index) => {
                 let delta = delta.0 - delta.1;
@@ -82,7 +92,18 @@ impl MouseAction {
                 let lane = &mut control_ref.automation[*lane_index];
                 lane.range.0 = (lane.range.0 + delta).clam(range.0, range.1);
                 lane.range.1 = (lane.range.1 + delta).clam(range.0, range.1);
-                return Some(GuiAction::Elevate(InstanceAction::ReloadAuxData));
+                let tttext = format!(
+                    "{} to {}",
+                    format_decimal(lane.range.0, 4),
+                    format_decimal(lane.range.1, 4)
+                );
+                return (
+                    Some(GuiAction::Elevate(InstanceAction::ReloadAuxData)),
+                    Some(Tooltip {
+                        text: tttext,
+                        interaction: InteractionHint::LeftClickAndDrag.into(),
+                    }),
+                );
             }
             Self::ManipulateLaneStart(control, lane_index) => {
                 let delta = delta.0 - delta.1;
@@ -95,7 +116,18 @@ impl MouseAction {
                 let delta = delta * (range.1 - range.0) as f32;
                 let lane = &mut control_ref.automation[*lane_index];
                 lane.range.0 = (lane.range.0 + delta).clam(range.0, range.1);
-                return Some(GuiAction::Elevate(InstanceAction::ReloadAuxData));
+                let tttext = format!(
+                    "{} to {}",
+                    format_decimal(lane.range.0, 4),
+                    format_decimal(lane.range.1, 4)
+                );
+                return (
+                    Some(GuiAction::Elevate(InstanceAction::ReloadAuxData)),
+                    Some(Tooltip {
+                        text: tttext,
+                        interaction: InteractionHint::LeftClickAndDrag.into(),
+                    }),
+                );
             }
             Self::ManipulateLaneEnd(control, lane_index) => {
                 let delta = delta.0 - delta.1;
@@ -108,7 +140,18 @@ impl MouseAction {
                 let delta = delta * (range.1 - range.0) as f32;
                 let lane = &mut control_ref.automation[*lane_index];
                 lane.range.1 = (lane.range.1 + delta).clam(range.0, range.1);
-                return Some(GuiAction::Elevate(InstanceAction::ReloadAuxData));
+                let tttext = format!(
+                    "{} to {}",
+                    format_decimal(lane.range.0, 4),
+                    format_decimal(lane.range.1, 4)
+                );
+                return (
+                    Some(GuiAction::Elevate(InstanceAction::ReloadAuxData)),
+                    Some(Tooltip {
+                        text: tttext,
+                        interaction: InteractionHint::LeftClickAndDrag.into(),
+                    }),
+                );
             }
             Self::ManipulateIntControl {
                 cref,
@@ -141,7 +184,7 @@ impl MouseAction {
             }
             _ => (),
         }
-        None
+        (None, None)
     }
 
     pub(in crate::gui) fn on_drop(self, target: DropTarget) -> Option<GuiAction> {
