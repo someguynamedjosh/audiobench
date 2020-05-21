@@ -2,13 +2,16 @@ inputs:
   Carrier:
     type: waveform
     label: Carrier
+    tooltip: The base waveform which will be modulated
   Modulator:
     type: waveform
     label: Modulator
+    tooltip: The waveform that will control how the carrier is modulated
 outputs:
   Waveform:
     type: waveform
     label: Waveform
+    tooltip: The modulated waveform
 controls:
   intensity:
     min: 0

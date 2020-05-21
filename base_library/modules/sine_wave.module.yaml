@@ -3,6 +3,7 @@ outputs:
   Waveform:
     type: waveform
     label: Waveform
+    tooltip: A sine wave
 controls:
 gui: 
   label: Sine Wave

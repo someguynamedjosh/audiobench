@@ -273,7 +273,14 @@ struct InputJack {
 }
 
 impl InputJack {
-    fn create(label: String, mut icon: usize, custom_icon: Option<usize>, x: i32, y: i32) -> Self {
+    fn create(
+        label: String,
+        tooltip: String,
+        mut icon: usize,
+        custom_icon: Option<usize>,
+        x: i32,
+        y: i32,
+    ) -> Self {
         let small_icon = if let Some(custom) = custom_icon {
             let small_icon = icon;
             icon = custom;
@@ -284,7 +291,7 @@ impl InputJack {
         Self {
             label,
             tooltip: Tooltip {
-                text: "// TODO: Input Tooltip".to_owned(),
+                text: tooltip,
                 interaction: InteractionHint::LeftClickAndDrag.into(),
             },
             icon,
@@ -373,7 +380,14 @@ struct OutputJack {
 }
 
 impl OutputJack {
-    fn create(label: String, mut icon: usize, custom_icon: Option<usize>, x: i32, y: i32) -> Self {
+    fn create(
+        label: String,
+        tooltip: String,
+        mut icon: usize,
+        custom_icon: Option<usize>,
+        x: i32,
+        y: i32,
+    ) -> Self {
         let small_icon = if let Some(custom) = custom_icon {
             let small_icon = icon;
             icon = custom;
@@ -384,7 +398,7 @@ impl OutputJack {
         Self {
             label,
             tooltip: Tooltip {
-                text: "// TODO: Output Tooltip".to_owned(),
+                text: tooltip,
                 interaction: InteractionHint::LeftClickAndDrag.into(),
             },
             icon,
@@ -573,6 +587,7 @@ impl Module {
         for (index, input) in template_ref.inputs.iter().enumerate() {
             inputs.push(InputJack::create(
                 input.borrow_label().to_owned(),
+                input.borrow_tooltip().to_owned(),
                 input.get_icon_index(),
                 input.get_custom_icon_index(),
                 JACK_SIZE,
@@ -583,6 +598,7 @@ impl Module {
         for (index, output) in template_ref.outputs.iter().enumerate() {
             outputs.push(OutputJack::create(
                 output.borrow_label().to_owned(),
+                output.borrow_tooltip().to_owned(),
                 output.get_icon_index(),
                 output.get_custom_icon_index(),
                 size.0 - JACK_SIZE,

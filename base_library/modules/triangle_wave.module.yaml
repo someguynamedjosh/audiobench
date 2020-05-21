@@ -3,6 +3,7 @@ outputs:
   Waveform:
     type: waveform
     label: Waveform
+    tooltip: The triangle wave
 controls:
   peak_phase:
     min: 0.0

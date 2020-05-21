@@ -145,6 +145,7 @@ pub struct IOJack {
     custom_icon_index: Option<usize>,
     code_name: String,
     label: String,
+    tooltip: String,
     default_options: Vec<DefaultInput>,
 }
 
@@ -156,6 +157,7 @@ impl IOJack {
         custom_icon_index: Option<usize>,
         code_name: String,
         label: String,
+        tooltip: String,
     ) -> Self {
         Self {
             typ,
@@ -163,6 +165,7 @@ impl IOJack {
             custom_icon_index,
             code_name,
             label,
+            tooltip,
             default_options: typ.default_options(icon_indexes),
         }
     }
@@ -185,6 +188,10 @@ impl IOJack {
 
     pub fn borrow_code_name(&self) -> &str {
         &self.code_name
+    }
+
+    pub fn borrow_tooltip(&self) -> &str {
+        &self.tooltip
     }
 
     pub fn borrow_default_options(&self) -> &[DefaultInput] {

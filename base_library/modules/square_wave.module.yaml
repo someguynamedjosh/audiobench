@@ -3,6 +3,7 @@ outputs:
   Waveform:
     type: waveform
     label: Waveform
+    tooltip: The square wave
 controls:
   duty:
     min: 0.0

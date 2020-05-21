@@ -2,13 +2,16 @@ inputs:
   pitch:
     type: pitch 
     label: Pitch
+    tooltip: The frequency to repeat the waveform at
   Waveform:
     type: waveform
     label: Waveform
+    tooltip: The waveform to repeatedly play
 outputs:
   audio:
     type: audio
     label: Audio
+    tooltip: Audio output
 controls:
   amplitude:
     min: 0

@@ -2,10 +2,12 @@ inputs:
   BaseWave:
     type: waveform
     label: Input
+    tooltip: The base waveform
 outputs:
   OutWave:
     type: waveform
     label: Output
+    tooltip: A harmonic of the input waveform
 controls:
 complex_controls:
   HARMONIC:

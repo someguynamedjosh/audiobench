@@ -190,6 +190,7 @@ fn create_module_prototype_from_yaml(
             None
         };
         let label = input_description.unique_child("label")?.value.clone();
+        let tooltip = input_description.unique_child("tooltip")?.value.clone();
         default_inputs.push(
             if let Ok(node) = input_description.unique_child("default") {
                 let index = node.i32()? as usize;
@@ -209,6 +210,7 @@ fn create_module_prototype_from_yaml(
             custom_icon,
             input_description.name.clone(),
             label,
+            tooltip,
         ));
     }
     let mut outputs = Vec::new();
@@ -228,6 +230,7 @@ fn create_module_prototype_from_yaml(
             None
         };
         let label = output_description.unique_child("label")?.value.clone();
+        let tooltip = output_description.unique_child("tooltip")?.value.clone();
         outputs.push(IOJack::create(
             icon_indexes,
             typ,
@@ -235,6 +238,7 @@ fn create_module_prototype_from_yaml(
             custom_icon,
             output_description.name.clone(),
             label,
+            tooltip,
         ));
     }
 
