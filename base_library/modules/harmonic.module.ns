@@ -1,0 +1,12 @@
+macro OutWave(buffer_pos, phase):(value) {
+    BaseWave(buffer_pos, phase * Itof(HARMONIC) % 1.0):(AUTO value);
+}
+
+if global_update_feedback_data {
+    [60]FLOAT feedback;
+    for i = 0 to 60 no_unroll {
+        FLOAT fphase = Itof(i) / 59.0;
+        feedback[i] = OutWave(0, fphase)[0?];
+    }
+    SetGraphFeedback(feedback);
+}

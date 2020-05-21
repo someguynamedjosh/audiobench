@@ -1,0 +1,29 @@
+inputs:
+  BaseWave:
+    type: waveform
+    label: Input
+outputs:
+  OutWave:
+    type: waveform
+    label: Output
+controls:
+complex_controls:
+  HARMONIC:
+gui:
+  label: Harmonic
+  width: 5
+  height: 2
+  widgets:
+    int_box:
+      x: 0
+      y: 0
+      control: HARMONIC
+      label: Harmonic
+      min: 1
+      max: 99
+    waveform_graph:
+      x: 2
+      y: 0
+      w: 3
+      h: 2
+      feedback_name: graph_feedback
