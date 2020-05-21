@@ -4,9 +4,10 @@ Snap / Precision modifier keys for dragging controls (and for moving modules)
 Some way to reset the value of a control
 A way to remove automation channels and modules
 Average together multiple automation channels (instead of add)
-Waveform modification modules like AM/PM/FM
+FN Oscillator
 Complex controls, specifically a way to select something from a list of options.
 Master volume control
+Add option to draw white icons.
 
 # Things with missing dependencies
 

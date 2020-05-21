@@ -17,7 +17,7 @@ fn create_control_from_yaml(yaml: &YamlNode) -> Result<Rcrc<Control>, String> {
 fn create_widget_outline_from_yaml(
     yaml: &YamlNode,
     controls: &Vec<Rcrc<Control>>,
-    complex_controls: &Vec<Rcrc<ComplexControl>>,
+    complex_controls: &mut Vec<Rcrc<ComplexControl>>,
 ) -> Result<WidgetOutline, String> {
     let x = yaml.unique_child("x")?.i32()?;
     let y = yaml.unique_child("y")?.i32()?;
@@ -44,16 +44,17 @@ fn create_widget_outline_from_yaml(
                 )
             })
     };
-    match &yaml.name[..] {
+    let mut set_default = None;
+    let outline = match &yaml.name[..] {
         "knob" => {
             let control_name = &yaml.unique_child("control")?.value;
             let control_index = find_control_index(control_name)?;
             let label = yaml.unique_child("label")?.value.clone();
-            Ok(WidgetOutline::Knob {
+            WidgetOutline::Knob {
                 control_index,
                 grid_pos,
                 label,
-            })
+            }
         }
         "envelope_graph" => {
             let grid_size = (
@@ -61,11 +62,11 @@ fn create_widget_outline_from_yaml(
                 yaml.unique_child("h")?.i32()?,
             );
             let feedback_name = yaml.unique_child("feedback_name")?.value.clone();
-            Ok(WidgetOutline::EnvelopeGraph {
+            WidgetOutline::EnvelopeGraph {
                 grid_pos,
                 grid_size,
                 feedback_name,
-            })
+            }
         }
         "waveform_graph" => {
             let grid_size = (
@@ -73,17 +74,48 @@ fn create_widget_outline_from_yaml(
                 yaml.unique_child("h")?.i32()?,
             );
             let feedback_name = yaml.unique_child("feedback_name")?.value.clone();
-            Ok(WidgetOutline::WaveformGraph {
+            WidgetOutline::WaveformGraph {
                 grid_pos,
                 grid_size,
                 feedback_name,
-            })
+            }
         }
-        _ => Err(format!(
-            "ERROR: Invalid widget {}, caused by:\nERROR: {} is not a valid widget type.",
-            &yaml.full_name, &yaml.name
-        )),
+        "int_box" => {
+            let ccontrol_name = &yaml.unique_child("control")?.value;
+            let ccontrol_index = find_complex_control_index(ccontrol_name)?;
+            let min = yaml.unique_child("min")?.i32()?;
+            let max = yaml.unique_child("max")?.i32()?;
+            let default = if let Ok(child) = yaml.unique_child("default") {
+                child.i32()?
+            } else {
+                min
+            };
+            let label = yaml.unique_child("label")?.value.clone();
+            set_default = Some((ccontrol_index, format!("{}", default)));
+            WidgetOutline::IntBox {
+                ccontrol_index,
+                grid_pos,
+                range: (min, max),
+                label,
+            }
+        }
+        _ => {
+            return Err(format!(
+                "ERROR: Invalid widget {}, caused by:\nERROR: {} is not a valid widget type.",
+                &yaml.full_name, &yaml.name
+            ))
+        }
+    };
+    if let Some((index, value)) = set_default {
+        if complex_controls[index].borrow().value != "" {
+            return Err(format!(
+                "ERROR: Multiple widgets controlling the same complex control {}.",
+                complex_controls[index].borrow().code_name
+            ));
+        }
+        complex_controls[index].borrow_mut().value = value;
     }
+    Ok(outline)
 }
 
 fn create_module_prototype_from_yaml(
@@ -107,10 +139,9 @@ fn create_module_prototype_from_yaml(
     if let Ok(child) = &yaml.unique_child("complex_controls") {
         for description in &child.children {
             // TODO: Error for duplicate control
-            // TODO: Some kind of system for detecting bad initial values?
             complex_controls.push(rcrc(ComplexControl {
                 code_name: description.name.clone(),
-                value: description.value.clone(),
+                value: "".to_owned(),
             }));
         }
     }
@@ -125,8 +156,17 @@ fn create_module_prototype_from_yaml(
         widgets.push(create_widget_outline_from_yaml(
             widget_description,
             &controls,
-            &complex_controls,
+            &mut complex_controls,
         )?);
+    }
+
+    for control in &complex_controls {
+        if control.borrow().value == "" {
+            return Err(format!(
+                "ERROR: No widget was created for the complex control {}",
+                control.borrow().code_name
+            ));
+        }
     }
 
     let mut inputs = Vec::new();

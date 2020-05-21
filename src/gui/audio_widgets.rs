@@ -1,4 +1,5 @@
 use crate::engine::parts as ep;
+use crate::engine::registry::Registry;
 use crate::gui::action::{DropTarget, MouseAction};
 use crate::gui::constants::*;
 use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
@@ -537,17 +538,20 @@ impl Module {
         )
     }
 
-    pub fn create(module: Rcrc<ep::Module>) -> Self {
+    pub fn create(registry: &Registry, module: Rcrc<ep::Module>) -> Self {
         const MIW: i32 = MODULE_IO_WIDTH;
         let mut module_ref = module.borrow_mut();
         let template_ref = module_ref.template.borrow();
         let grid_size = template_ref.size;
         let label = template_ref.label.clone();
         let module_controls = &module_ref.controls;
+        let module_ccontrols = &module_ref.complex_controls;
         let widgets = template_ref
             .widget_outlines
             .iter()
-            .map(|wo| module_widgets::widget_from_outline(module_controls, wo))
+            .map(|wo| {
+                module_widgets::widget_from_outline(registry, module_controls, module_ccontrols, wo)
+            })
             .collect();
 
         let size = (
@@ -774,12 +778,12 @@ pub struct ModuleGraph {
 }
 
 impl ModuleGraph {
-    pub fn create(graph: Rcrc<ep::ModuleGraph>) -> Self {
+    pub fn create(registry: &Registry, graph: Rcrc<ep::ModuleGraph>) -> Self {
         let modules = graph
             .borrow()
             .borrow_modules()
             .iter()
-            .map(|module_rc| Module::create(Rc::clone(module_rc)))
+            .map(|module_rc| Module::create(registry, Rc::clone(module_rc)))
             .collect();
         Self {
             pos: (0, 0),
@@ -790,12 +794,12 @@ impl ModuleGraph {
         }
     }
 
-    pub fn add_module(&mut self, mut module: ep::Module) {
+    pub fn add_module(&mut self, registry: &Registry, mut module: ep::Module) {
         module.pos = *self.offset.borrow();
         module.pos = (-module.pos.0, -module.pos.1);
         let module = rcrc(module);
         self.graph.borrow_mut().add_module(Rc::clone(&module));
-        self.modules.push(Module::create(module));
+        self.modules.push(Module::create(registry, module));
     }
 
     pub fn respond_to_mouse_press(

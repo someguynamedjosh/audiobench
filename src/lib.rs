@@ -113,7 +113,7 @@ impl Instance {
 
     pub fn mouse_move(&mut self, x: i32, y: i32) {
         if let Some(gui) = &mut self.gui {
-            let action = gui.on_mouse_move((x, y));
+            let action = gui.on_mouse_move(&self.registry, (x, y));
             action.map(|a| self.perform_action(a));
         } else {
             debug_assert!(false, "mouse_move called, but no GUI exists.");
@@ -123,7 +123,7 @@ impl Instance {
 
     pub fn mouse_up(&mut self) {
         if let Some(gui) = &mut self.gui {
-            let action = gui.on_mouse_up();
+            let action = gui.on_mouse_up(&self.registry);
             action.map(|a| self.perform_action(a));
         } else {
             debug_assert!(false, "mouse_up called, but no GUI exists.");

@@ -25,6 +25,15 @@ pub enum MouseAction {
     ManipulateLane(Rcrc<ep::Control>, usize),
     ManipulateLaneStart(Rcrc<ep::Control>, usize),
     ManipulateLaneEnd(Rcrc<ep::Control>, usize),
+    ManipulateIntControl {
+        cref: Rcrc<ep::ComplexControl>,
+        min: i32,
+        max: i32,
+        click_delta: i32,
+        // The user needs to drag across multiple pixels to increse the value by one. This value
+        // keeps track of what the value would be if it were a float and not an int.
+        float_value: f32,
+    },
     MoveModule(Rcrc<ep::Module>),
     PanOffset(Rcrc<(i32, i32)>),
     ConnectInput(Rcrc<ep::Module>, usize),
@@ -101,6 +110,25 @@ impl MouseAction {
                 lane.range.1 = (lane.range.1 + delta).clam(range.0, range.1);
                 return Some(GuiAction::Elevate(InstanceAction::ReloadAuxData));
             }
+            Self::ManipulateIntControl {
+                cref,
+                min,
+                max,
+                float_value,
+                ..
+            } => {
+                // How many pixels the user must drag across to change the value by 1.
+                const DRAG_PIXELS: f32 = 12.0;
+                let delta = delta.0 - delta.1;
+                let delta = delta as f32 / DRAG_PIXELS;
+                *float_value += delta;
+                *float_value = float_value.min(*max as f32);
+                *float_value = float_value.max(*min as f32);
+                let str_value = format!("{}", *float_value as i32);
+                if str_value != cref.borrow().value {
+                    cref.borrow_mut().value = str_value;
+                }
+            }
             Self::MoveModule(module) => {
                 let mut module_ref = module.borrow_mut();
                 module_ref.pos.0 += delta.0;
@@ -154,6 +182,9 @@ impl MouseAction {
                 }
                 return Some(GuiAction::Elevate(InstanceAction::ReloadStructure));
             }
+            Self::ManipulateIntControl { .. } => {
+                return Some(GuiAction::Elevate(InstanceAction::ReloadStructure))
+            }
             _ => (),
         }
         None
@@ -172,6 +203,22 @@ impl MouseAction {
                 if let ep::InputConnection::Default(index) = &mut module_ref.inputs[input_index] {
                     *index += 1;
                     *index %= num_options;
+                }
+                return Some(GuiAction::Elevate(InstanceAction::ReloadStructure));
+            }
+            Self::ManipulateIntControl {
+                cref,
+                min,
+                max,
+                click_delta,
+                mut float_value,
+            } => {
+                float_value += click_delta as f32;
+                float_value = float_value.min(max as f32);
+                float_value = float_value.max(min as f32);
+                let str_value = format!("{}", float_value as i32);
+                if str_value != cref.borrow().value {
+                    cref.borrow_mut().value = str_value;
                 }
                 return Some(GuiAction::Elevate(InstanceAction::ReloadStructure));
             }

@@ -31,7 +31,7 @@ impl Gui {
         let size = (640, 480);
         let y = other_widgets::MenuBar::HEIGHT;
 
-        let mut graph = audio_widgets::ModuleGraph::create(graph_ref);
+        let mut graph = audio_widgets::ModuleGraph::create(registry, graph_ref);
         graph.pos.1 = y;
         let module_library =
             other_widgets::ModuleLibrary::create(registry, (0, y), (size.0, size.1 - y));
@@ -76,7 +76,7 @@ impl Gui {
 
     /// Minimum number of pixels the mouse must move before dragging starts.
     const MIN_DRAG_DELTA: i32 = 4;
-    pub fn on_mouse_move(&mut self, new_pos: (i32, i32)) -> Option<InstanceAction> {
+    pub fn on_mouse_move(&mut self, registry: &Registry, new_pos: (i32, i32)) -> Option<InstanceAction> {
         self.mouse_pos = new_pos;
         if self.mouse_down {
             let delta = (
@@ -93,19 +93,19 @@ impl Gui {
                 let gui_action = self.mouse_action.on_drag(delta);
                 self.click_position = new_pos;
                 return gui_action
-                    .map(|action| self.perform_action(action))
+                    .map(|action| self.perform_action(registry, action))
                     .flatten();
             }
         }
         None
     }
 
-    fn perform_action(&mut self, action: GuiAction) -> Option<InstanceAction> {
+    fn perform_action(&mut self, registry: &Registry, action: GuiAction) -> Option<InstanceAction> {
         match action {
             GuiAction::OpenMenu(menu) => self.graph.open_menu(menu),
             GuiAction::SwitchScreen(new_index) => self.current_screen = new_index,
             GuiAction::AddModule(module) => {
-                self.graph.add_module(module);
+                self.graph.add_module(registry, module);
                 return Some(InstanceAction::ReloadStructure);
             }
             GuiAction::Elevate(action) => return Some(action),
@@ -113,7 +113,7 @@ impl Gui {
         None
     }
 
-    pub fn on_mouse_up(&mut self) -> Option<InstanceAction> {
+    pub fn on_mouse_up(&mut self, registry: &Registry) -> Option<InstanceAction> {
         let mouse_action = std::mem::replace(&mut self.mouse_action, MouseAction::None);
         let gui_action = if self.dragged {
             let drop_target = self.graph.get_drop_target_at(self.mouse_pos);
@@ -124,7 +124,7 @@ impl Gui {
         self.dragged = false;
         self.mouse_down = false;
         gui_action
-            .map(|action| self.perform_action(action))
+            .map(|action| self.perform_action(registry, action))
             .flatten()
     }
 

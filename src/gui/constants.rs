@@ -1,7 +1,7 @@
 /// Pixels of padding between grid squares.
-pub const GRID_P: i32 = 8;
+pub const GRID_P: i32 = 6;
 /// Number of pixels a single grid square takes.
-const GRID_1: i32 = 20;
+const GRID_1: i32 = 18;
 
 /// Computes the amount of space (in pixels) taken by the given number of grid tiles, with
 /// padding between each tile.
