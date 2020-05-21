@@ -4,6 +4,31 @@ use crate::gui::action::{GuiAction, InstanceAction, MouseAction};
 use crate::gui::graphics::GrahpicsWrapper;
 use crate::gui::{audio_widgets, other_widgets};
 use crate::util::*;
+use enumflags2::BitFlags;
+
+#[derive(BitFlags, Copy, Clone)]
+#[repr(u8)]
+pub enum InteractionHint {
+    LeftClick = 0x1,
+    RightClick = 0x2,
+    LeftClickAndDrag = 0x4,
+    DoubleClick = 0x8,
+}
+
+#[derive(Clone)]
+pub struct Tooltip {
+    pub text: String,
+    pub interaction: BitFlags<InteractionHint>,
+}
+
+impl Default for Tooltip {
+    fn default() -> Tooltip {
+        Tooltip {
+            text: "".to_owned(),
+            interaction: Default::default(),
+        }
+    }
+}
 
 pub struct MouseMods {
     pub right_click: bool,
@@ -76,9 +101,13 @@ impl Gui {
 
     /// Minimum number of pixels the mouse must move before dragging starts.
     const MIN_DRAG_DELTA: i32 = 4;
-    pub fn on_mouse_move(&mut self, registry: &Registry, new_pos: (i32, i32)) -> Option<InstanceAction> {
+    pub fn on_mouse_move(
+        &mut self,
+        registry: &Registry,
+        new_pos: (i32, i32),
+    ) -> Option<InstanceAction> {
         self.mouse_pos = new_pos;
-        if self.mouse_down {
+        let new_tooltip = if self.mouse_down {
             let delta = (
                 new_pos.0 - self.click_position.0,
                 new_pos.1 - self.click_position.1,
@@ -96,6 +125,19 @@ impl Gui {
                     .map(|action| self.perform_action(registry, action))
                     .flatten();
             }
+            // TODO: Tooltips while dragging.
+            None
+        } else {
+            // TODO: Module library tooltips?
+            match self.current_screen {
+                MODULE_GRAPH_SCREEN => self.graph.get_tooltip_at(new_pos),
+                _ => None
+            }
+        };
+        if let Some(tooltip) = new_tooltip {
+            self.menu_bar.set_tooltip(tooltip);
+        } else {
+            self.menu_bar.set_tooltip(Tooltip::default());
         }
         None
     }

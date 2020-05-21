@@ -37,21 +37,25 @@ gui:
     knob:
       control: attack
       label: Attack
+      tooltip: How long to ramp up to full volume
       x: 0
       y: 2
     knob:
       control: decay 
       label: Decay
+      tooltip: How long to ramp down to the sustain value
       x: 2
       y: 2
     knob:
       control: sustain
       label: Sustain 
+      tooltip: What value the envelope should hold before releasing
       x: 4
       y: 2
     knob:
       control: release 
       label: Release
+      tooltip: How long to fade back to no volume
       x: 6
       y: 2
     envelope_graph:

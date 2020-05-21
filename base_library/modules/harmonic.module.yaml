@@ -19,6 +19,7 @@ gui:
       y: 0
       control: HARMONIC
       label: Harmonic
+      tooltip: How many times to repeat the input waveform
       min: 1
       max: 99
     waveform_graph:

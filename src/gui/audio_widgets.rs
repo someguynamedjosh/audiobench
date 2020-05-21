@@ -4,8 +4,9 @@ use crate::gui::action::{DropTarget, MouseAction};
 use crate::gui::constants::*;
 use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
 use crate::gui::module_widgets::{self, KnobEditor, ModuleWidget};
-use crate::gui::{Gui, MouseMods};
+use crate::gui::{Gui, InteractionHint, MouseMods, Tooltip};
 use crate::util::*;
+use std::borrow::Cow;
 use std::f32::consts::PI;
 
 // This code is not intended to be maintainable. It was created by madly scribbling on graph paper
@@ -265,6 +266,7 @@ fn draw_io_wire(g: &mut GrahpicsWrapper, x1: i32, y1: i32, x2: i32, mut y2: i32)
 
 struct InputJack {
     label: String,
+    tooltip: Tooltip,
     icon: usize,
     small_icon: Option<usize>,
     pos: (i32, i32),
@@ -281,6 +283,10 @@ impl InputJack {
         };
         Self {
             label,
+            tooltip: Tooltip {
+                text: "// TODO: Input Tooltip".to_owned(),
+                interaction: InteractionHint::LeftClickAndDrag.into(),
+            },
             icon,
             small_icon,
             pos: (x, y),
@@ -360,6 +366,7 @@ impl InputJack {
 
 struct OutputJack {
     label: String,
+    tooltip: Tooltip,
     icon: usize,
     small_icon: Option<usize>,
     pos: (i32, i32),
@@ -376,6 +383,10 @@ impl OutputJack {
         };
         Self {
             label,
+            tooltip: Tooltip {
+                text: "// TODO: Output Tooltip".to_owned(),
+                interaction: InteractionHint::LeftClickAndDrag.into(),
+            },
             icon,
             small_icon,
             pos: (x, y),
@@ -607,9 +618,13 @@ impl Module {
             return MouseAction::None;
         }
         for (widget, _) in &self.widgets {
-            let action = widget.respond_to_mouse_press(mouse_pos, mods, pos);
-            if !action.is_none() {
-                return action;
+            let pos = widget.get_position();
+            let local_pos = (mouse_pos.0 - pos.0, mouse_pos.1 - pos.1);
+            if local_pos.inside(widget.get_bounds()) {
+                let action = widget.respond_to_mouse_press(local_pos, mods, pos);
+                if !action.is_none() {
+                    return action;
+                }
             }
         }
         for (index, input) in self.inputs.iter().enumerate() {
@@ -632,9 +647,13 @@ impl Module {
             return DropTarget::None;
         }
         for (widget, _) in &self.widgets {
-            let target = widget.get_drop_target_at(mouse_pos);
-            if !target.is_none() {
-                return target;
+            let pos = widget.get_position();
+            let local_pos = (mouse_pos.0 - pos.0, mouse_pos.1 - pos.1);
+            if local_pos.inside(widget.get_bounds()) {
+                let target = widget.get_drop_target_at(local_pos);
+                if !target.is_none() {
+                    return target;
+                }
             }
         }
         for (index, input) in self.inputs.iter().enumerate() {
@@ -648,6 +667,35 @@ impl Module {
             }
         }
         DropTarget::None
+    }
+
+    fn get_tooltip_at(&self, mouse_pos: (i32, i32)) -> Option<Tooltip> {
+        let pos = self.get_pos();
+        let mouse_pos = (mouse_pos.0 - pos.0, mouse_pos.1 - pos.1);
+        if !mouse_pos.inside(self.size) {
+            return None;
+        }
+        for (widget, _) in &self.widgets {
+            let pos = widget.get_position();
+            let local_pos = (mouse_pos.0 - pos.0, mouse_pos.1 - pos.1);
+            if local_pos.inside(widget.get_bounds()) {
+                let tooltip = widget.get_tooltip_at(local_pos);
+                if !tooltip.is_none() {
+                    return tooltip;
+                }
+            }
+        }
+        for input in self.inputs.iter() {
+            if input.mouse_in_bounds(mouse_pos) {
+                return Some(input.tooltip.clone());
+            }
+        }
+        for output in self.outputs.iter() {
+            if output.mouse_in_bounds(mouse_pos) {
+                return Some(output.tooltip.clone());
+            }
+        }
+        None
     }
 
     fn draw_wires(&self, g: &mut GrahpicsWrapper, pos: (i32, i32)) {
@@ -841,6 +889,20 @@ impl ModuleGraph {
             }
         }
         DropTarget::None
+    }
+
+    pub fn get_tooltip_at(&self, mouse_pos: (i32, i32)) -> Option<Tooltip> {
+        let offset = self.offset.borrow();
+        let mouse_pos = (
+            mouse_pos.0 - offset.0 - self.pos.0,
+            mouse_pos.1 - offset.1 - self.pos.1,
+        );
+        for module in &self.modules {
+            if let Some(tooltip) = module.get_tooltip_at(mouse_pos) {
+                return Some(tooltip);
+            }
+        }
+        None
     }
 
     pub fn draw(&self, g: &mut GrahpicsWrapper, gui_state: &Gui) {

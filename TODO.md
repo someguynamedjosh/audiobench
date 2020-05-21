@@ -1,5 +1,8 @@
 # Things with no dependencies
+Constantize font size.
 Tooltips and interaction hints
+Fix right-click menu being broken.
+Make screens enums instead of constants.
 Snap / Precision modifier keys for dragging controls (and for moving modules)
 Some way to reset the value of a control
 A way to remove automation channels and modules

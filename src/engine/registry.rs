@@ -22,6 +22,7 @@ fn create_widget_outline_from_yaml(
     let x = yaml.unique_child("x")?.i32()?;
     let y = yaml.unique_child("y")?.i32()?;
     let grid_pos = (x, y);
+    let tooltip_node = yaml.unique_child("tooltip");
     let find_control_index = |name: &str| {
         controls
             .iter()
@@ -51,6 +52,7 @@ fn create_widget_outline_from_yaml(
             let control_index = find_control_index(control_name)?;
             let label = yaml.unique_child("label")?.value.clone();
             WidgetOutline::Knob {
+                tooltip: tooltip_node?.value.clone(),
                 control_index,
                 grid_pos,
                 label,
@@ -93,6 +95,7 @@ fn create_widget_outline_from_yaml(
             let label = yaml.unique_child("label")?.value.clone();
             set_default = Some((ccontrol_index, format!("{}", default)));
             WidgetOutline::IntBox {
+                tooltip: tooltip_node?.value.clone(),
                 ccontrol_index,
                 grid_pos,
                 range: (min, max),

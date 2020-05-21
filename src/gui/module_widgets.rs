@@ -4,7 +4,7 @@ use crate::gui::action::{DropTarget, MouseAction};
 use crate::gui::audio_widgets::{Module, WireTracker};
 use crate::gui::constants::*;
 use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
-use crate::gui::MouseMods;
+use crate::gui::{InteractionHint, MouseMods, Tooltip};
 use crate::util::*;
 use std::f32::consts::PI;
 
@@ -27,6 +27,7 @@ impl FeedbackDataRequirement {
 #[derive(Debug)]
 pub enum WidgetOutline {
     Knob {
+        tooltip: String,
         control_index: usize,
         grid_pos: (i32, i32),
         label: String,
@@ -42,6 +43,7 @@ pub enum WidgetOutline {
         feedback_name: String,
     },
     IntBox {
+        tooltip: String,
         ccontrol_index: usize,
         grid_pos: (i32, i32),
         range: (i32, i32),
@@ -87,10 +89,12 @@ pub(in crate::gui) fn widget_from_outline(
 
     let widget: Box<dyn ModuleWidget> = match outline {
         WidgetOutline::Knob {
+            tooltip,
             control_index,
             grid_pos,
             label,
         } => Box::new(Knob::create(
+            tooltip.clone(),
             Rc::clone(&controls[*control_index]),
             convert_grid_pos(*grid_pos),
             label.clone(),
@@ -112,12 +116,14 @@ pub(in crate::gui) fn widget_from_outline(
             convert_grid_size(*grid_size),
         )),
         WidgetOutline::IntBox {
+            tooltip,
             ccontrol_index,
             grid_pos,
             range,
             label,
             ..
         } => Box::new(IntBox::create(
+            tooltip.clone(),
             registry,
             Rc::clone(&ccontrols[*ccontrol_index]),
             convert_grid_pos(*grid_pos),
@@ -130,14 +136,8 @@ pub(in crate::gui) fn widget_from_outline(
 }
 
 pub(in crate::gui) trait ModuleWidget {
-    fn respond_to_mouse_press(
-        &self,
-        mouse_pos: (i32, i32),
-        mods: &MouseMods,
-        parent_pos: (i32, i32),
-    ) -> MouseAction;
-    fn get_drop_target_at(&self, mouse_pos: (i32, i32)) -> DropTarget;
-    fn add_wires(&self, wire_tracker: &mut WireTracker) {}
+    fn get_position(&self) -> (i32, i32);
+    fn get_bounds(&self) -> (i32, i32);
     fn draw(
         &self,
         g: &mut GrahpicsWrapper,
@@ -145,18 +145,36 @@ pub(in crate::gui) trait ModuleWidget {
         parent_pos: (i32, i32),
         feedback_data: &[f32],
     );
+
+    fn respond_to_mouse_press(
+        &self,
+        local_pos: (i32, i32),
+        mods: &MouseMods,
+        parent_pos: (i32, i32),
+    ) -> MouseAction {
+        MouseAction::None
+    }
+    fn get_drop_target_at(&self, local_pos: (i32, i32)) -> DropTarget {
+        DropTarget::None
+    }
+    fn get_tooltip_at(&self, local_pos: (i32, i32)) -> Option<Tooltip> {
+        None
+    }
+    fn add_wires(&self, wire_tracker: &mut WireTracker) {}
 }
 
 #[derive(Clone)]
 pub struct Knob {
+    tooltip: String,
     control: Rcrc<ep::Control>,
     pos: (i32, i32),
     label: String,
 }
 
 impl Knob {
-    fn create(control: Rcrc<ep::Control>, pos: (i32, i32), label: String) -> Knob {
+    fn create(tooltip: String, control: Rcrc<ep::Control>, pos: (i32, i32), label: String) -> Knob {
         Knob {
+            tooltip,
             control,
             pos,
             label,
@@ -165,39 +183,42 @@ impl Knob {
 }
 
 impl ModuleWidget for Knob {
+    fn get_position(&self) -> (i32, i32) {
+        self.pos
+    }
+    fn get_bounds(&self) -> (i32, i32) {
+        (grid(2), grid(2))
+    }
     fn respond_to_mouse_press(
         &self,
-        mouse_pos: (i32, i32),
+        local_pos: (i32, i32),
         mods: &MouseMods,
         parent_pos: (i32, i32),
     ) -> MouseAction {
-        let mouse_pos = (mouse_pos.0 - self.pos.0, mouse_pos.1 - self.pos.1);
-        if mouse_pos.inside((grid(2), grid(2))) {
-            if mods.right_click {
-                let pos = (
-                    self.pos.0 + parent_pos.0 + grid(2) / 2,
-                    self.pos.1 + parent_pos.1 + grid(2) / 2,
-                );
-                MouseAction::OpenMenu(Box::new(KnobEditor::create(
-                    Rc::clone(&self.control),
-                    pos,
-                    self.label.clone(),
-                )))
-            } else {
-                MouseAction::ManipulateControl(Rc::clone(&self.control))
-            }
+        if mods.right_click {
+            let pos = (
+                self.pos.0 + parent_pos.0 + grid(2) / 2,
+                self.pos.1 + parent_pos.1 + grid(2) / 2,
+            );
+            MouseAction::OpenMenu(Box::new(KnobEditor::create(
+                Rc::clone(&self.control),
+                pos,
+                self.label.clone(),
+            )))
         } else {
-            MouseAction::None
+            MouseAction::ManipulateControl(Rc::clone(&self.control))
         }
     }
 
-    fn get_drop_target_at(&self, mouse_pos: (i32, i32)) -> DropTarget {
-        let mouse_pos = (mouse_pos.0 - self.pos.0, mouse_pos.1 - self.pos.1);
-        if mouse_pos.inside((grid(2), grid(2))) {
-            DropTarget::Control(Rc::clone(&self.control))
-        } else {
-            DropTarget::None
-        }
+    fn get_drop_target_at(&self, local_pos: (i32, i32)) -> DropTarget {
+        DropTarget::Control(Rc::clone(&self.control))
+    }
+
+    fn get_tooltip_at(&self, local_pos: (i32, i32)) -> Option<Tooltip> {
+        Some(Tooltip {
+            text: self.tooltip.clone(),
+            interaction: InteractionHint::LeftClickAndDrag | InteractionHint::RightClick,
+        })
     }
 
     fn add_wires(&self, wire_tracker: &mut WireTracker) {
@@ -292,6 +313,7 @@ impl ModuleWidget for Knob {
 
 #[derive(Clone)]
 pub struct IntBox {
+    tooltip: String,
     ccontrol: Rcrc<ep::ComplexControl>,
     pos: (i32, i32),
     range: (i32, i32),
@@ -303,6 +325,7 @@ impl IntBox {
     const WIDTH: i32 = grid(2);
     const HEIGHT: i32 = grid(2) - 12 - GRID_P;
     fn create(
+        tooltip: String,
         registry: &Registry,
         ccontrol: Rcrc<ep::ComplexControl>,
         pos: (i32, i32),
@@ -310,6 +333,7 @@ impl IntBox {
         label: String,
     ) -> IntBox {
         IntBox {
+            tooltip,
             ccontrol,
             pos,
             range,
@@ -324,33 +348,37 @@ impl IntBox {
 }
 
 impl ModuleWidget for IntBox {
+    fn get_position(&self) -> (i32, i32) {
+        self.pos
+    }
+    fn get_bounds(&self) -> (i32, i32) {
+        (grid(2), grid(2))
+    }
     fn respond_to_mouse_press(
         &self,
-        mouse_pos: (i32, i32),
+        local_pos: (i32, i32),
         mods: &MouseMods,
         parent_pos: (i32, i32),
     ) -> MouseAction {
-        let mouse_pos = (mouse_pos.0 - self.pos.0, mouse_pos.1 - self.pos.1);
-        if mouse_pos.inside((grid(2), grid(2))) {
-            let click_delta = if mouse_pos.1 > IntBox::HEIGHT {
-                -1
-            } else {
-                1
-            };
-            MouseAction::ManipulateIntControl {
-                cref: Rc::clone(&self.ccontrol),
-                min: self.range.0,
-                max: self.range.1,
-                click_delta,
-                float_value: self.ccontrol.borrow().value.parse().unwrap()
-            }
+        let click_delta = if local_pos.1 > IntBox::HEIGHT / 2 {
+            -1
         } else {
-            MouseAction::None
+            1
+        };
+        MouseAction::ManipulateIntControl {
+            cref: Rc::clone(&self.ccontrol),
+            min: self.range.0,
+            max: self.range.1,
+            click_delta,
+            float_value: self.ccontrol.borrow().value.parse().unwrap(),
         }
     }
 
-    fn get_drop_target_at(&self, mouse_pos: (i32, i32)) -> DropTarget {
-        DropTarget::None
+    fn get_tooltip_at(&self, local_pos: (i32, i32)) -> Option<Tooltip> {
+        Some(Tooltip {
+            text: self.tooltip.clone(),
+            interaction: InteractionHint::LeftClick | InteractionHint::LeftClickAndDrag,
+        })
     }
 
     fn draw(
@@ -403,17 +431,11 @@ impl WaveformGraph {
 }
 
 impl ModuleWidget for WaveformGraph {
-    fn respond_to_mouse_press(
-        &self,
-        mouse_pos: (i32, i32),
-        mods: &MouseMods,
-        parent_pos: (i32, i32),
-    ) -> MouseAction {
-        MouseAction::None
+    fn get_position(&self) -> (i32, i32) {
+        self.pos
     }
-
-    fn get_drop_target_at(&self, mouse_pos: (i32, i32)) -> DropTarget {
-        DropTarget::None
+    fn get_bounds(&self) -> (i32, i32) {
+        self.size
     }
 
     fn draw(
@@ -461,17 +483,12 @@ impl EnvelopeGraph {
 }
 
 impl ModuleWidget for EnvelopeGraph {
-    fn respond_to_mouse_press(
-        &self,
-        mouse_pos: (i32, i32),
-        mods: &MouseMods,
-        parent_pos: (i32, i32),
-    ) -> MouseAction {
-        MouseAction::None
+    fn get_position(&self) -> (i32, i32) {
+        self.pos
     }
 
-    fn get_drop_target_at(&self, mouse_pos: (i32, i32)) -> DropTarget {
-        DropTarget::None
+    fn get_bounds(&self) -> (i32, i32) {
+        self.size
     }
 
     fn draw(
@@ -556,51 +573,46 @@ impl KnobEditor {
 
     pub(in crate::gui) fn respond_to_mouse_press(
         &self,
-        mouse_pos: (i32, i32),
+        local_pos: (i32, i32),
         mods: &MouseMods,
     ) -> Option<MouseAction> {
-        let mouse_pos = (mouse_pos.0 - self.pos.0, mouse_pos.1 - self.pos.1);
-        if mouse_pos.inside(self.size) {
-            // Yes, the last 0 is intentional. The center of the knob is not vertically centered.
-            let (cx, cy) = (mouse_pos.0 - self.size.0 / 2, mouse_pos.1 - self.size.0 / 2);
-            // y coordinate is inverted from how it appears on screen.
-            let (fcx, fcy) = (cx as f32, -cy as f32);
-            let (angle, radius) = (fcy.atan2(fcx), (fcy * fcy + fcx * fcx).sqrt());
-            let control = &*self.control.borrow();
-            let auto_lanes = control.automation.len();
-            // Clicked somewhere in the top "half" where the main knob and automation lanes are.
-            if angle >= 0.0 && angle <= PI {
-                let radius = radius as i32;
-                if radius < KNOB_MENU_KNOB_IR {
-                    // Nothing interacjackle inside the knob.
-                } else if radius < KNOB_MENU_KNOB_OR {
-                    return Some(MouseAction::ManipulateControl(Rc::clone(&self.control)));
-                } else {
-                    let radius = radius - KNOB_MENU_KNOB_OR;
-                    let lane = (radius / (KNOB_MENU_LANE_SIZE + KNOB_MENU_LANE_GAP)) as usize;
-                    if lane < auto_lanes {
-                        // It's rendered backwards so we need to flip the index to make it visually
-                        // match up.
-                        let lane = auto_lanes - lane - 1;
-                        let range = control.range;
-                        let lane_range = control.automation[lane].range;
-                        let min_angle = lane_range.0.from_range_to_range(range.0, range.1, PI, 0.0);
-                        let max_angle = lane_range.1.from_range_to_range(range.0, range.1, PI, 0.0);
-                        // TODO: Handle inverted lanes.
-                        return Some(if angle > min_angle {
-                            MouseAction::ManipulateLaneStart(Rc::clone(&self.control), lane)
-                        } else if angle < max_angle {
-                            MouseAction::ManipulateLaneEnd(Rc::clone(&self.control), lane)
-                        } else {
-                            MouseAction::ManipulateLane(Rc::clone(&self.control), lane)
-                        });
-                    }
+        // Yes, the last 0 is intentional. The center of the knob is not vertically centered.
+        let (cx, cy) = (local_pos.0 - self.size.0 / 2, local_pos.1 - self.size.0 / 2);
+        // y coordinate is inverted from how it appears on screen.
+        let (fcx, fcy) = (cx as f32, -cy as f32);
+        let (angle, radius) = (fcy.atan2(fcx), (fcy * fcy + fcx * fcx).sqrt());
+        let control = &*self.control.borrow();
+        let auto_lanes = control.automation.len();
+        // Clicked somewhere in the top "half" where the main knob and automation lanes are.
+        if angle >= 0.0 && angle <= PI {
+            let radius = radius as i32;
+            if radius < KNOB_MENU_KNOB_IR {
+                // Nothing interactable inside the knob.
+            } else if radius < KNOB_MENU_KNOB_OR {
+                return Some(MouseAction::ManipulateControl(Rc::clone(&self.control)));
+            } else {
+                let radius = radius - KNOB_MENU_KNOB_OR;
+                let lane = (radius / (KNOB_MENU_LANE_SIZE + KNOB_MENU_LANE_GAP)) as usize;
+                if lane < auto_lanes {
+                    // It's rendered backwards so we need to flip the index to make it visually
+                    // match up.
+                    let lane = auto_lanes - lane - 1;
+                    let range = control.range;
+                    let lane_range = control.automation[lane].range;
+                    let min_angle = lane_range.0.from_range_to_range(range.0, range.1, PI, 0.0);
+                    let max_angle = lane_range.1.from_range_to_range(range.0, range.1, PI, 0.0);
+                    // TODO: Handle inverted lanes.
+                    return Some(if angle > min_angle {
+                        MouseAction::ManipulateLaneStart(Rc::clone(&self.control), lane)
+                    } else if angle < max_angle {
+                        MouseAction::ManipulateLaneEnd(Rc::clone(&self.control), lane)
+                    } else {
+                        MouseAction::ManipulateLane(Rc::clone(&self.control), lane)
+                    });
                 }
             }
-            Some(MouseAction::None)
-        } else {
-            None
         }
+        Some(MouseAction::None)
     }
 
     pub(in crate::gui) fn draw(&self, g: &mut GrahpicsWrapper) {

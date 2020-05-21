@@ -22,5 +22,6 @@ gui:
     knob:
       control: amplitude
       label: Amplitude
+      tooltip: How loud the output should be
       x: 0
       y: 0

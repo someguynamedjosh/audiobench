@@ -16,6 +16,7 @@ gui:
     knob:
       control: duty
       label: Duty
+      tooltip: The position where the square wave changes value
       x: 0
       y: 0
     waveform_graph:

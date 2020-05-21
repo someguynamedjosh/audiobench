@@ -2,8 +2,8 @@ use crate::engine::parts as ep;
 use crate::engine::registry::Registry;
 use crate::gui::action::MouseAction;
 use crate::gui::constants::*;
-use crate::gui::graphics::GrahpicsWrapper;
-use crate::gui::MouseMods;
+use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
+use crate::gui::{MouseMods, Tooltip};
 
 fn bound_check(coord: (i32, i32), bounds: (i32, i32)) -> bool {
     coord.0 >= 0 && coord.1 >= 0 && coord.0 <= bounds.0 && coord.1 <= bounds.1
@@ -11,6 +11,7 @@ fn bound_check(coord: (i32, i32), bounds: (i32, i32)) -> bool {
 
 pub struct MenuBar {
     tab_icons: Vec<usize>,
+    tooltip: Tooltip,
 }
 
 impl MenuBar {
@@ -22,7 +23,12 @@ impl MenuBar {
                 registry.lookup_icon("base:note").unwrap(),
                 registry.lookup_icon("base:add").unwrap(),
             ],
+            tooltip: Default::default(),
         }
+    }
+
+    pub fn set_tooltip(&mut self, tooltip: Tooltip) {
+        self.tooltip = tooltip;
     }
 
     pub fn respond_to_mouse_press(&self, mouse_pos: (i32, i32), mods: &MouseMods) -> MouseAction {
@@ -62,6 +68,21 @@ impl MenuBar {
             width,
             grid(1) + GP,
             CS,
+        );
+        let text_x = coord(self.tab_icons.len() as i32) + GP;
+        let text_width = width - text_x;
+        // TODO: Interaction hints.
+        g.set_color(&COLOR_TEXT);
+        g.write_text(
+            12,
+            text_x,
+            coord(0),
+            text_width,
+            grid(1),
+            HAlign::Left,
+            VAlign::Center,
+            1,
+            &self.tooltip.text,
         );
 
         for (index, icon) in self.tab_icons.iter().enumerate() {

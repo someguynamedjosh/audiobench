@@ -16,6 +16,7 @@ gui:
     knob:
       control: peak_phase
       label: Peak Phase
+      tooltip: The place where the peak of the waveform should be
       x: 0
       y: 0
     waveform_graph:
