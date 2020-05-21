@@ -1,6 +1,5 @@
 # Things with no dependencies
 Constantize font size.
-Tooltips and interaction hints
 Tooltips for menu bar tabs
 Tooltips for module library
 Make screens enums instead of constants.

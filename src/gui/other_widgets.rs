@@ -3,7 +3,7 @@ use crate::engine::registry::Registry;
 use crate::gui::action::MouseAction;
 use crate::gui::constants::*;
 use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
-use crate::gui::{MouseMods, Tooltip};
+use crate::gui::{InteractionHint, MouseMods, Tooltip};
 
 fn bound_check(coord: (i32, i32), bounds: (i32, i32)) -> bool {
     coord.0 >= 0 && coord.1 >= 0 && coord.0 <= bounds.0 && coord.1 <= bounds.1
@@ -11,11 +11,15 @@ fn bound_check(coord: (i32, i32), bounds: (i32, i32)) -> bool {
 
 pub struct MenuBar {
     tab_icons: Vec<usize>,
+    lclick: usize,
+    rclick: usize,
+    drag: usize,
+    and: usize,
     tooltip: Tooltip,
 }
 
 impl MenuBar {
-    pub const HEIGHT: i32 = fatgrid(1);
+    pub const HEIGHT: i32 = grid(1) + GRID_P * 3;
 
     pub fn create(registry: &Registry) -> Self {
         Self {
@@ -23,6 +27,10 @@ impl MenuBar {
                 registry.lookup_icon("base:note").unwrap(),
                 registry.lookup_icon("base:add").unwrap(),
             ],
+            lclick: registry.lookup_icon("base:left_click").unwrap(),
+            rclick: registry.lookup_icon("base:right_click").unwrap(),
+            drag: registry.lookup_icon("base:move").unwrap(),
+            and: registry.lookup_icon("base:add").unwrap(),
             tooltip: Default::default(),
         }
     }
@@ -35,7 +43,7 @@ impl MenuBar {
         if !bound_check(mouse_pos, (99999, Self::HEIGHT)) {
             return MouseAction::None;
         }
-        let new_screen = mouse_pos.0 / (GRID_P + grid(1));
+        let new_screen = (mouse_pos.0 - GRID_P) / (GRID_P + grid(1));
         if new_screen < self.tab_icons.len() as i32 {
             MouseAction::SwitchScreen(new_screen as usize)
         } else {
@@ -52,31 +60,100 @@ impl MenuBar {
         const GP: i32 = GRID_P;
         const GP2: i32 = GRID_P / 2;
         const CS: i32 = CORNER_SIZE;
+        const HEIGHT: i32 = MenuBar::HEIGHT;
+        const ITEM_HEIGHT: i32 = HEIGHT - GP * 2;
 
-        g.set_color(&COLOR_IO_AREA);
+        g.set_color(&COLOR_BG);
         g.fill_rounded_rect(
-            coord(0) - GP2,
-            coord(0) - GP2,
+            coord(0),
+            coord(0),
             grid(self.tab_icons.len() as i32) + GP,
-            grid(1) + GP,
+            ITEM_HEIGHT,
             CS,
         );
 
-        g.fill_rounded_rect(
-            coord(self.tab_icons.len() as i32),
-            coord(0) - GP2,
-            width,
-            grid(1) + GP,
-            CS,
-        );
-        let text_x = coord(self.tab_icons.len() as i32) + GP;
-        let text_width = width - text_x;
-        // TODO: Interaction hints.
+        const HINT_HEIGHT: i32 = grid(1) - 2;
+        const ICON_PAD: i32 = 1;
+        const ICON_SIZE: i32 = HINT_HEIGHT - ICON_PAD * 2;
+        const HINT_AREA_WIDTH: i32 = ICON_SIZE * 4 + GP * 3 + ICON_PAD * 6;
+        {
+            g.set_color(&COLOR_SURFACE);
+            g.fill_rounded_rect(
+                width - HINT_AREA_WIDTH,
+                0,
+                HINT_AREA_WIDTH,
+                HINT_HEIGHT * 2 + GP * 3,
+                CS,
+            );
+
+            const Y1: i32 = GP;
+            const Y2: i32 = Y1 + HINT_HEIGHT + GP;
+            fn hint_width(num_icons: i32) -> i32 {
+                (ICON_SIZE + ICON_PAD) * num_icons + ICON_PAD
+            }
+            fn draw_hint(
+                active: bool,
+                g: &mut GrahpicsWrapper,
+                rx: i32,
+                y: i32,
+                icons: &[usize],
+            ) -> i32 {
+                let w = hint_width(icons.len() as i32);
+                let x = rx - GP - w;
+                if active {
+                    g.set_color(&COLOR_TEXT);
+                } else {
+                    g.set_color(&COLOR_BG);
+                }
+                g.fill_rounded_rect(x, y, w, HINT_HEIGHT, CS);
+                if active {
+                    for (index, icon) in icons.iter().enumerate() {
+                        g.draw_icon(
+                            *icon,
+                            x + ICON_PAD + (ICON_PAD + ICON_SIZE) * index as i32,
+                            y + ICON_PAD,
+                            ICON_SIZE,
+                        );
+                    }
+                }
+                x
+            }
+
+            g.set_color(&COLOR_BG);
+            let active = self
+                .tooltip
+                .interaction
+                .contains(InteractionHint::LeftClickAndDrag);
+            let x = draw_hint(active, g, width, Y1, &[self.lclick, self.and, self.drag]);
+            let active = self
+                .tooltip
+                .interaction
+                .contains(InteractionHint::LeftClick);
+            draw_hint(active, g, x, Y1, &[self.lclick]);
+
+            let active = self
+                .tooltip
+                .interaction
+                .contains(InteractionHint::DoubleClick);
+            let x = draw_hint(active, g, width, Y2, &[self.lclick, self.and, self.lclick]);
+            let active = self
+                .tooltip
+                .interaction
+                .contains(InteractionHint::RightClick);
+            draw_hint(active, g, x, Y2, &[self.rclick]);
+        }
+
+        let tooltip_x = coord(self.tab_icons.len() as i32) + GP;
+        let tooltip_width = width - HINT_AREA_WIDTH - tooltip_x;
+        g.set_color(&COLOR_BG);
+        g.fill_rounded_rect(tooltip_x, coord(0), tooltip_width, ITEM_HEIGHT, CS);
+        let text_x = tooltip_x + GP;
+        let text_width = tooltip_width - GP * 2;
         g.set_color(&COLOR_TEXT);
         g.write_text(
             12,
             text_x,
-            coord(0),
+            coord(0) + GP2,
             text_width,
             grid(1),
             HAlign::Left,
@@ -90,14 +167,14 @@ impl MenuBar {
             if current_screen_index == index {
                 g.set_color(&COLOR_TEXT);
                 g.fill_rounded_rect(
-                    coord(index) - GP2,
-                    coord(0) - GP2,
+                    coord(index),
+                    coord(0),
                     grid(1) + GP,
                     grid(1) + GP,
                     CS,
                 );
             }
-            g.draw_icon(*icon, coord(index), coord(0), grid(1));
+            g.draw_icon(*icon, coord(index) + GP2, coord(0) + GP2, grid(1));
         }
     }
 }

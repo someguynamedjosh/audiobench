@@ -291,7 +291,7 @@ impl InputJack {
             label,
             tooltip: Tooltip {
                 text: tooltip,
-                interaction: InteractionHint::LeftClickAndDrag.into(),
+                interaction: InteractionHint::LeftClickAndDrag | InteractionHint::LeftClick,
             },
             icon,
             small_icon,
@@ -710,7 +710,11 @@ impl Module {
                 return Some(output.tooltip.clone());
             }
         }
-        None
+        // TODO: Tooltip text?
+        Some(Tooltip {
+            text: "".to_owned(),
+            interaction: InteractionHint::LeftClickAndDrag.into(),
+        })
     }
 
     fn draw_wires(&self, g: &mut GrahpicsWrapper, pos: (i32, i32)) {
