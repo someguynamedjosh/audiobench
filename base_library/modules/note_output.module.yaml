@@ -11,6 +11,7 @@ controls:
     default: 0.25
 gui: 
   label: Note Output
+  category: External
   tooltip: Receives audio that should be played for the current note
   width: 2
   height: 2

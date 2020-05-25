@@ -13,6 +13,7 @@ complex_controls:
   HARMONIC:
 gui:
   label: Harmonic
+  category: Waveform
   tooltip: Creates a waveform which is a harmonic of the input waveform
   width: 5
   height: 2

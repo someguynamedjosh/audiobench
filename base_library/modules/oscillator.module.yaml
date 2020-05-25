@@ -19,6 +19,7 @@ controls:
     default: 1
 gui: 
   label: Oscillator
+  category: Synthesis
   tooltip: Oscillates a waveform at a particular pitch, with optional amplitude control
   width: 2
   height: 2

@@ -1,5 +1,4 @@
 # Things with no dependencies
-Categories for modules.
 save and load presets
 Some kind of Nodespeak library to simplify common tasks like updating waveform displays.
 Friendly error messages

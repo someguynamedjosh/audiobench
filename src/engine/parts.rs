@@ -350,6 +350,7 @@ impl ModuleGraph {
 #[derive(Debug)]
 pub struct ModuleTemplate {
     pub label: String,
+    pub category: String,
     pub tooltip: String,
     pub code_resource: String,
     pub size: (i32, i32),

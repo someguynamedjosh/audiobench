@@ -349,7 +349,7 @@ impl MouseAction {
                 let mut cref = cref.borrow_mut();
                 cref.value = cref.default.clone();
             }
-            _ => (),
+            _ => return self.on_click(),
         }
         None
     }

@@ -4,6 +4,7 @@ use crate::gui::action::MouseAction;
 use crate::gui::constants::*;
 use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
 use crate::gui::{GuiScreen, InteractionHint, MouseMods, Tooltip};
+use std::collections::HashSet;
 
 fn bound_check(coord: (i32, i32), bounds: (i32, i32)) -> bool {
     coord.0 >= 0 && coord.1 >= 0 && coord.0 <= bounds.0 && coord.1 <= bounds.1
@@ -197,6 +198,7 @@ impl MenuBar {
 
 struct ModuleCatalogEntry {
     name: String,
+    category: String,
     input_icons: Vec<usize>,
     output_icons: Vec<usize>,
     prototype: ep::Module,
@@ -209,6 +211,7 @@ impl ModuleCatalogEntry {
     fn from(module: &ep::Module) -> Self {
         let template_ref = module.template.borrow();
         let name = template_ref.label.clone();
+        let category = template_ref.category.clone();
         let input_icons = template_ref
             .inputs
             .iter()
@@ -221,6 +224,7 @@ impl ModuleCatalogEntry {
             .collect();
         Self {
             name,
+            category,
             input_icons,
             output_icons,
             prototype: module.clone(),
@@ -237,7 +241,7 @@ impl ModuleCatalogEntry {
         let num_ports = self.input_icons.len().max(self.output_icons.len()) as i32;
         let port_space = ICON_PADDING + (ICON_PADDING + ICON_SIZE) * num_ports;
         g.set_color(&COLOR_SURFACE);
-        let main_width = Self::WIDTH - port_space;
+        let main_width = Self::WIDTH - port_space - BAND_SIZE;
         g.fill_rounded_rect(0, 0, main_width + BAND_SIZE, Self::HEIGHT, CS);
         g.set_color(&COLOR_TEXT);
         g.fill_rounded_rect(main_width, 0, port_space + BAND_SIZE, Self::HEIGHT, CS);
@@ -270,12 +274,24 @@ impl ModuleCatalogEntry {
     }
 }
 
+enum VisualEntry {
+    RealEntry(usize),
+    Label(String),
+}
+
+enum SortMethod {
+    Alphabetical,
+    Categorical,
+}
+
 pub struct ModuleCatalog {
     pos: (i32, i32),
     size: (i32, i32),
     vertical_stacking: i32,
     entries: Vec<ModuleCatalogEntry>,
-    alphabetical_order: Vec<usize>,
+    alphabetical_list: Vec<VisualEntry>,
+    categorical_list: Vec<VisualEntry>,
+    current_sort: SortMethod,
 }
 
 impl ModuleCatalog {
@@ -285,14 +301,49 @@ impl ModuleCatalog {
             .map(|module| ModuleCatalogEntry::from(module))
             .collect();
         let vertical_stacking = size.1 / (ModuleCatalogEntry::HEIGHT + GRID_P);
+
         let mut alphabetical_order: Vec<_> = (0..entries.len()).collect();
         alphabetical_order.sort_by(|a, b| entries[*a].name.cmp(&entries[*b].name));
+        let mut alphabetical_list = Vec::with_capacity(entries.len() + 26);
+        let mut last_starting_char = 'Z';
+        for entry_index in alphabetical_order.iter().cloned() {
+            let starting_char = entries[entry_index].name.chars().next().unwrap_or('Z');
+            let starting_char = starting_char.to_ascii_uppercase();
+            if starting_char != last_starting_char {
+                last_starting_char = starting_char;
+                alphabetical_list.push(VisualEntry::Label(format!("{}", starting_char)));
+            }
+            alphabetical_list.push(VisualEntry::RealEntry(entry_index));
+        }
+
+        let categories: HashSet<_> = entries.iter().map(|e| e.category.clone()).collect();
+        let mut categories: Vec<_> = categories.iter().collect();
+        categories.sort_unstable();
+        let mut categorical_list = Vec::with_capacity(entries.len() + categories.len());
+        for category in categories {
+            categorical_list.push(VisualEntry::Label(category.clone()));
+            for index in alphabetical_order.iter().cloned() {
+                if entries[index].category == *category {
+                    categorical_list.push(VisualEntry::RealEntry(index));
+                }
+            }
+        }
+
         Self {
             pos,
             size,
             vertical_stacking,
             entries,
-            alphabetical_order,
+            alphabetical_list,
+            categorical_list,
+            current_sort: SortMethod::Categorical,
+        }
+    }
+
+    fn get_current_list(&self) -> &Vec<VisualEntry> {
+        match self.current_sort {
+            SortMethod::Alphabetical => &self.alphabetical_list,
+            SortMethod::Categorical => &self.categorical_list,
         }
     }
 
@@ -302,9 +353,14 @@ impl ModuleCatalog {
             * self.vertical_stacking
             + mouse_pos.1 / (ModuleCatalogEntry::HEIGHT + GRID_P);
         let clicked_index = clicked_index as usize;
-        if clicked_index < self.entries.len() {
-            let entry_index = self.alphabetical_order[clicked_index];
-            Some(&self.entries[entry_index])
+        let list = self.get_current_list();
+        if clicked_index < list.len() {
+            let entry = &list[clicked_index];
+            if let VisualEntry::RealEntry(index) = entry {
+                Some(&self.entries[*index])
+            } else {
+                None
+            }
         } else {
             None
         }
@@ -337,8 +393,8 @@ impl ModuleCatalog {
         g.push_state();
         g.apply_offset(self.pos.0, self.pos.1);
 
-        for (index, entry_index) in self.alphabetical_order.iter().enumerate() {
-            let entry = &self.entries[*entry_index];
+        let list = self.get_current_list();
+        for (index, entry) in list.iter().enumerate() {
             let index = index as i32;
             let (x, y) = (
                 (index / self.vertical_stacking) * (ModuleCatalogEntry::WIDTH + GRID_P) + GRID_P,
@@ -346,7 +402,23 @@ impl ModuleCatalog {
             );
             g.push_state();
             g.apply_offset(x, y);
-            entry.draw(g);
+            match entry {
+                VisualEntry::RealEntry(index) => self.entries[*index].draw(g),
+                VisualEntry::Label(text) => {
+                    g.set_color(&COLOR_TEXT);
+                    g.write_text(
+                        BIG_FONT_SIZE,
+                        0,
+                        0,
+                        ModuleCatalogEntry::WIDTH,
+                        ModuleCatalogEntry::HEIGHT,
+                        HAlign::Center,
+                        VAlign::Center,
+                        1,
+                        text,
+                    )
+                }
+            }
             g.pop_state();
         }
 

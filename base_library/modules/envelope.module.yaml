@@ -37,6 +37,7 @@ controls:
     suffix: s
 gui: 
   label: Envelope
+  category: Control
   tooltip: A basic ADSR envelope, useful for making parameters fade in and out.
   width: 8
   height: 4

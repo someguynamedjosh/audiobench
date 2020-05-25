@@ -19,6 +19,7 @@ controls:
     default: 0.5
 gui: 
   label: Phase Mod.
+  category: Waveform
   tooltip: Modulates a carrier waveform with phase modulation (PM) using a second waveform
   width: 5
   height: 2
