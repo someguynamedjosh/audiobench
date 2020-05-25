@@ -1,5 +1,4 @@
 # Things with no dependencies
-Some way to reset the value of a control
 A way to remove automation channels and modules
 Average together multiple automation channels (instead of add)
 FN Oscillator
@@ -7,9 +6,9 @@ Master volume control
 Add option to draw white icons.
 Categories for modules.
 save and load presets
+Make the add modules menu look nice
 
 # Things with missing dependencies
-Make the add modules menu look nice
 Make screen selector and int box use white icons
 
 # Low-priority things without dependencies

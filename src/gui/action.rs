@@ -312,6 +312,32 @@ impl MouseAction {
         }
         None
     }
+    pub(in crate::gui) fn on_double_click(self) -> Option<GuiAction> {
+        match self {
+            Self::ManipulateControl(control, ..) => {
+                let mut cref = control.borrow_mut();
+                cref.value = cref.default;
+            }
+            Self::ManipulateLane(control, lane) => {
+                let mut cref = control.borrow_mut();
+                cref.automation[lane].range = cref.range;
+            }
+            Self::ManipulateLaneStart(control, lane, ..) => {
+                let mut cref = control.borrow_mut();
+                cref.automation[lane].range.0 = cref.range.0;
+            }
+            Self::ManipulateLaneEnd(control, lane, ..) => {
+                let mut cref = control.borrow_mut();
+                cref.automation[lane].range.1 = cref.range.1;
+            }
+            Self::ManipulateIntControl { cref, .. } => {
+                let mut cref = cref.borrow_mut();
+                cref.value = cref.default.clone();
+            }
+            _ => (),
+        }
+        None
+    }
 }
 
 pub enum DropTarget {

@@ -116,6 +116,7 @@ fn create_widget_outline_from_yaml(
                 complex_controls[index].borrow().code_name
             ));
         }
+        complex_controls[index].borrow_mut().default = value.clone();
         complex_controls[index].borrow_mut().value = value;
     }
     Ok(outline)
@@ -145,6 +146,7 @@ fn create_module_prototype_from_yaml(
             complex_controls.push(rcrc(ComplexControl {
                 code_name: description.name.clone(),
                 value: "".to_owned(),
+                default: "".to_owned(),
             }));
         }
     }

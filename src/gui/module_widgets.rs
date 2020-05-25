@@ -218,7 +218,9 @@ impl ModuleWidget for Knob {
     fn get_tooltip_at(&self, local_pos: (i32, i32)) -> Option<Tooltip> {
         Some(Tooltip {
             text: self.tooltip.clone(),
-            interaction: InteractionHint::LeftClickAndDrag | InteractionHint::RightClick,
+            interaction: InteractionHint::LeftClickAndDrag
+                | InteractionHint::RightClick
+                | InteractionHint::DoubleClick,
         })
     }
 
@@ -378,7 +380,9 @@ impl ModuleWidget for IntBox {
     fn get_tooltip_at(&self, local_pos: (i32, i32)) -> Option<Tooltip> {
         Some(Tooltip {
             text: self.tooltip.clone(),
-            interaction: InteractionHint::LeftClick | InteractionHint::LeftClickAndDrag,
+            interaction: InteractionHint::LeftClick
+                | InteractionHint::LeftClickAndDrag
+                | InteractionHint::DoubleClick,
         })
     }
 
@@ -668,7 +672,7 @@ impl KnobEditor {
         if radius < KNOB_MENU_KNOB_OR {
             return Some(Tooltip {
                 text: self.tooltip.clone(),
-                interaction: InteractionHint::LeftClickAndDrag.into(),
+                interaction: InteractionHint::LeftClickAndDrag | InteractionHint::DoubleClick,
             });
         }
         let radius = radius - KNOB_MENU_KNOB_OR;
@@ -679,7 +683,7 @@ impl KnobEditor {
                     "Automation lane #{}, click + drag on empty space to move one end at a time.",
                     lane + 1,
                 ),
-                interaction: InteractionHint::LeftClickAndDrag.into(),
+                interaction: InteractionHint::LeftClickAndDrag | InteractionHint::DoubleClick,
             });
         }
         None

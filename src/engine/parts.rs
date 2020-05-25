@@ -12,6 +12,7 @@ pub struct AutomationLane {
 pub struct Control {
     pub code_name: String,
     pub range: (f32, f32),
+    pub default: f32,
     pub value: f32,
     pub automation: Vec<AutomationLane>,
 }
@@ -21,6 +22,7 @@ impl Control {
         Self {
             code_name,
             range: (min, max),
+            default,
             value: default,
             automation: Vec::new(),
         }
@@ -31,6 +33,7 @@ impl Control {
 pub struct ComplexControl {
     pub code_name: String,
     pub value: String,
+    pub default: String,
 }
 
 #[derive(Clone, Debug)]

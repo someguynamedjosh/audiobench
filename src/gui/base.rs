@@ -5,6 +5,7 @@ use crate::gui::graphics::GrahpicsWrapper;
 use crate::gui::{audio_widgets, other_widgets};
 use crate::util::*;
 use enumflags2::BitFlags;
+use std::time::{Duration, Instant};
 
 #[derive(BitFlags, Copy, Clone)]
 #[repr(u8)]
@@ -74,6 +75,7 @@ pub struct Gui {
     mouse_pos: (i32, i32),
     mouse_down: bool,
     dragged: bool,
+    last_click: Instant,
 }
 
 impl Gui {
@@ -98,6 +100,7 @@ impl Gui {
             mouse_pos: (0, 0),
             mouse_down: false,
             dragged: false,
+            last_click: Instant::now() - Duration::from_secs(100),
         }
     }
 
@@ -185,13 +188,19 @@ impl Gui {
         None
     }
 
+    const DOUBLE_CLICK_TIME: Duration = Duration::from_millis(500);
     pub fn on_mouse_up(&mut self, registry: &Registry) -> Option<InstanceAction> {
         let mouse_action = std::mem::replace(&mut self.mouse_action, MouseAction::None);
         let gui_action = if self.dragged {
             let drop_target = self.graph.get_drop_target_at(self.mouse_pos);
             mouse_action.on_drop(drop_target)
         } else {
-            mouse_action.on_click()
+            if self.last_click.elapsed() < Self::DOUBLE_CLICK_TIME {
+                mouse_action.on_double_click()
+            } else {
+                self.last_click = Instant::now();
+                mouse_action.on_click()
+            }
         };
         self.dragged = false;
         self.mouse_down = false;
