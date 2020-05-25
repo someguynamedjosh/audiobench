@@ -1,5 +1,4 @@
 # Things with no dependencies
-Add option to draw white icons.
 Categories for modules.
 save and load presets
 Some kind of Nodespeak library to simplify common tasks like updating waveform displays.
@@ -9,7 +8,6 @@ Right-click menu should show automated value
 Make arrangement of wires line up more with the grid system for controls.
 
 # Things with missing dependencies
-Make screen selector and int box use white icons
 Options to change how automation channels are mixed together
 FM Oscillator
 

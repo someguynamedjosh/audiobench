@@ -404,8 +404,8 @@ impl ModuleWidget for IntBox {
         g.set_color(&COLOR_BG);
         g.fill_rounded_rect(0, 0, W, H, CS);
         const IS: i32 = H / 2;
-        g.draw_icon(self.icons.0, W - IS, 0, IS);
-        g.draw_icon(self.icons.1, W - IS, IS, IS);
+        g.draw_white_icon(self.icons.0, W - IS, 0, IS);
+        g.draw_white_icon(self.icons.1, W - IS, IS, IS);
         {
             let val = &self.ccontrol.borrow().value;
             const HA: HAlign = HAlign::Right;

@@ -187,8 +187,10 @@ impl MenuBar {
             if current_screen_index == index {
                 g.set_color(&COLOR_TEXT);
                 g.fill_rounded_rect(coord(index), coord(0), grid(1) + GP, grid(1) + GP, CS);
+                g.draw_icon(*icon, coord(index) + GP2, coord(0) + GP2, grid(1));
+            } else {
+                g.draw_white_icon(*icon, coord(index) + GP2, coord(0) + GP2, grid(1));
             }
-            g.draw_icon(*icon, coord(index) + GP2, coord(0) + GP2, grid(1));
         }
     }
 }
