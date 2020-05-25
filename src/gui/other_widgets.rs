@@ -244,7 +244,17 @@ impl ModuleCatalogEntry {
         g.fill_rect(main_width + BAND_SIZE, Self::HEIGHT / 2, port_space, 1);
 
         g.set_color(&COLOR_TEXT);
-        g.write_label(GRID_P, 10, main_width - GRID_P / 2, &self.name);
+        g.write_text(
+            FONT_SIZE,
+            GRID_P,
+            0,
+            main_width - GRID_P / 2,
+            Self::HEIGHT,
+            HAlign::Left,
+            VAlign::Center,
+            1,
+            &self.name,
+        );
         for (index, icon) in self.input_icons.iter().enumerate() {
             let index = index as i32;
             let x = main_width + BAND_SIZE + ICON_PADDING + (ICON_SIZE + ICON_PADDING) * index;

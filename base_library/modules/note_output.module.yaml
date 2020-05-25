@@ -5,9 +5,19 @@ inputs:
     tooltip: The audio that will be played for the current note
 outputs:
 controls:
+  volume:
+    min: 0
+    max: 1
+    default: 0.25
 gui: 
   label: Note Output
   tooltip: Receives audio that should be played for the current note
   width: 2
   height: 2
   widgets:
+    knob:
+      control: volume
+      label: Master Vol
+      tooltip: Control how loud the overall output is
+      x: 0
+      y: 0

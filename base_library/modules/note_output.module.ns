@@ -1,1 +1,1 @@
-global_audio_out = audio;
+global_audio_out = audio * volume;

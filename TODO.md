@@ -1,9 +1,7 @@
 # Things with no dependencies
-Master volume control
 Add option to draw white icons.
 Categories for modules.
 save and load presets
-Make the add modules menu look nice
 Some kind of Nodespeak library to simplify common tasks like updating waveform displays.
 Friendly error messages
 A widget to select from a series of options
@@ -24,6 +22,7 @@ Highlight connections when hovering over things like outputs and automation
 scroll to zoom
 Play a pretend note when moving knobs so you can see its effect without playing your own note.
 Undo / redo
+Make the add modules menu look nice
 
 # Code organization stuff
 Use more TupleUtil functions
