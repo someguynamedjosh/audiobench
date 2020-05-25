@@ -186,9 +186,11 @@ impl ModuleWidget for Knob {
     fn get_position(&self) -> (i32, i32) {
         self.pos
     }
+
     fn get_bounds(&self) -> (i32, i32) {
         (grid(2), grid(2))
     }
+
     fn respond_to_mouse_press(
         &self,
         local_pos: (i32, i32),
@@ -644,7 +646,11 @@ impl KnobEditor {
                     } else if angle < max_angle {
                         MouseAction::ManipulateLaneEnd(Rc::clone(&self.control), lane, lane_range.1)
                     } else {
-                        MouseAction::ManipulateLane(Rc::clone(&self.control), lane)
+                        if mods.right_click {
+                            MouseAction::RemoveLane(Rc::clone(&self.control), lane)
+                        } else {
+                            MouseAction::ManipulateLane(Rc::clone(&self.control), lane)
+                        }
                     };
                 }
             }

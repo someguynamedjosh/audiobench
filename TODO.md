@@ -1,31 +1,31 @@
 # Things with no dependencies
-A way to remove automation channels and modules
 Average together multiple automation channels (instead of add)
-FN Oscillator
 Master volume control
 Add option to draw white icons.
 Categories for modules.
 save and load presets
 Make the add modules menu look nice
+Control suffixes.
+Some kind of Nodespeak library to simplify common tasks like updating waveform displays.
+Friendly error messages
+A widget to select from a series of options
+Right-click menu should show automated value
+Make arrangement of wires line up more with the grid system for controls.
 
 # Things with missing dependencies
 Make screen selector and int box use white icons
+Options to change how automation channels are mixed together
+FM Oscillator
 
 # Low-priority things without dependencies
-Organize modules into categories (both GUI and folder structure wise)
-Control suffixes.
-Some kind of Nodespeak library to simplify common tasks like updating waveform displays.
 Output silent audio while recompiling instead of hanging the thread
-Display numeric value of control when manually dragging it
 Get a better icon for waveforms
 Better nothing icon
-Friendly error messages
-Options to change how automation channels are mixed together
 Highlight connections when hovering over things like outputs and automation
   lanes to see more easily what's connected to what
 scroll to zoom
-Right-click menu should show automated value
 Play a pretend note when moving knobs so you can see its effect without playing your own note.
+Undo / redo
 
 # Code organization stuff
 Use more TupleUtil functions

@@ -183,6 +183,10 @@ impl Gui {
                 self.current_screen = GuiScreen::NoteGraph;
                 return Some(InstanceAction::ReloadStructure);
             }
+            GuiAction::RemoveModule(module) => {
+                self.graph.remove_module(&module);
+                return Some(InstanceAction::ReloadStructure);
+            }
             GuiAction::Elevate(action) => return Some(action),
         }
         None

@@ -18,6 +18,7 @@ pub enum GuiAction {
     OpenMenu(Box<module_widgets::KnobEditor>),
     SwitchScreen(GuiScreen),
     AddModule(ep::Module),
+    RemoveModule(Rcrc<ep::Module>),
     Elevate(InstanceAction),
 }
 
@@ -43,6 +44,8 @@ pub enum MouseAction {
     OpenMenu(Box<module_widgets::KnobEditor>),
     SwitchScreen(GuiScreen),
     AddModule(ep::Module),
+    RemoveModule(Rcrc<ep::Module>),
+    RemoveLane(Rcrc<ep::Control>, usize),
 }
 
 impl MouseAction {
@@ -281,6 +284,11 @@ impl MouseAction {
             Self::OpenMenu(menu) => return Some(GuiAction::OpenMenu(menu)),
             Self::SwitchScreen(screen_index) => return Some(GuiAction::SwitchScreen(screen_index)),
             Self::AddModule(module) => return Some(GuiAction::AddModule(module)),
+            Self::RemoveModule(module) => return Some(GuiAction::RemoveModule(module)),
+            Self::RemoveLane(control, lane) => {
+                control.borrow_mut().automation.remove(lane);
+                return Some(GuiAction::Elevate(InstanceAction::ReloadStructure));
+            }
             Self::ConnectInput(module, input_index) => {
                 let mut module_ref = module.borrow_mut();
                 let num_options = module_ref.template.borrow().inputs[input_index]

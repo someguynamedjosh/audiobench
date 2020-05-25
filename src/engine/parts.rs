@@ -268,6 +268,15 @@ impl ModuleGraph {
         self.modules.push(module);
     }
 
+    pub fn remove_module(&mut self, module: &Rcrc<Module>) {
+        let index = self
+            .modules
+            .iter()
+            .position(|e| std::ptr::eq(e.as_ref(), module.as_ref()))
+            .unwrap();
+        self.modules.remove(index);
+    }
+
     pub fn adopt_module(&mut self, module: Module) {
         self.modules.push(rcrc(module));
     }
