@@ -1,5 +1,4 @@
 # Things with no dependencies
-Constantize font size.
 Tooltips for menu bar tabs
 Tooltips for module library
 Make screens enums instead of constants.
@@ -15,6 +14,7 @@ save and load presets
 
 # Things with missing dependencies
 Make the add modules menu look nice
+Make screen selector and int box use white icons
 
 # Low-priority things without dependencies
 Control suffixes.

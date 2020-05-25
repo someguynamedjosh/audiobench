@@ -283,7 +283,7 @@ impl ModuleWidget for Knob {
         g.set_color(&COLOR_TEXT);
         const H: HAlign = HAlign::Center;
         const V: VAlign = VAlign::Bottom;
-        g.write_text(12, 0, 0, grid(2), grid(2), H, V, 1, &self.label);
+        g.write_text(FONT_SIZE, 0, 0, grid(2), grid(2), H, V, 1, &self.label);
 
         if control.automation.len() > 0 {
             let num_lanes = control.automation.len() as i32;
@@ -324,7 +324,7 @@ pub struct IntBox {
 
 impl IntBox {
     const WIDTH: i32 = grid(2);
-    const HEIGHT: i32 = grid(2) - 12 - GRID_P;
+    const HEIGHT: i32 = grid(2) - FONT_SIZE - GRID_P;
     fn create(
         tooltip: String,
         registry: &Registry,
@@ -405,14 +405,14 @@ impl ModuleWidget for IntBox {
             const HA: HAlign = HAlign::Right;
             const VA: VAlign = VAlign::Center;
             g.set_color(&COLOR_TEXT);
-            g.write_text(16, 0, 0, W - IS - 4, H, HA, VA, 1, val);
+            g.write_text(BIG_FONT_SIZE, 0, 0, W - IS - 4, H, HA, VA, 1, val);
         }
         {
             let val = &self.label;
             const HA: HAlign = HAlign::Center;
             const VA: VAlign = VAlign::Bottom;
             g.set_color(&COLOR_TEXT);
-            g.write_text(12, 0, 0, W, grid(2), HA, VA, 1, val);
+            g.write_text(FONT_SIZE, 0, 0, W, grid(2), HA, VA, 1, val);
         }
 
         g.pop_state();
@@ -544,7 +544,7 @@ impl ModuleWidget for EnvelopeGraph {
         } else {
             format!("{}ms", ms)
         };
-        g.write_text(12, 0, 0, w, h, HAlign::Right, VAlign::Top, 1, &ms_text);
+        g.write_text(FONT_SIZE, 0, 0, w, h, HAlign::Right, VAlign::Top, 1, &ms_text);
 
         g.pop_state();
     }

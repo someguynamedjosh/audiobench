@@ -37,10 +37,12 @@ pub const KNOB_MENU_KNOB_IR: i32 = 40;
 pub const KNOB_MENU_LANE_GAP: i32 = 2;
 
 pub const CORNER_SIZE: i32 = 4;
+pub const FONT_SIZE: i32 = 12;
+pub const BIG_FONT_SIZE: i32 = 14;
+
 pub const MODULE_SHADOW_RADIUS: i32 = 25;
 pub const POPUP_SHADOW_RADIUS: i32 = 40;
 pub const JACK_SIZE: i32 = GRID_1;
-pub const JACK_DEFAULT_SIZE: i32 = JACK_SIZE - 4;
 pub const JACK_ICON_PADDING: i32 = 1;
 pub const JACK_SMALL_ICON_SIZE: i32 = 12;
 // Width of the area dedicated to input or output on each module.

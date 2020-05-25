@@ -1,3 +1,5 @@
+use crate::gui::constants::FONT_SIZE;
+
 #[repr(C)]
 pub struct GraphicsFunctions {
     push_state: fn(*mut i8),
@@ -176,7 +178,7 @@ impl<'a> GrahpicsWrapper<'a> {
     }
 
     pub fn write_label(&mut self, x: i32, y: i32, w: i32, text: &str) {
-        self.write_text(12, x, y, w, 30, HAlign::Center, VAlign::Top, 2, text)
+        self.write_text(FONT_SIZE, x, y, w, 30, HAlign::Center, VAlign::Top, 2, text)
     }
 
     pub fn write_text(

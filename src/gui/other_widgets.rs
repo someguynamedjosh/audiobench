@@ -151,7 +151,7 @@ impl MenuBar {
         let text_width = tooltip_width - GP * 2;
         g.set_color(&COLOR_TEXT);
         g.write_text(
-            12,
+            FONT_SIZE,
             text_x,
             coord(0) + GP2,
             text_width,

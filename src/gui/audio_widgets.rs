@@ -358,11 +358,11 @@ impl InputJack {
             const T: VAlign = VAlign::Top;
             if let Some(default) = &default {
                 const X: i32 = -104 - JS;
-                g.write_text(12, X, -JS / 2, 100, JS, H, B, 1, &self.label);
+                g.write_text(FONT_SIZE, X, -JS / 2, 100, JS, H, B, 1, &self.label);
                 let text = format!("({})", default.name);
-                g.write_text(12, X, JS / 2, 100, JS, H, T, 1, &text);
+                g.write_text(FONT_SIZE, X, JS / 2, 100, JS, H, T, 1, &text);
             } else {
-                g.write_text(12, -104, 0, 100, JS, H, C, 1, &self.label);
+                g.write_text(FONT_SIZE, -104, 0, 100, JS, H, C, 1, &self.label);
             }
         }
 
@@ -444,7 +444,7 @@ impl OutputJack {
         if show_label && !mute {
             const H: HAlign = HAlign::Left;
             const V: VAlign = VAlign::Center;
-            g.write_text(12, JS + 4, 0, 100, JS, H, V, 1, &self.label);
+            g.write_text(FONT_SIZE, JS + 4, 0, 100, JS, H, V, 1, &self.label);
         }
 
         g.pop_state();
@@ -772,7 +772,7 @@ impl Module {
 
             g.set_color(&COLOR_TEXT);
             g.write_text(
-                12,
+                FONT_SIZE,
                 MODULE_IO_WIDTH,
                 -20,
                 self.size.0,
