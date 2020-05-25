@@ -1,11 +1,9 @@
 # Things with no dependencies
-Average together multiple automation channels (instead of add)
 Master volume control
 Add option to draw white icons.
 Categories for modules.
 save and load presets
 Make the add modules menu look nice
-Control suffixes.
 Some kind of Nodespeak library to simplify common tasks like updating waveform displays.
 Friendly error messages
 A widget to select from a series of options

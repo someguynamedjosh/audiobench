@@ -90,7 +90,11 @@ impl MouseAction {
                 return (
                     Some(GuiAction::Elevate(InstanceAction::ReloadAuxData)),
                     Some(Tooltip {
-                        text: format_decimal(control_ref.value, 4),
+                        text: format!(
+                            "{}{}",
+                            format_decimal(control_ref.value, 4),
+                            control_ref.suffix
+                        ),
                         interaction: InteractionHint::LeftClickAndDrag.into(),
                     }),
                 );
@@ -111,9 +115,10 @@ impl MouseAction {
                 lane.range.0 = (lane.range.0 + delta).clam(range.0, range.1);
                 lane.range.1 = (lane.range.1 + delta).clam(range.0, range.1);
                 let tttext = format!(
-                    "{} to {}",
+                    "{0}{2} to {1}{2}",
                     format_decimal(lane.range.0, 4),
-                    format_decimal(lane.range.1, 4)
+                    format_decimal(lane.range.1, 4),
+                    control_ref.suffix,
                 );
                 return (
                     Some(GuiAction::Elevate(InstanceAction::ReloadAuxData)),
@@ -145,9 +150,10 @@ impl MouseAction {
                     lane.range.0 = *tracking;
                 }
                 let tttext = format!(
-                    "{} to {}",
+                    "{0}{2} to {1}{2}",
                     format_decimal(lane.range.0, 4),
-                    format_decimal(lane.range.1, 4)
+                    format_decimal(lane.range.1, 4),
+                    control_ref.suffix,
                 );
                 return (
                     Some(GuiAction::Elevate(InstanceAction::ReloadAuxData)),
@@ -179,9 +185,10 @@ impl MouseAction {
                     lane.range.1 = *tracking;
                 }
                 let tttext = format!(
-                    "{} to {}",
+                    "{0}{2} to {1}{2}",
                     format_decimal(lane.range.0, 4),
-                    format_decimal(lane.range.1, 4)
+                    format_decimal(lane.range.1, 4),
+                    control_ref.suffix,
                 );
                 return (
                     Some(GuiAction::Elevate(InstanceAction::ReloadAuxData)),

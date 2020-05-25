@@ -23,12 +23,14 @@ impl AuxDataCollector {
             if control_ref.automation.len() == 0 {
                 data.push(control_ref.value);
             } else {
+                let num_lanes = control_ref.automation.len();
+                let multiplier = 1.0 / num_lanes as f32;
                 for lane in &control_ref.automation {
                     // algebraic simplification of remapping value [-1, 1] -> [0, 1] -> [min, max]
                     let a = (lane.range.1 - lane.range.0) / 2.0;
                     let b = a + lane.range.0;
-                    data.push(a);
-                    data.push(b);
+                    data.push(a * multiplier);
+                    data.push(b * multiplier);
                 }
             }
         }

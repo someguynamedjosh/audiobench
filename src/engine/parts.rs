@@ -15,16 +15,18 @@ pub struct Control {
     pub default: f32,
     pub value: f32,
     pub automation: Vec<AutomationLane>,
+    pub suffix: String,
 }
 
 impl Control {
-    pub fn create(code_name: String, min: f32, max: f32, default: f32) -> Self {
+    pub fn create(code_name: String, min: f32, max: f32, default: f32, suffix: String) -> Self {
         Self {
             code_name,
             range: (min, max),
             default,
             value: default,
             automation: Vec::new(),
+            suffix,
         }
     }
 }

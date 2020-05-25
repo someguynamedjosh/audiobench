@@ -735,7 +735,7 @@ impl KnobEditor {
         }
 
         g.set_color(&COLOR_TEXT);
-        let value_text = format_decimal(control.value, 3);
+        let value_text = format!("{}{}", format_decimal(control.value, 3), control.suffix);
         g.write_label(-KIR, -12, KIR * 2, &value_text);
         g.write_label(-KOR, GRID_P, KOR * 2, &self.label);
 

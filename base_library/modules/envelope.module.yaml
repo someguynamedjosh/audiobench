@@ -20,10 +20,12 @@ controls:
     min: 0
     max: 2
     default: 0.01
+    suffix: s
   decay:
     min: 0
     max: 2
     default: 0.1
+    suffix: s
   sustain:
     min: 0
     max: 1
@@ -32,6 +34,7 @@ controls:
     min: 0
     max: 5
     default: 0.5
+    suffix: s
 gui: 
   label: Envelope
   tooltip: A basic ADSR envelope, useful for making parameters fade in and out.

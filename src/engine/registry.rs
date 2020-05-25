@@ -11,7 +11,12 @@ fn create_control_from_yaml(yaml: &YamlNode) -> Result<Rcrc<Control>, String> {
     let min = yaml.unique_child("min")?.f32()?;
     let max = yaml.unique_child("max")?.f32()?;
     let default = yaml.unique_child("default")?.f32()?;
-    Ok(rcrc(Control::create(yaml.name.clone(), min, max, default)))
+    let suffix = if let Ok(node) = yaml.unique_child("suffix") {
+        node.value.clone()
+    } else {
+        "".to_owned()
+    };
+    Ok(rcrc(Control::create(yaml.name.clone(), min, max, default, suffix)))
 }
 
 fn create_widget_outline_from_yaml(
