@@ -16,7 +16,13 @@ fn create_control_from_yaml(yaml: &YamlNode) -> Result<Rcrc<Control>, String> {
     } else {
         "".to_owned()
     };
-    Ok(rcrc(Control::create(yaml.name.clone(), min, max, default, suffix)))
+    Ok(rcrc(Control::create(
+        yaml.name.clone(),
+        min,
+        max,
+        default,
+        suffix,
+    )))
 }
 
 fn create_widget_outline_from_yaml(
@@ -129,6 +135,7 @@ fn create_widget_outline_from_yaml(
 
 fn create_module_prototype_from_yaml(
     icon_indexes: &HashMap<String, usize>,
+    resource_name: String,
     yaml: &YamlNode,
 ) -> Result<Module, String> {
     let mut controls = Vec::new();
@@ -256,6 +263,7 @@ fn create_module_prototype_from_yaml(
     });
 
     let template = ModuleTemplate {
+        resource_name,
         label,
         category,
         tooltip,
@@ -296,7 +304,8 @@ impl Registry {
             )
         })?;
         let yaml = yaml::parse_yaml(&buffer_as_text, name)?;
-        let module = create_module_prototype_from_yaml(&self.icon_indexes, &yaml)?;
+        let module =
+            create_module_prototype_from_yaml(&self.icon_indexes, module_id.to_owned(), &yaml)?;
         self.modules.insert(module_id.to_owned(), module);
         Ok(())
     }

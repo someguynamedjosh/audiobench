@@ -349,6 +349,7 @@ impl ModuleGraph {
 
 #[derive(Debug)]
 pub struct ModuleTemplate {
+    pub resource_name: String,
     pub label: String,
     pub category: String,
     pub tooltip: String,
