@@ -1,5 +1,4 @@
 # Things with no dependencies
-Tooltips for module library
 Snap / Precision modifier keys for dragging controls (and for moving modules)
 Some way to reset the value of a control
 A way to remove automation channels and modules
@@ -15,6 +14,7 @@ Make the add modules menu look nice
 Make screen selector and int box use white icons
 
 # Low-priority things without dependencies
+Organize modules into categories (both GUI and folder structure wise)
 Control suffixes.
 Some kind of Nodespeak library to simplify common tasks like updating waveform displays.
 Output silent audio while recompiling instead of hanging the thread

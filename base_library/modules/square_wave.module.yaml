@@ -11,6 +11,7 @@ controls:
     default: 0.5
 gui: 
   label: Square Wave
+  tooltip: Creates a square wave with control over its duty cycle
   width: 5
   height: 2
   widgets:

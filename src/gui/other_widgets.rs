@@ -193,14 +193,14 @@ impl MenuBar {
     }
 }
 
-struct ModuleLibraryEntry {
+struct ModuleCatalogEntry {
     name: String,
     input_icons: Vec<usize>,
     output_icons: Vec<usize>,
     prototype: ep::Module,
 }
 
-impl ModuleLibraryEntry {
+impl ModuleCatalogEntry {
     const WIDTH: i32 = fatgrid(6);
     const HEIGHT: i32 = fatgrid(1);
 
@@ -258,21 +258,21 @@ impl ModuleLibraryEntry {
     }
 }
 
-pub struct ModuleLibrary {
+pub struct ModuleCatalog {
     pos: (i32, i32),
     size: (i32, i32),
     vertical_stacking: i32,
-    entries: Vec<ModuleLibraryEntry>,
+    entries: Vec<ModuleCatalogEntry>,
     alphabetical_order: Vec<usize>,
 }
 
-impl ModuleLibrary {
+impl ModuleCatalog {
     pub fn create(registry: &Registry, pos: (i32, i32), size: (i32, i32)) -> Self {
         let entries: Vec<_> = registry
             .iterate_over_modules()
-            .map(|module| ModuleLibraryEntry::from(module))
+            .map(|module| ModuleCatalogEntry::from(module))
             .collect();
-        let vertical_stacking = size.1 / (ModuleLibraryEntry::HEIGHT + GRID_P);
+        let vertical_stacking = size.1 / (ModuleCatalogEntry::HEIGHT + GRID_P);
         let mut alphabetical_order: Vec<_> = (0..entries.len()).collect();
         alphabetical_order.sort_by(|a, b| entries[*a].name.cmp(&entries[*b].name));
         Self {
@@ -284,19 +284,38 @@ impl ModuleLibrary {
         }
     }
 
+    fn get_entry_at(&self, mouse_pos: (i32, i32)) -> Option<&ModuleCatalogEntry> {
+        let mouse_pos = (mouse_pos.0 - self.pos.0, mouse_pos.1 - self.pos.1);
+        let clicked_index = mouse_pos.0 / (ModuleCatalogEntry::WIDTH + GRID_P)
+            * self.vertical_stacking
+            + mouse_pos.1 / (ModuleCatalogEntry::HEIGHT + GRID_P);
+        let clicked_index = clicked_index as usize;
+        if clicked_index < self.entries.len() {
+            let entry_index = self.alphabetical_order[clicked_index];
+            Some(&self.entries[entry_index])
+        } else {
+            None
+        }
+    }
+
+    pub fn get_tooltip_at(&self, mouse_pos: (i32, i32)) -> Option<Tooltip> {
+        if let Some(entry) = self.get_entry_at(mouse_pos) {
+            Some(Tooltip {
+                text: entry.prototype.template.borrow().tooltip.clone(),
+                interaction: InteractionHint::LeftClick.into(),
+            })
+        } else {
+            None
+        }
+    }
+
     pub fn respond_to_mouse_press(
         &mut self,
         mouse_pos: (i32, i32),
         mods: &MouseMods,
     ) -> MouseAction {
-        let mouse_pos = (mouse_pos.0 - self.pos.0, mouse_pos.1 - self.pos.1);
-        let clicked_index = mouse_pos.0 / (ModuleLibraryEntry::WIDTH + GRID_P)
-            * self.vertical_stacking
-            + mouse_pos.1 / (ModuleLibraryEntry::HEIGHT + GRID_P);
-        let clicked_index = clicked_index as usize;
-        if clicked_index < self.entries.len() {
-            let entry_index = self.alphabetical_order[clicked_index];
-            MouseAction::AddModule(self.entries[entry_index].prototype.clone())
+        if let Some(entry) = self.get_entry_at(mouse_pos) {
+            MouseAction::AddModule(entry.prototype.clone())
         } else {
             MouseAction::None
         }
@@ -310,8 +329,8 @@ impl ModuleLibrary {
             let entry = &self.entries[*entry_index];
             let index = index as i32;
             let (x, y) = (
-                (index / self.vertical_stacking) * (ModuleLibraryEntry::WIDTH + GRID_P) + GRID_P,
-                (index % self.vertical_stacking) * (ModuleLibraryEntry::HEIGHT + GRID_P) + GRID_P,
+                (index / self.vertical_stacking) * (ModuleCatalogEntry::WIDTH + GRID_P) + GRID_P,
+                (index % self.vertical_stacking) * (ModuleCatalogEntry::HEIGHT + GRID_P) + GRID_P,
             );
             g.push_state();
             g.apply_offset(x, y);

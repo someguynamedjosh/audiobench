@@ -19,6 +19,7 @@ controls:
     default: 0.5
 gui: 
   label: Amplitude Mod.
+  tooltip: Modulates a carrier waveform with amplitude modulation (AM) using a second waveform
   width: 5
   height: 2
   widgets:

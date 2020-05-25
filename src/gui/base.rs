@@ -65,7 +65,7 @@ pub struct Gui {
     current_screen: GuiScreen,
     menu_bar: other_widgets::MenuBar,
     graph: audio_widgets::ModuleGraph,
-    module_library: other_widgets::ModuleLibrary,
+    module_catalog: other_widgets::ModuleCatalog,
 
     mouse_action: MouseAction,
     click_position: (i32, i32),
@@ -81,15 +81,15 @@ impl Gui {
 
         let mut graph = audio_widgets::ModuleGraph::create(registry, graph_ref);
         graph.pos.1 = y;
-        let module_library =
-            other_widgets::ModuleLibrary::create(registry, (0, y), (size.0, size.1 - y));
+        let module_catalog =
+            other_widgets::ModuleCatalog::create(registry, (0, y), (size.0, size.1 - y));
 
         Self {
             size,
             current_screen: GuiScreen::NoteGraph,
             menu_bar: other_widgets::MenuBar::create(registry, GuiScreen::all()),
             graph,
-            module_library,
+            module_catalog,
 
             mouse_action: MouseAction::None,
             click_position: (0, 0),
@@ -102,7 +102,7 @@ impl Gui {
     pub fn draw(&self, g: &mut GrahpicsWrapper) {
         match self.current_screen {
             GuiScreen::NoteGraph => self.graph.draw(g, self),
-            GuiScreen::ModuleCatalog => self.module_library.draw(g),
+            GuiScreen::ModuleCatalog => self.module_catalog.draw(g),
         }
         self.menu_bar.draw(self.size.0, self.current_screen, g);
     }
@@ -113,7 +113,7 @@ impl Gui {
         } else {
             self.mouse_action = match self.current_screen {
                 GuiScreen::NoteGraph => self.graph.respond_to_mouse_press(pos, mods),
-                GuiScreen::ModuleCatalog => self.module_library.respond_to_mouse_press(pos, mods),
+                GuiScreen::ModuleCatalog => self.module_catalog.respond_to_mouse_press(pos, mods),
             };
         }
         self.mouse_down = true;
@@ -151,14 +151,14 @@ impl Gui {
             }
         }
         if new_tooltip.is_none() {
+            new_tooltip = self.menu_bar.get_tooltip_at(new_pos);
+        }
+        if new_tooltip.is_none() {
             // TODO: Module library tooltips?
             new_tooltip = match self.current_screen {
                 GuiScreen::NoteGraph => self.graph.get_tooltip_at(new_pos),
-                _ => None,
+                GuiScreen::ModuleCatalog => self.module_catalog.get_tooltip_at(new_pos),
             }
-        }
-        if new_tooltip.is_none() {
-            new_tooltip = self.menu_bar.get_tooltip_at(new_pos);
         }
         if let Some(tooltip) = new_tooltip {
             self.menu_bar.set_tooltip(tooltip);
@@ -174,6 +174,7 @@ impl Gui {
             GuiAction::SwitchScreen(new_index) => self.current_screen = new_index,
             GuiAction::AddModule(module) => {
                 self.graph.add_module(registry, module);
+                self.current_screen = GuiScreen::NoteGraph;
                 return Some(InstanceAction::ReloadStructure);
             }
             GuiAction::Elevate(action) => return Some(action),

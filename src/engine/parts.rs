@@ -336,6 +336,7 @@ impl ModuleGraph {
 #[derive(Debug)]
 pub struct ModuleTemplate {
     pub label: String,
+    pub tooltip: String,
     pub code_resource: String,
     pub size: (i32, i32),
     pub widget_outlines: Vec<WidgetOutline>,

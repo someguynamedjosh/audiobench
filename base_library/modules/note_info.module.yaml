@@ -26,6 +26,7 @@ outputs:
 controls:
 gui: 
   label: Note Info 
+  tooltip: Information about the note that is currently being played
   width: 2
   height: 5
   widgets:

@@ -11,6 +11,7 @@ controls:
     default: 1.0
 gui: 
   label: Triangle Wave
+  tooltip: Creates a triangle waveform with control over where the peak occurs
   width: 5
   height: 2
   widgets:

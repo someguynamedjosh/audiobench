@@ -7,6 +7,7 @@ outputs:
 controls:
 gui: 
   label: Note Output
+  tooltip: Receives audio that should be played for the current note
   width: 2
   height: 2
   widgets:

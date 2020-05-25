@@ -34,6 +34,7 @@ controls:
     default: 0.5
 gui: 
   label: Envelope
+  tooltip: A basic ADSR envelope, useful for making parameters fade in and out.
   width: 8
   height: 4
   widgets:

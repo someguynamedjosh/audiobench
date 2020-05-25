@@ -152,6 +152,7 @@ fn create_module_prototype_from_yaml(
     let gui_description = yaml.unique_child("gui")?;
     let widgets_description = gui_description.unique_child("widgets")?;
     let label = gui_description.unique_child("label")?.value.clone();
+    let tooltip = gui_description.unique_child("tooltip")?.value.clone();
     let width = gui_description.unique_child("width")?.i32()?;
     let height = gui_description.unique_child("height")?.i32()?;
     let mut widgets = Vec::new();
@@ -248,6 +249,7 @@ fn create_module_prototype_from_yaml(
 
     let template = ModuleTemplate {
         label,
+        tooltip,
         code_resource: yaml.name.replace(".module.yaml", ".module.ns"),
         size: (width, height),
         widget_outlines: widgets,

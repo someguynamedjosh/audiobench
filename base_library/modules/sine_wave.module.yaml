@@ -7,6 +7,7 @@ outputs:
 controls:
 gui: 
   label: Sine Wave
+  tooltip: Outputs a basic sine waveform
   width: 3
   height: 2
   widgets:
