@@ -1,7 +1,5 @@
 # Things with no dependencies
-Tooltips for menu bar tabs
 Tooltips for module library
-Make screens enums instead of constants.
 Snap / Precision modifier keys for dragging controls (and for moving modules)
 Some way to reset the value of a control
 A way to remove automation channels and modules
@@ -36,3 +34,4 @@ ModuleLibrary -> ModuleCatalog
 Control -> Parameter?
 Parameter -> AutoParam, ComplexParam?
 use fewer i32s, replace with usizes when it would be helpful.
+Tidy up warnings

@@ -3,14 +3,15 @@ use crate::engine::registry::Registry;
 use crate::gui::action::MouseAction;
 use crate::gui::constants::*;
 use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
-use crate::gui::{InteractionHint, MouseMods, Tooltip};
+use crate::gui::{GuiScreen, InteractionHint, MouseMods, Tooltip};
 
 fn bound_check(coord: (i32, i32), bounds: (i32, i32)) -> bool {
     coord.0 >= 0 && coord.1 >= 0 && coord.0 <= bounds.0 && coord.1 <= bounds.1
 }
 
 pub struct MenuBar {
-    tab_icons: Vec<usize>,
+    screens: Vec<GuiScreen>,
+    screen_icons: Vec<usize>,
     lclick: usize,
     rclick: usize,
     drag: usize,
@@ -21,18 +22,33 @@ pub struct MenuBar {
 impl MenuBar {
     pub const HEIGHT: i32 = grid(1) + GRID_P * 3;
 
-    pub fn create(registry: &Registry) -> Self {
+    pub fn create(registry: &Registry, screens: Vec<GuiScreen>) -> Self {
+        let screen_icons = screens
+            .iter()
+            .map(|s| registry.lookup_icon(s.get_icon_name()).unwrap())
+            .collect();
         Self {
-            tab_icons: vec![
-                registry.lookup_icon("base:note").unwrap(),
-                registry.lookup_icon("base:add").unwrap(),
-            ],
+            screens,
+            screen_icons,
             lclick: registry.lookup_icon("base:left_click").unwrap(),
             rclick: registry.lookup_icon("base:right_click").unwrap(),
             drag: registry.lookup_icon("base:move").unwrap(),
             and: registry.lookup_icon("base:add").unwrap(),
             tooltip: Default::default(),
         }
+    }
+
+    pub fn get_tooltip_at(&self, mouse_pos: (i32, i32)) -> Option<Tooltip> {
+        if mouse_pos.1 < Self::HEIGHT {
+            let screen_index = ((mouse_pos.0 - GRID_P) / (GRID_P + grid(1))) as usize;
+            if screen_index < self.screens.len() {
+                return Some(Tooltip {
+                    text: self.screens[screen_index].get_tooltip_text().to_owned(),
+                    interaction: InteractionHint::LeftClick.into(),
+                });
+            }
+        }
+        None
     }
 
     pub fn set_tooltip(&mut self, tooltip: Tooltip) {
@@ -43,16 +59,20 @@ impl MenuBar {
         if !bound_check(mouse_pos, (99999, Self::HEIGHT)) {
             return MouseAction::None;
         }
-        let new_screen = (mouse_pos.0 - GRID_P) / (GRID_P + grid(1));
-        if new_screen < self.tab_icons.len() as i32 {
-            MouseAction::SwitchScreen(new_screen as usize)
+        let new_screen = ((mouse_pos.0 - GRID_P) / (GRID_P + grid(1))) as usize;
+        if new_screen < self.screens.len() {
+            MouseAction::SwitchScreen(self.screens[new_screen])
         } else {
             MouseAction::None
         }
     }
 
-    pub fn draw(&self, width: i32, current_screen_index: usize, g: &mut GrahpicsWrapper) {
-        let current_screen_index = current_screen_index as i32;
+    pub fn draw(&self, width: i32, current_screen: GuiScreen, g: &mut GrahpicsWrapper) {
+        let current_screen_index = self
+            .screens
+            .iter()
+            .position(|e| e == &current_screen)
+            .unwrap() as i32;
 
         g.set_color(&COLOR_SURFACE);
         g.fill_rect(0, 0, width, Self::HEIGHT);
@@ -67,7 +87,7 @@ impl MenuBar {
         g.fill_rounded_rect(
             coord(0),
             coord(0),
-            grid(self.tab_icons.len() as i32) + GP,
+            grid(self.screens.len() as i32) + GP,
             ITEM_HEIGHT,
             CS,
         );
@@ -143,7 +163,7 @@ impl MenuBar {
             draw_hint(active, g, x, Y2, &[self.rclick]);
         }
 
-        let tooltip_x = coord(self.tab_icons.len() as i32) + GP;
+        let tooltip_x = coord(self.screens.len() as i32) + GP;
         let tooltip_width = width - HINT_AREA_WIDTH - tooltip_x;
         g.set_color(&COLOR_BG);
         g.fill_rounded_rect(tooltip_x, coord(0), tooltip_width, ITEM_HEIGHT, CS);
@@ -162,17 +182,11 @@ impl MenuBar {
             &self.tooltip.text,
         );
 
-        for (index, icon) in self.tab_icons.iter().enumerate() {
+        for (index, icon) in self.screen_icons.iter().enumerate() {
             let index = index as i32;
             if current_screen_index == index {
                 g.set_color(&COLOR_TEXT);
-                g.fill_rounded_rect(
-                    coord(index),
-                    coord(0),
-                    grid(1) + GP,
-                    grid(1) + GP,
-                    CS,
-                );
+                g.fill_rounded_rect(coord(index), coord(0), grid(1) + GP, grid(1) + GP, CS);
             }
             g.draw_icon(*icon, coord(index) + GP2, coord(0) + GP2, grid(1));
         }

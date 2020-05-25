@@ -1,6 +1,6 @@
 use crate::engine::parts as ep;
 use crate::gui::module_widgets;
-use crate::gui::{InteractionHint, Tooltip};
+use crate::gui::{GuiScreen, InteractionHint, Tooltip};
 use crate::util::*;
 
 // Describes an action that should be performed on an instance level.
@@ -15,7 +15,7 @@ pub enum InstanceAction {
 // MouseAction functions for each action that needs to modify something in the GUI.
 pub enum GuiAction {
     OpenMenu(Box<module_widgets::KnobEditor>),
-    SwitchScreen(usize),
+    SwitchScreen(GuiScreen),
     AddModule(ep::Module),
     Elevate(InstanceAction),
 }
@@ -40,7 +40,7 @@ pub enum MouseAction {
     ConnectInput(Rcrc<ep::Module>, usize),
     ConnectOutput(Rcrc<ep::Module>, usize),
     OpenMenu(Box<module_widgets::KnobEditor>),
-    SwitchScreen(usize),
+    SwitchScreen(GuiScreen),
     AddModule(ep::Module),
 }
 

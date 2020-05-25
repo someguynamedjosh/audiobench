@@ -34,12 +34,35 @@ pub struct MouseMods {
     pub right_click: bool,
 }
 
-const MODULE_GRAPH_SCREEN: usize = 0;
-const MODULE_LIBRARY_SCREEN: usize = 1;
+#[derive(Eq, PartialEq, Clone, Copy)]
+pub enum GuiScreen {
+    NoteGraph,
+    ModuleCatalog,
+}
+
+impl GuiScreen {
+    fn all() -> Vec<GuiScreen> {
+        vec![Self::NoteGraph, Self::ModuleCatalog]
+    }
+
+    pub fn get_icon_name(&self) -> &'static str {
+        match self {
+            Self::NoteGraph => "base:note",
+            Self::ModuleCatalog => "base:add",
+        }
+    }
+
+    pub fn get_tooltip_text(&self) -> &'static str {
+        match self {
+            Self::NoteGraph => "Note graph: Edit the module graph used to synthesize notes",
+            Self::ModuleCatalog => "Module catalog: Add new modules to the current graph",
+        }
+    }
+}
 
 pub struct Gui {
     size: (i32, i32),
-    current_screen: usize,
+    current_screen: GuiScreen,
     menu_bar: other_widgets::MenuBar,
     graph: audio_widgets::ModuleGraph,
     module_library: other_widgets::ModuleLibrary,
@@ -63,8 +86,8 @@ impl Gui {
 
         Self {
             size,
-            current_screen: MODULE_GRAPH_SCREEN,
-            menu_bar: other_widgets::MenuBar::create(registry),
+            current_screen: GuiScreen::NoteGraph,
+            menu_bar: other_widgets::MenuBar::create(registry, GuiScreen::all()),
             graph,
             module_library,
 
@@ -78,9 +101,8 @@ impl Gui {
 
     pub fn draw(&self, g: &mut GrahpicsWrapper) {
         match self.current_screen {
-            MODULE_GRAPH_SCREEN => self.graph.draw(g, self),
-            MODULE_LIBRARY_SCREEN => self.module_library.draw(g),
-            _ => unreachable!(),
+            GuiScreen::NoteGraph => self.graph.draw(g, self),
+            GuiScreen::ModuleCatalog => self.module_library.draw(g),
         }
         self.menu_bar.draw(self.size.0, self.current_screen, g);
     }
@@ -90,9 +112,8 @@ impl Gui {
             self.mouse_action = self.menu_bar.respond_to_mouse_press(pos, mods);
         } else {
             self.mouse_action = match self.current_screen {
-                MODULE_GRAPH_SCREEN => self.graph.respond_to_mouse_press(pos, mods),
-                MODULE_LIBRARY_SCREEN => self.module_library.respond_to_mouse_press(pos, mods),
-                _ => unreachable!(),
+                GuiScreen::NoteGraph => self.graph.respond_to_mouse_press(pos, mods),
+                GuiScreen::ModuleCatalog => self.module_library.respond_to_mouse_press(pos, mods),
             };
         }
         self.mouse_down = true;
@@ -129,13 +150,16 @@ impl Gui {
                     .flatten();
             }
         }
-        if new_tooltip.is_none()  {
+        if new_tooltip.is_none() {
             // TODO: Module library tooltips?
             new_tooltip = match self.current_screen {
-                MODULE_GRAPH_SCREEN => self.graph.get_tooltip_at(new_pos),
+                GuiScreen::NoteGraph => self.graph.get_tooltip_at(new_pos),
                 _ => None,
             }
-        };
+        }
+        if new_tooltip.is_none() {
+            new_tooltip = self.menu_bar.get_tooltip_at(new_pos);
+        }
         if let Some(tooltip) = new_tooltip {
             self.menu_bar.set_tooltip(tooltip);
         } else {

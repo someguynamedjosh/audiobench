@@ -544,7 +544,17 @@ impl ModuleWidget for EnvelopeGraph {
         } else {
             format!("{}ms", ms)
         };
-        g.write_text(FONT_SIZE, 0, 0, w, h, HAlign::Right, VAlign::Top, 1, &ms_text);
+        g.write_text(
+            FONT_SIZE,
+            0,
+            0,
+            w,
+            h,
+            HAlign::Right,
+            VAlign::Top,
+            1,
+            &ms_text,
+        );
 
         g.pop_state();
     }
