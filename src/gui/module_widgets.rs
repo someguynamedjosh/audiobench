@@ -207,7 +207,7 @@ impl ModuleWidget for Knob {
                 self.tooltip.clone(),
             )))
         } else {
-            MouseAction::ManipulateControl(Rc::clone(&self.control))
+            MouseAction::ManipulateControl(Rc::clone(&self.control), self.control.borrow().value)
         }
     }
 
@@ -615,7 +615,10 @@ impl KnobEditor {
             if radius < KNOB_MENU_KNOB_IR {
                 // Nothing interactable inside the knob.
             } else if radius < KNOB_MENU_KNOB_OR {
-                return MouseAction::ManipulateControl(Rc::clone(&self.control));
+                return MouseAction::ManipulateControl(
+                    Rc::clone(&self.control),
+                    self.control.borrow().value,
+                );
             } else {
                 let radius = radius - KNOB_MENU_KNOB_OR;
                 let lane = (radius / (KNOB_MENU_LANE_SIZE + KNOB_MENU_LANE_GAP)) as usize;
@@ -629,9 +632,13 @@ impl KnobEditor {
                     let max_angle = lane_range.1.from_range_to_range(range.0, range.1, PI, 0.0);
                     // TODO: Handle inverted lanes.
                     return if angle > min_angle {
-                        MouseAction::ManipulateLaneStart(Rc::clone(&self.control), lane)
+                        MouseAction::ManipulateLaneStart(
+                            Rc::clone(&self.control),
+                            lane,
+                            lane_range.0,
+                        )
                     } else if angle < max_angle {
-                        MouseAction::ManipulateLaneEnd(Rc::clone(&self.control), lane)
+                        MouseAction::ManipulateLaneEnd(Rc::clone(&self.control), lane, lane_range.1)
                     } else {
                         MouseAction::ManipulateLane(Rc::clone(&self.control), lane)
                     };

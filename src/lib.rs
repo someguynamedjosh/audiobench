@@ -101,9 +101,9 @@ impl Instance {
         }
     }
 
-    pub fn mouse_down(&mut self, x: i32, y: i32, right_click: bool) {
+    pub fn mouse_down(&mut self, x: i32, y: i32, right_click: bool, shift: bool, precise: bool) {
         if let Some(gui) = &mut self.gui {
-            let mods = MouseMods { right_click };
+            let mods = MouseMods { right_click, shift, precise };
             gui.on_mouse_down((x, y), &mods);
         } else {
             debug_assert!(false, "mouse_down called, but no GUI exists.");
@@ -111,9 +111,10 @@ impl Instance {
         }
     }
 
-    pub fn mouse_move(&mut self, x: i32, y: i32) {
+    pub fn mouse_move(&mut self, x: i32, y: i32, right_click: bool, shift: bool, precise: bool) {
         if let Some(gui) = &mut self.gui {
-            let action = gui.on_mouse_move(&self.registry, (x, y));
+            let mods = MouseMods { right_click, shift, precise };
+            let action = gui.on_mouse_move(&self.registry, (x, y), &mods);
             action.map(|a| self.perform_action(a));
         } else {
             debug_assert!(false, "mouse_move called, but no GUI exists.");
@@ -212,13 +213,27 @@ pub unsafe extern "C" fn ABDestroyUI(instance: *mut Instance) {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ABUIMouseDown(instance: *mut Instance, x: i32, y: i32, right_click: bool) {
-    (*instance).mouse_down(x, y, right_click);
+pub unsafe extern "C" fn ABUIMouseDown(
+    instance: *mut Instance,
+    x: i32,
+    y: i32,
+    right_click: bool,
+    shift: bool,
+    precise: bool,
+) {
+    (*instance).mouse_down(x, y, right_click, shift, precise);
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ABUIMouseMove(instance: *mut Instance, x: i32, y: i32) {
-    (*instance).mouse_move(x, y);
+pub unsafe extern "C" fn ABUIMouseMove(
+    instance: *mut Instance,
+    x: i32,
+    y: i32,
+    right_click: bool,
+    shift: bool,
+    precise: bool,
+) {
+    (*instance).mouse_move(x, y, right_click, shift, precise);
 }
 
 #[no_mangle]

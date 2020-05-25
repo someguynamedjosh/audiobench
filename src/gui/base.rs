@@ -32,6 +32,8 @@ impl Default for Tooltip {
 
 pub struct MouseMods {
     pub right_click: bool,
+    pub shift: bool,
+    pub precise: bool,
 }
 
 #[derive(Eq, PartialEq, Clone, Copy)]
@@ -126,6 +128,7 @@ impl Gui {
         &mut self,
         registry: &Registry,
         new_pos: (i32, i32),
+        mods: &MouseMods,
     ) -> Option<InstanceAction> {
         let mut retval = None;
         self.mouse_pos = new_pos;
@@ -142,7 +145,7 @@ impl Gui {
                 }
             }
             if self.dragged {
-                let (gui_action, tooltip) = self.mouse_action.on_drag(delta);
+                let (gui_action, tooltip) = self.mouse_action.on_drag(delta, mods);
                 new_tooltip = tooltip;
                 self.click_position = new_pos;
                 retval = gui_action

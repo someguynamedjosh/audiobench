@@ -48,7 +48,9 @@ pub const JACK_SMALL_ICON_SIZE: i32 = 12;
 // Width of the area dedicated to input or output on each module.
 pub const MODULE_IO_WIDTH: i32 = JACK_SIZE + GRID_P;
 
-pub const WIRE_MIN_SEGMENT_LENGTH: i32 = 22;
+// Originally 22 but that made grid modules with a reasonable amount of space between them have 
+// the weird loop-around fallback wire.
+pub const WIRE_MIN_SEGMENT_LENGTH: i32 = 21; 
 // Amount of x and y offset required to create a 45 degree line MIN_WIRE_SEGMENT_LENGTH long
 pub const WIRE_MIN_DIAGONAL_SIZE: i32 =
     (WIRE_MIN_SEGMENT_LENGTH as f32 * std::f32::consts::SQRT_2 / 2.0) as i32;

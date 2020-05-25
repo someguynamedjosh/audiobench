@@ -1,5 +1,4 @@
 # Things with no dependencies
-Snap / Precision modifier keys for dragging controls (and for moving modules)
 Some way to reset the value of a control
 A way to remove automation channels and modules
 Average together multiple automation channels (instead of add)
@@ -26,6 +25,7 @@ Options to change how automation channels are mixed together
 Highlight connections when hovering over things like outputs and automation
   lanes to see more easily what's connected to what
 scroll to zoom
+Right-click menu should show automated value
 Play a pretend note when moving knobs so you can see its effect without playing your own note.
 
 # Code organization stuff

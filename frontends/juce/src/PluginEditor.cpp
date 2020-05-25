@@ -169,15 +169,15 @@ void AudioBenchAudioProcessorEditor::paint (Graphics& g)
 }
 
 void AudioBenchAudioProcessorEditor::mouseDown(const MouseEvent &event) {
-    ABUIMouseDown(processor.ab, event.x, event.y, event.mods.isPopupMenu());
+    ABUIMouseDown(processor.ab, event.x, event.y, event.mods.isPopupMenu(), event.mods.isShiftDown(), event.mods.isAltDown());
 }
 
 void AudioBenchAudioProcessorEditor::mouseMove(const MouseEvent &event) {
-    ABUIMouseMove(processor.ab, event.x, event.y);
+    ABUIMouseMove(processor.ab, event.x, event.y, event.mods.isPopupMenu(), event.mods.isShiftDown(), event.mods.isAltDown());
 }
 
 void AudioBenchAudioProcessorEditor::mouseDrag(const MouseEvent &event) {
-    ABUIMouseMove(processor.ab, event.x, event.y);
+    ABUIMouseMove(processor.ab, event.x, event.y, event.mods.isPopupMenu(), event.mods.isShiftDown(), event.mods.isAltDown());
 }
 
 void AudioBenchAudioProcessorEditor::mouseUp(const MouseEvent &event) {

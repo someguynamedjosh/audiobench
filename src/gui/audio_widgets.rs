@@ -652,7 +652,7 @@ impl Module {
                 return MouseAction::ConnectOutput(Rc::clone(&self.module), index);
             }
         }
-        MouseAction::MoveModule(Rc::clone(&self.module))
+        MouseAction::MoveModule(Rc::clone(&self.module), self.module.borrow().pos)
     }
 
     pub fn get_drop_target_at(&self, mouse_pos: (i32, i32)) -> DropTarget {

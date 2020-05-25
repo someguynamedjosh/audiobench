@@ -1,6 +1,7 @@
 use crate::engine::parts as ep;
+use crate::gui::constants::*;
 use crate::gui::module_widgets;
-use crate::gui::{GuiScreen, InteractionHint, Tooltip};
+use crate::gui::{GuiScreen, InteractionHint, MouseMods, Tooltip};
 use crate::util::*;
 
 // Describes an action that should be performed on an instance level.
@@ -22,10 +23,10 @@ pub enum GuiAction {
 
 pub enum MouseAction {
     None,
-    ManipulateControl(Rcrc<ep::Control>),
+    ManipulateControl(Rcrc<ep::Control>, f32),
     ManipulateLane(Rcrc<ep::Control>, usize),
-    ManipulateLaneStart(Rcrc<ep::Control>, usize),
-    ManipulateLaneEnd(Rcrc<ep::Control>, usize),
+    ManipulateLaneStart(Rcrc<ep::Control>, usize, f32),
+    ManipulateLaneEnd(Rcrc<ep::Control>, usize, f32),
     ManipulateIntControl {
         cref: Rcrc<ep::ComplexControl>,
         min: i32,
@@ -35,7 +36,7 @@ pub enum MouseAction {
         // keeps track of what the value would be if it were a float and not an int.
         float_value: f32,
     },
-    MoveModule(Rcrc<ep::Module>),
+    MoveModule(Rcrc<ep::Module>, (i32, i32)),
     PanOffset(Rcrc<(i32, i32)>),
     ConnectInput(Rcrc<ep::Module>, usize),
     ConnectOutput(Rcrc<ep::Module>, usize),
@@ -56,18 +57,29 @@ impl MouseAction {
     pub(in crate::gui) fn on_drag(
         &mut self,
         delta: (i32, i32),
+        mods: &MouseMods,
     ) -> (Option<GuiAction>, Option<Tooltip>) {
         match self {
-            Self::ManipulateControl(control) => {
+            Self::ManipulateControl(control, tracking) => {
                 let delta = delta.0 - delta.1;
                 // How many pixels the user must drag across to cover the entire range of the knob.
                 const DRAG_PIXELS: f32 = 200.0;
-                let delta = delta as f32 / DRAG_PIXELS;
+                let mut delta = delta as f32 / DRAG_PIXELS;
+                if mods.precise {
+                    delta *= 0.2;
+                }
 
                 let mut control_ref = control.borrow_mut();
                 let range = control_ref.range;
                 let delta = delta * (range.1 - range.0) as f32;
-                control_ref.value = (control_ref.value + delta).clam(range.0, range.1);
+                *tracking = (*tracking + delta).clam(range.0, range.1);
+                if mods.shift {
+                    let r08 = tracking.from_range_to_range(range.0, range.1, 0.0, 8.8);
+                    let snapped = (r08 - 0.4).round();
+                    control_ref.value = snapped.from_range_to_range(0.0, 8.0, range.0, range.1);
+                } else {
+                    control_ref.value = *tracking;
+                }
                 for lane in &mut control_ref.automation {
                     lane.range.0 = (lane.range.0 + delta).clam(range.0, range.1);
                     lane.range.1 = (lane.range.1 + delta).clam(range.0, range.1);
@@ -84,7 +96,10 @@ impl MouseAction {
                 let delta = delta.0 - delta.1;
                 // How many pixels the user must drag across to cover the entire range of the knob.
                 const DRAG_PIXELS: f32 = 200.0;
-                let delta = delta as f32 / DRAG_PIXELS;
+                let mut delta = delta as f32 / DRAG_PIXELS;
+                if mods.precise {
+                    delta *= 0.2;
+                }
 
                 let mut control_ref = control.borrow_mut();
                 let range = control_ref.range;
@@ -105,17 +120,27 @@ impl MouseAction {
                     }),
                 );
             }
-            Self::ManipulateLaneStart(control, lane_index) => {
+            Self::ManipulateLaneStart(control, lane_index, tracking) => {
                 let delta = delta.0 - delta.1;
                 // How many pixels the user must drag across to cover the entire range of the knob.
                 const DRAG_PIXELS: f32 = 200.0;
-                let delta = delta as f32 / DRAG_PIXELS;
+                let mut delta = delta as f32 / DRAG_PIXELS;
+                if mods.precise {
+                    delta *= 0.2;
+                }
 
                 let mut control_ref = control.borrow_mut();
                 let range = control_ref.range;
                 let delta = delta * (range.1 - range.0) as f32;
                 let lane = &mut control_ref.automation[*lane_index];
-                lane.range.0 = (lane.range.0 + delta).clam(range.0, range.1);
+                *tracking = (*tracking + delta).clam(range.0, range.1);
+                if mods.shift {
+                    let r08 = tracking.from_range_to_range(range.0, range.1, 0.0, 8.8);
+                    let snapped = (r08 - 0.4).round();
+                    lane.range.0 = snapped.from_range_to_range(0.0, 8.0, range.0, range.1);
+                } else {
+                    lane.range.0 = *tracking;
+                }
                 let tttext = format!(
                     "{} to {}",
                     format_decimal(lane.range.0, 4),
@@ -129,17 +154,27 @@ impl MouseAction {
                     }),
                 );
             }
-            Self::ManipulateLaneEnd(control, lane_index) => {
+            Self::ManipulateLaneEnd(control, lane_index, tracking) => {
                 let delta = delta.0 - delta.1;
                 // How many pixels the user must drag across to cover the entire range of the knob.
                 const DRAG_PIXELS: f32 = 200.0;
-                let delta = delta as f32 / DRAG_PIXELS;
+                let mut delta = delta as f32 / DRAG_PIXELS;
+                if mods.precise {
+                    delta *= 0.2;
+                }
 
                 let mut control_ref = control.borrow_mut();
                 let range = control_ref.range;
                 let delta = delta * (range.1 - range.0) as f32;
                 let lane = &mut control_ref.automation[*lane_index];
-                lane.range.1 = (lane.range.1 + delta).clam(range.0, range.1);
+                *tracking = (*tracking + delta).clam(range.0, range.1);
+                if mods.shift {
+                    let r08 = tracking.from_range_to_range(range.0, range.1, 0.0, 8.8);
+                    let snapped = (r08 - 0.4).round();
+                    lane.range.1 = snapped.from_range_to_range(0.0, 8.0, range.0, range.1);
+                } else {
+                    lane.range.1 = *tracking;
+                }
                 let tttext = format!(
                     "{} to {}",
                     format_decimal(lane.range.0, 4),
@@ -163,7 +198,10 @@ impl MouseAction {
                 // How many pixels the user must drag across to change the value by 1.
                 const DRAG_PIXELS: f32 = 12.0;
                 let delta = delta.0 - delta.1;
-                let delta = delta as f32 / DRAG_PIXELS;
+                let mut delta = delta as f32 / DRAG_PIXELS;
+                if mods.precise {
+                    delta *= 0.2;
+                }
                 *float_value += delta;
                 *float_value = float_value.min(*max as f32);
                 *float_value = float_value.max(*min as f32);
@@ -172,10 +210,15 @@ impl MouseAction {
                     cref.borrow_mut().value = str_value;
                 }
             }
-            Self::MoveModule(module) => {
+            Self::MoveModule(module, tracking) => {
+                *tracking = tracking.add(delta);
                 let mut module_ref = module.borrow_mut();
-                module_ref.pos.0 += delta.0;
-                module_ref.pos.1 += delta.1;
+                if mods.shift {
+                    const SPACING: i32 = grid(1) + GRID_P;
+                    module_ref.pos = tracking.sub((tracking.0 % SPACING, tracking.1 % SPACING));
+                } else {
+                    module_ref.pos = *tracking;
+                }
             }
             Self::PanOffset(offset) => {
                 let mut offset_ref = offset.borrow_mut();
