@@ -10,6 +10,7 @@ pub enum InstanceAction {
     ReloadStructure,
     /// Indicates a value has changed, so the aux input data should be recollected.
     ReloadAuxData,
+    SavePatch,
 }
 
 // Describes an action the GUI object should perform. Prevents passing a bunch of arguments to
@@ -46,6 +47,7 @@ pub enum MouseAction {
     AddModule(ep::Module),
     RemoveModule(Rcrc<ep::Module>),
     RemoveLane(Rcrc<ep::Control>, usize),
+    SavePatch,
 }
 
 impl MouseAction {
@@ -292,6 +294,7 @@ impl MouseAction {
             Self::SwitchScreen(screen_index) => return Some(GuiAction::SwitchScreen(screen_index)),
             Self::AddModule(module) => return Some(GuiAction::AddModule(module)),
             Self::RemoveModule(module) => return Some(GuiAction::RemoveModule(module)),
+            Self::SavePatch => return Some(GuiAction::Elevate(InstanceAction::SavePatch)),
             Self::RemoveLane(control, lane) => {
                 control.borrow_mut().automation.remove(lane);
                 return Some(GuiAction::Elevate(InstanceAction::ReloadStructure));
@@ -327,31 +330,36 @@ impl MouseAction {
         }
         None
     }
+
     pub(in crate::gui) fn on_double_click(self) -> Option<GuiAction> {
         match self {
             Self::ManipulateControl(control, ..) => {
                 let mut cref = control.borrow_mut();
                 cref.value = cref.default;
+                return Some(GuiAction::Elevate(InstanceAction::ReloadAuxData));
             }
             Self::ManipulateLane(control, lane) => {
                 let mut cref = control.borrow_mut();
                 cref.automation[lane].range = cref.range;
+                return Some(GuiAction::Elevate(InstanceAction::ReloadAuxData));
             }
             Self::ManipulateLaneStart(control, lane, ..) => {
                 let mut cref = control.borrow_mut();
                 cref.automation[lane].range.0 = cref.range.0;
+                return Some(GuiAction::Elevate(InstanceAction::ReloadAuxData));
             }
             Self::ManipulateLaneEnd(control, lane, ..) => {
                 let mut cref = control.borrow_mut();
                 cref.automation[lane].range.1 = cref.range.1;
+                return Some(GuiAction::Elevate(InstanceAction::ReloadAuxData));
             }
             Self::ManipulateIntControl { cref, .. } => {
                 let mut cref = cref.borrow_mut();
                 cref.value = cref.default.clone();
+                return Some(GuiAction::Elevate(InstanceAction::ReloadStructure));
             }
             _ => return self.on_click(),
         }
-        None
     }
 }
 

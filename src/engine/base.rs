@@ -1,5 +1,6 @@
 use crate::engine;
 use crate::engine::codegen;
+use crate::engine::save_data::Patch;
 use crate::engine::{execution::ExecEnvironment, note_manager::NoteManager};
 use crate::util::*;
 use std::sync::Mutex;
@@ -40,6 +41,7 @@ pub struct Engine {
     module_graph: Rcrc<engine::parts::ModuleGraph>,
     aux_data_collector: codegen::AuxDataCollector,
     feedback_displayer: codegen::FeedbackDisplayer,
+    current_patch_save_data: Rcrc<Patch>,
 
     // Shared.
     ctd_mux: Mutex<CrossThreadData>,
@@ -51,7 +53,7 @@ pub struct Engine {
 }
 
 impl Engine {
-    pub fn new(registry: &engine::registry::Registry) -> Self {
+    pub fn new(registry: &mut engine::registry::Registry) -> Self {
         let mut module_graph = engine::parts::ModuleGraph::new();
         let mut info = registry.borrow_module("base:note_info").unwrap().clone();
         info.pos = (10, 5);
@@ -91,11 +93,18 @@ impl Engine {
             module_graph: rcrc(module_graph),
             aux_data_collector: gen_result.aux_data_collector,
             feedback_displayer: gen_result.feedback_displayer,
+            current_patch_save_data: Rc::clone(registry.create_new_user_patch()),
             ctd_mux: Mutex::new(CrossThreadData::new()),
             executor,
             rendered_audio: Vec::new(),
             last_feedback_data_update: Instant::now(),
         }
+    }
+
+    pub fn save_current_patch(&mut self, registry: &mut engine::registry::Registry) {
+        let mut patch_ref = self.current_patch_save_data.borrow_mut();
+        patch_ref.store_note_graph(&*self.module_graph.borrow());
+        patch_ref.save().expect("TODO: Nice error.");
     }
 
     pub fn borrow_module_graph_ref(&self) -> &Rcrc<engine::parts::ModuleGraph> {

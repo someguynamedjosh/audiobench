@@ -14,13 +14,13 @@ pub struct Instance {
 
 impl Instance {
     fn new() -> Self {
-        let (registry, registry_load_result) = engine::registry::Registry::new();
+        let (mut registry, registry_load_result) = engine::registry::Registry::new();
         if let Err(err) = registry_load_result {
             eprintln!("Registry encountered error while loading:");
             eprintln!("{}", err);
             panic!("TODO: Nice error handling.");
         }
-        let engine = engine::Engine::new(&registry);
+        let engine = engine::Engine::new(&mut registry);
 
         Self {
             engine,
@@ -36,6 +36,9 @@ impl Instance {
         match action {
             gui::action::InstanceAction::ReloadAuxData => self.engine.reload_values(),
             gui::action::InstanceAction::ReloadStructure => self.engine.reload_structure(),
+            gui::action::InstanceAction::SavePatch => {
+                self.engine.save_current_patch(&mut self.registry)
+            }
         }
     }
 
@@ -103,7 +106,11 @@ impl Instance {
 
     pub fn mouse_down(&mut self, x: i32, y: i32, right_click: bool, shift: bool, precise: bool) {
         if let Some(gui) = &mut self.gui {
-            let mods = MouseMods { right_click, shift, precise };
+            let mods = MouseMods {
+                right_click,
+                shift,
+                precise,
+            };
             gui.on_mouse_down((x, y), &mods);
         } else {
             debug_assert!(false, "mouse_down called, but no GUI exists.");
@@ -113,7 +120,11 @@ impl Instance {
 
     pub fn mouse_move(&mut self, x: i32, y: i32, right_click: bool, shift: bool, precise: bool) {
         if let Some(gui) = &mut self.gui {
-            let mods = MouseMods { right_click, shift, precise };
+            let mods = MouseMods {
+                right_click,
+                shift,
+                precise,
+            };
             let action = gui.on_mouse_move(&self.registry, (x, y), &mods);
             action.map(|a| self.perform_action(a));
         } else {

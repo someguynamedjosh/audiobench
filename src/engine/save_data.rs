@@ -2,6 +2,7 @@ use crate::engine::parts as ep;
 use crate::util::*;
 use std::collections::HashMap;
 use std::io::{self, Read, Write};
+use std::path::PathBuf;
 
 fn deserialize_string(reader: &mut io::BufReader<impl Read>, len: usize) -> io::Result<String> {
     let mut buffer = vec![0; len];
@@ -9,7 +10,7 @@ fn deserialize_string(reader: &mut io::BufReader<impl Read>, len: usize) -> io::
     Ok(String::from_utf8(buffer).expect("TODO: Nice data corruption error."))
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct SavedAutomationLane {
     module_index: usize,
     output_index: usize,
@@ -48,7 +49,7 @@ impl SavedAutomationLane {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct SavedControl {
     value: f32,
     automation_lanes: Vec<SavedAutomationLane>,
@@ -56,7 +57,7 @@ struct SavedControl {
 
 impl SavedControl {
     fn serialize(&self, writer: &mut io::BufWriter<impl Write>) -> io::Result<()> {
-        writer.write_all(&self.value.to_bits().to_le_bytes())?;
+        writer.write_all(&self.value.to_bits().to_be_bytes())?;
         assert!(self.automation_lanes.len() <= 0xFF);
         writer.write_all(&[self.automation_lanes.len() as u8])?;
         for lane in &self.automation_lanes {
@@ -82,7 +83,7 @@ impl SavedControl {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct SavedComplexControl {
     value: String,
 }
@@ -105,7 +106,7 @@ impl SavedComplexControl {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 enum SavedInputConnection {
     Default(usize),
     Output {
@@ -151,7 +152,7 @@ impl SavedInputConnection {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct SavedModule {
     resource_name: String,
     controls: Vec<SavedControl>,
@@ -217,8 +218,8 @@ impl SavedModule {
     }
 }
 
-#[derive(Debug)]
-pub struct SavedModuleGraph {
+#[derive(Debug, Clone)]
+struct SavedModuleGraph {
     modules: Vec<SavedModule>,
 }
 
@@ -302,7 +303,7 @@ impl SavedModuleGraph {
         }
     }
 
-    pub fn save(graph: &ep::ModuleGraph) -> Self {
+    fn save(graph: &ep::ModuleGraph) -> Self {
         let mut module_indexes: HashMap<*const RefCell<ep::Module>, usize> = HashMap::new();
         for (index, module) in graph.borrow_modules().iter().enumerate() {
             module_indexes.insert(&*module.as_ref(), index);
@@ -316,7 +317,13 @@ impl SavedModuleGraph {
         Self { modules }
     }
 
-    pub fn serialize(&self, writer: &mut io::BufWriter<impl Write>) -> io::Result<()> {
+    fn blank() -> Self {
+        Self {
+            modules: Default::default(),
+        }
+    }
+
+    fn serialize(&self, writer: &mut io::BufWriter<impl Write>) -> io::Result<()> {
         // Indexes <= 0x3FF
         assert!(self.modules.len() <= 0x400);
         writer.write_all(&(self.modules.len() as u16).to_be_bytes())?;
@@ -334,5 +341,73 @@ impl SavedModuleGraph {
             .map(|_| SavedModule::deserialize(reader))
             .collect::<Result<_, _>>()?;
         Ok(Self { modules })
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Patch {
+    save_path: PathBuf,
+    name: String,
+    note_graph: SavedModuleGraph,
+}
+
+impl Patch {
+    pub fn new(save_path: PathBuf) -> Self {
+        Self {
+            name: "Unnamed".to_owned(),
+            note_graph: SavedModuleGraph::blank(),
+            save_path,
+        }
+    }
+
+    pub fn load(
+        save_path: PathBuf,
+        reader: &mut io::BufReader<impl Read>,
+    ) -> io::Result<Self> {
+        Self::deserialize(save_path, reader)
+    }
+
+    pub fn set_name(&mut self, name: String) {
+        self.name = name;
+    }
+
+    pub fn borrow_name(&self) -> &str {
+        &self.name
+    }
+
+    pub fn store_note_graph(&mut self, graph: &ep::ModuleGraph) {
+        self.note_graph = SavedModuleGraph::save(graph);
+    }
+
+    pub fn save(&self) -> io::Result<()> {
+        let file = std::fs::File::create(&self.save_path)?;
+        let mut writer = std::io::BufWriter::new(file);
+        self.serialize(&mut writer);
+        Ok(())
+    }
+
+    fn serialize(&self, writer: &mut io::BufWriter<impl Write>) -> io::Result<()> {
+        let name = self.name.as_bytes();
+        assert!(name.len() < 0xFFFF);
+        writer.write_all(&(name.len() as u16).to_be_bytes())?;
+        writer.write_all(name)?;
+        self.note_graph.serialize(writer)?;
+        Ok(())
+    }
+
+    fn deserialize(
+        save_path: PathBuf,
+        reader: &mut io::BufReader<impl Read>,
+    ) -> io::Result<Self> {
+        let mut buffer = [0; 2];
+        reader.read_exact(&mut buffer)?;
+        let name_size = u16::from_be_bytes([buffer[0], buffer[1]]) as usize;
+        let name = deserialize_string(reader, name_size)?;
+        let note_graph = SavedModuleGraph::deserialize(reader)?;
+        Ok(Self {
+            save_path,
+            name,
+            note_graph,
+        })
     }
 }

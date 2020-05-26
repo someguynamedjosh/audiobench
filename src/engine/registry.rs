@@ -1,11 +1,13 @@
 use crate::engine::parts::{ComplexControl, Control, IOJack, JackType, Module, ModuleTemplate};
+use crate::engine::save_data::Patch;
 use crate::engine::yaml::{self, YamlNode};
 use crate::gui::module_widgets::WidgetOutline;
 use crate::util::*;
+use rand::RngCore;
 use std::collections::{HashMap, HashSet};
-use std::fs::File;
+use std::fs::{self, File};
 use std::io::{Read, Seek};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 fn create_control_from_yaml(yaml: &YamlNode) -> Result<Rcrc<Control>, String> {
     let min = yaml.unique_child("min")?.f32()?;
@@ -288,6 +290,8 @@ pub struct Registry {
     scripts: HashMap<String, String>,
     icon_indexes: HashMap<String, usize>,
     icons: Vec<Vec<u8>>,
+    patches: Vec<Rcrc<Patch>>,
+    user_library_path: PathBuf,
 }
 
 impl Registry {
@@ -321,13 +325,64 @@ impl Registry {
         Ok(())
     }
 
+    fn load_patch(
+        &mut self,
+        name: &str,
+        full_path: Option<PathBuf>,
+        buffer: Vec<u8>,
+    ) -> Result<(), String> {
+        let source = full_path.unwrap_or_else(|| PathBuf::from(name));
+        let mut reader = std::io::BufReader::new(std::io::Cursor::new(buffer));
+        let patch = crate::engine::save_data::Patch::load(source, &mut reader).map_err(|err| {
+            format!(
+                "ERROR: The file {} could not be loaded, caused by:\n{}",
+                name, err
+            )
+        })?;
+        println!("{:#?}", patch);
+        self.patches.push(rcrc(patch));
+        Ok(())
+    }
+
     fn strip_path_and_extension<'a>(full_path: &'a str, extension: &str) -> &'a str {
         let last_slash = full_path.rfind("/").unwrap_or(0);
         let extension_start = full_path.rfind(extension).unwrap_or(full_path.len());
         &full_path[last_slash + 1..extension_start]
     }
 
-    fn load_library_impl(
+    fn load_resource(
+        &mut self,
+        lib_name: &str,
+        file_name: &str,
+        full_path: Option<PathBuf>,
+        buffer: Vec<u8>,
+    ) -> Result<(), String> {
+        let full_name = format!("{}:{}", lib_name, file_name);
+        if file_name.ends_with(".icon.svg") {
+            let file_name = Self::strip_path_and_extension(file_name, ".icon.svg");
+            let icon_id = format!("{}:{}", lib_name, file_name);
+            self.icon_indexes.insert(icon_id, self.icons.len());
+            self.icons.push(buffer);
+        } else if file_name.ends_with(".module.yaml") {
+            let file_name = Self::strip_path_and_extension(file_name, ".module.yaml");
+            let module_id = format!("{}:{}", lib_name, file_name);
+            self.load_module_resource(&full_name, &module_id, buffer)?;
+        } else if file_name.ends_with(".ns") {
+            self.load_script_resource(&full_name, buffer)?;
+        } else if file_name.ends_with(".abpatch") {
+            self.load_patch(&full_name, full_path, buffer)?;
+        } else if file_name.ends_with(".md") {
+            // Ignore, probably just readme / license type stuff.
+        } else {
+            return Err(format!(
+                "ERROR: Not sure what to do with the file {}.",
+                full_name
+            ));
+        }
+        Ok(())
+    }
+
+    fn load_zipped_library(
         &mut self,
         lib_name: &str,
         lib_reader: impl Read + Seek,
@@ -345,18 +400,12 @@ impl Registry {
             file.read_to_end(&mut buffer).map_err(|e| {
                 format!(
                     "ERROR: Failed to read resource {}, caused by:\nERROR: {}",
-                    file.name(),
-                    e
+                    name, e
                 )
             })?;
+            // Only load icons right now, wait until later to load anything else.
             if name.ends_with(".icon.svg") {
-                let file_name = Self::strip_path_and_extension(file.name(), ".icon.svg");
-                let icon_id = format!("{}:{}", lib_name, file_name);
-                self.icon_indexes.insert(icon_id, self.icons.len());
-                self.icons.push(buffer);
-            } else {
-                // Don't error here, we'll wait to the second loop to check if a file really is
-                // unrecognized. That way we only have to maintain one set of conditions.
+                self.load_resource(lib_name, file.name(), None, buffer)?;
             }
         }
         // Now load the modules and other files.
@@ -371,25 +420,11 @@ impl Registry {
             file.read_to_end(&mut buffer).map_err(|e| {
                 format!(
                     "ERROR: Failed to read resource {}, caused by:\nERROR: {}",
-                    file.name(),
-                    e
+                    name, e
                 )
             })?;
-            if name.ends_with(".module.yaml") {
-                let file_name = Self::strip_path_and_extension(file.name(), ".module.yaml");
-                let module_id = format!("{}:{}", lib_name, file_name);
-                self.load_module_resource(&name, &module_id, buffer)?;
-            } else if name.ends_with(".ns") {
-                self.load_script_resource(&name, buffer)?;
-            } else if name.ends_with(".md") {
-                // Ignore, probably just readme / license type stuff.
-            } else if name.ends_with(".icon.svg") {
-                // Already loaded earlier.
-            } else {
-                return Err(format!(
-                    "ERROR: Not sure what to do with the file {}.",
-                    name
-                ));
+            if !name.ends_with(".icon.svg") {
+                self.load_resource(lib_name, file.name(), None, buffer)?;
             }
         }
         Ok(())
@@ -410,7 +445,7 @@ impl Registry {
                 e
             )
         })?;
-        self.load_library_impl(&lib_name, file).map_err(|e| {
+        self.load_zipped_library(&lib_name, file).map_err(|e| {
             format!(
                 "ERROR: Failed to load library from {}, caused by:\n{}",
                 path.to_string_lossy(),
@@ -419,19 +454,112 @@ impl Registry {
         })
     }
 
+    fn load_library_from_folder(&mut self, path: &Path) -> Result<(), String> {
+        assert!(path.is_dir());
+        let mut file_paths = Vec::new();
+        let mut unvisited_paths = vec![PathBuf::new()];
+        while let Some(visiting) = unvisited_paths.pop() {
+            let reader = fs::read_dir(path.join(&visiting)).map_err(|err| {
+                format!(
+                    "ERROR: Failed to load a library from {}, caused by:\n{}",
+                    path.to_string_lossy(),
+                    err
+                )
+            })?;
+            for entry in reader {
+                let entry = if let Ok(entry) = entry {
+                    entry
+                } else {
+                    continue;
+                };
+                let path = entry.path();
+                let local_path = visiting.join(entry.file_name());
+                if path.is_dir() {
+                    unvisited_paths.push(local_path);
+                } else {
+                    file_paths.push(local_path);
+                }
+            }
+        }
+        let lib_name = path.file_name().unwrap_or_default().to_string_lossy();
+        fn read_file(lib_name: &str, full_path: &Path) -> Result<Vec<u8>, String> {
+            fs::read(&full_path).map_err(|err| {
+                format!(
+                    concat!(
+                        "ERROR: Failed to load library {}, caused by:\n",
+                        "ERROR: Failed to read from file {}, caused by:\n",
+                        "{}"
+                    ),
+                    lib_name,
+                    full_path.to_string_lossy(),
+                    err
+                )
+            })
+        }
+        // Load only icons.
+        for file_path in &file_paths {
+            if file_path.ends_with(".icon.svg") {
+                let full_path = path.join(&file_path);
+                let buffer = read_file(&lib_name, &full_path)?;
+                self.load_resource(
+                    &lib_name,
+                    &file_path.to_string_lossy(),
+                    Some(full_path),
+                    buffer,
+                )?;
+            }
+        }
+        // Load other files.
+        for file_path in file_paths {
+            if !file_path.ends_with(".icon.svg") {
+                let full_path = path.join(&file_path);
+                let buffer = read_file(&lib_name, &full_path)?;
+                self.load_resource(
+                    &lib_name,
+                    &file_path.to_string_lossy(),
+                    Some(full_path),
+                    buffer,
+                )?;
+            }
+        }
+        Ok(())
+    }
+
+    fn initialize(&mut self) -> Result<(), String> {
+        let base_library = std::include_bytes!(concat!(env!("OUT_DIR"), "/base.ablib"));
+        let reader = std::io::Cursor::new(base_library as &[u8]);
+        self.load_zipped_library("base", reader)
+            .map_err(|e| format!("ERROR: Failed to load base library, caused by:\n{}", e))?;
+
+        fs::create_dir_all(&self.user_library_path).map_err(|err| {
+            format!(
+                "ERROR: Failed to create user library at {}, caused by:\n{}",
+                self.user_library_path.to_string_lossy(),
+                err
+            )
+        })?;
+        let ulp = self.user_library_path.clone();
+        self.load_library_from_folder(&ulp)?;
+
+        Ok(())
+    }
+
     pub fn new() -> (Self, Result<(), String>) {
+        let user_library_path = {
+            let user_dirs = directories::UserDirs::new().unwrap();
+            let document_dir = user_dirs.document_dir().unwrap();
+            document_dir.join("Audiobench").join("user")
+        };
+
         let mut registry = Self {
             modules: HashMap::new(),
             scripts: HashMap::new(),
             icon_indexes: HashMap::new(),
             icons: Vec::new(),
+            patches: Vec::new(),
+            user_library_path,
         };
-
-        let base_library = std::include_bytes!(concat!(env!("OUT_DIR"), "/base.ablib"));
-        let reader = std::io::Cursor::new(base_library as &[u8]);
-        let result = registry
-            .load_library_impl("base", reader)
-            .map_err(|e| format!("ERROR: Failed to load base library, caused by:\n{}", e));
+        let result = registry.initialize();
 
         (registry, result)
     }
@@ -458,5 +586,13 @@ impl Registry {
 
     pub fn borrow_icon_data(&self, index: usize) -> &[u8] {
         &self.icons[index][..]
+    }
+
+    pub fn create_new_user_patch(&mut self) -> &Rcrc<Patch> {
+        let filename = format!("{:016X}.abpatch", rand::thread_rng().next_u64());
+        let patch = Patch::new(self.user_library_path.join(filename));
+        let prc = rcrc(patch);
+        self.patches.push(prc);
+        self.patches.last().unwrap()
     }
 }

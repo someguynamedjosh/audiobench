@@ -215,7 +215,7 @@ impl PatchBrowser {
         mouse_pos: (i32, i32),
         mods: &MouseMods,
     ) -> MouseAction {
-        MouseAction::None
+        MouseAction::SavePatch
     }
 
     pub fn draw(&self, g: &mut GrahpicsWrapper) {
