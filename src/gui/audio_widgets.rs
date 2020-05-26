@@ -865,6 +865,37 @@ impl ModuleGraph {
         }
     }
 
+    pub fn rebuild(&mut self, registry: &Registry) {
+        self.detail_menu_widget = None;
+        let (mut x1, mut y1, mut x2, mut y2) =
+            (std::i32::MAX, std::i32::MAX, std::i32::MIN, std::i32::MIN);
+        self.modules.clear();
+        for module_rc in self.graph.borrow().borrow_modules() {
+            let module_widget = Module::create(registry, Rc::clone(module_rc));
+            let pos = module_widget.get_pos();
+            if pos.0 < x1 {
+                x1 = pos.0;
+            }
+            if pos.1 < y1 {
+                y1 = pos.0;
+            }
+            let endpos = pos.add(module_widget.size);
+            if endpos.0 > x2 {
+                x2 = endpos.0;
+            }
+            if endpos.1 > y2 {
+                y2 = endpos.1;
+            }
+        }
+        self.modules = self
+            .graph
+            .borrow()
+            .borrow_modules()
+            .iter()
+            .map(|module_rc| Module::create(registry, Rc::clone(module_rc)))
+            .collect();
+    }
+
     pub fn add_module(&mut self, registry: &Registry, mut module: ep::Module) {
         module.pos = *self.offset.borrow();
         module.pos = (-module.pos.0, -module.pos.1);

@@ -273,6 +273,7 @@ fn create_module_prototype_from_yaml(
         size: (width, height),
         widget_outlines: widgets,
         inputs,
+        default_inputs: default_inputs.clone(),
         outputs,
         feedback_data_len,
     };
@@ -291,6 +292,7 @@ pub struct Registry {
     icon_indexes: HashMap<String, usize>,
     icons: Vec<Vec<u8>>,
     patches: Vec<Rcrc<Patch>>,
+    patch_paths: HashMap<String, usize>,
     user_library_path: PathBuf,
 }
 
@@ -331,15 +333,19 @@ impl Registry {
         full_path: Option<PathBuf>,
         buffer: Vec<u8>,
     ) -> Result<(), String> {
-        let source = full_path.unwrap_or_else(|| PathBuf::from(name));
         let mut reader = std::io::BufReader::new(std::io::Cursor::new(buffer));
-        let patch = crate::engine::save_data::Patch::load(source, &mut reader).map_err(|err| {
+        let patch = if let Some(full_path) = full_path {
+            crate::engine::save_data::Patch::load_writable(full_path, &mut reader)
+        } else {
+            crate::engine::save_data::Patch::load_readable(name.to_owned(), &mut reader)
+        }
+        .map_err(|err| {
             format!(
                 "ERROR: The file {} could not be loaded, caused by:\n{}",
                 name, err
             )
         })?;
-        println!("{:#?}", patch);
+        self.patch_paths.insert(name.to_owned(), self.patches.len());
         self.patches.push(rcrc(patch));
         Ok(())
     }
@@ -557,6 +563,7 @@ impl Registry {
             icon_indexes: HashMap::new(),
             icons: Vec::new(),
             patches: Vec::new(),
+            patch_paths: HashMap::new(),
             user_library_path,
         };
         let result = registry.initialize();
@@ -590,9 +597,14 @@ impl Registry {
 
     pub fn create_new_user_patch(&mut self) -> &Rcrc<Patch> {
         let filename = format!("{:016X}.abpatch", rand::thread_rng().next_u64());
-        let patch = Patch::new(self.user_library_path.join(filename));
+        self.patch_paths.insert(format!("user:{}", filename), self.patches.len());
+        let patch = Patch::writable(self.user_library_path.join(filename));
         let prc = rcrc(patch);
         self.patches.push(prc);
         self.patches.last().unwrap()
+    }
+
+    pub fn get_patch_by_name(&self, name: &str) -> Option<&Rcrc<Patch>> {
+        self.patch_paths.get(name).map(|i| &self.patches[*i])
     }
 }

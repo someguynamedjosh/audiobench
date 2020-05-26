@@ -55,21 +55,12 @@ pub struct Engine {
 impl Engine {
     pub fn new(registry: &mut engine::registry::Registry) -> Self {
         let mut module_graph = engine::parts::ModuleGraph::new();
-        let mut info = registry.borrow_module("base:note_info").unwrap().clone();
-        info.pos = (10, 5);
-        module_graph.adopt_module(info);
-        let mut env = registry.borrow_module("base:envelope").unwrap().clone();
-        env.pos = (300, 100);
-        module_graph.adopt_module(env);
-        let mut osc = registry.borrow_module("base:oscillator").unwrap().clone();
-        osc.pos = (50, 20);
-        module_graph.adopt_module(osc);
-        let mut osc = registry.borrow_module("base:oscillator").unwrap().clone();
-        osc.pos = (50, 200);
-        module_graph.adopt_module(osc);
-        let mut output = registry.borrow_module("base:note_output").unwrap().clone();
-        output.pos = (90, 90);
-        module_graph.adopt_module(output);
+        let default_patch = Rc::clone(
+            registry
+                .get_patch_by_name("base:patches/default.abpatch")
+                .unwrap(),
+        );
+        default_patch.borrow().restore_note_graph(&mut module_graph, registry);
 
         let mut executor = ExecEnvironment::new(&registry);
         let gen_result =
@@ -93,7 +84,7 @@ impl Engine {
             module_graph: rcrc(module_graph),
             aux_data_collector: gen_result.aux_data_collector,
             feedback_displayer: gen_result.feedback_displayer,
-            current_patch_save_data: Rc::clone(registry.create_new_user_patch()),
+            current_patch_save_data: default_patch,
             ctd_mux: Mutex::new(CrossThreadData::new()),
             executor,
             rendered_audio: Vec::new(),
@@ -102,9 +93,20 @@ impl Engine {
     }
 
     pub fn save_current_patch(&mut self, registry: &mut engine::registry::Registry) {
+        let patch_ref = self.current_patch_save_data.borrow();
+        if !patch_ref.is_writable() {
+            let new_patch = Rc::clone(registry.create_new_user_patch());
+            let mut new_patch_ref = new_patch.borrow_mut();
+            new_patch_ref.set_name(patch_ref.borrow_name().to_owned());
+            drop(patch_ref);
+            drop(new_patch_ref);
+            self.current_patch_save_data = new_patch;
+        } else {
+            drop(patch_ref);
+        }
         let mut patch_ref = self.current_patch_save_data.borrow_mut();
-        patch_ref.store_note_graph(&*self.module_graph.borrow());
-        patch_ref.save().expect("TODO: Nice error.");
+        patch_ref.save_note_graph(&*self.module_graph.borrow());
+        patch_ref.write().expect("TODO: Nice error.");
     }
 
     pub fn borrow_module_graph_ref(&self) -> &Rcrc<engine::parts::ModuleGraph> {

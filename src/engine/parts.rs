@@ -29,6 +29,14 @@ impl Control {
             suffix,
         }
     }
+
+    pub fn sever_connections_with(&mut self, module: &Rcrc<Module>) {
+        for index in (0..self.automation.len()).rev() {
+            if std::ptr::eq(self.automation[index].connection.0.as_ref(), module.as_ref()) {
+                self.automation.remove(index);
+            }
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -252,6 +260,30 @@ impl Module {
             feedback_data: None,
         }
     }
+
+    /// Removes all inputs and controls. Use this before removing a module to avoid memory leaks.
+    /// It is still required to manually remove references to this module that exist in other
+    /// modules.
+    pub fn sever(&mut self) {
+        self.inputs.clear();
+        self.controls.clear();
+        self.complex_controls.clear();
+        self.feedback_data = None;
+    }
+
+    pub fn sever_connections_with(&mut self, other: &Rcrc<Module>) {
+        let template_ref = self.template.borrow();
+        for (index, input) in self.inputs.iter_mut().enumerate() {
+            if let InputConnection::Wire(module, ..) = input {
+                if std::ptr::eq(module.as_ref(), other.as_ref()) {
+                    *input = InputConnection::Default(template_ref.default_inputs[index]);
+                }
+            }
+        }
+        for control in &mut self.controls {
+            control.borrow_mut().sever_connections_with(other);
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -270,12 +302,23 @@ impl ModuleGraph {
         self.modules.push(module);
     }
 
+    pub fn set_modules(&mut self, modules: Vec<Rcrc<Module>>) {
+        for module in &self.modules {
+            module.borrow_mut().sever();
+        }
+        self.modules = modules;
+    }
+
     pub fn remove_module(&mut self, module: &Rcrc<Module>) {
         let index = self
             .modules
             .iter()
             .position(|e| std::ptr::eq(e.as_ref(), module.as_ref()))
             .unwrap();
+        let module_rc = Rc::clone(&self.modules[index]);
+        for module in &self.modules {
+            module.borrow_mut().sever_connections_with(&module_rc);
+        }
         self.modules.remove(index);
     }
 
@@ -357,6 +400,7 @@ pub struct ModuleTemplate {
     pub size: (i32, i32),
     pub widget_outlines: Vec<WidgetOutline>,
     pub inputs: Vec<IOJack>,
+    pub default_inputs: Vec<usize>,
     pub outputs: Vec<IOJack>,
     pub feedback_data_len: usize,
 }

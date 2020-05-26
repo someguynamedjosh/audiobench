@@ -1,4 +1,5 @@
 use crate::engine::parts as ep;
+use crate::engine::registry::Registry;
 use crate::util::*;
 use std::collections::HashMap;
 use std::io::{self, Read, Write};
@@ -162,6 +163,75 @@ struct SavedModule {
 }
 
 impl SavedModule {
+    fn restore(&self, registry: &Registry) -> ep::Module {
+        let mut module = registry
+            .borrow_module(&self.resource_name)
+            .expect("TODO: Nice error.")
+            .clone();
+        assert!(
+            module.controls.len() == self.controls.len(),
+            "TODO: Nice error."
+        );
+        for index in 0..self.controls.len() {
+            module.controls[index].borrow_mut().value = self.controls[index].value;
+        }
+        assert!(
+            module.complex_controls.len() == self.complex_controls.len(),
+            "TODO: Nice error."
+        );
+        for index in 0..self.complex_controls.len() {
+            module.complex_controls[index].borrow_mut().value =
+                self.complex_controls[index].value.clone();
+        }
+        module.pos = self.pos;
+        module
+    }
+
+    fn restore_connections(&self, on: &mut ep::Module, modules: &[Rcrc<ep::Module>]) {
+        assert!(
+            self.input_connections.len() == on.inputs.len(),
+            "TODO: Nice error"
+        );
+        for index in 0..self.input_connections.len() {
+            on.inputs[index] = match &self.input_connections[index] {
+                SavedInputConnection::Default(index) => ep::InputConnection::Default(*index),
+                SavedInputConnection::Output {
+                    module_index,
+                    output_index,
+                } => {
+                    assert!(*module_index < modules.len(), "TODO: Nice error.");
+                    let module = &modules[*module_index];
+                    let module_ref = module.borrow();
+                    let out_temp_ref = module_ref.template.borrow();
+                    assert!(
+                        out_temp_ref.outputs.len() > *output_index,
+                        "TODO: Nice error."
+                    );
+                    assert!(
+                        out_temp_ref.outputs[*output_index].get_type()
+                            == on.template.borrow().inputs[index].get_type(),
+                        "TODO: Nice error."
+                    );
+                    drop(out_temp_ref);
+                    drop(module_ref);
+                    ep::InputConnection::Wire(Rc::clone(module), *output_index)
+                }
+            };
+        }
+        for index in 0..self.controls.len() {
+            let mut control_ref = on.controls[index].borrow_mut();
+            for lane in &self.controls[index].automation_lanes {
+                assert!(lane.module_index < modules.len(), "TODO: Nice error.");
+                let module = Rc::clone(&modules[lane.module_index]);
+                assert!(module.borrow().template.borrow().outputs.len() > lane.output_index);
+                control_ref.automation.push(ep::AutomationLane {
+                    connection: (module, lane.output_index),
+                    range: lane.range,
+                });
+            }
+        }
+    }
+
     fn serialize(&self, writer: &mut io::BufWriter<impl Write>) -> io::Result<()> {
         let resource_name = self.resource_name.as_bytes();
 
@@ -323,6 +393,19 @@ impl SavedModuleGraph {
         }
     }
 
+    fn restore(&self, graph: &mut ep::ModuleGraph, registry: &Registry) {
+        let modules: Vec<_> = self
+            .modules
+            .iter()
+            .map(|m| rcrc(m.restore(registry)))
+            .collect();
+        for index in 0..self.modules.len() {
+            let module = Rc::clone(&modules[index]);
+            self.modules[index].restore_connections(&mut *module.borrow_mut(), &modules[..]);
+        }
+        graph.set_modules(modules);
+    }
+
     fn serialize(&self, writer: &mut io::BufWriter<impl Write>) -> io::Result<()> {
         // Indexes <= 0x3FF
         assert!(self.modules.len() <= 0x400);
@@ -345,26 +428,47 @@ impl SavedModuleGraph {
 }
 
 #[derive(Debug, Clone)]
+enum PatchSource {
+    Writable(PathBuf),
+    Readable(String),
+}
+
+#[derive(Debug, Clone)]
 pub struct Patch {
-    save_path: PathBuf,
+    source: PatchSource,
     name: String,
     note_graph: SavedModuleGraph,
 }
 
 impl Patch {
-    pub fn new(save_path: PathBuf) -> Self {
+    pub fn writable(save_path: PathBuf) -> Self {
         Self {
             name: "Unnamed".to_owned(),
             note_graph: SavedModuleGraph::blank(),
-            save_path,
+            source: PatchSource::Writable(save_path),
         }
     }
 
-    pub fn load(
-        save_path: PathBuf,
+    pub fn load_readable(
+        source: String,
         reader: &mut io::BufReader<impl Read>,
     ) -> io::Result<Self> {
-        Self::deserialize(save_path, reader)
+        Self::deserialize(PatchSource::Readable(source), reader)
+    }
+
+    pub fn load_writable(
+        source: PathBuf,
+        reader: &mut io::BufReader<impl Read>,
+    ) -> io::Result<Self> {
+        Self::deserialize(PatchSource::Writable(source), reader)
+    }
+
+    pub fn is_writable(&self) -> bool {
+        if let PatchSource::Writable(..) = &self.source {
+            true
+        } else {
+            false
+        }
     }
 
     pub fn set_name(&mut self, name: String) {
@@ -375,14 +479,23 @@ impl Patch {
         &self.name
     }
 
-    pub fn store_note_graph(&mut self, graph: &ep::ModuleGraph) {
+    pub fn save_note_graph(&mut self, graph: &ep::ModuleGraph) {
         self.note_graph = SavedModuleGraph::save(graph);
     }
 
-    pub fn save(&self) -> io::Result<()> {
-        let file = std::fs::File::create(&self.save_path)?;
+    pub fn restore_note_graph(&self, graph: &mut ep::ModuleGraph, registry: &Registry) {
+        self.note_graph.restore(graph, registry);
+    }
+
+    pub fn write(&self) -> io::Result<()> {
+        let path = if let PatchSource::Writable(path) = &self.source {
+            path
+        } else {
+            panic!("Cannot write a non-writable patch!");
+        };
+        let file = std::fs::File::create(path)?;
         let mut writer = std::io::BufWriter::new(file);
-        self.serialize(&mut writer);
+        self.serialize(&mut writer)?;
         Ok(())
     }
 
@@ -395,17 +508,14 @@ impl Patch {
         Ok(())
     }
 
-    fn deserialize(
-        save_path: PathBuf,
-        reader: &mut io::BufReader<impl Read>,
-    ) -> io::Result<Self> {
+    fn deserialize(source: PatchSource, reader: &mut io::BufReader<impl Read>) -> io::Result<Self> {
         let mut buffer = [0; 2];
         reader.read_exact(&mut buffer)?;
         let name_size = u16::from_be_bytes([buffer[0], buffer[1]]) as usize;
         let name = deserialize_string(reader, name_size)?;
         let note_graph = SavedModuleGraph::deserialize(reader)?;
         Ok(Self {
-            save_path,
+            source,
             name,
             note_graph,
         })
