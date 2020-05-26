@@ -39,26 +39,29 @@ pub struct MouseMods {
 
 #[derive(Eq, PartialEq, Clone, Copy)]
 pub enum GuiScreen {
+    PatchBrowser,
     NoteGraph,
-    ModuleCatalog,
+    ModuleBrowser,
 }
 
 impl GuiScreen {
     fn all() -> Vec<GuiScreen> {
-        vec![Self::NoteGraph, Self::ModuleCatalog]
+        vec![Self::PatchBrowser, Self::NoteGraph, Self::ModuleBrowser]
     }
 
     pub fn get_icon_name(&self) -> &'static str {
         match self {
+            Self::PatchBrowser => "base:patch_browser",
             Self::NoteGraph => "base:note",
-            Self::ModuleCatalog => "base:add",
+            Self::ModuleBrowser => "base:add",
         }
     }
 
     pub fn get_tooltip_text(&self) -> &'static str {
         match self {
+            Self::PatchBrowser => "Patch browser: save and load patches",
             Self::NoteGraph => "Note graph: Edit the module graph used to synthesize notes",
-            Self::ModuleCatalog => "Module catalog: Add new modules to the current graph",
+            Self::ModuleBrowser => "Module browser: Add new modules to the current graph",
         }
     }
 }
@@ -67,8 +70,9 @@ pub struct Gui {
     size: (i32, i32),
     current_screen: GuiScreen,
     menu_bar: other_widgets::MenuBar,
+    patch_browser: other_widgets::PatchBrowser,
     graph: audio_widgets::ModuleGraph,
-    module_catalog: other_widgets::ModuleCatalog,
+    module_browser: other_widgets::ModuleBrowser,
 
     mouse_action: MouseAction,
     click_position: (i32, i32),
@@ -83,17 +87,20 @@ impl Gui {
         let size = (640, 480);
         let y = other_widgets::MenuBar::HEIGHT;
 
+        let patch_browser =
+            other_widgets::PatchBrowser::create(registry, (0, y), (size.0, size.1 - y));
         let mut graph = audio_widgets::ModuleGraph::create(registry, graph_ref);
         graph.pos.1 = y;
-        let module_catalog =
-            other_widgets::ModuleCatalog::create(registry, (0, y), (size.0, size.1 - y));
+        let module_browser =
+            other_widgets::ModuleBrowser::create(registry, (0, y), (size.0, size.1 - y));
 
         Self {
             size,
             current_screen: GuiScreen::NoteGraph,
             menu_bar: other_widgets::MenuBar::create(registry, GuiScreen::all()),
+            patch_browser,
             graph,
-            module_catalog,
+            module_browser,
 
             mouse_action: MouseAction::None,
             click_position: (0, 0),
@@ -106,8 +113,9 @@ impl Gui {
 
     pub fn draw(&self, g: &mut GrahpicsWrapper) {
         match self.current_screen {
+            GuiScreen::PatchBrowser => self.patch_browser.draw(g),
             GuiScreen::NoteGraph => self.graph.draw(g, self),
-            GuiScreen::ModuleCatalog => self.module_catalog.draw(g),
+            GuiScreen::ModuleBrowser => self.module_browser.draw(g),
         }
         self.menu_bar.draw(self.size.0, self.current_screen, g);
     }
@@ -117,8 +125,9 @@ impl Gui {
             self.mouse_action = self.menu_bar.respond_to_mouse_press(pos, mods);
         } else {
             self.mouse_action = match self.current_screen {
+                GuiScreen::PatchBrowser => self.patch_browser.respond_to_mouse_press(pos, mods),
                 GuiScreen::NoteGraph => self.graph.respond_to_mouse_press(pos, mods),
-                GuiScreen::ModuleCatalog => self.module_catalog.respond_to_mouse_press(pos, mods),
+                GuiScreen::ModuleBrowser => self.module_browser.respond_to_mouse_press(pos, mods),
             };
         }
         self.mouse_down = true;
@@ -160,10 +169,10 @@ impl Gui {
             new_tooltip = self.menu_bar.get_tooltip_at(new_pos);
         }
         if new_tooltip.is_none() {
-            // TODO: Module library tooltips?
             new_tooltip = match self.current_screen {
+                GuiScreen::PatchBrowser => self.patch_browser.get_tooltip_at(new_pos),
                 GuiScreen::NoteGraph => self.graph.get_tooltip_at(new_pos),
-                GuiScreen::ModuleCatalog => self.module_catalog.get_tooltip_at(new_pos),
+                GuiScreen::ModuleBrowser => self.module_browser.get_tooltip_at(new_pos),
             }
         }
         if let Some(tooltip) = new_tooltip {

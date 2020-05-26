@@ -196,7 +196,37 @@ impl MenuBar {
     }
 }
 
-struct ModuleCatalogEntry {
+pub struct PatchBrowser {
+    pos: (i32, i32),
+    size: (i32, i32),
+}
+
+impl PatchBrowser {
+    pub fn create(registry: &Registry, pos: (i32, i32), size: (i32, i32)) -> Self {
+        Self { pos, size }
+    }
+
+    pub fn get_tooltip_at(&self, mouse_pos: (i32, i32)) -> Option<Tooltip> {
+        None
+    }
+
+    pub fn respond_to_mouse_press(
+        &mut self,
+        mouse_pos: (i32, i32),
+        mods: &MouseMods,
+    ) -> MouseAction {
+        MouseAction::None
+    }
+
+    pub fn draw(&self, g: &mut GrahpicsWrapper) {
+        g.push_state();
+        g.apply_offset(self.pos.0, self.pos.1);
+
+        g.pop_state();
+    }
+}
+
+struct ModuleBrowserEntry {
     name: String,
     category: String,
     input_icons: Vec<usize>,
@@ -204,7 +234,7 @@ struct ModuleCatalogEntry {
     prototype: ep::Module,
 }
 
-impl ModuleCatalogEntry {
+impl ModuleBrowserEntry {
     const WIDTH: i32 = fatgrid(6);
     const HEIGHT: i32 = fatgrid(1);
 
@@ -284,23 +314,23 @@ enum SortMethod {
     Categorical,
 }
 
-pub struct ModuleCatalog {
+pub struct ModuleBrowser {
     pos: (i32, i32),
     size: (i32, i32),
     vertical_stacking: i32,
-    entries: Vec<ModuleCatalogEntry>,
+    entries: Vec<ModuleBrowserEntry>,
     alphabetical_list: Vec<VisualEntry>,
     categorical_list: Vec<VisualEntry>,
     current_sort: SortMethod,
 }
 
-impl ModuleCatalog {
+impl ModuleBrowser {
     pub fn create(registry: &Registry, pos: (i32, i32), size: (i32, i32)) -> Self {
         let entries: Vec<_> = registry
             .iterate_over_modules()
-            .map(|module| ModuleCatalogEntry::from(module))
+            .map(|module| ModuleBrowserEntry::from(module))
             .collect();
-        let vertical_stacking = size.1 / (ModuleCatalogEntry::HEIGHT + GRID_P);
+        let vertical_stacking = size.1 / (ModuleBrowserEntry::HEIGHT + GRID_P);
 
         let mut alphabetical_order: Vec<_> = (0..entries.len()).collect();
         alphabetical_order.sort_by(|a, b| entries[*a].name.cmp(&entries[*b].name));
@@ -347,11 +377,11 @@ impl ModuleCatalog {
         }
     }
 
-    fn get_entry_at(&self, mouse_pos: (i32, i32)) -> Option<&ModuleCatalogEntry> {
+    fn get_entry_at(&self, mouse_pos: (i32, i32)) -> Option<&ModuleBrowserEntry> {
         let mouse_pos = (mouse_pos.0 - self.pos.0, mouse_pos.1 - self.pos.1);
-        let clicked_index = mouse_pos.0 / (ModuleCatalogEntry::WIDTH + GRID_P)
+        let clicked_index = mouse_pos.0 / (ModuleBrowserEntry::WIDTH + GRID_P)
             * self.vertical_stacking
-            + mouse_pos.1 / (ModuleCatalogEntry::HEIGHT + GRID_P);
+            + mouse_pos.1 / (ModuleBrowserEntry::HEIGHT + GRID_P);
         let clicked_index = clicked_index as usize;
         let list = self.get_current_list();
         if clicked_index < list.len() {
@@ -397,8 +427,8 @@ impl ModuleCatalog {
         for (index, entry) in list.iter().enumerate() {
             let index = index as i32;
             let (x, y) = (
-                (index / self.vertical_stacking) * (ModuleCatalogEntry::WIDTH + GRID_P) + GRID_P,
-                (index % self.vertical_stacking) * (ModuleCatalogEntry::HEIGHT + GRID_P) + GRID_P,
+                (index / self.vertical_stacking) * (ModuleBrowserEntry::WIDTH + GRID_P) + GRID_P,
+                (index % self.vertical_stacking) * (ModuleBrowserEntry::HEIGHT + GRID_P) + GRID_P,
             );
             g.push_state();
             g.apply_offset(x, y);
@@ -410,8 +440,8 @@ impl ModuleCatalog {
                         BIG_FONT_SIZE,
                         0,
                         0,
-                        ModuleCatalogEntry::WIDTH,
-                        ModuleCatalogEntry::HEIGHT,
+                        ModuleBrowserEntry::WIDTH,
+                        ModuleBrowserEntry::HEIGHT,
                         HAlign::Center,
                         VAlign::Center,
                         1,
