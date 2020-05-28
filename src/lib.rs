@@ -42,8 +42,14 @@ impl Instance {
             gui::action::InstanceAction::SavePatch => {
                 self.engine.save_current_patch()
             }
-            gui::action::InstanceAction::CopyPatch(callback) => {
-                callback(self.engine.copy_current_patch(&mut self.registry))
+            gui::action::InstanceAction::NewPatch(callback) => {
+                callback(self.engine.new_patch(&mut self.registry))
+            }
+            gui::action::InstanceAction::LoadPatch(patch) => {
+                self.engine.load_patch(&self.registry, patch);
+                if let Some(gui) = &mut self.gui {
+                    gui.on_patch_change(&self.registry);
+                }
             }
         }
     }

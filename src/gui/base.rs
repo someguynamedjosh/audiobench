@@ -131,6 +131,10 @@ impl Gui {
         self.menu_bar.draw(self.size.0, self.current_screen, g);
     }
 
+    pub fn on_patch_change(&mut self, registry: &Registry) {
+        self.graph.rebuild(registry);
+    }
+
     pub fn on_mouse_down(
         &mut self,
         registry: &Registry,

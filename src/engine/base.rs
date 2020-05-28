@@ -108,20 +108,26 @@ impl Engine {
         patch_ref.write().expect("TODO: Nice error.");
     }
 
-    pub fn copy_current_patch(
+    pub fn new_patch(
         &mut self,
         registry: &mut engine::registry::Registry,
     ) -> &Rcrc<Patch> {
-        let patch_ref = self.current_patch_save_data.borrow();
         let new_patch = Rc::clone(registry.create_new_user_patch());
         let mut new_patch_ref = new_patch.borrow_mut();
-        new_patch_ref.set_name(format!("{} (Copy)", patch_ref.borrow_name()));
+        new_patch_ref.set_name("New Patch".to_owned());
         new_patch_ref.save_note_graph(&*self.module_graph.borrow());
         new_patch_ref.write().expect("TODO: Nice error.");
-        drop(patch_ref);
         drop(new_patch_ref);
         self.current_patch_save_data = new_patch;
         &self.current_patch_save_data
+    }
+
+    pub fn load_patch(&mut self, registry: &engine::registry::Registry, patch: Rcrc<Patch>) {
+        self.current_patch_save_data = patch;
+        self.current_patch_save_data
+            .borrow()
+            .restore_note_graph(&mut *self.module_graph.borrow_mut(), registry);
+        self.reload_structure();
     }
 
     pub fn borrow_current_patch(&self) -> &Rcrc<Patch> {

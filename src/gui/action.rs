@@ -15,7 +15,8 @@ pub enum InstanceAction {
     /// Changes the name of the current patch. Asserts if the current patch is not writable.
     RenamePatch(String),
     SavePatch,
-    CopyPatch(Box<dyn Fn(&Rcrc<Patch>)>),
+    NewPatch(Box<dyn Fn(&Rcrc<Patch>)>),
+    LoadPatch(Rcrc<Patch>),
 }
 
 // Describes an action the GUI object should perform. Prevents passing a bunch of arguments to
@@ -56,7 +57,8 @@ pub enum MouseAction {
     RemoveLane(Rcrc<ep::Control>, usize),
     RenamePatch(String),
     SavePatch,
-    CopyPatch(Box<dyn Fn(&Rcrc<Patch>)>),
+    NewPatch(Box<dyn Fn(&Rcrc<Patch>)>),
+    LoadPatch(Rcrc<Patch>),
     FocusTextField(Rcrc<TextField>),
 }
 
@@ -309,8 +311,11 @@ impl MouseAction {
                 return Some(GuiAction::Elevate(InstanceAction::RenamePatch(name)))
             }
             Self::SavePatch => return Some(GuiAction::Elevate(InstanceAction::SavePatch)),
-            Self::CopyPatch(callback) => {
-                return Some(GuiAction::Elevate(InstanceAction::CopyPatch(callback)))
+            Self::NewPatch(callback) => {
+                return Some(GuiAction::Elevate(InstanceAction::NewPatch(callback)))
+            }
+            Self::LoadPatch(patch) => {
+                return Some(GuiAction::Elevate(InstanceAction::LoadPatch(patch)))
             }
             Self::RemoveLane(control, lane) => {
                 control.borrow_mut().automation.remove(lane);

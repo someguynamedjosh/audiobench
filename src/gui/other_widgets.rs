@@ -290,7 +290,7 @@ impl IconButton {
         }
     }
 
-    pub fn mouse_in_bounds(&mut self, mouse_pos: (i32, i32)) -> bool {
+    pub fn mouse_in_bounds(&self, mouse_pos: (i32, i32)) -> bool {
         self.enabled && mouse_pos.sub(self.pos).inside((self.size, self.size))
     }
 
@@ -317,7 +317,7 @@ pub struct PatchBrowser {
     size: (i32, i32),
     name_box: TextBox,
     save_button: IconButton,
-    save_copy_button: IconButton,
+    new_button: IconButton,
     entries: Rcrc<Vec<Rcrc<Patch>>>,
     current_entry_index: usize,
 }
@@ -331,8 +331,7 @@ impl PatchBrowser {
     ) -> Self {
         // How large each half of the GUI takes.
         let hw = (size.0 - GRID_P * 3) / 2;
-        // A slightly larger grid size.
-        const CG: i32 = grid(1) + GRID_P;
+        const CG: i32 = PatchBrowser::CG;
         // How many icon buttons to the right of the name box.
         const NUM_ICONS: i32 = 2;
         // Width of the name box.
@@ -343,8 +342,8 @@ impl PatchBrowser {
         });
         let save_icon = registry.lookup_icon("base:save").unwrap();
         let mut save_button = IconButton::create((GRID_P + hw - CG * 2 - GRID_P, 0), CG, save_icon);
-        let save_copy_icon = registry.lookup_icon("base:save_copy").unwrap();
-        let save_copy_button = IconButton::create((GRID_P + hw - CG, 0), CG, save_copy_icon);
+        let new_icon = registry.lookup_icon("base:add").unwrap();
+        let new_button = IconButton::create((GRID_P + hw - CG, 0), CG, new_icon);
 
         let entries = registry.borrow_patches().clone();
         let current_entry_index = registry
@@ -361,20 +360,58 @@ impl PatchBrowser {
             size,
             name_box,
             save_button,
-            save_copy_button,
+            new_button,
             entries: rcrc(entries),
             current_entry_index,
         }
     }
 
-    fn update_enabled_buttons(&mut self) {
-        let writable = self.entries.borrow()[self.current_entry_index]
-            .borrow()
-            .is_writable();
-        self.save_button.enabled = writable;
+    fn update_on_patch_change(&mut self) {
+        let entries_ref = self.entries.borrow();
+        let entry_ref = entries_ref[self.current_entry_index].borrow();
+        self.name_box.field.borrow_mut().text = entry_ref.borrow_name().to_owned();
+        self.save_button.enabled = entry_ref.is_writable();
     }
 
     pub fn get_tooltip_at(&self, mouse_pos: (i32, i32)) -> Option<Tooltip> {
+        let mouse_pos = mouse_pos.sub(self.pos);
+        {
+            let mouse_pos = mouse_pos.sub(self.name_box.pos);
+            if mouse_pos.inside(self.name_box.size) {
+                return Some(if self.save_button.enabled {
+                    Tooltip {
+                        text: "Edit the name of the current patch".to_owned(),
+                        interaction: InteractionHint::LeftClick.into(),
+                    }
+                } else {
+                    Tooltip {
+                        text: "The current patch is a factory patch, so you cannot edit its name"
+                            .to_owned(),
+                        interaction: Default::default(),
+                    }
+                });
+            }
+        }
+        if self.save_button.mouse_in_bounds(mouse_pos) {
+            return Some(Tooltip {
+                text: "Save the current patch".to_owned(),
+                interaction: InteractionHint::LeftClick.into(),
+            });
+        }
+        if self.new_button.mouse_in_bounds(mouse_pos) {
+            return Some(Tooltip {
+                text: "Create a new patch containing the current settings and note graph"
+                    .to_owned(),
+                interaction: InteractionHint::LeftClick.into(),
+            });
+        }
+        let hw = (self.size.0 - GRID_P * 3) / 2;
+        if mouse_pos.0 <= hw && mouse_pos.1 > self.name_box.size.1 + GRID_P {
+            return Some(Tooltip {
+                text: "Click a patch to load it".to_owned(),
+                interaction: InteractionHint::LeftClick.into(),
+            });
+        }
         None
     }
 
@@ -394,17 +431,34 @@ impl PatchBrowser {
         if self.save_button.mouse_in_bounds(mouse_pos) {
             return MouseAction::SavePatch;
         }
-        if self.save_copy_button.mouse_in_bounds(mouse_pos) {
+        if self.new_button.mouse_in_bounds(mouse_pos) {
             self.current_entry_index = self.entries.borrow().len();
             let entries = Rc::clone(&self.entries);
             self.save_button.enabled = true;
-            self.name_box.field.borrow_mut().text.push_str(" (Copy)");
-            return MouseAction::CopyPatch(Box::new(move |new_patch| {
+            self.name_box.field.borrow_mut().text = "New Patch".to_owned();
+            return MouseAction::NewPatch(Box::new(move |new_patch| {
                 entries.borrow_mut().push(Rc::clone(new_patch))
             }));
         }
+        // How large each half of the GUI takes.
+        let hw = (self.size.0 - GRID_P * 3) / 2;
+        if mouse_pos.0 <= hw && mouse_pos.1 > self.name_box.size.1 + GRID_P {
+            let entry_index =
+                (mouse_pos.1 - self.name_box.size.1 - GRID_P) / PatchBrowser::ENTRY_HEIGHT;
+            if entry_index >= 0 && entry_index < self.entries.borrow().len() as i32 {
+                self.current_entry_index = entry_index as usize;
+                self.update_on_patch_change();
+                return MouseAction::LoadPatch(Rc::clone(
+                    &self.entries.borrow()[self.current_entry_index],
+                ));
+            }
+        }
         MouseAction::None
     }
+
+    // A slightly larger grid size.
+    const CG: i32 = grid(1) + GRID_P;
+    const ENTRY_HEIGHT: i32 = Self::CG;
 
     pub fn draw(&self, g: &mut GrahpicsWrapper) {
         g.push_state();
@@ -412,22 +466,21 @@ impl PatchBrowser {
 
         // How large each half of the GUI takes.
         let hw = (self.size.0 - GRID_P * 3) / 2;
-        // A slightly larger grid size.
-        const CG: i32 = grid(1) + GRID_P;
         const GP: i32 = GRID_P;
 
         g.set_color(&COLOR_SURFACE);
         g.fill_rect(0, 0, self.size.0, self.size.1);
         self.name_box.draw(g);
         self.save_button.draw(g);
-        self.save_copy_button.draw(g);
+        self.new_button.draw(g);
 
+        const CG: i32 = PatchBrowser::CG;
         let y = CG + GP;
         g.set_color(&COLOR_BG);
         g.fill_rounded_rect(GP, y, hw, self.size.1 - y - GP, CORNER_SIZE);
         g.set_color(&COLOR_TEXT);
         for (index, entry) in self.entries.borrow().iter().enumerate() {
-            const HEIGHT: i32 = CG;
+            const HEIGHT: i32 = PatchBrowser::ENTRY_HEIGHT;
             let x = GP;
             let y = y + HEIGHT * index as i32;
             if index == self.current_entry_index {
