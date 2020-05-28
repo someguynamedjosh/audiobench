@@ -36,8 +36,14 @@ impl Instance {
         match action {
             gui::action::InstanceAction::ReloadAuxData => self.engine.reload_values(),
             gui::action::InstanceAction::ReloadStructure => self.engine.reload_structure(),
+            gui::action::InstanceAction::RenamePatch(name) => {
+                self.engine.rename_current_patch(name)
+            }
             gui::action::InstanceAction::SavePatch => {
-                self.engine.save_current_patch(&mut self.registry)
+                self.engine.save_current_patch()
+            }
+            gui::action::InstanceAction::CopyPatch(callback) => {
+                callback(self.engine.copy_current_patch(&mut self.registry))
             }
         }
     }
@@ -75,7 +81,7 @@ impl Instance {
             eprintln!("WARNING: create_gui called when GUI was already created!");
         } else {
             let graph = util::Rc::clone(self.engine.borrow_module_graph_ref());
-            self.gui = Some(Gui::new(&self.registry, graph));
+            self.gui = Some(Gui::new(&self.registry, self.engine.borrow_current_patch(), graph));
         }
     }
 
@@ -111,7 +117,8 @@ impl Instance {
                 shift,
                 precise,
             };
-            gui.on_mouse_down((x, y), &mods);
+            let action = gui.on_mouse_down(&self.registry, (x, y), &mods);
+            action.map(|a| self.perform_action(a));
         } else {
             debug_assert!(false, "mouse_down called, but no GUI exists.");
             eprintln!("WARNING: mouse_down called, but no GUI exists.");

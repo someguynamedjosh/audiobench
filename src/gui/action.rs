@@ -1,6 +1,8 @@
 use crate::engine::parts as ep;
+use crate::engine::save_data::Patch;
 use crate::gui::constants::*;
 use crate::gui::module_widgets;
+use crate::gui::other_widgets::TextField;
 use crate::gui::{GuiScreen, InteractionHint, MouseMods, Tooltip};
 use crate::util::*;
 
@@ -10,7 +12,10 @@ pub enum InstanceAction {
     ReloadStructure,
     /// Indicates a value has changed, so the aux input data should be recollected.
     ReloadAuxData,
+    /// Changes the name of the current patch. Asserts if the current patch is not writable.
+    RenamePatch(String),
     SavePatch,
+    CopyPatch(Box<dyn Fn(&Rcrc<Patch>)>),
 }
 
 // Describes an action the GUI object should perform. Prevents passing a bunch of arguments to
@@ -20,10 +25,11 @@ pub enum GuiAction {
     SwitchScreen(GuiScreen),
     AddModule(ep::Module),
     RemoveModule(Rcrc<ep::Module>),
-    FocusTextField(Rcrc<(String, bool)>),
+    FocusTextField(Rcrc<TextField>),
     Elevate(InstanceAction),
 }
 
+// TODO: Organize this?
 pub enum MouseAction {
     None,
     ManipulateControl(Rcrc<ep::Control>, f32),
@@ -48,8 +54,10 @@ pub enum MouseAction {
     AddModule(ep::Module),
     RemoveModule(Rcrc<ep::Module>),
     RemoveLane(Rcrc<ep::Control>, usize),
+    RenamePatch(String),
     SavePatch,
-    FocusTextField(Rcrc<(String, bool)>),
+    CopyPatch(Box<dyn Fn(&Rcrc<Patch>)>),
+    FocusTextField(Rcrc<TextField>),
 }
 
 impl MouseAction {
@@ -297,7 +305,13 @@ impl MouseAction {
             Self::AddModule(module) => return Some(GuiAction::AddModule(module)),
             Self::RemoveModule(module) => return Some(GuiAction::RemoveModule(module)),
             Self::FocusTextField(field) => return Some(GuiAction::FocusTextField(field)),
+            Self::RenamePatch(name) => {
+                return Some(GuiAction::Elevate(InstanceAction::RenamePatch(name)))
+            }
             Self::SavePatch => return Some(GuiAction::Elevate(InstanceAction::SavePatch)),
+            Self::CopyPatch(callback) => {
+                return Some(GuiAction::Elevate(InstanceAction::CopyPatch(callback)))
+            }
             Self::RemoveLane(control, lane) => {
                 control.borrow_mut().automation.remove(lane);
                 return Some(GuiAction::Elevate(InstanceAction::ReloadStructure));

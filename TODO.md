@@ -5,6 +5,7 @@ Friendly error messages
 A widget to select from a series of options
 Right-click menu should show automated value
 Make arrangement of wires line up more with the grid system for controls.
+Visual feedback for patch being saved
 
 # Things with missing dependencies
 Options to change how automation channels are mixed together

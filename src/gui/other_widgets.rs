@@ -1,5 +1,6 @@
 use crate::engine::parts as ep;
 use crate::engine::registry::Registry;
+use crate::engine::save_data::Patch;
 use crate::gui::action::MouseAction;
 use crate::gui::constants::*;
 use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
@@ -197,19 +198,50 @@ impl MenuBar {
     }
 }
 
+pub struct TextField {
+    pub text: String,
+    focused: bool,
+    defocus_action: fn(&str) -> MouseAction,
+}
+
+impl TextField {
+    fn new(start_value: String, defocus_action: fn(&str) -> MouseAction) -> Self {
+        Self {
+            text: start_value,
+            focused: false,
+            defocus_action,
+        }
+    }
+
+    pub fn focus(&mut self) {
+        debug_assert!(!self.focused);
+        self.focused = true;
+    }
+
+    pub fn defocus(&mut self) -> MouseAction {
+        debug_assert!(self.focused);
+        self.focused = false;
+        (self.defocus_action)(&self.text)
+    }
+}
+
 pub struct TextBox {
     pos: (i32, i32),
     size: (i32, i32),
-    field: Rcrc<(String, bool)>,
+    field: Rcrc<TextField>,
 }
 
 impl TextBox {
-    const HEIGHT: i32 = grid(1);
-    pub fn create(pos: (i32, i32), width: i32) -> Self {
+    pub fn create(
+        pos: (i32, i32),
+        size: (i32, i32),
+        start_value: String,
+        defocus_action: fn(&str) -> MouseAction,
+    ) -> Self {
         Self {
             pos,
-            size: (width, Self::HEIGHT),
-            field: rcrc(("".to_owned(), false)),
+            size,
+            field: rcrc(TextField::new(start_value, defocus_action)),
         }
     }
 
@@ -224,8 +256,8 @@ impl TextBox {
     pub fn draw(&self, g: &mut GrahpicsWrapper) {
         const GP: i32 = GRID_P;
         let field = self.field.borrow();
-        let text = &field.0;
-        let focused = field.1;
+        let text = &field.text;
+        let focused = field.focused;
         g.push_state();
         g.apply_offset(self.pos.0, self.pos.1);
 
@@ -241,19 +273,105 @@ impl TextBox {
     }
 }
 
+pub struct IconButton {
+    pos: (i32, i32),
+    size: i32,
+    icon: usize,
+    enabled: bool,
+}
+
+impl IconButton {
+    pub fn create(pos: (i32, i32), size: i32, icon: usize) -> Self {
+        Self {
+            pos,
+            size,
+            icon,
+            enabled: true,
+        }
+    }
+
+    pub fn mouse_in_bounds(&mut self, mouse_pos: (i32, i32)) -> bool {
+        self.enabled && mouse_pos.sub(self.pos).inside((self.size, self.size))
+    }
+
+    pub fn draw(&self, g: &mut GrahpicsWrapper) {
+        g.push_state();
+        g.apply_offset(self.pos.0, self.pos.1);
+
+        g.set_color(&COLOR_BG);
+        g.fill_rounded_rect(0, 0, self.size, self.size, CORNER_SIZE);
+        const IP: i32 = GRID_P / 2;
+        g.draw_white_icon(self.icon, IP, IP, self.size - IP * 2);
+        if !self.enabled {
+            g.set_color(&COLOR_BG);
+            g.set_alpha(0.5);
+            g.fill_rounded_rect(0, 0, self.size, self.size, CORNER_SIZE);
+        }
+
+        g.pop_state();
+    }
+}
+
 pub struct PatchBrowser {
     pos: (i32, i32),
     size: (i32, i32),
     name_box: TextBox,
+    save_button: IconButton,
+    save_copy_button: IconButton,
+    entries: Rcrc<Vec<Rcrc<Patch>>>,
+    current_entry_index: usize,
 }
 
 impl PatchBrowser {
-    pub fn create(registry: &Registry, pos: (i32, i32), size: (i32, i32)) -> Self {
+    pub fn create(
+        current_patch: &Rcrc<Patch>,
+        registry: &Registry,
+        pos: (i32, i32),
+        size: (i32, i32),
+    ) -> Self {
+        // How large each half of the GUI takes.
+        let hw = (size.0 - GRID_P * 3) / 2;
+        // A slightly larger grid size.
+        const CG: i32 = grid(1) + GRID_P;
+        // How many icon buttons to the right of the name box.
+        const NUM_ICONS: i32 = 2;
+        // Width of the name box.
+        let namew = hw - (CG + GRID_P) * NUM_ICONS;
+        let patch_name = current_patch.borrow().borrow_name().to_owned();
+        let name_box = TextBox::create((GRID_P, 0), (namew, CG), patch_name, |text| {
+            MouseAction::RenamePatch(text.to_owned())
+        });
+        let save_icon = registry.lookup_icon("base:save").unwrap();
+        let mut save_button = IconButton::create((GRID_P + hw - CG * 2 - GRID_P, 0), CG, save_icon);
+        let save_copy_icon = registry.lookup_icon("base:save_copy").unwrap();
+        let save_copy_button = IconButton::create((GRID_P + hw - CG, 0), CG, save_copy_icon);
+
+        let entries = registry.borrow_patches().clone();
+        let current_entry_index = registry
+            .borrow_patches()
+            .iter()
+            .position(|patch| std::ptr::eq(patch.as_ref(), current_patch.as_ref()))
+            .unwrap();
+        if !entries[current_entry_index].borrow().is_writable() {
+            save_button.enabled = false;
+        }
+
         Self {
             pos,
             size,
-            name_box: TextBox::create((coord(0), coord(0)), grid(8)),
+            name_box,
+            save_button,
+            save_copy_button,
+            entries: rcrc(entries),
+            current_entry_index,
         }
+    }
+
+    fn update_enabled_buttons(&mut self) {
+        let writable = self.entries.borrow()[self.current_entry_index]
+            .borrow()
+            .is_writable();
+        self.save_button.enabled = writable;
     }
 
     pub fn get_tooltip_at(&self, mouse_pos: (i32, i32)) -> Option<Tooltip> {
@@ -266,22 +384,70 @@ impl PatchBrowser {
         mods: &MouseMods,
     ) -> MouseAction {
         let mouse_pos = mouse_pos.sub(self.pos);
-        {
+        // Only enabled if we can modify the current patch.
+        if self.save_button.enabled {
             let mouse_pos = mouse_pos.sub(self.name_box.pos);
             if mouse_pos.inside(self.name_box.size) {
                 return self.name_box.respond_to_mouse_press(mouse_pos, mods);
             }
         }
-        MouseAction::SavePatch
+        if self.save_button.mouse_in_bounds(mouse_pos) {
+            return MouseAction::SavePatch;
+        }
+        if self.save_copy_button.mouse_in_bounds(mouse_pos) {
+            self.current_entry_index = self.entries.borrow().len();
+            let entries = Rc::clone(&self.entries);
+            self.save_button.enabled = true;
+            self.name_box.field.borrow_mut().text.push_str(" (Copy)");
+            return MouseAction::CopyPatch(Box::new(move |new_patch| {
+                entries.borrow_mut().push(Rc::clone(new_patch))
+            }));
+        }
+        MouseAction::None
     }
 
     pub fn draw(&self, g: &mut GrahpicsWrapper) {
         g.push_state();
         g.apply_offset(self.pos.0, self.pos.1);
 
+        // How large each half of the GUI takes.
+        let hw = (self.size.0 - GRID_P * 3) / 2;
+        // A slightly larger grid size.
+        const CG: i32 = grid(1) + GRID_P;
+        const GP: i32 = GRID_P;
+
         g.set_color(&COLOR_SURFACE);
         g.fill_rect(0, 0, self.size.0, self.size.1);
         self.name_box.draw(g);
+        self.save_button.draw(g);
+        self.save_copy_button.draw(g);
+
+        let y = CG + GP;
+        g.set_color(&COLOR_BG);
+        g.fill_rounded_rect(GP, y, hw, self.size.1 - y - GP, CORNER_SIZE);
+        g.set_color(&COLOR_TEXT);
+        for (index, entry) in self.entries.borrow().iter().enumerate() {
+            const HEIGHT: i32 = CG;
+            let x = GP;
+            let y = y + HEIGHT * index as i32;
+            if index == self.current_entry_index {
+                g.set_color(&COLOR_IO_AREA);
+                g.fill_rounded_rect(x, y, hw, HEIGHT, CORNER_SIZE);
+                g.set_color(&COLOR_TEXT);
+            }
+            let entry = entry.borrow();
+            const H: HAlign = HAlign::Left;
+            const V: VAlign = VAlign::Center;
+            let name = entry.borrow_name();
+            g.write_text(FONT_SIZE, x + GP, y, hw - GP * 2, HEIGHT, H, V, 1, name);
+            if !entry.is_writable() {
+                const H: HAlign = HAlign::Right;
+                g.set_alpha(0.5);
+                let t = "[Factory]";
+                g.write_text(FONT_SIZE, x + GP, y, hw - GP * 2, HEIGHT, H, V, 1, t);
+                g.set_alpha(1.0);
+            }
+        }
 
         g.pop_state();
     }

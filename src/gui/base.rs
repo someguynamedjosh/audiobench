@@ -1,5 +1,6 @@
 use crate::engine::parts as ep;
 use crate::engine::registry::Registry;
+use crate::engine::save_data::Patch;
 use crate::gui::action::{GuiAction, InstanceAction, MouseAction};
 use crate::gui::graphics::GrahpicsWrapper;
 use crate::gui::{audio_widgets, other_widgets};
@@ -80,16 +81,24 @@ pub struct Gui {
     mouse_down: bool,
     dragged: bool,
     last_click: Instant,
-    focused_text_field: Option<Rcrc<(String, bool)>>,
+    focused_text_field: Option<Rcrc<other_widgets::TextField>>,
 }
 
 impl Gui {
-    pub fn new(registry: &Registry, graph_ref: Rcrc<ep::ModuleGraph>) -> Self {
+    pub fn new(
+        registry: &Registry,
+        current_patch: &Rcrc<Patch>,
+        graph_ref: Rcrc<ep::ModuleGraph>,
+    ) -> Self {
         let size = (640, 480);
         let y = other_widgets::MenuBar::HEIGHT;
 
-        let patch_browser =
-            other_widgets::PatchBrowser::create(registry, (0, y), (size.0, size.1 - y));
+        let patch_browser = other_widgets::PatchBrowser::create(
+            current_patch,
+            registry,
+            (0, y),
+            (size.0, size.1 - y),
+        );
         let mut graph = audio_widgets::ModuleGraph::create(registry, graph_ref);
         graph.pos.1 = y;
         let module_browser =
@@ -122,10 +131,18 @@ impl Gui {
         self.menu_bar.draw(self.size.0, self.current_screen, g);
     }
 
-    pub fn on_mouse_down(&mut self, pos: (i32, i32), mods: &MouseMods) {
+    pub fn on_mouse_down(
+        &mut self,
+        registry: &Registry,
+        pos: (i32, i32),
+        mods: &MouseMods,
+    ) -> Option<InstanceAction> {
+        let mut ret = None;
         if let Some(field) = self.focused_text_field.take() {
-            field.borrow_mut().1 = false;
-        }
+            if let Some(action) = field.borrow_mut().defocus().on_click() {
+                ret = self.perform_action(registry, action);
+            }
+        };
         if pos.1 <= other_widgets::MenuBar::HEIGHT {
             self.mouse_action = self.menu_bar.respond_to_mouse_press(pos, mods);
         } else {
@@ -137,6 +154,7 @@ impl Gui {
         }
         self.mouse_down = true;
         self.click_position = pos;
+        ret
     }
 
     /// Minimum number of pixels the mouse must move before dragging starts.
@@ -202,7 +220,7 @@ impl Gui {
                 return Some(InstanceAction::ReloadStructure);
             }
             GuiAction::FocusTextField(field) => {
-                field.borrow_mut().1 = true;
+                field.borrow_mut().focus();
                 self.focused_text_field = Some(field);
             }
             GuiAction::Elevate(action) => return Some(action),
@@ -239,19 +257,22 @@ impl Gui {
             match key {
                 0x8 | 0x7F => {
                     // Bksp / Del
-                    if field.0.len() > 0 {
-                        let last = field.0.len() - 1;
-                        field.0 = field.0[..last].to_owned();
+                    if field.text.len() > 0 {
+                        let last = field.text.len() - 1;
+                        field.text = field.text[..last].to_owned();
                     }
                 }
                 0x1B | 0xA => {
                     // Esc / Enter
-                    field.1 = false;
+                    let action = field.defocus();
                     drop(field);
                     self.focused_text_field = None;
+                    if let Some(action) = action.on_click() {
+                        return self.perform_action(registry, action);
+                    }
                 }
                 _ => {
-                    field.0.push(key as char);
+                    field.text.push(key as char);
                 }
             }
         }

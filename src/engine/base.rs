@@ -60,7 +60,9 @@ impl Engine {
                 .get_patch_by_name("base:patches/default.abpatch")
                 .unwrap(),
         );
-        default_patch.borrow().restore_note_graph(&mut module_graph, registry);
+        default_patch
+            .borrow()
+            .restore_note_graph(&mut module_graph, registry);
 
         let mut executor = ExecEnvironment::new(&registry);
         let gen_result =
@@ -92,21 +94,38 @@ impl Engine {
         }
     }
 
-    pub fn save_current_patch(&mut self, registry: &mut engine::registry::Registry) {
-        let patch_ref = self.current_patch_save_data.borrow();
-        if !patch_ref.is_writable() {
-            let new_patch = Rc::clone(registry.create_new_user_patch());
-            let mut new_patch_ref = new_patch.borrow_mut();
-            new_patch_ref.set_name(patch_ref.borrow_name().to_owned());
-            drop(patch_ref);
-            drop(new_patch_ref);
-            self.current_patch_save_data = new_patch;
-        } else {
-            drop(patch_ref);
-        }
+    pub fn rename_current_patch(&mut self, name: String) {
+        assert!(self.current_patch_save_data.borrow().is_writable());
+        let mut patch_ref = self.current_patch_save_data.borrow_mut();
+        patch_ref.set_name(name);
+        patch_ref.write().expect("TODO: Nice error.");
+    }
+
+    pub fn save_current_patch(&mut self) {
+        assert!(self.current_patch_save_data.borrow().is_writable());
         let mut patch_ref = self.current_patch_save_data.borrow_mut();
         patch_ref.save_note_graph(&*self.module_graph.borrow());
         patch_ref.write().expect("TODO: Nice error.");
+    }
+
+    pub fn copy_current_patch(
+        &mut self,
+        registry: &mut engine::registry::Registry,
+    ) -> &Rcrc<Patch> {
+        let patch_ref = self.current_patch_save_data.borrow();
+        let new_patch = Rc::clone(registry.create_new_user_patch());
+        let mut new_patch_ref = new_patch.borrow_mut();
+        new_patch_ref.set_name(format!("{} (Copy)", patch_ref.borrow_name()));
+        new_patch_ref.save_note_graph(&*self.module_graph.borrow());
+        new_patch_ref.write().expect("TODO: Nice error.");
+        drop(patch_ref);
+        drop(new_patch_ref);
+        self.current_patch_save_data = new_patch;
+        &self.current_patch_save_data
+    }
+
+    pub fn borrow_current_patch(&self) -> &Rcrc<Patch> {
+        &self.current_patch_save_data
     }
 
     pub fn borrow_module_graph_ref(&self) -> &Rcrc<engine::parts::ModuleGraph> {
