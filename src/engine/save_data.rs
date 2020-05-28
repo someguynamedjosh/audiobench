@@ -163,35 +163,50 @@ struct SavedModule {
 }
 
 impl SavedModule {
-    fn restore(&self, registry: &Registry) -> ep::Module {
+    fn restore(&self, registry: &Registry) -> Result<ep::Module, String> {
         let mut module = registry
             .borrow_module(&self.resource_name)
-            .expect("TODO: Nice error.")
+            .ok_or_else(|| {
+                format!(
+                    "Error encountered loading patch: Could not find a module named {}",
+                    &self.resource_name
+                )
+            })?
             .clone();
-        assert!(
-            module.controls.len() == self.controls.len(),
-            "TODO: Nice error."
-        );
+        if module.controls.len() != self.controls.len() {
+            return Err(format!(
+                "Corrupt preset: The number of controls in {} has changed",
+                &self.resource_name
+            ));
+        }
         for index in 0..self.controls.len() {
             module.controls[index].borrow_mut().value = self.controls[index].value;
         }
-        assert!(
-            module.complex_controls.len() == self.complex_controls.len(),
-            "TODO: Nice error."
-        );
+        if module.complex_controls.len() != self.complex_controls.len() {
+            return Err(format!(
+                "Corrupt preset: The number of complex controls in {} has changed",
+                &self.resource_name
+            ));
+        }
         for index in 0..self.complex_controls.len() {
             module.complex_controls[index].borrow_mut().value =
                 self.complex_controls[index].value.clone();
         }
         module.pos = self.pos;
-        module
+        Ok(module)
     }
 
-    fn restore_connections(&self, on: &mut ep::Module, modules: &[Rcrc<ep::Module>]) {
-        assert!(
-            self.input_connections.len() == on.inputs.len(),
-            "TODO: Nice error"
-        );
+    fn restore_connections(
+        &self,
+        on: &mut ep::Module,
+        modules: &[Rcrc<ep::Module>],
+    ) -> Result<(), String> {
+        if on.inputs.len() != self.input_connections.len() {
+            return Err(format!(
+                "Corrupt preset: The number of inputs in {} has changed",
+                &self.resource_name
+            ));
+        }
         for index in 0..self.input_connections.len() {
             on.inputs[index] = match &self.input_connections[index] {
                 SavedInputConnection::Default(index) => ep::InputConnection::Default(*index),
@@ -199,19 +214,20 @@ impl SavedModule {
                     module_index,
                     output_index,
                 } => {
-                    assert!(*module_index < modules.len(), "TODO: Nice error.");
+                    if *module_index >= modules.len() {
+                        return Err(format!("Corrupt preset: Module index out of bounds"));
+                    }
                     let module = &modules[*module_index];
                     let module_ref = module.borrow();
                     let out_temp_ref = module_ref.template.borrow();
-                    assert!(
-                        out_temp_ref.outputs.len() > *output_index,
-                        "TODO: Nice error."
-                    );
-                    assert!(
-                        out_temp_ref.outputs[*output_index].get_type()
-                            == on.template.borrow().inputs[index].get_type(),
-                        "TODO: Nice error."
-                    );
+                    if out_temp_ref.outputs.len() <= *output_index {
+                        return Err(format!("Corrupt preset: Output index out of bounds"));
+                    }
+                    if out_temp_ref.outputs[*output_index].get_type()
+                        != on.template.borrow().inputs[index].get_type()
+                    {
+                        return Err(format!("Corrupt preset: Wire has mismatched data types"));
+                    }
                     drop(out_temp_ref);
                     drop(module_ref);
                     ep::InputConnection::Wire(Rc::clone(module), *output_index)
@@ -221,15 +237,27 @@ impl SavedModule {
         for index in 0..self.controls.len() {
             let mut control_ref = on.controls[index].borrow_mut();
             for lane in &self.controls[index].automation_lanes {
-                assert!(lane.module_index < modules.len(), "TODO: Nice error.");
+                if lane.module_index >= modules.len() {
+                    return Err(format!("Corrupt preset: Module index out of bounds"));
+                }
                 let module = Rc::clone(&modules[lane.module_index]);
-                assert!(module.borrow().template.borrow().outputs.len() > lane.output_index);
+                if module.borrow().template.borrow().outputs.len() <= lane.output_index {
+                    return Err(format!("Corrupt preset: Output index out of bounds"));
+                }
+                if module.borrow().template.borrow().outputs[lane.output_index].get_type()
+                    != ep::JackType::Audio
+                {
+                    return Err(format!(
+                        "Corrupt preset: Automation wire is not connected to audio jack"
+                    ));
+                }
                 control_ref.automation.push(ep::AutomationLane {
                     connection: (module, lane.output_index),
                     range: lane.range,
                 });
             }
         }
+        Ok(())
     }
 
     fn serialize(&self, writer: &mut io::BufWriter<impl Write>) -> io::Result<()> {
@@ -393,17 +421,18 @@ impl SavedModuleGraph {
         }
     }
 
-    fn restore(&self, graph: &mut ep::ModuleGraph, registry: &Registry) {
+    fn restore(&self, graph: &mut ep::ModuleGraph, registry: &Registry) -> Result<(), String> {
         let modules: Vec<_> = self
             .modules
             .iter()
-            .map(|m| rcrc(m.restore(registry)))
-            .collect();
+            .map(|m| m.restore(registry).map(|m| rcrc(m)))
+            .collect::<Result<_, _>>()?;
         for index in 0..self.modules.len() {
             let module = Rc::clone(&modules[index]);
-            self.modules[index].restore_connections(&mut *module.borrow_mut(), &modules[..]);
+            self.modules[index].restore_connections(&mut *module.borrow_mut(), &modules[..])?;
         }
         graph.set_modules(modules);
+        Ok(())
     }
 
     fn serialize(&self, writer: &mut io::BufWriter<impl Write>) -> io::Result<()> {
@@ -483,8 +512,12 @@ impl Patch {
         self.note_graph = SavedModuleGraph::save(graph);
     }
 
-    pub fn restore_note_graph(&self, graph: &mut ep::ModuleGraph, registry: &Registry) {
-        self.note_graph.restore(graph, registry);
+    pub fn restore_note_graph(
+        &self,
+        graph: &mut ep::ModuleGraph,
+        registry: &Registry,
+    ) -> Result<(), String> {
+        self.note_graph.restore(graph, registry)
     }
 
     pub fn write(&self) -> io::Result<()> {

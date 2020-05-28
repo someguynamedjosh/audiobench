@@ -1,6 +1,4 @@
 # Things with no dependencies
-Error message for bad / corrupt preset
-Error message for cyclic connections.
 A widget to select from a series of options
 Right-click menu should show automated value
 Make arrangement of wires line up more with the grid system for controls.

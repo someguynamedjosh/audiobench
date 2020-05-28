@@ -65,12 +65,28 @@ impl Engine {
         );
         default_patch
             .borrow()
-            .restore_note_graph(&mut module_graph, registry);
+            .restore_note_graph(&mut module_graph, registry)
+            .map_err(|err| {
+                format!(
+                    concat!(
+                        "Default patch failed to load!\n",
+                        "This is a critical error, please submit a bug report containing this ",
+                        "error:\n\n{}",
+                    ),
+                    err
+                )
+            })?;
 
         let mut executor = ExecEnvironment::new(&registry);
         let gen_result =
             codegen::generate_code(&module_graph, DEFAULT_BUFFER_LENGTH, DEFAULT_SAMPLE_RATE)
-                .expect("TODO: Nice error");
+                .map_err(|_| {
+                    format!(concat!(
+                        "Default patch contains feedback loops!\n",
+                        "This is a critical error, please submit a bug report containing this ",
+                        "error.",
+                    ),)
+                })?;
         println!("{}", gen_result.code);
 
         if let Err(problem) = executor.compile(
@@ -127,12 +143,17 @@ impl Engine {
         &self.current_patch_save_data
     }
 
-    pub fn load_patch(&mut self, registry: &engine::registry::Registry, patch: Rcrc<Patch>) {
+    pub fn load_patch(
+        &mut self,
+        registry: &engine::registry::Registry,
+        patch: Rcrc<Patch>,
+    ) -> Result<(), String> {
         self.current_patch_save_data = patch;
         self.current_patch_save_data
             .borrow()
-            .restore_note_graph(&mut *self.module_graph.borrow_mut(), registry);
-        self.reload_structure();
+            .restore_note_graph(&mut *self.module_graph.borrow_mut(), registry)?;
+        self.reload_structure()?;
+        Ok(())
     }
 
     pub fn borrow_current_patch(&self) -> &Rcrc<Patch> {
@@ -147,14 +168,14 @@ impl Engine {
         self.ctd_mux.lock().unwrap().critical_error.clone()
     }
 
-    pub fn reload_structure(&mut self) {
+    pub fn reload_structure(&mut self) -> Result<(), String> {
         let mut ctd = self.ctd_mux.lock().unwrap();
 
         ctd.note_manager.silence_all();
         let module_graph_ref = self.module_graph.borrow();
         let new_gen =
             codegen::generate_code(&*module_graph_ref, ctd.buffer_length, ctd.sample_rate)
-                .expect("TODO: Nice error");
+                .map_err(|_| format!("The note graph cannot contain feedback loops"))?;
         drop(module_graph_ref);
         ctd.new_module_graph_code = Some((
             new_gen.code,
@@ -164,6 +185,7 @@ impl Engine {
         ctd.new_feedback_data = None;
         self.aux_data_collector = new_gen.aux_data_collector;
         self.feedback_displayer = new_gen.feedback_displayer;
+        Ok(())
     }
 
     pub fn reload_values(&mut self) {
@@ -192,7 +214,9 @@ impl Engine {
             ctd.buffer_length = buffer_length;
             ctd.sample_rate = sample_rate;
             drop(ctd);
-            self.reload_structure();
+            // This only errs if we have a feedback loop. Changing meta params does not introduce
+            // feedback loops.
+            self.reload_structure().unwrap();
         }
     }
 

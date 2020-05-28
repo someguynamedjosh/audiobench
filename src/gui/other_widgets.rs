@@ -20,6 +20,7 @@ pub struct MenuBar {
     drag: usize,
     and: usize,
     tooltip: Tooltip,
+    error: Option<String>,
 }
 
 impl MenuBar {
@@ -38,6 +39,7 @@ impl MenuBar {
             drag: registry.lookup_icon("base:move").unwrap(),
             and: registry.lookup_icon("base:add").unwrap(),
             tooltip: Default::default(),
+            error: None,
         }
     }
 
@@ -56,6 +58,14 @@ impl MenuBar {
 
     pub fn set_tooltip(&mut self, tooltip: Tooltip) {
         self.tooltip = tooltip;
+    }
+
+    pub fn set_error(&mut self, error: String) {
+        self.error = Some(error);
+    }
+
+    pub fn clear_error(&mut self) {
+        self.error = None;
     }
 
     pub fn respond_to_mouse_press(&self, mouse_pos: (i32, i32), mods: &MouseMods) -> MouseAction {
@@ -99,6 +109,7 @@ impl MenuBar {
         const ICON_PAD: i32 = 1;
         const ICON_SIZE: i32 = HINT_HEIGHT - ICON_PAD * 2;
         const HINT_AREA_WIDTH: i32 = ICON_SIZE * 4 + GP * 3 + ICON_PAD * 6;
+        let error = self.error.is_some();
         {
             g.set_color(&COLOR_SURFACE);
             g.fill_rounded_rect(
@@ -146,29 +157,37 @@ impl MenuBar {
             let active = self
                 .tooltip
                 .interaction
-                .contains(InteractionHint::LeftClickAndDrag);
+                .contains(InteractionHint::LeftClickAndDrag)
+                && ! error;
             let x = draw_hint(active, g, width, Y1, &[self.lclick, self.and, self.drag]);
             let active = self
                 .tooltip
                 .interaction
-                .contains(InteractionHint::LeftClick);
+                .contains(InteractionHint::LeftClick)
+                || error;
             draw_hint(active, g, x, Y1, &[self.lclick]);
 
             let active = self
                 .tooltip
                 .interaction
-                .contains(InteractionHint::DoubleClick);
+                .contains(InteractionHint::DoubleClick)
+                && !error;
             let x = draw_hint(active, g, width, Y2, &[self.lclick, self.and, self.lclick]);
             let active = self
                 .tooltip
                 .interaction
-                .contains(InteractionHint::RightClick);
+                .contains(InteractionHint::RightClick)
+                && !error;
             draw_hint(active, g, x, Y2, &[self.rclick]);
         }
 
         let tooltip_x = coord(self.screens.len() as i32) + GP;
         let tooltip_width = width - HINT_AREA_WIDTH - tooltip_x;
-        g.set_color(&COLOR_BG);
+        if self.error.is_some() {
+            g.set_color(&COLOR_ERROR);
+        } else {
+            g.set_color(&COLOR_BG);
+        }
         g.fill_rounded_rect(tooltip_x, coord(0), tooltip_width, ITEM_HEIGHT, CS);
         let text_x = tooltip_x + GP;
         let text_width = tooltip_width - GP * 2;
@@ -182,7 +201,7 @@ impl MenuBar {
             HAlign::Left,
             VAlign::Center,
             1,
-            &self.tooltip.text,
+            self.error.as_ref().unwrap_or(&self.tooltip.text),
         );
 
         for (index, icon) in self.screen_icons.iter().enumerate() {

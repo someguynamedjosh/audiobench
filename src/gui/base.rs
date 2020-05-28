@@ -122,6 +122,14 @@ impl Gui {
         }
     }
 
+    pub fn display_error(&mut self, error: String) {
+        self.menu_bar.set_error(error);
+    }
+
+    pub fn clear_error(&mut self) {
+        self.menu_bar.clear_error();
+    }
+
     pub fn draw(&self, g: &mut GrahpicsWrapper) {
         match self.current_screen {
             GuiScreen::PatchBrowser => self.patch_browser.draw(g),
@@ -141,6 +149,7 @@ impl Gui {
         pos: (i32, i32),
         mods: &MouseMods,
     ) -> Option<InstanceAction> {
+        self.menu_bar.clear_error();
         let mut ret = None;
         if let Some(field) = self.focused_text_field.take() {
             if let Some(action) = field.borrow_mut().defocus().on_click() {

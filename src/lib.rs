@@ -11,6 +11,7 @@ pub struct Instance {
     graphics_fns: GraphicsFunctions,
     gui: Option<Gui>,
     critical_error: Option<String>,
+    structure_error: Option<String>,
     silence: Vec<f32>,
 }
 
@@ -43,6 +44,7 @@ impl Instance {
             graphics_fns: GraphicsFunctions::placeholders(),
             gui: None,
             critical_error,
+            structure_error: None,
             silence: Vec::new(),
         }
     }
@@ -52,10 +54,23 @@ impl Instance {
     fn perform_action(&mut self, action: gui::action::InstanceAction) {
         match action {
             gui::action::InstanceAction::ReloadAuxData => {
-                self.engine.as_mut().unwrap().reload_values();
+                if self.structure_error.is_none() {
+                    self.engine.as_mut().unwrap().reload_values();
+                }
             }
             gui::action::InstanceAction::ReloadStructure => {
-                self.engine.as_mut().unwrap().reload_structure();
+                let res = self.engine.as_mut().unwrap().reload_structure();
+                if let Err(err) = res {
+                    if let Some(gui) = &mut self.gui {
+                        gui.display_error(err.clone());
+                    }
+                    self.structure_error = Some(err);
+                } else {
+                    if let Some(gui) = &mut self.gui {
+                        gui.clear_error();
+                    }
+                    self.structure_error = None;
+                }
             }
             gui::action::InstanceAction::RenamePatch(name) => {
                 self.engine.as_mut().unwrap().rename_current_patch(name);
@@ -67,11 +82,15 @@ impl Instance {
                 callback(self.engine.as_mut().unwrap().new_patch(&mut self.registry));
             }
             gui::action::InstanceAction::LoadPatch(patch) => {
-                self.engine
+                let res = self
+                    .engine
                     .as_mut()
                     .unwrap()
                     .load_patch(&self.registry, patch);
                 if let Some(gui) = &mut self.gui {
+                    if let Err(err) = res {
+                        gui.display_error(err);
+                    }
                     gui.on_patch_change(&self.registry);
                 }
             }
@@ -174,6 +193,10 @@ impl Instance {
                 precise,
             };
             let action = gui.on_mouse_down(&self.registry, (x, y), &mods);
+            // This is a pretty hacky way of keeping the error on the screen but it works.
+            if let Some(err) = &self.structure_error {
+                gui.display_error(err.to_owned());
+            }
             action.map(|a| self.perform_action(a));
         } else if self.critical_error.is_none() {
             debug_assert!(false, "mouse_down called, but no GUI exists.");
