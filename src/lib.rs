@@ -142,6 +142,16 @@ impl Instance {
             eprintln!("WARNING: mouse_up called, but no GUI exists.");
         }
     }
+
+    pub fn key_press(&mut self, key: u8) {
+        if let Some(gui) = &mut self.gui {
+            let action = gui.on_key_press(&self.registry, key);
+            action.map(|a| self.perform_action(a));
+        } else {
+            debug_assert!(false, "mouse_up called, but no GUI exists.");
+            eprintln!("WARNING: mouse_up called, but no GUI exists.");
+        }
+    }
 }
 
 #[no_mangle]
@@ -250,4 +260,9 @@ pub unsafe extern "C" fn ABUIMouseMove(
 #[no_mangle]
 pub unsafe extern "C" fn ABUIMouseUp(instance: *mut Instance) {
     (*instance).mouse_up();
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ABUIKeyPress(instance: *mut Instance, key: u8) {
+    (*instance).key_press(key);
 }

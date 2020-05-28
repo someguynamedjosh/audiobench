@@ -4,6 +4,7 @@ use crate::gui::action::MouseAction;
 use crate::gui::constants::*;
 use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
 use crate::gui::{GuiScreen, InteractionHint, MouseMods, Tooltip};
+use crate::util::*;
 use std::collections::HashSet;
 
 fn bound_check(coord: (i32, i32), bounds: (i32, i32)) -> bool {
@@ -196,14 +197,63 @@ impl MenuBar {
     }
 }
 
+pub struct TextBox {
+    pos: (i32, i32),
+    size: (i32, i32),
+    field: Rcrc<(String, bool)>,
+}
+
+impl TextBox {
+    const HEIGHT: i32 = grid(1);
+    pub fn create(pos: (i32, i32), width: i32) -> Self {
+        Self {
+            pos,
+            size: (width, Self::HEIGHT),
+            field: rcrc(("".to_owned(), false)),
+        }
+    }
+
+    pub fn respond_to_mouse_press(
+        &mut self,
+        mouse_pos: (i32, i32),
+        mods: &MouseMods,
+    ) -> MouseAction {
+        MouseAction::FocusTextField(Rc::clone(&self.field))
+    }
+
+    pub fn draw(&self, g: &mut GrahpicsWrapper) {
+        const GP: i32 = GRID_P;
+        let field = self.field.borrow();
+        let text = &field.0;
+        let focused = field.1;
+        g.push_state();
+        g.apply_offset(self.pos.0, self.pos.1);
+
+        g.set_color(if focused { &COLOR_IO_AREA } else { &COLOR_BG });
+        g.fill_rounded_rect(0, 0, self.size.0, self.size.1, CORNER_SIZE);
+        g.set_color(&COLOR_TEXT);
+        const H: HAlign = HAlign::Left;
+        const V: VAlign = VAlign::Center;
+        let w = self.size.0 - GP * 2;
+        g.write_text(FONT_SIZE, GP, 0, w, self.size.1, H, V, 1, text);
+
+        g.pop_state();
+    }
+}
+
 pub struct PatchBrowser {
     pos: (i32, i32),
     size: (i32, i32),
+    name_box: TextBox,
 }
 
 impl PatchBrowser {
     pub fn create(registry: &Registry, pos: (i32, i32), size: (i32, i32)) -> Self {
-        Self { pos, size }
+        Self {
+            pos,
+            size,
+            name_box: TextBox::create((coord(0), coord(0)), grid(8)),
+        }
     }
 
     pub fn get_tooltip_at(&self, mouse_pos: (i32, i32)) -> Option<Tooltip> {
@@ -215,12 +265,23 @@ impl PatchBrowser {
         mouse_pos: (i32, i32),
         mods: &MouseMods,
     ) -> MouseAction {
+        let mouse_pos = mouse_pos.sub(self.pos);
+        {
+            let mouse_pos = mouse_pos.sub(self.name_box.pos);
+            if mouse_pos.inside(self.name_box.size) {
+                return self.name_box.respond_to_mouse_press(mouse_pos, mods);
+            }
+        }
         MouseAction::SavePatch
     }
 
     pub fn draw(&self, g: &mut GrahpicsWrapper) {
         g.push_state();
         g.apply_offset(self.pos.0, self.pos.1);
+
+        g.set_color(&COLOR_SURFACE);
+        g.fill_rect(0, 0, self.size.0, self.size.1);
+        self.name_box.draw(g);
 
         g.pop_state();
     }

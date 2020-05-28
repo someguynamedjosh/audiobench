@@ -607,4 +607,8 @@ impl Registry {
     pub fn get_patch_by_name(&self, name: &str) -> Option<&Rcrc<Patch>> {
         self.patch_paths.get(name).map(|i| &self.patches[*i])
     }
+
+    pub fn borrow_patches(&self) -> &Vec<Rcrc<Patch>> {
+        &self.patches
+    }
 }

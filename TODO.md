@@ -11,6 +11,7 @@ Options to change how automation channels are mixed together
 FM Oscillator
 
 # Low-priority things without dependencies
+Int boxes are a pain to use because double-click.
 Output silent audio while recompiling instead of hanging the thread
 Get a better icon for waveforms
 Better nothing icon

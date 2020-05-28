@@ -35,4 +35,5 @@ extern "C" {
     void ABUIMouseDown(ABInstanceRef, int, int, bool, bool, bool);
     void ABUIMouseMove(ABInstanceRef, int, int, bool, bool, bool);
     void ABUIMouseUp(ABInstanceRef);
+    void ABUIKeyPress(ABInstanceRef, char);
 }

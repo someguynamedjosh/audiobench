@@ -16,7 +16,7 @@
 //==============================================================================
 /**
 */
-class AudioBenchAudioProcessorEditor  : public AudioProcessorEditor, public Timer
+class AudioBenchAudioProcessorEditor  : public AudioProcessorEditor, public Timer, public KeyListener
 {
 public:
     AudioBenchAudioProcessorEditor (AudioBenchAudioProcessor&);
@@ -29,12 +29,21 @@ public:
     void mouseMove(const MouseEvent &event) override;
     void mouseDrag(const MouseEvent &event) override;
     void mouseUp(const MouseEvent &event) override;
-    void timerCallback() override { repaint(); }
+    virtual bool keyPressed(const KeyPress &key, Component *originatingComponent) override;
+    void timerCallback() override { 
+      repaint(); 
+      if (!focusGrabbed && isShowing()) {
+        std::cout << "Grabbed!" << std::endl;
+        grabKeyboardFocus();
+        focusGrabbed = true;
+      }
+    }
 
 private:
     // This reference is provided as a quick way for your editor to
     // access the processor object that created it.
     AudioBenchAudioProcessor& processor;
+    bool focusGrabbed = false;
     std::vector<std::unique_ptr<Drawable>> iconStore;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioBenchAudioProcessorEditor)

@@ -80,6 +80,7 @@ pub struct Gui {
     mouse_down: bool,
     dragged: bool,
     last_click: Instant,
+    focused_text_field: Option<Rcrc<(String, bool)>>,
 }
 
 impl Gui {
@@ -108,6 +109,7 @@ impl Gui {
             mouse_down: false,
             dragged: false,
             last_click: Instant::now() - Duration::from_secs(100),
+            focused_text_field: None,
         }
     }
 
@@ -121,6 +123,9 @@ impl Gui {
     }
 
     pub fn on_mouse_down(&mut self, pos: (i32, i32), mods: &MouseMods) {
+        if let Some(field) = self.focused_text_field.take() {
+            field.borrow_mut().1 = false;
+        }
         if pos.1 <= other_widgets::MenuBar::HEIGHT {
             self.mouse_action = self.menu_bar.respond_to_mouse_press(pos, mods);
         } else {
@@ -196,6 +201,10 @@ impl Gui {
                 self.graph.remove_module(&module);
                 return Some(InstanceAction::ReloadStructure);
             }
+            GuiAction::FocusTextField(field) => {
+                field.borrow_mut().1 = true;
+                self.focused_text_field = Some(field);
+            }
             GuiAction::Elevate(action) => return Some(action),
         }
         None
@@ -220,6 +229,33 @@ impl Gui {
         gui_action
             .map(|action| self.perform_action(registry, action))
             .flatten()
+    }
+
+    pub fn on_key_press(&mut self, registry: &Registry, key: u8) -> Option<InstanceAction> {
+        // For some reason JUCE gives CR for enter instead of LF.
+        let key = if key == 13 { 10 } else { key };
+        if let Some(field) = &self.focused_text_field {
+            let mut field = field.borrow_mut();
+            match key {
+                0x8 | 0x7F => {
+                    // Bksp / Del
+                    if field.0.len() > 0 {
+                        let last = field.0.len() - 1;
+                        field.0 = field.0[..last].to_owned();
+                    }
+                }
+                0x1B | 0xA => {
+                    // Esc / Enter
+                    field.1 = false;
+                    drop(field);
+                    self.focused_text_field = None;
+                }
+                _ => {
+                    field.0.push(key as char);
+                }
+            }
+        }
+        None
     }
 
     pub(super) fn is_dragging(&self) -> bool {

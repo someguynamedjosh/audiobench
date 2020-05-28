@@ -177,6 +177,8 @@ AudioBenchAudioProcessorEditor::AudioBenchAudioProcessorEditor(AudioBenchAudioPr
     // editor's size to whatever you need it to be.
     setSize(640, 480);
     ABCreateUI(processor.ab);
+    addKeyListener(this);
+    setWantsKeyboardFocus(true);
     // Our timer method repaints the screen. The number here is then basically the (maximum) FPS
     // that our GUI will run at. Ideally, this should be related to the interval that feedback data
     // is copied from the audio thread to the GUI thread, which can be found in src/engine/base.rs
@@ -214,6 +216,12 @@ void AudioBenchAudioProcessorEditor::mouseDrag(const MouseEvent &event)
 void AudioBenchAudioProcessorEditor::mouseUp(const MouseEvent &event)
 {
     ABUIMouseUp(processor.ab);
+}
+
+bool AudioBenchAudioProcessorEditor::keyPressed(const KeyPress &key, Component *originatingComponent) 
+{
+    ABUIKeyPress(processor.ab, (char) key.getTextCharacter());
+    return true;
 }
 
 void AudioBenchAudioProcessorEditor::resized()

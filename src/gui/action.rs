@@ -20,6 +20,7 @@ pub enum GuiAction {
     SwitchScreen(GuiScreen),
     AddModule(ep::Module),
     RemoveModule(Rcrc<ep::Module>),
+    FocusTextField(Rcrc<(String, bool)>),
     Elevate(InstanceAction),
 }
 
@@ -48,6 +49,7 @@ pub enum MouseAction {
     RemoveModule(Rcrc<ep::Module>),
     RemoveLane(Rcrc<ep::Control>, usize),
     SavePatch,
+    FocusTextField(Rcrc<(String, bool)>),
 }
 
 impl MouseAction {
@@ -294,6 +296,7 @@ impl MouseAction {
             Self::SwitchScreen(screen_index) => return Some(GuiAction::SwitchScreen(screen_index)),
             Self::AddModule(module) => return Some(GuiAction::AddModule(module)),
             Self::RemoveModule(module) => return Some(GuiAction::RemoveModule(module)),
+            Self::FocusTextField(field) => return Some(GuiAction::FocusTextField(field)),
             Self::SavePatch => return Some(GuiAction::Elevate(InstanceAction::SavePatch)),
             Self::RemoveLane(control, lane) => {
                 control.borrow_mut().automation.remove(lane);
