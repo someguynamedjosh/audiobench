@@ -20,6 +20,8 @@ struct CrossThreadData {
     new_aux_input_values: Option<Vec<f32>>,
     /// This value is set to Some() when the audio rendering thread has posted new feedback data.
     new_feedback_data: Option<Vec<f32>>,
+    /// This value is set to Some() when an error that cannot be fixed from the GUI is encountered.
+    critical_error: Option<String>,
     note_manager: NoteManager,
 }
 
@@ -31,6 +33,7 @@ impl CrossThreadData {
             new_module_graph_code: None,
             new_aux_input_values: None,
             new_feedback_data: None,
+            critical_error: None,
             note_manager: NoteManager::new(),
         }
     }
@@ -53,7 +56,7 @@ pub struct Engine {
 }
 
 impl Engine {
-    pub fn new(registry: &mut engine::registry::Registry) -> Self {
+    pub fn new(registry: &mut engine::registry::Registry) -> Result<Self, String> {
         let mut module_graph = engine::parts::ModuleGraph::new();
         let default_patch = Rc::clone(
             registry
@@ -77,12 +80,17 @@ impl Engine {
             DEFAULT_SAMPLE_RATE,
             gen_result.feedback_displayer.get_data_length(),
         ) {
-            eprintln!("ERROR: Basic setup failed to compile:");
-            eprintln!("{}", problem);
-            std::process::abort();
+            return Err(format!(
+                concat!(
+                    "Default patch failed to compile!\n",
+                    "This is a critical error, please submit a bug report containing this ",
+                    "error:\n\n{}"
+                ),
+                problem
+            ));
         }
 
-        Self {
+        Ok(Self {
             module_graph: rcrc(module_graph),
             aux_data_collector: gen_result.aux_data_collector,
             feedback_displayer: gen_result.feedback_displayer,
@@ -91,32 +99,29 @@ impl Engine {
             executor,
             rendered_audio: Vec::new(),
             last_feedback_data_update: Instant::now(),
-        }
+        })
     }
 
     pub fn rename_current_patch(&mut self, name: String) {
         assert!(self.current_patch_save_data.borrow().is_writable());
         let mut patch_ref = self.current_patch_save_data.borrow_mut();
         patch_ref.set_name(name);
-        patch_ref.write().expect("TODO: Nice error.");
+        patch_ref.write().unwrap();
     }
 
     pub fn save_current_patch(&mut self) {
         assert!(self.current_patch_save_data.borrow().is_writable());
         let mut patch_ref = self.current_patch_save_data.borrow_mut();
         patch_ref.save_note_graph(&*self.module_graph.borrow());
-        patch_ref.write().expect("TODO: Nice error.");
+        patch_ref.write().unwrap();
     }
 
-    pub fn new_patch(
-        &mut self,
-        registry: &mut engine::registry::Registry,
-    ) -> &Rcrc<Patch> {
+    pub fn new_patch(&mut self, registry: &mut engine::registry::Registry) -> &Rcrc<Patch> {
         let new_patch = Rc::clone(registry.create_new_user_patch());
         let mut new_patch_ref = new_patch.borrow_mut();
         new_patch_ref.set_name("New Patch".to_owned());
         new_patch_ref.save_note_graph(&*self.module_graph.borrow());
-        new_patch_ref.write().expect("TODO: Nice error.");
+        new_patch_ref.write().unwrap();
         drop(new_patch_ref);
         self.current_patch_save_data = new_patch;
         &self.current_patch_save_data
@@ -136,6 +141,10 @@ impl Engine {
 
     pub fn borrow_module_graph_ref(&self) -> &Rcrc<engine::parts::ModuleGraph> {
         &self.module_graph
+    }
+
+    pub fn clone_critical_error(&self) -> Option<String> {
+        self.ctd_mux.lock().unwrap().critical_error.clone()
     }
 
     pub fn reload_structure(&mut self) {
@@ -202,6 +211,7 @@ impl Engine {
     pub fn render_audio(&mut self) -> &[f32] {
         let mut ctd = self.ctd_mux.lock().unwrap();
 
+        let mut run = true;
         if let Some(new_aux_data) = ctd.new_aux_input_values.take() {
             self.executor.change_aux_input_data(&new_aux_data[..]);
         }
@@ -216,9 +226,15 @@ impl Engine {
                 feedback_data_len,
             );
             if let Err(err) = result {
-                eprintln!("Compile failed!");
-                eprintln!("{}", err);
-                panic!("TODO: Nice error.")
+                ctd.critical_error = Some(format!(
+                    concat!(
+                        "Note graph failed to compile!\n",
+                        "This is a critical error, please submit a bug report containing this error ",
+                        "message:\n\n{}",
+                    ),
+                    err
+                ));
+                run = false;
             }
         }
         if self.rendered_audio.len() != ctd.buffer_length as usize * 2 {
@@ -230,15 +246,27 @@ impl Engine {
         if update_feedback_data {
             self.last_feedback_data_update = Instant::now();
         }
-        let feedback_data = ctd
-            .note_manager
-            .render_all_notes(
-                &mut self.executor,
-                &mut self.rendered_audio[..],
-                update_feedback_data,
-            )
-            .expect("TODO: Nice error.");
-        // This can still be None even if update_feedback_data == true when no notes are playing.
+        let feedback_data = if run {
+            ctd.note_manager
+                .render_all_notes(
+                    &mut self.executor,
+                    &mut self.rendered_audio[..],
+                    update_feedback_data,
+                )
+                .unwrap_or_else(|err| {
+                    ctd.critical_error = Some(format!(
+                        concat!(
+                            "Note graph failed to execute!\n",
+                            "This is a critical error, please submit a bug report containing this error ",
+                            "message:\n\n{}",
+                        ),
+                        err
+                    ));
+                    None
+                })
+        } else {
+            None
+        };
         if let Some(data) = feedback_data {
             ctd.new_feedback_data = Some(data);
         }

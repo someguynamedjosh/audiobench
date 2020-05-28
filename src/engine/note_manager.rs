@@ -21,6 +21,7 @@ const SILENT_CUTOFF: f32 = 1e-5;
 pub struct NoteManager {
     held_notes: [Option<ActiveVoice>; NUM_MIDI_NOTES],
     decaying_notes: Vec<ActiveVoice>,
+    async_error: Option<String>,
 }
 
 impl NoteManager {
@@ -28,6 +29,7 @@ impl NoteManager {
         Self {
             held_notes: array![None; NUM_MIDI_NOTES],
             decaying_notes: Vec::new(),
+            async_error: None,
         }
     }
 
@@ -158,6 +160,13 @@ impl NoteManager {
 
     pub fn note_on(&mut self, executor: &mut ExecEnvironment, note_index: i32, velocity: f32) {
         assert!(note_index < 128);
+        let static_data = match executor.create_static_data() {
+            Ok(data) => data,
+            Err(err) => {
+                self.async_error = Some(err);
+                return;
+            }
+        };
         self.held_notes[note_index as usize] = Some(ActiveVoice {
             pitch: equal_tempered_tuning(note_index),
             velocity,
@@ -165,7 +174,7 @@ impl NoteManager {
             silent_samples: 0,
             start_trigger: false,
             release_trigger: false,
-            static_data: executor.create_static_data().expect("TODO: Nice error"),
+            static_data,
         })
     }
 

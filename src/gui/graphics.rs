@@ -14,6 +14,7 @@ pub struct GraphicsFunctions {
     fill_rounded_rect: fn(*mut i8, i32, i32, i32, i32, i32),
     fill_pie: fn(*mut i8, i32, i32, i32, i32, f32, f32),
     write_text: fn(*mut i8, i32, i32, i32, i32, i32, u8, u8, i32, *const u8),
+    write_console_text: fn(*mut i8, i32, i32, *const u8),
     draw_icon: fn(*mut i8, *mut i8, bool, i32, i32, i32, i32),
     draw_box_shadow: fn(*mut i8, i32, i32, i32, i32, i32),
 }
@@ -64,6 +65,9 @@ impl GraphicsFunctions {
         ) {
             panic!("ERROR: Graphics functions not set by frontend!");
         }
+        fn write_console_text(_data: *mut i8, _w: i32, _h: i32, _text: *const u8) {
+            panic!("ERROR: Graphics functions not set by frontend!");
+        }
         fn draw_icon(
             _data: *mut i8,
             _icon_store: *mut i8,
@@ -90,6 +94,7 @@ impl GraphicsFunctions {
             fill_rounded_rect,
             fill_pie,
             write_text,
+            write_console_text,
             draw_icon,
             draw_box_shadow,
         }
@@ -217,6 +222,14 @@ impl<'a> GrahpicsWrapper<'a> {
             max_lines,
             raw_text.as_ptr(),
         );
+    }
+
+    pub fn write_console_text(&mut self, w: i32, h: i32, text: &str) {
+        // TODO: Assert that text is ASCII.
+        let raw_text = text.as_bytes();
+        let mut raw_text = Vec::from(raw_text);
+        raw_text.push(0);
+        (self.graphics_fns.write_console_text)(self.aux_data, w, h, raw_text.as_ptr());
     }
 
     pub fn draw_white_icon(&mut self, index: usize, x: i32, y: i32, size: i32) {

@@ -1,5 +1,6 @@
 # Things with no dependencies
-Friendly error messages
+Error message for bad / corrupt preset
+Error message for cyclic connections.
 A widget to select from a series of options
 Right-click menu should show automated value
 Make arrangement of wires line up more with the grid system for controls.
@@ -20,6 +21,7 @@ scroll to zoom
 Play a pretend note when moving knobs so you can see its effect without playing your own note.
 Undo / redo
 Make the add modules menu look nice
+Make window resizable
 
 # Code organization stuff
 Use more TupleUtil functions

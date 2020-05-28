@@ -6,27 +6,44 @@ use gui::graphics::{GrahpicsWrapper, GraphicsFunctions};
 use gui::{Gui, MouseMods};
 
 pub struct Instance {
-    engine: engine::Engine,
+    engine: Option<engine::Engine>,
     registry: engine::registry::Registry,
     graphics_fns: GraphicsFunctions,
     gui: Option<Gui>,
+    critical_error: Option<String>,
+    silence: Vec<f32>,
 }
 
 impl Instance {
     fn new() -> Self {
+        let mut critical_error = None;
+
         let (mut registry, registry_load_result) = engine::registry::Registry::new();
         if let Err(err) = registry_load_result {
-            eprintln!("Registry encountered error while loading:");
-            eprintln!("{}", err);
-            panic!("TODO: Nice error handling.");
+            critical_error = Some(format!(
+                "Encountered a critical error while loading your libraries:\n{}",
+                err
+            ));
         }
-        let engine = engine::Engine::new(&mut registry);
+        let engine = if critical_error.is_none() {
+            match engine::Engine::new(&mut registry) {
+                Ok(engine) => Some(engine),
+                Err(problem) => {
+                    critical_error = Some(problem);
+                    None
+                }
+            }
+        } else {
+            None
+        };
 
         Self {
             engine,
             registry,
             graphics_fns: GraphicsFunctions::placeholders(),
             gui: None,
+            critical_error,
+            silence: Vec::new(),
         }
     }
 }
@@ -34,19 +51,26 @@ impl Instance {
 impl Instance {
     fn perform_action(&mut self, action: gui::action::InstanceAction) {
         match action {
-            gui::action::InstanceAction::ReloadAuxData => self.engine.reload_values(),
-            gui::action::InstanceAction::ReloadStructure => self.engine.reload_structure(),
+            gui::action::InstanceAction::ReloadAuxData => {
+                self.engine.as_mut().unwrap().reload_values();
+            }
+            gui::action::InstanceAction::ReloadStructure => {
+                self.engine.as_mut().unwrap().reload_structure();
+            }
             gui::action::InstanceAction::RenamePatch(name) => {
-                self.engine.rename_current_patch(name)
+                self.engine.as_mut().unwrap().rename_current_patch(name);
             }
             gui::action::InstanceAction::SavePatch => {
-                self.engine.save_current_patch()
+                self.engine.as_mut().unwrap().save_current_patch();
             }
             gui::action::InstanceAction::NewPatch(callback) => {
-                callback(self.engine.new_patch(&mut self.registry))
+                callback(self.engine.as_mut().unwrap().new_patch(&mut self.registry));
             }
             gui::action::InstanceAction::LoadPatch(patch) => {
-                self.engine.load_patch(&self.registry, patch);
+                self.engine
+                    .as_mut()
+                    .unwrap()
+                    .load_patch(&self.registry, patch);
                 if let Some(gui) = &mut self.gui {
                     gui.on_patch_change(&self.registry);
                 }
@@ -63,20 +87,27 @@ impl Instance {
     }
 
     pub fn set_buffer_length_and_sample_rate(&mut self, buffer_length: i32, sample_rate: i32) {
-        self.engine
-            .set_buffer_length_and_sample_rate(buffer_length, sample_rate)
+        if let Some(engine) = self.engine.as_mut() {
+            engine.set_buffer_length_and_sample_rate(buffer_length, sample_rate)
+        } else {
+            self.silence.resize(buffer_length as usize * 2, 0.0);
+        }
     }
 
     pub fn note_on(&mut self, index: i32, velocity: f32) {
-        self.engine.note_on(index, velocity)
+        self.engine.as_mut().map(|e| e.note_on(index, velocity));
     }
 
     pub fn note_off(&mut self, index: i32) {
-        self.engine.note_off(index)
+        self.engine.as_mut().map(|e| e.note_off(index));
     }
 
     pub fn render_audio(&mut self) -> &[f32] {
-        self.engine.render_audio()
+        if let Some(engine) = self.engine.as_mut() {
+            engine.render_audio()
+        } else {
+            &self.silence[..]
+        }
     }
 
     pub fn create_ui(&mut self) {
@@ -85,28 +116,47 @@ impl Instance {
             // so we shouldn't panic in release builds.
             debug_assert!(false, "create_gui called when GUI was already created!");
             eprintln!("WARNING: create_gui called when GUI was already created!");
-        } else {
-            let graph = util::Rc::clone(self.engine.borrow_module_graph_ref());
-            self.gui = Some(Gui::new(&self.registry, self.engine.borrow_current_patch(), graph));
+        } else if let Some(engine) = self.engine.as_ref() {
+            let graph = util::Rc::clone(engine.borrow_module_graph_ref());
+            self.gui = Some(Gui::new(
+                &self.registry,
+                engine.borrow_current_patch(),
+                graph,
+            ));
         }
     }
 
     pub fn draw_ui(&mut self, data: *mut i8, icon_store: *mut i8) {
-        // If the engine has new feedback data (from audio being played) then copy it over before
-        // we render the UI so it will show up in the UI.
-        self.engine.display_new_feedback_data();
         let mut g = GrahpicsWrapper::new(&self.graphics_fns, data, icon_store);
-        g.set_color(&gui::constants::COLOR_BG);
-        g.clear();
-        if let Some(gui) = &self.gui {
-            gui.draw(&mut g);
+        if let Some(err) = &self.critical_error {
+            g.set_color(&(0, 0, 0));
+            g.fill_rect(0, 0, 640, 480);
+            g.set_color(&(255, 255, 255));
+            g.write_console_text(640, 480, err);
+        // If there is no critical error, then the engine initialized successfully.
+        } else if let Some(err) = self.engine.as_ref().unwrap().clone_critical_error() {
+            // This way we don't have to copy it in the future.
+            self.critical_error = Some(err.clone());
+            g.set_color(&(0, 0, 0));
+            g.fill_rect(0, 0, 640, 480);
+            g.set_color(&(255, 255, 255));
+            g.write_console_text(640, 480, &err);
         } else {
-            panic!("draw_ui called before GUI was created!");
+            // If the engine has new feedback data (from audio being played) then copy it over before
+            // we render the UI so it will show up in the UI.
+            self.engine.as_mut().unwrap().display_new_feedback_data();
+            g.set_color(&gui::constants::COLOR_BG);
+            g.clear();
+            if let Some(gui) = &self.gui {
+                gui.draw(&mut g);
+            } else {
+                panic!("draw_ui called before GUI was created!");
+            }
         }
     }
 
     pub fn destroy_ui(&mut self) {
-        if self.gui.is_none() {
+        if self.gui.is_none() && self.critical_error.is_none() {
             // This is an indicator of a bug in the frontend, but is not in itself a critical error,
             // so we shouldn't panic in release builds.
             debug_assert!(false, "destroy_gui called when GUI was already destroyed!");
@@ -125,7 +175,7 @@ impl Instance {
             };
             let action = gui.on_mouse_down(&self.registry, (x, y), &mods);
             action.map(|a| self.perform_action(a));
-        } else {
+        } else if self.critical_error.is_none() {
             debug_assert!(false, "mouse_down called, but no GUI exists.");
             eprintln!("WARNING: mouse_down called, but no GUI exists.");
         }
@@ -140,7 +190,7 @@ impl Instance {
             };
             let action = gui.on_mouse_move(&self.registry, (x, y), &mods);
             action.map(|a| self.perform_action(a));
-        } else {
+        } else if self.critical_error.is_none() {
             debug_assert!(false, "mouse_move called, but no GUI exists.");
             eprintln!("WARNING: mouse_move called, but no GUI exists.");
         }
@@ -150,7 +200,7 @@ impl Instance {
         if let Some(gui) = &mut self.gui {
             let action = gui.on_mouse_up(&self.registry);
             action.map(|a| self.perform_action(a));
-        } else {
+        } else if self.critical_error.is_none() {
             debug_assert!(false, "mouse_up called, but no GUI exists.");
             eprintln!("WARNING: mouse_up called, but no GUI exists.");
         }
@@ -160,7 +210,7 @@ impl Instance {
         if let Some(gui) = &mut self.gui {
             let action = gui.on_key_press(&self.registry, key);
             action.map(|a| self.perform_action(a));
-        } else {
+        } else if self.critical_error.is_none() {
             debug_assert!(false, "mouse_up called, but no GUI exists.");
             eprintln!("WARNING: mouse_up called, but no GUI exists.");
         }

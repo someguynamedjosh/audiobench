@@ -106,6 +106,86 @@ void writeText(
     ((Graphics *)gp)->drawFittedText(str, x, y, w, h, justification, maxLines);
 }
 
+void writeConsoleText(void *gp, int w, int h, char *text)
+{
+    String str = String(text);
+
+    Font newFont = Font(Font::getDefaultMonospacedFontName(), 14.0, 0);
+    ((Graphics *)gp)->setFont(newFont);
+    ((Graphics *)gp)->setColour(Colours::white);
+    float x = 2, y = 14;
+    bool inEscapeCode = false;
+    String escapeCode = String("");
+    for (auto c : str)
+    {
+        if (c == '\x1B')
+        {
+            inEscapeCode = true;
+            continue;
+        }
+        if (inEscapeCode)
+        {
+            escapeCode.append(String(&c, 1), 1);
+            // This is a very hacky implementation of an escape sequence parser.
+            if (c >= '\x40' && c <= '\x7E' && c != '[')
+            {
+                inEscapeCode = false;
+                // Change text appearence. We don't bother parsing any others because they aren't
+                // useful.
+                if (c == 'm')
+                {
+                    if (escapeCode == "[0m")
+                    {
+                        ((Graphics *)gp)->setColour(Colours::white);
+                    }
+                    else if (escapeCode == "[34m")
+                    {
+                        ((Graphics *)gp)->setColour(Colours::cyan);
+                    }
+                    else if (escapeCode == "[96m")
+                    {
+                        ((Graphics *)gp)->setColour(Colours::cyan);
+                    }
+                    else if (escapeCode == "[31m")
+                    {
+                        ((Graphics *)gp)->setColour(Colours::darkred);
+                    }
+                    else if (escapeCode == "[91m")
+                    {
+                        ((Graphics *)gp)->setColour(Colours::red);
+                    }
+                    else if (escapeCode == "[33m")
+                    {
+                        ((Graphics *)gp)->setColour(Colours::gold);
+                    }
+                    else if (escapeCode == "[93m")
+                    {
+                        ((Graphics *)gp)->setColour(Colours::yellow);
+                    }
+                    else
+                    {
+                        ((Graphics *)gp)->setColour(Colours::magenta);
+                    }
+                }
+                escapeCode.clear();
+            }
+            continue;
+        }
+        ((Graphics *)gp)->drawSingleLineText(String(&c, 1), x, y);
+        if (c == '\n')
+        {
+            x = 2;
+            y += 14;
+        }
+        else
+        {
+            x += 7;
+        }
+    }
+    Font oldFont = Font(Font::getDefaultSansSerifFontName(), 14.0, 0);
+    ((Graphics *)gp)->setFont(oldFont);
+}
+
 void drawIcon(void *gp, void *iconStore, bool white, int index, int x, int y, int size)
 {
     index = index * 2 + (white ? 1 : 0);
@@ -154,6 +234,7 @@ AudioBenchAudioProcessorEditor::AudioBenchAudioProcessorEditor(AudioBenchAudioPr
     fns.fillRoundedRect = fillRoundedRect;
     fns.fillPie = fillPie;
     fns.writeText = writeText;
+    fns.writeConsoleText = writeConsoleText;
     fns.drawIcon = drawIcon;
     fns.drawDropShadow = drawDropShadow;
     ABSetGraphicsFunctions(p.ab, fns);
@@ -218,9 +299,9 @@ void AudioBenchAudioProcessorEditor::mouseUp(const MouseEvent &event)
     ABUIMouseUp(processor.ab);
 }
 
-bool AudioBenchAudioProcessorEditor::keyPressed(const KeyPress &key, Component *originatingComponent) 
+bool AudioBenchAudioProcessorEditor::keyPressed(const KeyPress &key, Component *originatingComponent)
 {
-    ABUIKeyPress(processor.ab, (char) key.getTextCharacter());
+    ABUIKeyPress(processor.ab, (char)key.getTextCharacter());
     return true;
 }
 
