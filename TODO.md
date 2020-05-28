@@ -1,6 +1,4 @@
 # Things with no dependencies
-save and load presets
-Some kind of Nodespeak library to simplify common tasks like updating waveform displays.
 Friendly error messages
 A widget to select from a series of options
 Right-click menu should show automated value

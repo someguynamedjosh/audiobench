@@ -1,0 +1,15 @@
+[BUFFER_LENGTH]BOOL global_release_trigger = FALSE;
+if global_note_status == 1.0 { global_release_trigger[0] = TRUE; }
+[BUFFER_LENGTH]BOOL global_start_trigger = FALSE;
+if global_note_status == 2.0 { global_start_trigger[0] = TRUE; }
+BOOL global_update_feedback_data = global_should_update == 1.0;
+macro FlatWaveform(buffer_pos, phase):(value) { FLOAT value = 0.0; }
+
+macro DisplayWaveform(UpdateFn, Waveform) {
+    [60]FLOAT feedback;
+    for i = 0 to 60 no_unroll {
+        FLOAT fphase = Itof(i) / 59.0;
+        feedback[i] = Waveform(0, fphase)[0?];
+    }
+    UpdateFn(feedback);
+}

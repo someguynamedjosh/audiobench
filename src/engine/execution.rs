@@ -17,6 +17,7 @@ impl ExecEnvironment {
         let mut compiler = nodespeak::Compiler::new();
         // TODO: Add a mechanism to change sources.
         compiler.add_source("<node graph>".to_owned(), "".to_owned());
+        compiler.add_source("!:lib.ns".to_owned(), include_str!("lib.ns").to_owned());
         for (name, content) in registry.borrow_scripts().iter() {
             compiler.add_source(name.to_owned(), content.to_owned());
         }

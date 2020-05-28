@@ -253,15 +253,7 @@ impl<'a> CodeGenerator<'a> {
         ));
 
         let mut code = "".to_owned();
-        code.push_str(concat!(
-            "[BUFFER_LENGTH]BOOL global_release_trigger = FALSE;\n",
-            "if global_note_status == 1.0 { global_release_trigger[0] = TRUE; }\n",
-            "[BUFFER_LENGTH]BOOL global_start_trigger = FALSE;\n",
-            "if global_note_status == 2.0 { global_start_trigger[0] = TRUE; }\n",
-            "BOOL global_update_feedback_data = global_should_update == 1.0;\n",
-            "macro FlatWaveform(buffer_pos, phase):(value) { FLOAT value = 0.0; }\n",
-            "\n",
-        ));
+        code.push_str("include \"!:lib.ns\";\n\n");
         let mut ordered_modules = Vec::new();
         for (index, module) in self.graph.borrow_modules().iter().enumerate() {
             ordered_modules.push(Rc::clone(module));
