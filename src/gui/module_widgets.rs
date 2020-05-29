@@ -867,7 +867,8 @@ impl KnobEditor {
         g.fill_pie(-KOR, -KOR, KOR * 2, KIR * 2, PI, 0.0);
         g.set_color(&COLOR_KNOB);
         let zero_angle = value_to_angle(control.range, 0.0);
-        let value_angle = value_to_angle(control.range, *self.value.borrow());
+        let value = *self.value.borrow();
+        let value_angle = value_to_angle(control.range, value);
         g.fill_pie(-KOR, -KOR, KOR * 2, KIR * 2, zero_angle, value_angle);
 
         const GAP: i32 = KNOB_MENU_LANE_GAP;
@@ -885,7 +886,7 @@ impl KnobEditor {
         }
 
         g.set_color(&COLOR_TEXT);
-        let value_text = format!("{}{}", format_decimal(control.value, 3), control.suffix);
+        let value_text = format!("{}{}", format_decimal(value, 3), control.suffix);
         g.write_label(-KIR, -12, KIR * 2, &value_text);
         g.write_label(-KOR, GRID_P, KOR * 2, &self.label);
 

@@ -1,0 +1,22 @@
+DATA_TYPE SAMPLE = amplitude[0?]:TYPE 
+    + Waveform(0, 0.0):TYPE 
+    + pitch:TYPE 
+    + fm_signal[0?]:TYPE 
+    + fm_strength[0?]:TYPE;
+
+[BUFFER_LENGTH]SAMPLE audio;
+
+static phase {
+    SAMPLE phase = 0.0;
+}
+
+INT OVERSAMPLING = 4;
+for i = 0 to BUFFER_LENGTH no_unroll {
+    SAMPLE value = 0.0;
+    AUTO pitch_here = pitch * (fm_signal[i?] * fm_strength[i?] + 1.0);
+    for subsample = 0 to OVERSAMPLING {
+        value = value + amplitude[i?] * Waveform(i, phase);
+        phase = (phase + pitch_here / SAMPLE_RATE / Itof(OVERSAMPLING) + 1.0) % 1.0;
+    }
+    audio[i] = value / Itof(OVERSAMPLING);
+}

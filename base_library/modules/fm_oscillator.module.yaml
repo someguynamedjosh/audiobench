@@ -1,0 +1,46 @@
+inputs:
+  pitch:
+    type: pitch 
+    label: Pitch
+    tooltip: The frequency to repeat the waveform at
+  Waveform:
+    type: waveform
+    label: Waveform
+    tooltip: The waveform to repeatedly play
+  fm_signal:
+    type: audio
+    label: Modulation
+    tooltip: The signal which modulates the frequency
+outputs:
+  audio:
+    type: audio
+    label: Audio
+    tooltip: Audio output
+controls:
+  amplitude:
+    min: 0
+    max: 1
+    default: 1
+  fm_strength:
+    min: 0
+    max: 2
+    default: 0.5
+gui: 
+  label: FM Oscillator
+  category: Synthesis
+  tooltip: An oscillator that allows rapidly changing the frequency with another audio source
+  width: 2
+  height: 4
+  widgets:
+    knob:
+      control: amplitude
+      label: Amplitude
+      tooltip: How loud the output should be
+      x: 0
+      y: 0
+    knob:
+      control: fm_strength
+      label: FM Strength
+      tooltip: How much control the modulation signal has over the frequency
+      x: 0
+      y: 2

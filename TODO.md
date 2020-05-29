@@ -1,5 +1,4 @@
 # Things with no dependencies
-FM Oscillator
 minifying preset files
 Version number on preset files so that new versions of the format can be made
 B64-encode of preset files
@@ -9,6 +8,11 @@ Beat sequencer
 Pitch sequencer
 Center the canvas when loading a new preset
 scroll to zoom
+Windows VST build
+Inverted lanes
+"never" trigger default
+pitch bend & mod wheel
+alphabetize patch list
 
 # Things with missing dependencies
 
