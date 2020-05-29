@@ -13,6 +13,7 @@ Inverted lanes
 "never" trigger default
 pitch bend & mod wheel
 alphabetize patch list
+check all the corner cases of the new save format
 
 # Things with missing dependencies
 

@@ -631,9 +631,8 @@ pub struct ModuleBrowser {
 impl ModuleBrowser {
     pub fn create(registry: &Registry, pos: (i32, i32), size: (i32, i32)) -> Self {
         let entries: Vec<_> = registry
-            .iterate_over_modules()
-            .map(|module| ModuleBrowserEntry::from(module))
-            .collect();
+            .borrow_modules()
+            .imc(|module| ModuleBrowserEntry::from(module));
         let vertical_stacking = size.1 / (ModuleBrowserEntry::HEIGHT + GRID_P);
 
         let mut alphabetical_order: Vec<_> = (0..entries.len()).collect();

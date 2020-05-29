@@ -77,3 +77,19 @@ pub type Rcrc<T> = Rc<RefCell<T>>;
 pub fn rcrc<T>(content: T) -> Rcrc<T> {
     Rc::new(RefCell::new(content))
 }
+
+pub trait IterMapCollect<Item> {
+    fn imc<OutItem>(&self, fun: impl FnMut(&Item) -> OutItem) -> Vec<OutItem>;
+}
+
+impl<Item> IterMapCollect<Item> for Vec<Item> {
+    fn imc<OutItem>(&self, fun: impl FnMut(&Item) -> OutItem) -> Vec<OutItem> {
+        self.iter().map(fun).collect()
+    }
+}
+
+impl<Item> IterMapCollect<Item> for &[Item] {
+    fn imc<OutItem>(&self, fun: impl FnMut(&Item) -> OutItem) -> Vec<OutItem> {
+        self.iter().map(fun).collect()
+    }
+}

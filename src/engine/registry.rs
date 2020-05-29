@@ -173,6 +173,7 @@ fn create_widget_outline_from_yaml(
 
 fn create_module_prototype_from_yaml(
     icon_indexes: &HashMap<String, usize>,
+    lib_name: String,
     resource_name: String,
     yaml: &YamlNode,
 ) -> Result<Module, String> {
@@ -200,6 +201,8 @@ fn create_module_prototype_from_yaml(
             }));
         }
     }
+
+    let save_id = yaml.unique_child("save_id")?.i32()? as usize;
 
     let gui_description = yaml.unique_child("gui")?;
     let widgets_description = gui_description.unique_child("widgets")?;
@@ -301,17 +304,21 @@ fn create_module_prototype_from_yaml(
     });
 
     let template = ModuleTemplate {
+        lib_name,
         resource_name,
+        code_resource: yaml.name.replace(".module.yaml", ".module.ns"),
+        template_id: save_id,
+
         label,
         category,
         tooltip,
-        code_resource: yaml.name.replace(".module.yaml", ".module.ns"),
         size: (width, height),
         widget_outlines: widgets,
+        feedback_data_len,
+
         inputs,
         default_inputs: default_inputs.clone(),
         outputs,
-        feedback_data_len,
     };
 
     Ok(Module::create(
@@ -323,7 +330,9 @@ fn create_module_prototype_from_yaml(
 }
 
 pub struct Registry {
-    modules: HashMap<String, Module>,
+    modules: Vec<Module>,
+    modules_by_resource_id: HashMap<String, usize>,
+    modules_by_serialized_id: HashMap<(String, usize), usize>,
     scripts: HashMap<String, String>,
     icon_indexes: HashMap<String, usize>,
     icons: Vec<Vec<u8>>,
@@ -336,7 +345,8 @@ impl Registry {
     fn load_module_resource(
         &mut self,
         name: &str,
-        module_id: &str,
+        lib_name: String,
+        module_id: String,
         buffer: Vec<u8>,
     ) -> Result<(), String> {
         let buffer_as_text = String::from_utf8(buffer).map_err(|e| {
@@ -346,9 +356,26 @@ impl Registry {
             )
         })?;
         let yaml = yaml::parse_yaml(&buffer_as_text, name)?;
-        let module =
-            create_module_prototype_from_yaml(&self.icon_indexes, module_id.to_owned(), &yaml)?;
-        self.modules.insert(module_id.to_owned(), module);
+        let resource_id = format!("{}:{}", lib_name, module_id);
+        let module = create_module_prototype_from_yaml(
+            &self.icon_indexes,
+            lib_name.clone(),
+            module_id,
+            &yaml,
+        )?;
+        let index = self.modules.len();
+        let template_ref = module.template.borrow();
+        let ser_id = (template_ref.lib_name.clone(), template_ref.template_id);
+        drop(template_ref);
+        self.modules.push(module);
+        self.modules_by_resource_id.insert(resource_id, index);
+        if self.modules_by_serialized_id.contains_key(&ser_id) {
+            return Err(format!(
+                "ERROR: Multiple modules have {} as their save id",
+                ser_id.1
+            ));
+        }
+        self.modules_by_serialized_id.insert(ser_id, index);
         Ok(())
     }
 
@@ -371,9 +398,9 @@ impl Registry {
     ) -> Result<(), String> {
         let mut reader = std::io::BufReader::new(std::io::Cursor::new(buffer));
         let patch = if let Some(full_path) = full_path {
-            crate::engine::save_data::Patch::load_writable(full_path, &mut reader)
+            crate::engine::save_data::Patch::load_writable(full_path, &mut reader, &self)
         } else {
-            crate::engine::save_data::Patch::load_readable(name.to_owned(), &mut reader)
+            crate::engine::save_data::Patch::load_readable(name.to_owned(), &mut reader, &self)
         }
         .map_err(|err| {
             format!(
@@ -406,9 +433,13 @@ impl Registry {
             self.icon_indexes.insert(icon_id, self.icons.len());
             self.icons.push(buffer);
         } else if file_name.ends_with(".module.yaml") {
-            let file_name = Self::strip_path_and_extension(file_name, ".module.yaml");
-            let module_id = format!("{}:{}", lib_name, file_name);
-            self.load_module_resource(&full_name, &module_id, buffer)?;
+            let module_id = Self::strip_path_and_extension(file_name, ".module.yaml");
+            self.load_module_resource(
+                &full_name,
+                lib_name.to_owned(),
+                module_id.to_owned(),
+                buffer,
+            )?;
         } else if file_name.ends_with(".ns") {
             self.load_script_resource(&full_name, buffer)?;
         } else if file_name.ends_with(".abpatch") {
@@ -594,7 +625,9 @@ impl Registry {
         };
 
         let mut registry = Self {
-            modules: HashMap::new(),
+            modules: Vec::new(),
+            modules_by_resource_id: HashMap::new(),
+            modules_by_serialized_id: HashMap::new(),
             scripts: HashMap::new(),
             icon_indexes: HashMap::new(),
             icons: Vec::new(),
@@ -607,12 +640,20 @@ impl Registry {
         (registry, result)
     }
 
-    pub fn borrow_module(&self, id: &str) -> Option<&Module> {
-        self.modules.get(id)
+    pub fn borrow_modules(&self) -> &[Module] {
+        &self.modules
     }
 
-    pub fn iterate_over_modules(&self) -> impl Iterator<Item = &Module> {
-        self.modules.values()
+    pub fn borrow_module_by_resource_id(&self, id: &str) -> Option<&Module> {
+        self.modules_by_resource_id
+            .get(id)
+            .map(|idx| &self.modules[*idx])
+    }
+
+    pub fn borrow_module_by_serialized_id(&self, id: &(String, usize)) -> Option<&Module> {
+        self.modules_by_serialized_id
+            .get(id)
+            .map(|idx| &self.modules[*idx])
     }
 
     pub fn borrow_scripts(&self) -> &HashMap<String, String> {

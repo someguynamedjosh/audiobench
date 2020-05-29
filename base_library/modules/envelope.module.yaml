@@ -1,3 +1,4 @@
+save_id: 1
 inputs:
   reset_trigger:
     type: trigger 

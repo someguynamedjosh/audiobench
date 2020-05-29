@@ -392,15 +392,19 @@ impl ModuleGraph {
 
 #[derive(Debug)]
 pub struct ModuleTemplate {
+    pub lib_name: String,
     pub resource_name: String,
+    pub code_resource: String,
+    pub template_id: usize,
+
     pub label: String,
     pub category: String,
     pub tooltip: String,
-    pub code_resource: String,
     pub size: (i32, i32),
     pub widget_outlines: Vec<WidgetOutline>,
+    pub feedback_data_len: usize,
+
     pub inputs: Vec<IOJack>,
     pub default_inputs: Vec<usize>,
     pub outputs: Vec<IOJack>,
-    pub feedback_data_len: usize,
 }
