@@ -115,6 +115,42 @@ fn create_widget_outline_from_yaml(
                 label,
             }
         }
+        "option_box" => {
+            let grid_size = (
+                yaml.unique_child("w")?.i32()?,
+                yaml.unique_child("h")?.i32()?,
+            );
+            let ccontrol_name = &yaml.unique_child("control")?.value;
+            let ccontrol_index = find_complex_control_index(ccontrol_name)?;
+            let default = if let Ok(child) = yaml.unique_child("default") {
+                child.i32()?
+            } else {
+                0
+            };
+            let mut options = Vec::new();
+            for child in &yaml.unique_child("options")?.children {
+                options.push(child.name.clone());
+            }
+            if options.len() < 2 {
+                return Err(format!(
+                    concat!(
+                        "ERROR: Invalid widget {}, caused by:\n",
+                        "ERROR: Option box must have at least 2 options."
+                    ),
+                    &yaml.full_name
+                ));
+            }
+            let label = yaml.unique_child("label")?.value.clone();
+            set_default = Some((ccontrol_index, format!("{}", default)));
+            WidgetOutline::OptionBox {
+                tooltip: tooltip_node?.value.clone(),
+                ccontrol_index,
+                grid_pos,
+                grid_size,
+                options,
+                label,
+            }
+        }
         _ => {
             return Err(format!(
                 "ERROR: Invalid widget {}, caused by:\nERROR: {} is not a valid widget type.",
@@ -597,7 +633,8 @@ impl Registry {
 
     pub fn create_new_user_patch(&mut self) -> &Rcrc<Patch> {
         let filename = format!("{:016X}.abpatch", rand::thread_rng().next_u64());
-        self.patch_paths.insert(format!("user:{}", filename), self.patches.len());
+        self.patch_paths
+            .insert(format!("user:{}", filename), self.patches.len());
         let patch = Patch::writable(self.user_library_path.join(filename));
         let prc = rcrc(patch);
         self.patches.push(prc);

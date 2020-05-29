@@ -46,6 +46,7 @@ pub enum MouseAction {
         // keeps track of what the value would be if it were a float and not an int.
         float_value: f32,
     },
+    SetComplexControl(Rcrc<ep::ComplexControl>, String),
     MoveModule(Rcrc<ep::Module>, (i32, i32)),
     PanOffset(Rcrc<(i32, i32)>),
     ConnectInput(Rcrc<ep::Module>, usize),
@@ -348,6 +349,14 @@ impl MouseAction {
                 }
                 return Some(GuiAction::Elevate(InstanceAction::ReloadStructure));
             }
+            Self::SetComplexControl(control, value) => {
+                let mut control_ref = control.borrow_mut();
+                if control_ref.value != value {
+                    control_ref.value = value;
+                    return Some(GuiAction::Elevate(InstanceAction::ReloadStructure));
+                    // If not, don't bother reloading the structure, which causes a notable hiccup.
+                }
+            }
             _ => (),
         }
         None
@@ -380,8 +389,18 @@ impl MouseAction {
                 cref.value = cref.default.clone();
                 return Some(GuiAction::Elevate(InstanceAction::ReloadStructure));
             }
+            Self::SetComplexControl(control, ..) => {
+                let mut control_ref = control.borrow_mut();
+                let value = control_ref.default.clone();
+                if control_ref.value != value {
+                    control_ref.value = value;
+                    return Some(GuiAction::Elevate(InstanceAction::ReloadStructure));
+                    // If not, don't bother reloading the structure, which causes a notable hiccup.
+                }
+            }
             _ => return self.on_click(),
         }
+        None
     }
 }
 

@@ -49,6 +49,14 @@ pub enum WidgetOutline {
         range: (i32, i32),
         label: String,
     },
+    OptionBox {
+        tooltip: String,
+        ccontrol_index: usize,
+        grid_pos: (i32, i32),
+        grid_size: (i32, i32),
+        options: Vec<String>,
+        label: String,
+    },
 }
 
 impl WidgetOutline {
@@ -66,6 +74,7 @@ impl WidgetOutline {
                 size: 6,
             },
             Self::IntBox { .. } => FeedbackDataRequirement::None,
+            Self::OptionBox { .. } => FeedbackDataRequirement::None,
         }
     }
 }
@@ -128,6 +137,22 @@ pub(in crate::gui) fn widget_from_outline(
             Rc::clone(&ccontrols[*ccontrol_index]),
             convert_grid_pos(*grid_pos),
             *range,
+            label.clone(),
+        )),
+        WidgetOutline::OptionBox {
+            tooltip,
+            ccontrol_index,
+            grid_pos,
+            grid_size,
+            options,
+            label,
+            ..
+        } => Box::new(OptionBox::create(
+            tooltip.clone(),
+            Rc::clone(&ccontrols[*ccontrol_index]),
+            convert_grid_pos(*grid_pos),
+            convert_grid_size(*grid_size),
+            options.clone(),
             label.clone(),
         )),
     };
@@ -420,6 +445,123 @@ impl ModuleWidget for IntBox {
             g.set_color(&COLOR_TEXT);
             g.write_text(FONT_SIZE, 0, 0, W, grid(2), HA, VA, 1, val);
         }
+
+        g.pop_state();
+    }
+}
+
+#[derive(Clone)]
+pub struct OptionBox {
+    tooltip: String,
+    ccontrol: Rcrc<ep::ComplexControl>,
+    pos: (i32, i32),
+    size: (i32, i32),
+    options: Vec<String>,
+    label: String,
+}
+
+impl OptionBox {
+    fn create(
+        tooltip: String,
+        ccontrol: Rcrc<ep::ComplexControl>,
+        pos: (i32, i32),
+        size: (i32, i32),
+        options: Vec<String>,
+        label: String,
+    ) -> OptionBox {
+        OptionBox {
+            tooltip,
+            ccontrol,
+            pos,
+            size,
+            options,
+            label,
+        }
+    }
+}
+
+impl ModuleWidget for OptionBox {
+    fn get_position(&self) -> (i32, i32) {
+        self.pos
+    }
+
+    fn get_bounds(&self) -> (i32, i32) {
+        self.size
+    }
+
+    fn respond_to_mouse_press(
+        &self,
+        local_pos: (i32, i32),
+        mods: &MouseMods,
+        parent_pos: (i32, i32),
+    ) -> MouseAction {
+        let height_per_option = (self.size.1 - FONT_SIZE - GRID_P / 2) / self.options.len() as i32;
+        let option = (local_pos.1 / height_per_option) as usize;
+        if option < self.options.len() {
+            MouseAction::SetComplexControl(Rc::clone(&self.ccontrol), format!("{}", option))
+        } else {
+            // Still return a set control thing so that if we double-click, we still know to reset
+            // the control and not just do nothing.
+            let value = self.ccontrol.borrow().value.clone();
+            MouseAction::SetComplexControl(Rc::clone(&self.ccontrol), format!("{}", value))
+        }
+    }
+
+    fn get_tooltip_at(&self, local_pos: (i32, i32)) -> Option<Tooltip> {
+        Some(Tooltip {
+            text: self.tooltip.clone(),
+            interaction: InteractionHint::LeftClick | InteractionHint::DoubleClick,
+        })
+    }
+
+    fn draw(
+        &self,
+        g: &mut GrahpicsWrapper,
+        highlight: bool,
+        parent_pos: (i32, i32),
+        feedback_data: &[f32],
+    ) {
+        g.push_state();
+        g.apply_offset(self.pos.0, self.pos.1);
+
+        const CS: i32 = CORNER_SIZE;
+        g.set_color(&COLOR_BG);
+        // Don't ask why GP / 2 and not just GP, it just looks better and I don't know why.
+        let height_per_option = (self.size.1 - FONT_SIZE - GRID_P / 2) / self.options.len() as i32;
+        let h = height_per_option * self.options.len() as i32;
+        g.fill_rounded_rect(0, 0, self.size.0, h, CS);
+        let current_option: i32 = self.ccontrol.borrow().value.parse().unwrap_or(0);
+        for (index, option) in self.options.iter().enumerate() {
+            let index = index as i32;
+            let y = index * height_per_option;
+            if index == current_option {
+                g.set_color(&COLOR_IO_AREA);
+                g.fill_rounded_rect(0, y, self.size.0, height_per_option, CORNER_SIZE);
+            }
+            g.set_color(&COLOR_TEXT);
+            g.write_text(
+                FONT_SIZE,
+                0,
+                y,
+                self.size.0,
+                height_per_option,
+                HAlign::Center,
+                VAlign::Center,
+                1,
+                option,
+            );
+        }
+        g.write_text(
+            FONT_SIZE,
+            0,
+            0,
+            self.size.0,
+            self.size.1,
+            HAlign::Center,
+            VAlign::Bottom,
+            1,
+            &self.label,
+        );
 
         g.pop_state();
     }

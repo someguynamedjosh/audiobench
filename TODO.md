@@ -1,12 +1,10 @@
 # Things with no dependencies
-A widget to select from a series of options
 Right-click menu should show automated value
 Make arrangement of wires line up more with the grid system for controls.
 Visual feedback for patch being saved
+FM Oscillator
 
 # Things with missing dependencies
-Options to change how automation channels are mixed together
-FM Oscillator
 
 # Low-priority things without dependencies
 Int boxes are a pain to use because double-click.
