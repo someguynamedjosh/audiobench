@@ -1,7 +1,8 @@
 # Things with no dependencies
-minifying preset files
-Version number on preset files so that new versions of the format can be made
-B64-encode of preset files
+Automatically load libraries from the Audiobench folder
+Check that saving works with modules from other libraries
+Nice data corruption errors
+Vertically stack small modules
 LFO
 Transposer
 Beat sequencer

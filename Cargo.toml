@@ -19,6 +19,7 @@ panic = "abort"
 
 [dependencies]
 array-macro = "1.0"
+base64 = "0.12"
 directories = "2.0"
 enumflags2 = "0.6"
 nodespeak = "0.1"

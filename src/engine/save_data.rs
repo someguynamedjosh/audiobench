@@ -1,7 +1,7 @@
 use crate::engine::parts as ep;
 use crate::engine::registry::Registry;
 use crate::util::*;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::io::{self, Read, Write};
 use std::path::PathBuf;
 
@@ -648,7 +648,7 @@ impl SavedModule {
         compose_u2(small_coords, small_resource)
     }
 
-    fn serialize(&self, buffer: &mut Vec<u8>, mode_u2: u8) {
+    fn serialize(&self, buffer: &mut Vec<u8>, mode_u2: u8, ordered_lib_names: &[String]) {
         let (small_coords, small_resource) = decompose_u2(mode_u2);
         if small_coords {
             ser_i16(buffer, self.pos.0 as i16);
@@ -660,15 +660,22 @@ impl SavedModule {
         if small_resource {
             ser_u8(buffer, self.template_id as u8);
         } else {
-            assert!(self.lib_name == "base", "TODO: Support other libraries.");
-            let lib_id = 0;
+            let lib_id = if self.lib_name == "base" {
+                0
+            } else {
+                ordered_lib_names
+                    .iter()
+                    .position(|i| i == &self.lib_name)
+                    .unwrap()
+                    + 1
+            };
             assert!(lib_id <= 0xFF);
             ser_u8(buffer, lib_id as u8);
             ser_u16(buffer, self.template_id as u16);
         }
     }
 
-    fn deserialize(slice: &mut &[u8], mode_u2: u8) -> Self {
+    fn deserialize(slice: &mut &[u8], mode_u2: u8, ordered_lib_names: &[String]) -> Self {
         let (small_coords, small_resource) = decompose_u2(mode_u2);
         let (x, y) = if small_coords {
             (des_i16(slice) as i32, des_i16(slice) as i32)
@@ -680,8 +687,11 @@ impl SavedModule {
         } else {
             (des_u8(slice) as usize, des_u16(slice) as usize)
         };
-        assert!(lib_index == 0, "TODO: Support other libraries.");
-        let lib_name = "base".to_owned();
+        let lib_name = if lib_index == 0 {
+            "base".to_owned()
+        } else {
+            ordered_lib_names[lib_index as usize - 1].clone()
+        };
         Self {
             lib_name,
             template_id: template_index,
@@ -732,15 +742,26 @@ impl SavedModuleGraph {
     }
 
     fn serialize(&self, buffer: &mut Vec<u8>) {
-        // TODO: Serialize extra libraries used.
-        ser_u8(buffer, 0);
+        let mut lib_names: HashSet<_> = self
+            .modules
+            .iter()
+            .map(|module| module.lib_name.clone())
+            .collect();
+        lib_names.remove("base"); // Base is always lib #0.
+        let ordered_lib_names: Vec<_> = lib_names.into_iter().collect();
+        // FE not FF because it doesn't include base.
+        assert!(ordered_lib_names.len() < 0xFE);
+        ser_u8(buffer, ordered_lib_names.len() as u8);
+        for name in &ordered_lib_names {
+            ser_str(buffer, name);
+        }
         // The biggest indexes (for connections) are 12 bits long.
         assert!(self.modules.len() <= 0xFFF);
         ser_u16(buffer, self.modules.len() as u16);
         let mod_modes: Vec<_> = self.modules.imc(|module| module.get_ser_mode_u2());
         ser_u2_slice(buffer, &mod_modes[..]);
         for index in 0..self.modules.len() {
-            self.modules[index].serialize(buffer, mod_modes[index]);
+            self.modules[index].serialize(buffer, mod_modes[index], &ordered_lib_names);
         }
 
         let mut input_modes = Vec::new();
@@ -821,10 +842,14 @@ impl SavedModuleGraph {
 
     fn deserialize(slice: &mut &[u8], registry: &Registry) -> Self {
         let num_libs = des_u8(slice);
-        assert!(num_libs == 0, "TODO: Implement additional libraries.");
+        let mut ordered_lib_names = Vec::new();
+        for _ in 0..num_libs {
+            ordered_lib_names.push(des_str(slice));
+        }
         let num_modules = des_u16(slice) as usize;
         let mod_modes = des_u2_slice(slice, num_modules);
-        let mut modules = mod_modes.imc(|mode| SavedModule::deserialize(slice, *mode));
+        let mut modules =
+            mod_modes.imc(|mode| SavedModule::deserialize(slice, *mode, &ordered_lib_names));
 
         let (mut num_inputs, mut num_controls, mut num_ccontrols) = (0, 0, 0);
         for module in &modules {
@@ -937,7 +962,7 @@ impl Patch {
         source: String,
         reader: &mut io::BufReader<impl Read>,
         registry: &Registry,
-    ) -> io::Result<Self> {
+    ) -> Result<Self, String> {
         Self::deserialize(PatchSource::Readable(source), reader, registry)
     }
 
@@ -945,7 +970,7 @@ impl Patch {
         source: PathBuf,
         reader: &mut io::BufReader<impl Read>,
         registry: &Registry,
-    ) -> io::Result<Self> {
+    ) -> Result<Self, String> {
         Self::deserialize(PatchSource::Writable(source), reader, registry)
     }
 
@@ -995,7 +1020,8 @@ impl Patch {
         ser_u8(&mut buffer, 0);
         ser_str(&mut buffer, &self.name);
         self.note_graph.serialize(&mut buffer);
-        writer.write_all(&buffer[..])?;
+        let encoded = base64::encode_config(&buffer, base64::URL_SAFE_NO_PAD);
+        write!(writer, "{}", encoded)?;
         Ok(())
     }
 
@@ -1003,9 +1029,13 @@ impl Patch {
         source: PatchSource,
         reader: &mut io::BufReader<impl Read>,
         registry: &Registry,
-    ) -> io::Result<Self> {
+    ) -> Result<Self, String> {
         let mut everything = Vec::new();
-        reader.read_to_end(&mut everything)?;
+        reader
+            .read_to_end(&mut everything)
+            .map_err(|_| "ERROR: Failed to read patch data".to_owned())?;
+        let everything = base64::decode_config(&everything, base64::URL_SAFE_NO_PAD)
+            .map_err(|_| "ERROR: Patch data is corrupted".to_owned())?;
         let mut ptr = &everything[..];
         assert!(
             des_u8(&mut ptr) == 0,
