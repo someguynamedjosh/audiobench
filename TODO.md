@@ -1,6 +1,4 @@
 # Things with no dependencies
-Automatically load libraries from the Audiobench folder
-Check that saving works with modules from other libraries
 Nice data corruption errors
 Vertically stack small modules
 LFO
@@ -15,6 +13,7 @@ Inverted lanes
 pitch bend & mod wheel
 alphabetize patch list
 check all the corner cases of the new save format
+flush out NaN errors in envelope
 
 # Things with missing dependencies
 

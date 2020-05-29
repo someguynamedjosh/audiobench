@@ -338,7 +338,7 @@ pub struct Registry {
     icons: Vec<Vec<u8>>,
     patches: Vec<Rcrc<Patch>>,
     patch_paths: HashMap<String, usize>,
-    user_library_path: PathBuf,
+    library_path: PathBuf,
 }
 
 impl Registry {
@@ -604,24 +604,44 @@ impl Registry {
         self.load_zipped_library("base", reader)
             .map_err(|e| format!("ERROR: Failed to load base library, caused by:\n{}", e))?;
 
-        fs::create_dir_all(&self.user_library_path).map_err(|err| {
+        let user_library_path = self.library_path.join("user");
+        fs::create_dir_all(&user_library_path).map_err(|err| {
             format!(
                 "ERROR: Failed to create user library at {}, caused by:\n{}",
-                self.user_library_path.to_string_lossy(),
+                user_library_path.to_string_lossy(),
                 err
             )
         })?;
-        let ulp = self.user_library_path.clone();
-        self.load_library_from_folder(&ulp)?;
+        for entry in fs::read_dir(&self.library_path).map_err(|err| {
+            format!(
+                "ERROR: Failed to read libraries from {}, caused by:\n{}",
+                self.library_path.to_string_lossy(),
+                err
+            )
+        })? {
+            let entry = if let Ok(entry) = entry {
+                entry
+            } else {
+                continue;
+            };
+            println!("{:?}", entry.path());
+            if entry.path().is_dir() {
+                self.load_library_from_folder(&entry.path())?;
+            } else if entry.path().extension() == Some(std::ffi::OsStr::new(".ablib")) {
+                self.load_library_from_file(&entry.path())?;
+            } else {
+                panic!("TODO: Nice error, file is not a library");
+            }
+        }
 
         Ok(())
     }
 
     pub fn new() -> (Self, Result<(), String>) {
-        let user_library_path = {
+        let library_path = {
             let user_dirs = directories::UserDirs::new().unwrap();
             let document_dir = user_dirs.document_dir().unwrap();
-            document_dir.join("Audiobench").join("user")
+            document_dir.join("Audiobench")
         };
 
         let mut registry = Self {
@@ -633,7 +653,7 @@ impl Registry {
             icons: Vec::new(),
             patches: Vec::new(),
             patch_paths: HashMap::new(),
-            user_library_path,
+            library_path,
         };
         let result = registry.initialize();
 
@@ -676,7 +696,7 @@ impl Registry {
         let filename = format!("{:016X}.abpatch", rand::thread_rng().next_u64());
         self.patch_paths
             .insert(format!("user:{}", filename), self.patches.len());
-        let patch = Patch::writable(self.user_library_path.join(filename));
+        let patch = Patch::writable(self.library_path.join("user").join(filename));
         let prc = rcrc(patch);
         self.patches.push(prc);
         self.patches.last().unwrap()

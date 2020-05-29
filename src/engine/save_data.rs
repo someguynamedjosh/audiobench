@@ -565,7 +565,6 @@ impl SavedModule {
     ) -> Self {
         let template_ref = module.template.borrow();
         let lib_name = template_ref.lib_name.clone();
-        assert!(lib_name == "base", "TODO: Support other libraries.");
         let template_id = template_ref.template_id;
         let controls = module
             .controls
