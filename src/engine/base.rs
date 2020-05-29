@@ -58,11 +58,13 @@ pub struct Engine {
 impl Engine {
     pub fn new(registry: &mut engine::registry::Registry) -> Result<Self, String> {
         let mut module_graph = engine::parts::ModuleGraph::new();
-        let default_patch = Rc::clone(
-            registry
-                .get_patch_by_name("base:patches/default.abpatch")
-                .unwrap(),
-        );
+        // TODO: Uncomment.
+        // let default_patch = Rc::clone(
+        //     registry
+        //         .get_patch_by_name("base:patches/default.abpatch")
+        //         .unwrap(),
+        // );
+        let default_patch = Rc::clone(registry.create_new_user_patch());
         default_patch
             .borrow()
             .restore_note_graph(&mut module_graph, registry)

@@ -5,10 +5,96 @@ use std::collections::HashMap;
 use std::io::{self, Read, Write};
 use std::path::PathBuf;
 
-fn deserialize_string(reader: &mut io::BufReader<impl Read>, len: usize) -> io::Result<String> {
-    let mut buffer = vec![0; len];
-    reader.read_exact(&mut buffer[..])?;
-    Ok(String::from_utf8(buffer).expect("TODO: Nice data corruption error."))
+#[inline]
+fn ser_str(data: &mut Vec<u8>, text: &str) {
+    assert!(text.len() < std::u16::MAX as usize);
+    ser_u16(data, text.len() as u16);
+    data.reserve(text.len());
+    for b in text.bytes() {
+        data.push(b);
+    }
+}
+
+#[inline]
+fn ser_u8(data: &mut Vec<u8>, value: u8) {
+    data.push(value);
+}
+
+#[inline]
+fn ser_u16(data: &mut Vec<u8>, value: u16) {
+    for b in &value.to_be_bytes() {
+        data.push(*b);
+    }
+}
+
+#[inline]
+fn ser_i32(data: &mut Vec<u8>, value: i32) {
+    for b in &value.to_be_bytes() {
+        data.push(*b);
+    }
+}
+
+#[inline]
+fn ser_u32(data: &mut Vec<u8>, value: u32) {
+    for b in &value.to_be_bytes() {
+        data.push(*b);
+    }
+}
+
+#[inline]
+fn ser_f32(data: &mut Vec<u8>, value: f32) {
+    ser_u32(data, value.to_bits());
+}
+
+#[inline]
+fn advance_des(slice: &mut &[u8], amount: usize) {
+    *slice = &slice[amount..];
+}
+
+#[inline]
+fn des_str(slice: &mut &[u8]) -> String {
+    let len = des_u16(slice) as usize;
+    debug_assert!(slice.len() >= len);
+    let buffer = Vec::from(&slice[..len]);
+    advance_des(slice, len);
+    String::from_utf8(buffer).expect("TODO: Nice data corruption error.")
+}
+
+#[inline]
+fn des_u8(slice: &mut &[u8]) -> u8 {
+    debug_assert!(slice.len() >= 1);
+    let res = u8::from_be_bytes([slice[0]]);
+    advance_des(slice, 1);
+    res
+}
+
+#[inline]
+fn des_u16(slice: &mut &[u8]) -> u16 {
+    debug_assert!(slice.len() >= 2);
+    let res = u16::from_be_bytes([slice[0], slice[1]]);
+    advance_des(slice, 2);
+    res
+}
+
+#[inline]
+fn des_i32(slice: &mut &[u8]) -> i32 {
+    debug_assert!(slice.len() >= 4);
+    let res = i32::from_be_bytes([slice[0], slice[1], slice[2], slice[3]]);
+    advance_des(slice, 4);
+    res
+}
+
+#[inline]
+fn des_u32(slice: &mut &[u8]) -> u32 {
+    debug_assert!(slice.len() >= 4);
+    let res = u32::from_be_bytes([slice[0], slice[1], slice[2], slice[3]]);
+    advance_des(slice, 4);
+    res
+}
+
+#[inline]
+fn des_f32(slice: &mut &[u8]) -> f32 {
+    f32::from_bits(des_u32(slice))
 }
 
 #[derive(Debug, Clone)]
@@ -19,34 +105,21 @@ struct SavedAutomationLane {
 }
 
 impl SavedAutomationLane {
-    fn serialize(&self, writer: &mut io::BufWriter<impl Write>) -> io::Result<()> {
+    fn serialize(&self, buffer: &mut Vec<u8>) {
         assert!(self.module_index < 0xFFFF);
         assert!(self.output_index < 0xFF);
-        writer.write_all(&[
-            (self.module_index >> 8) as u8,
-            (self.module_index & 0xFF) as u8,
-            self.output_index as u8,
-        ])?;
-        writer.write_all(&self.range.0.to_bits().to_be_bytes())?;
-        writer.write_all(&self.range.1.to_bits().to_be_bytes())?;
-        Ok(())
+        ser_u16(buffer, self.module_index as u16);
+        ser_u8(buffer, self.output_index as u8);
+        ser_f32(buffer, self.range.0);
+        ser_f32(buffer, self.range.1);
     }
 
-    fn deserialize(reader: &mut io::BufReader<impl Read>) -> io::Result<Self> {
-        let mut buffer = [0; 11];
-        reader.read_exact(&mut buffer)?;
-        Ok(Self {
-            module_index: u16::from_be_bytes([buffer[0], buffer[1]]) as usize,
-            output_index: buffer[2] as usize,
-            range: (
-                f32::from_bits(u32::from_be_bytes([
-                    buffer[3], buffer[4], buffer[5], buffer[6],
-                ])),
-                f32::from_bits(u32::from_be_bytes([
-                    buffer[7], buffer[8], buffer[9], buffer[10],
-                ])),
-            ),
-        })
+    fn deserialize(slice: &mut &[u8]) -> Self {
+        Self {
+            module_index: des_u16(slice) as usize,
+            output_index: des_u8(slice) as usize,
+            range: (des_f32(slice), des_f32(slice)),
+        }
     }
 }
 
@@ -57,30 +130,25 @@ struct SavedControl {
 }
 
 impl SavedControl {
-    fn serialize(&self, writer: &mut io::BufWriter<impl Write>) -> io::Result<()> {
-        writer.write_all(&self.value.to_bits().to_be_bytes())?;
+    fn serialize(&self, buffer: &mut Vec<u8>) {
+        ser_f32(buffer, self.value);
         assert!(self.automation_lanes.len() <= 0xFF);
-        writer.write_all(&[self.automation_lanes.len() as u8])?;
+        ser_u8(buffer, self.automation_lanes.len() as u8);
         for lane in &self.automation_lanes {
-            lane.serialize(writer)?;
+            lane.serialize(buffer);
         }
-        Ok(())
     }
 
-    fn deserialize(reader: &mut io::BufReader<impl Read>) -> io::Result<Self> {
-        let mut buffer = [0; 5];
-        reader.read_exact(&mut buffer)?;
-        let value = f32::from_bits(u32::from_be_bytes([
-            buffer[0], buffer[1], buffer[2], buffer[3],
-        ]));
-        let num_lanes = buffer[4] as usize;
+    fn deserialize(slice: &mut &[u8]) -> Self {
+        let value = des_f32(slice);
+        let num_lanes = des_u8(slice) as usize;
         let automation_lanes = (0..num_lanes)
-            .map(|_| SavedAutomationLane::deserialize(reader))
-            .collect::<Result<_, _>>()?;
-        Ok(Self {
+            .map(|_| SavedAutomationLane::deserialize(slice))
+            .collect();
+        Self {
             value,
             automation_lanes,
-        })
+        }
     }
 }
 
@@ -90,20 +158,14 @@ struct SavedComplexControl {
 }
 
 impl SavedComplexControl {
-    fn serialize(&self, writer: &mut io::BufWriter<impl Write>) -> io::Result<()> {
-        let value = self.value.as_bytes();
-        assert!(value.len() <= 0xFFFF);
-        writer.write_all(&[(value.len() >> 8) as u8, (value.len() & 0xFF) as u8])?;
-        writer.write_all(&value)?;
-        Ok(())
+    fn serialize(&self, buffer: &mut Vec<u8>) {
+        ser_str(buffer, &self.value);
     }
 
-    fn deserialize(reader: &mut io::BufReader<impl Read>) -> io::Result<Self> {
-        let mut buffer = [0; 2];
-        reader.read_exact(&mut buffer)?;
-        let value_size = u16::from_be_bytes([buffer[0], buffer[1]]) as usize;
-        let value = deserialize_string(reader, value_size)?;
-        Ok(Self { value })
+    fn deserialize(slice: &mut &[u8]) -> Self {
+        Self {
+            value: des_str(slice),
+        }
     }
 }
 
@@ -117,11 +179,12 @@ enum SavedInputConnection {
 }
 
 impl SavedInputConnection {
-    fn serialize(&self, writer: &mut io::BufWriter<impl Write>) -> io::Result<()> {
+    fn serialize(&self, buffer: &mut Vec<u8>) {
         match self {
             Self::Default(index) => {
                 assert!(*index <= 0xFF);
-                writer.write_all(&[0xFF, 0x00, *index as u8])?;
+                ser_u16(buffer, 0xFFFF);
+                ser_u8(buffer, *index as u8);
             }
             Self::Output {
                 module_index,
@@ -129,27 +192,23 @@ impl SavedInputConnection {
             } => {
                 assert!(*module_index <= 0x7FFF);
                 assert!(*output_index <= 0xFF);
-                writer.write_all(&[
-                    (*module_index >> 8) as u8,
-                    (*module_index & 0xFF) as u8,
-                    *output_index as u8,
-                ])?;
+                ser_u16(buffer, *module_index as u16);
+                ser_u8(buffer, *output_index as u8);
             }
         }
-        Ok(())
     }
 
-    fn deserialize(reader: &mut io::BufReader<impl Read>) -> io::Result<Self> {
-        let mut buffer = [0; 3];
-        reader.read_exact(&mut buffer)?;
-        Ok(if buffer[0] == 0xFF {
-            Self::Default(buffer[2] as usize)
+    fn deserialize(slice: &mut &[u8]) -> Self {
+        let index_0 = des_u16(slice) as usize;
+        let index_1 = des_u8(slice) as usize;
+        if index_0 == 0xFF00 {
+            Self::Default(index_1)
         } else {
             Self::Output {
-                module_index: u16::from_be_bytes([buffer[0], buffer[1]]) as usize,
-                output_index: buffer[2] as usize,
+                module_index: index_0,
+                output_index: index_1,
             }
-        })
+        }
     }
 }
 
@@ -260,59 +319,51 @@ impl SavedModule {
         Ok(())
     }
 
-    fn serialize(&self, writer: &mut io::BufWriter<impl Write>) -> io::Result<()> {
-        let resource_name = self.resource_name.as_bytes();
-
-        writer.write_all(&self.pos.0.to_be_bytes())?;
-        writer.write_all(&self.pos.1.to_be_bytes())?;
-        assert!(resource_name.len() <= 0xFF);
-        writer.write_all(&[resource_name.len() as u8])?;
+    fn serialize(&self, buffer: &mut Vec<u8>) {
+        ser_i32(buffer, self.pos.0);
+        ser_i32(buffer, self.pos.1);
         assert!(self.controls.len() <= 0xFF);
-        writer.write_all(&[self.controls.len() as u8])?;
+        ser_u8(buffer, self.controls.len() as u8);
         assert!(self.complex_controls.len() <= 0xFF);
-        writer.write_all(&[self.complex_controls.len() as u8])?;
+        ser_u8(buffer, self.complex_controls.len() as u8);
         assert!(self.input_connections.len() <= 0xFF);
-        writer.write_all(&[self.input_connections.len() as u8])?;
+        ser_u8(buffer, self.input_connections.len() as u8);
+        ser_str(buffer, &self.resource_name);
 
-        writer.write_all(resource_name)?;
         for control in &self.controls {
-            control.serialize(writer)?;
+            control.serialize(buffer);
         }
         for complex_control in &self.complex_controls {
-            complex_control.serialize(writer)?;
+            complex_control.serialize(buffer);
         }
         for input_connection in &self.input_connections {
-            input_connection.serialize(writer)?;
+            input_connection.serialize(buffer);
         }
-        Ok(())
     }
 
-    fn deserialize(reader: &mut io::BufReader<impl Read>) -> io::Result<Self> {
-        let mut buffer = [0; 12];
-        reader.read_exact(&mut buffer)?;
-        let x = i32::from_be_bytes([buffer[0], buffer[1], buffer[2], buffer[3]]);
-        let y = i32::from_be_bytes([buffer[4], buffer[5], buffer[6], buffer[7]]);
-        let resource_name_len = buffer[8] as usize;
-        let controls_len = buffer[9] as usize;
-        let complex_controls_len = buffer[10] as usize;
-        let input_connections_len = buffer[11] as usize;
-        let resource_name = deserialize_string(reader, resource_name_len)?;
+    fn deserialize(slice: &mut &[u8]) -> Self {
+        let x = des_i32(slice);
+        let y = des_i32(slice);
+        let controls_len = des_u8(slice) as usize;
+        let complex_controls_len = des_u8(slice) as usize;
+        let input_connections_len = des_u8(slice) as usize;
+        let resource_name = des_str(slice);
         let controls = (0..controls_len)
-            .map(|_| SavedControl::deserialize(reader))
-            .collect::<Result<_, _>>()?;
+            .map(|_| SavedControl::deserialize(slice))
+            .collect();
         let complex_controls = (0..complex_controls_len)
-            .map(|_| SavedComplexControl::deserialize(reader))
-            .collect::<Result<_, _>>()?;
+            .map(|_| SavedComplexControl::deserialize(slice))
+            .collect();
         let input_connections = (0..input_connections_len)
-            .map(|_| SavedInputConnection::deserialize(reader))
-            .collect::<Result<_, _>>()?;
-        Ok(Self {
+            .map(|_| SavedInputConnection::deserialize(slice))
+            .collect();
+        Self {
             resource_name,
             controls,
             complex_controls,
             input_connections,
             pos: (x, y),
-        })
+        }
     }
 }
 
@@ -435,24 +486,21 @@ impl SavedModuleGraph {
         Ok(())
     }
 
-    fn serialize(&self, writer: &mut io::BufWriter<impl Write>) -> io::Result<()> {
+    fn serialize(&self, buffer: &mut Vec<u8>) {
         // Indexes <= 0x3FF
         assert!(self.modules.len() <= 0x400);
-        writer.write_all(&(self.modules.len() as u16).to_be_bytes())?;
+        ser_u16(buffer, self.modules.len() as u16);
         for module in &self.modules {
-            module.serialize(writer)?;
+            module.serialize(buffer);
         }
-        Ok(())
     }
 
-    fn deserialize(reader: &mut io::BufReader<impl Read>) -> io::Result<Self> {
-        let mut buffer = [0; 2];
-        reader.read_exact(&mut buffer)?;
-        let num_modules = u16::from_be_bytes([buffer[0], buffer[1]]) as usize;
+    fn deserialize(slice: &mut &[u8]) -> Self {
+        let num_modules = des_u16(slice) as usize;
         let modules = (0..num_modules)
-            .map(|_| SavedModule::deserialize(reader))
-            .collect::<Result<_, _>>()?;
-        Ok(Self { modules })
+            .map(|_| SavedModule::deserialize(slice))
+            .collect();
+        Self { modules }
     }
 }
 
@@ -532,21 +580,20 @@ impl Patch {
         Ok(())
     }
 
-    fn serialize(&self, writer: &mut io::BufWriter<impl Write>) -> io::Result<()> {
-        let name = self.name.as_bytes();
-        assert!(name.len() < 0xFFFF);
-        writer.write_all(&(name.len() as u16).to_be_bytes())?;
-        writer.write_all(name)?;
-        self.note_graph.serialize(writer)?;
+    fn serialize(&self, writer: &mut impl Write) -> io::Result<()> {
+        let mut buffer = Vec::new();
+        ser_str(&mut buffer, &self.name);
+        self.note_graph.serialize(&mut buffer);
+        writer.write_all(&buffer[..])?;
         Ok(())
     }
 
     fn deserialize(source: PatchSource, reader: &mut io::BufReader<impl Read>) -> io::Result<Self> {
-        let mut buffer = [0; 2];
-        reader.read_exact(&mut buffer)?;
-        let name_size = u16::from_be_bytes([buffer[0], buffer[1]]) as usize;
-        let name = deserialize_string(reader, name_size)?;
-        let note_graph = SavedModuleGraph::deserialize(reader)?;
+        let mut everything = Vec::new();
+        reader.read_to_end(&mut everything)?;
+        let mut ptr = &everything[..];
+        let name = des_str(&mut ptr);
+        let note_graph = SavedModuleGraph::deserialize(&mut ptr);
         Ok(Self {
             source,
             name,
