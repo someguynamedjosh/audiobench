@@ -67,7 +67,7 @@ impl Instance {
                     self.structure_error = Some(err);
                 } else {
                     if let Some(gui) = &mut self.gui {
-                        gui.clear_error();
+                        gui.clear_status();
                     }
                     self.structure_error = None;
                 }
@@ -77,6 +77,9 @@ impl Instance {
             }
             gui::action::InstanceAction::SavePatch => {
                 self.engine.as_mut().unwrap().save_current_patch();
+                if let Some(gui) = &mut self.gui {
+                    gui.display_success("Saved successfully!".to_owned());
+                }
             }
             gui::action::InstanceAction::NewPatch(callback) => {
                 callback(self.engine.as_mut().unwrap().new_patch(&mut self.registry));

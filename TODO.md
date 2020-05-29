@@ -1,6 +1,4 @@
 # Things with no dependencies
-Make arrangement of wires line up more with the grid system for controls.
-Visual feedback for patch being saved
 FM Oscillator
 minifying preset files
 Version number on preset files so that new versions of the format can be made
@@ -9,6 +7,8 @@ LFO
 Transposer
 Beat sequencer
 Pitch sequencer
+Center the canvas when loading a new preset
+scroll to zoom
 
 # Things with missing dependencies
 
@@ -19,7 +19,6 @@ Get a better icon for waveforms
 Better nothing icon
 Highlight connections when hovering over things like outputs and automation
   lanes to see more easily what's connected to what
-scroll to zoom
 Play a pretend note when moving knobs so you can see its effect without playing your own note.
 Undo / redo
 Make the add modules menu look nice
@@ -41,6 +40,8 @@ Some kind of custom GUI creation or custom module creation (without programming 
 Builtin modules for complex flow / codegen stuff 
   Auto stack / chain modules
   Option module
+Undo / redo tree
+Library catalog
 
 # Forward compatibility things
 Presets should have spots for multiple graphs

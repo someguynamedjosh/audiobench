@@ -2,6 +2,7 @@ use crate::engine::parts as ep;
 use crate::engine::registry::Registry;
 use crate::engine::save_data::Patch;
 use crate::gui::action::{GuiAction, InstanceAction, MouseAction};
+use crate::gui::constants::*;
 use crate::gui::graphics::GrahpicsWrapper;
 use crate::gui::{audio_widgets, other_widgets};
 use crate::util::*;
@@ -28,6 +29,28 @@ impl Default for Tooltip {
         Tooltip {
             text: "".to_owned(),
             interaction: Default::default(),
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct Status {
+    pub text: String,
+    pub color: (u8, u8, u8),
+}
+
+impl Status {
+    fn success(text: String) -> Self {
+        Self {
+            text,
+            color: COLOR_SUCCESS,
+        }
+    }
+
+    fn error(text: String) -> Self {
+        Self {
+            text,
+            color: COLOR_ERROR,
         }
     }
 }
@@ -122,12 +145,16 @@ impl Gui {
         }
     }
 
-    pub fn display_error(&mut self, error: String) {
-        self.menu_bar.set_error(error);
+    pub fn display_success(&mut self, text: String) {
+        self.menu_bar.set_status(Status::success(text));
     }
 
-    pub fn clear_error(&mut self) {
-        self.menu_bar.clear_error();
+    pub fn display_error(&mut self, text: String) {
+        self.menu_bar.set_status(Status::error(text));
+    }
+
+    pub fn clear_status(&mut self) {
+        self.menu_bar.clear_status();
     }
 
     pub fn draw(&self, g: &mut GrahpicsWrapper) {
@@ -149,7 +176,7 @@ impl Gui {
         pos: (i32, i32),
         mods: &MouseMods,
     ) -> Option<InstanceAction> {
-        self.menu_bar.clear_error();
+        self.menu_bar.clear_status();
         let mut ret = None;
         if let Some(field) = self.focused_text_field.take() {
             if let Some(action) = field.borrow_mut().defocus().on_click() {

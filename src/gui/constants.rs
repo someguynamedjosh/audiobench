@@ -54,7 +54,7 @@ pub const WIRE_MIN_SEGMENT_LENGTH: i32 = 21;
 // Amount of x and y offset required to create a 45 degree line MIN_WIRE_SEGMENT_LENGTH long
 pub const WIRE_MIN_DIAGONAL_SIZE: i32 =
     (WIRE_MIN_SEGMENT_LENGTH as f32 * std::f32::consts::SQRT_2 / 2.0) as i32;
-pub const WIRE_SPACING: i32 = GRID_P;
+pub const WIRE_SPACING: i32 = (GRID_1 + GRID_P) / 4;
 
 const fn hex_color(hex: u32) -> (u8, u8, u8) {
     (
@@ -68,7 +68,8 @@ pub const COLOR_DEBUG: (u8, u8, u8) = hex_color(0xFF00FF);
 pub const COLOR_BG: (u8, u8, u8) = hex_color(0x121520);
 pub const COLOR_SURFACE: (u8, u8, u8) = hex_color(0x48525F);
 pub const COLOR_IO_AREA: (u8, u8, u8) = hex_color(0x2F434F);
-pub const COLOR_ERROR: (u8, u8, u8) = hex_color(0xFF0000);
+pub const COLOR_ERROR: (u8, u8, u8) = hex_color(0xFF0022);
+pub const COLOR_SUCCESS: (u8, u8, u8) = hex_color(0x038c23);
 pub const COLOR_KNOB: (u8, u8, u8) = hex_color(0xFF0022);
 pub const COLOR_AUTOMATION: (u8, u8, u8) = hex_color(0xC7D5E8);
 pub const COLOR_AUTOMATION_FOCUSED: (u8, u8, u8) = hex_color(0x54bdff);
