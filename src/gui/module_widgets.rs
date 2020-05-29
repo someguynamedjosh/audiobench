@@ -192,6 +192,8 @@ pub(in crate::gui) trait ModuleWidget {
 pub struct Knob {
     tooltip: String,
     control: Rcrc<ep::Control>,
+    // This allows the knob to share feedback data with the right-click menu when it it open.
+    value: Rcrc<f32>,
     pos: (i32, i32),
     label: String,
 }
@@ -201,6 +203,7 @@ impl Knob {
         Knob {
             tooltip,
             control,
+            value: rcrc(0.0),
             pos,
             label,
         }
@@ -229,6 +232,7 @@ impl ModuleWidget for Knob {
             );
             MouseAction::OpenMenu(Box::new(KnobEditor::create(
                 Rc::clone(&self.control),
+                Rc::clone(&self.value),
                 pos,
                 self.label.clone(),
                 self.tooltip.clone(),
@@ -299,6 +303,7 @@ impl ModuleWidget for Knob {
         } else {
             control.value
         };
+        *self.value.borrow_mut() = value;
         let value_angle = value_to_angle(control.range, value);
         g.fill_pie(
             0,
@@ -711,6 +716,7 @@ impl ModuleWidget for EnvelopeGraph {
 #[derive(Clone)]
 pub struct KnobEditor {
     control: Rcrc<ep::Control>,
+        value: Rcrc<f32>,
     pos: (i32, i32),
     size: (i32, i32),
     label: String,
@@ -720,6 +726,7 @@ pub struct KnobEditor {
 impl KnobEditor {
     fn create(
         control: Rcrc<ep::Control>,
+        value: Rcrc<f32>,
         center_pos: (i32, i32),
         label: String,
         tooltip: String,
@@ -730,6 +737,7 @@ impl KnobEditor {
         let size = (required_radius * 2, required_radius + fatgrid(1));
         Self {
             control,
+            value,
             pos: (center_pos.0 - size.0 / 2, center_pos.1 - size.1 / 2),
             size,
             label,
@@ -859,7 +867,7 @@ impl KnobEditor {
         g.fill_pie(-KOR, -KOR, KOR * 2, KIR * 2, PI, 0.0);
         g.set_color(&COLOR_KNOB);
         let zero_angle = value_to_angle(control.range, 0.0);
-        let value_angle = value_to_angle(control.range, control.value);
+        let value_angle = value_to_angle(control.range, *self.value.borrow());
         g.fill_pie(-KOR, -KOR, KOR * 2, KIR * 2, zero_angle, value_angle);
 
         const GAP: i32 = KNOB_MENU_LANE_GAP;

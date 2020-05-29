@@ -1,8 +1,14 @@
 # Things with no dependencies
-Right-click menu should show automated value
 Make arrangement of wires line up more with the grid system for controls.
 Visual feedback for patch being saved
 FM Oscillator
+minifying preset files
+Version number on preset files so that new versions of the format can be made
+B64-encode of preset files
+LFO
+Transposer
+Beat sequencer
+Pitch sequencer
 
 # Things with missing dependencies
 
@@ -26,3 +32,20 @@ Control -> Parameter?
 Parameter -> AutoParam, ComplexParam?
 use fewer i32s, replace with usizes when it would be helpful.
 Tidy up warnings
+
+# Long-term goals
+Effects graph
+MIDI graph
+Preset tags
+Some kind of custom GUI creation or custom module creation (without programming knowledge)
+Builtin modules for complex flow / codegen stuff 
+  Auto stack / chain modules
+  Option module
+
+# Forward compatibility things
+Presets should have spots for multiple graphs
+Presets should store tags, just a list of strings
+Builtin modules can use the same save syntax as other modules, using one or more complex controls to
+  store their extra data.
+Some kind of library identification file with information like the minimum version of audiobench you
+  need to use the library
