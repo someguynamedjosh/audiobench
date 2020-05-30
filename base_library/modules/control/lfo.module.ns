@@ -1,0 +1,26 @@
+DATA_TYPE SAMPLE = amplitude[0?]:TYPE + Waveform(0, 0.0):TYPE + time[9?]:TYPE;
+[BUFFER_LENGTH]SAMPLE audio;
+
+macro ApplyStrength(sample, buffer_pos):(adjusted) {
+    AUTO adjusted;
+    if STRENGTH_MODE == 0 { // Max
+        adjusted = sample * amplitude[buffer_pos?] + (1.0 - amplitude[buffer_pos?]);
+    } else if STRENGTH_MODE == 1 { // Mid
+        adjusted = sample * amplitude[buffer_pos?];
+    } else if STRENGTH_MODE == 2 { // Min
+        adjusted = sample * amplitude[buffer_pos?] - (1.0 - amplitude[buffer_pos?]);
+    }
+}
+
+for i = 0 to BUFFER_LENGTH no_unroll {
+    AUTO sample = Waveform(i, (time[i?] * FREQUENCY) % 1.0);
+    audio[i] = ApplyStrength(sample, i);
+}
+
+if global_update_feedback_data {
+    FLOAT base = time[0?][0?] * FREQUENCY;
+    macro OffsetWaveform(buffer_pos, phase):(value) {
+        AUTO value = ApplyStrength(Waveform(buffer_pos, (phase + base) % 1.0), 0);
+    }
+    DisplayWaveform(SetGraphFeedback, OffsetWaveform);
+}

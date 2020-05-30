@@ -46,6 +46,12 @@ pub enum MouseAction {
         // keeps track of what the value would be if it were a float and not an int.
         float_value: f32,
     },
+    ManipulateHertzControl {
+        cref: Rcrc<ep::ComplexControl>,
+        min: f32,
+        max: f32,
+        precise_value: f32,
+    },
     SetComplexControl(Rcrc<ep::ComplexControl>, String),
     MoveModule(Rcrc<ep::Module>, (i32, i32)),
     PanOffset(Rcrc<(i32, i32)>),
@@ -235,6 +241,39 @@ impl MouseAction {
                     cref.borrow_mut().value = str_value;
                 }
             }
+            Self::ManipulateHertzControl {
+                cref,
+                min,
+                max,
+                precise_value,
+            } => {
+                // How many pixels the user must drag across to change the value by an octave.
+                const PIXELS_PER_OCTAVE: f32 = 40.0;
+                let delta = delta.0 - delta.1;
+                let mut delta = delta as f32 / PIXELS_PER_OCTAVE;
+                if mods.precise {
+                    delta *= 0.2;
+                }
+                let multiplier = (2.0f32).powf(delta);
+                *precise_value *= multiplier;
+                *precise_value = precise_value.min(*max as f32);
+                *precise_value = precise_value.max(*min as f32);
+                let decimals = if *precise_value < 1.0 {
+                    4
+                } else if *precise_value < 10.0 {
+                    3
+                } else if *precise_value < 100.0 {
+                    2
+                } else if *precise_value < 1000.0 {
+                    1
+                } else {
+                    0
+                };
+                let str_value = format!("{:.1$}", *precise_value, decimals);
+                if str_value != cref.borrow().value {
+                    cref.borrow_mut().value = str_value;
+                }
+            }
             Self::MoveModule(module, tracking) => {
                 *tracking = tracking.add(delta);
                 let mut module_ref = module.borrow_mut();
@@ -294,6 +333,9 @@ impl MouseAction {
                 return Some(GuiAction::Elevate(InstanceAction::ReloadStructure));
             }
             Self::ManipulateIntControl { .. } => {
+                return Some(GuiAction::Elevate(InstanceAction::ReloadStructure))
+            }
+            Self::ManipulateHertzControl { .. } => {
                 return Some(GuiAction::Elevate(InstanceAction::ReloadStructure))
             }
             _ => (),
@@ -384,7 +426,7 @@ impl MouseAction {
                 cref.automation[lane].range.1 = cref.range.1;
                 return Some(GuiAction::Elevate(InstanceAction::ReloadAuxData));
             }
-            Self::ManipulateIntControl { cref, .. } => {
+            Self::ManipulateIntControl { cref, .. } | Self::ManipulateHertzControl { cref, .. } => {
                 let mut cref = cref.borrow_mut();
                 cref.value = cref.default.clone();
                 return Some(GuiAction::Elevate(InstanceAction::ReloadStructure));

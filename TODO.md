@@ -1,5 +1,5 @@
 # Things with no dependencies
-LFO
+Fix Multiple modules share complex control references
 Transposer
 Beat sequencer
 Pitch sequencer
@@ -12,6 +12,9 @@ pitch bend & mod wheel
 alphabetize patch list
 check all the corner cases of the new save format
 flush out NaN errors in envelope
+Fix rendering of controls that have a zero point outside of their range
+More default waveforms (ramp up/down, sin)
+More snapping points when dragging knobs
 
 # Things with missing dependencies
 

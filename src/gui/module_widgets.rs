@@ -49,6 +49,13 @@ pub enum WidgetOutline {
         range: (i32, i32),
         label: String,
     },
+    HertzBox {
+        tooltip: String,
+        ccontrol_index: usize,
+        grid_pos: (i32, i32),
+        range: (f32, f32),
+        label: String,
+    },
     OptionBox {
         tooltip: String,
         ccontrol_index: usize,
@@ -74,6 +81,7 @@ impl WidgetOutline {
                 size: 6,
             },
             Self::IntBox { .. } => FeedbackDataRequirement::None,
+            Self::HertzBox { .. } => FeedbackDataRequirement::None,
             Self::OptionBox { .. } => FeedbackDataRequirement::None,
         }
     }
@@ -132,6 +140,21 @@ pub(in crate::gui) fn widget_from_outline(
             label,
             ..
         } => Box::new(IntBox::create(
+            tooltip.clone(),
+            registry,
+            Rc::clone(&ccontrols[*ccontrol_index]),
+            convert_grid_pos(*grid_pos),
+            *range,
+            label.clone(),
+        )),
+        WidgetOutline::HertzBox {
+            tooltip,
+            ccontrol_index,
+            grid_pos,
+            range,
+            label,
+            ..
+        } => Box::new(HertzBox::create(
             tooltip.clone(),
             registry,
             Rc::clone(&ccontrols[*ccontrol_index]),
@@ -274,8 +297,8 @@ impl ModuleWidget for Knob {
         feedback_data: &[f32],
     ) {
         g.push_state();
-        const MIN_ANGLE: f32 = PI * 1.15;
-        const MAX_ANGLE: f32 = -PI * 0.15;
+        const MIN_ANGLE: f32 = PI * 1.10;
+        const MAX_ANGLE: f32 = -PI * 0.10;
 
         let control = &*self.control.borrow();
         fn value_to_angle(range: (f32, f32), value: f32) -> f32 {
@@ -347,6 +370,103 @@ impl ModuleWidget for Knob {
 }
 
 #[derive(Clone)]
+pub struct HertzBox {
+    tooltip: String,
+    ccontrol: Rcrc<ep::ComplexControl>,
+    pos: (i32, i32),
+    range: (f32, f32),
+    label: String,
+}
+
+impl HertzBox {
+    const WIDTH: i32 = grid(3);
+    const HEIGHT: i32 = grid(2) - FONT_SIZE - GRID_P / 2;
+    fn create(
+        tooltip: String,
+        registry: &Registry,
+        ccontrol: Rcrc<ep::ComplexControl>,
+        pos: (i32, i32),
+        range: (f32, f32),
+        label: String,
+    ) -> HertzBox {
+        HertzBox {
+            tooltip,
+            ccontrol,
+            pos,
+            range,
+            label,
+        }
+    }
+}
+
+impl ModuleWidget for HertzBox {
+    fn get_position(&self) -> (i32, i32) {
+        self.pos
+    }
+    fn get_bounds(&self) -> (i32, i32) {
+        (grid(3), grid(2))
+    }
+    fn respond_to_mouse_press(
+        &self,
+        local_pos: (i32, i32),
+        mods: &MouseMods,
+        parent_pos: (i32, i32),
+    ) -> MouseAction {
+        let click_delta = if local_pos.1 > HertzBox::HEIGHT / 2 {
+            -1
+        } else {
+            1
+        };
+        MouseAction::ManipulateHertzControl {
+            cref: Rc::clone(&self.ccontrol),
+            min: self.range.0,
+            max: self.range.1,
+            precise_value: self.ccontrol.borrow().value.parse().unwrap(),
+        }
+    }
+
+    fn get_tooltip_at(&self, local_pos: (i32, i32)) -> Option<Tooltip> {
+        Some(Tooltip {
+            text: self.tooltip.clone(),
+            interaction: InteractionHint::LeftClickAndDrag | InteractionHint::DoubleClick,
+        })
+    }
+
+    fn draw(
+        &self,
+        g: &mut GrahpicsWrapper,
+        highlight: bool,
+        parent_pos: (i32, i32),
+        feedback_data: &[f32],
+    ) {
+        g.push_state();
+        g.apply_offset(self.pos.0, self.pos.1);
+
+        const W: i32 = HertzBox::WIDTH;
+        const H: i32 = HertzBox::HEIGHT;
+        const CS: i32 = CORNER_SIZE;
+        g.set_color(&COLOR_BG);
+        g.fill_rounded_rect(0, 0, W, H, CS);
+        {
+            let val = format!("{}hz", self.ccontrol.borrow().value);
+            const HA: HAlign = HAlign::Right;
+            const VA: VAlign = VAlign::Center;
+            g.set_color(&COLOR_TEXT);
+            g.write_text(BIG_FONT_SIZE, GRID_P, 0, W - GRID_P * 2, H, HA, VA, 1, &val);
+        }
+        {
+            let val = &self.label;
+            const HA: HAlign = HAlign::Center;
+            const VA: VAlign = VAlign::Bottom;
+            g.set_color(&COLOR_TEXT);
+            g.write_text(FONT_SIZE, 0, 0, W, grid(2), HA, VA, 1, val);
+        }
+
+        g.pop_state();
+    }
+}
+
+#[derive(Clone)]
 pub struct IntBox {
     tooltip: String,
     ccontrol: Rcrc<ep::ComplexControl>,
@@ -358,7 +478,7 @@ pub struct IntBox {
 
 impl IntBox {
     const WIDTH: i32 = grid(2);
-    const HEIGHT: i32 = grid(2) - FONT_SIZE - GRID_P;
+    const HEIGHT: i32 = grid(2) - FONT_SIZE - GRID_P / 2;
     fn create(
         tooltip: String,
         registry: &Registry,
@@ -716,7 +836,7 @@ impl ModuleWidget for EnvelopeGraph {
 #[derive(Clone)]
 pub struct KnobEditor {
     control: Rcrc<ep::Control>,
-        value: Rcrc<f32>,
+    value: Rcrc<f32>,
     pos: (i32, i32),
     size: (i32, i32),
     label: String,

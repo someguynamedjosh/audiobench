@@ -115,6 +115,26 @@ fn create_widget_outline_from_yaml(
                 label,
             }
         }
+        "hertz_box" => {
+            let ccontrol_name = &yaml.unique_child("control")?.value;
+            let ccontrol_index = find_complex_control_index(ccontrol_name)?;
+            let min = yaml.unique_child("min")?.f32()?;
+            let max = yaml.unique_child("max")?.f32()?;
+            let default = if let Ok(child) = yaml.unique_child("default") {
+                child.f32()?
+            } else {
+                min
+            };
+            let label = yaml.unique_child("label")?.value.clone();
+            set_default = Some((ccontrol_index, format!("{:.1}", default)));
+            WidgetOutline::HertzBox {
+                tooltip: tooltip_node?.value.clone(),
+                ccontrol_index,
+                grid_pos,
+                range: (min, max),
+                label,
+            }
+        }
         "option_box" => {
             let grid_size = (
                 yaml.unique_child("w")?.i32()?,
