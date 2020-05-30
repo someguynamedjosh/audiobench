@@ -1,11 +1,10 @@
 # Things with no dependencies
-Nice data corruption errors
 Vertically stack small modules
 LFO
 Transposer
 Beat sequencer
 Pitch sequencer
-Center the canvas when loading a new preset
+Center the canvas when loading a new patch
 scroll to zoom
 Windows VST build
 Inverted lanes
@@ -28,6 +27,7 @@ Play a pretend note when moving knobs so you can see its effect without playing 
 Undo / redo
 Make the add modules menu look nice
 Make window resizable
+Nicer error when a patch requires newer modules (not just "patch is corrupt")
 
 # Code organization stuff
 Use more TupleUtil functions
@@ -40,7 +40,7 @@ Tidy up warnings
 # Long-term goals
 Effects graph
 MIDI graph
-Preset tags
+patch tags
 Some kind of custom GUI creation or custom module creation (without programming knowledge)
 Builtin modules for complex flow / codegen stuff 
   Auto stack / chain modules
@@ -49,8 +49,8 @@ Undo / redo tree
 Library catalog
 
 # Forward compatibility things
-Presets should have spots for multiple graphs
-Presets should store tags, just a list of strings
+patchs should have spots for multiple graphs
+patchs should store tags, just a list of strings
 Builtin modules can use the same save syntax as other modules, using one or more complex controls to
   store their extra data.
 Some kind of library identification file with information like the minimum version of audiobench you

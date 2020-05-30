@@ -115,82 +115,101 @@ fn advance_des(slice: &mut &[u8], amount: usize) {
 }
 
 #[inline]
-fn des_str(slice: &mut &[u8]) -> String {
-    let len = des_u16(slice) as usize;
-    debug_assert!(slice.len() >= len);
+fn des_str(slice: &mut &[u8]) -> Result<String, ()> {
+    let len = des_u16(slice)? as usize;
+    if slice.len() < len {
+        return Err(());
+    }
     let buffer = Vec::from(&slice[..len]);
     advance_des(slice, len);
-    String::from_utf8(buffer).expect("TODO: Nice data corruption error.")
+    let string = String::from_utf8(buffer).map_err(|_| ())?;
+    Ok(string)
 }
 
 #[inline]
-fn des_u2_slice(slice: &mut &[u8], num_items: usize) -> Vec<u8> {
+fn des_u2_slice(slice: &mut &[u8], num_items: usize) -> Result<Vec<u8>, ()> {
+    if slice.len() < (num_items + 3) / 4 {
+        return Err(());
+    }
     let mut res = Vec::with_capacity(num_items);
     if num_items == 0 {
-        return res;
+        return Ok(res);
     }
     for index in 0..num_items {
         res.push((slice[index / 4] >> (index % 4 * 2)) & 0b11);
     }
     advance_des(slice, (num_items + 3) / 4);
-    res
+    Ok(res)
 }
 
 #[inline]
-fn des_u4_slice(slice: &mut &[u8], num_items: usize) -> Vec<u8> {
+fn des_u4_slice(slice: &mut &[u8], num_items: usize) -> Result<Vec<u8>, ()> {
+    if slice.len() < (num_items + 1) / 2 {
+        return Err(());
+    }
     let mut res = Vec::with_capacity(num_items);
     if num_items == 0 {
-        return res;
+        return Ok(res);
     }
     for index in 0..num_items {
         res.push((slice[index / 2] >> (index % 2 * 4)) & 0b1111);
     }
     advance_des(slice, (num_items + 1) / 2);
-    res
+    Ok(res)
 }
 
 #[inline]
-fn des_u2_u6(slice: &mut &[u8]) -> (u8, u8) {
-    let packed = des_u8(slice);
-    (packed >> 6, packed & 0b111111)
+fn des_u2_u6(slice: &mut &[u8]) -> Result<(u8, u8), ()> {
+    let packed = des_u8(slice)?;
+    Ok((packed >> 6, packed & 0b111111))
 }
 
 #[inline]
-fn des_u4_u12(slice: &mut &[u8]) -> (u16, u16) {
-    let packed = des_u16(slice);
-    (packed >> 12, packed & 0xFFF)
+fn des_u4_u12(slice: &mut &[u8]) -> Result<(u16, u16), ()> {
+    let packed = des_u16(slice)?;
+    Ok((packed >> 12, packed & 0xFFF))
 }
 
 #[inline]
-fn des_u8(slice: &mut &[u8]) -> u8 {
-    debug_assert!(slice.len() >= 1);
+fn des_u8(slice: &mut &[u8]) -> Result<u8, ()> {
+    if slice.len() < 1 {
+        return Err(());
+    }
     let res = u8::from_be_bytes([slice[0]]);
     advance_des(slice, 1);
-    res
+    Ok(res)
 }
 
 #[inline]
-fn des_i16(slice: &mut &[u8]) -> i16 {
-    debug_assert!(slice.len() >= 2);
+fn des_i16(slice: &mut &[u8]) -> Result<i16, ()> {
+    if slice.len() < 2 {
+        return Err(());
+    }
     let res = i16::from_be_bytes([slice[0], slice[1]]);
     advance_des(slice, 2);
-    res
+    Ok(res)
 }
 
 #[inline]
-fn des_u16(slice: &mut &[u8]) -> u16 {
+fn des_u16(slice: &mut &[u8]) -> Result<u16, ()> {
+    if slice.len() < 2 {
+        return Err(());
+    }
     debug_assert!(slice.len() >= 2);
     let res = u16::from_be_bytes([slice[0], slice[1]]);
     advance_des(slice, 2);
-    res
+    Ok(res)
 }
 
 #[inline]
-fn des_i32(slice: &mut &[u8]) -> i32 {
+fn des_i32(slice: &mut &[u8]) -> Result<i32, ()> {
+    if slice.len() < 4 {
+        return Err(());
+    }
     debug_assert!(slice.len() >= 4);
     let res = i32::from_be_bytes([slice[0], slice[1], slice[2], slice[3]]);
     advance_des(slice, 4);
-    res
+    Ok(res)
 }
 
 #[inline]
@@ -276,22 +295,22 @@ impl SavedAutomationLane {
         }
     }
 
-    fn deserialize(slice: &mut &[u8], mode_u4: u8) -> Self {
+    fn deserialize(slice: &mut &[u8], mode_u4: u8) -> Result<Self, ()> {
         let (_, big_connection, min_min, max_max) = decompose_u4(mode_u4);
         let (output_index, module_index) = if big_connection {
-            let d = des_u4_u12(slice);
+            let d = des_u4_u12(slice)?;
             (d.0 as usize, d.1 as usize)
         } else {
-            let d = des_u2_u6(slice);
+            let d = des_u2_u6(slice)?;
             (d.0 as usize, d.1 as usize)
         };
-        let min = if min_min { 0 } else { des_u16(slice) };
-        let max = if max_max { 0xFFFF } else { des_u16(slice) };
-        Self {
+        let min = if min_min { 0 } else { des_u16(slice)? };
+        let max = if max_max { 0xFFFF } else { des_u16(slice)? };
+        Ok(Self {
             module_index,
             output_index,
             range: (min, max),
-        }
+        })
     }
 }
 
@@ -363,8 +382,8 @@ impl SavedControl {
         (self.automation_lanes.len() - 2) as u8
     }
 
-    fn deserialize_mode012(slice: &mut &[u8], mode: u8) -> (Self, usize) {
-        if mode == 0 {
+    fn deserialize_mode012(slice: &mut &[u8], mode: u8) -> Result<(Self, usize), ()> {
+        Ok(if mode == 0 {
             (
                 Self {
                     value: None,
@@ -375,7 +394,7 @@ impl SavedControl {
         } else if mode == 1 {
             (
                 Self {
-                    value: Some(des_u16(slice)),
+                    value: Some(des_u16(slice)?),
                     automation_lanes: Vec::new(),
                 },
                 0,
@@ -390,7 +409,7 @@ impl SavedControl {
             )
         } else {
             unreachable!()
-        }
+        })
     }
 
     fn deserialize_mode3_u4(u4: u8) -> (Self, usize) {
@@ -425,10 +444,10 @@ impl SavedComplexControl {
         ser_str(buffer, &self.value);
     }
 
-    fn deserialize(slice: &mut &[u8]) -> Self {
-        Self {
-            value: des_str(slice),
-        }
+    fn deserialize(slice: &mut &[u8]) -> Result<Self, ()> {
+        Ok(Self {
+            value: des_str(slice)?,
+        })
     }
 }
 
@@ -528,23 +547,23 @@ impl SavedInputConnection {
         Self::Default(u4 as usize)
     }
 
-    fn deserialize_mode023(slice: &mut &[u8], mode: u8) -> Self {
+    fn deserialize_mode023(slice: &mut &[u8], mode: u8) -> Result<Self, ()> {
         if mode == 0 {
-            return Self::DefaultDefault;
+            return Ok(Self::DefaultDefault);
         }
         let (output_index, module_index) = if mode == 2 {
-            let d = des_u2_u6(slice);
+            let d = des_u2_u6(slice)?;
             (d.0 as usize, d.1 as usize)
         } else if mode == 3 {
-            let d = des_u4_u12(slice);
+            let d = des_u4_u12(slice)?;
             (d.0 as usize, d.1 as usize)
         } else {
             unreachable!()
         };
-        Self::Output {
+        Ok(Self::Output {
             module_index,
             output_index,
-        }
+        })
     }
 }
 
@@ -597,8 +616,8 @@ impl SavedModule {
         }
     }
 
-    fn restore(&self, registry: &Registry) -> Result<ep::Module, String> {
-        let mut m = self.lookup_prototype(registry).clone();
+    fn restore(&self, registry: &Registry) -> Result<ep::Module, ()> {
+        let mut m = self.lookup_prototype(registry)?.clone();
         m.pos = self.pos;
         for index in 0..self.complex_controls.len() {
             self.complex_controls[index].restore(&mut *m.complex_controls[index].borrow_mut());
@@ -610,7 +629,7 @@ impl SavedModule {
         &self,
         on: &mut ep::Module,
         modules: &[Rcrc<ep::Module>],
-    ) -> Result<(), String> {
+    ) -> Result<(), ()> {
         let template_ref = on.template.borrow();
         for index in 0..self.input_connections.len() {
             let default = template_ref.default_inputs[index];
@@ -623,20 +642,20 @@ impl SavedModule {
         Ok(())
     }
 
-    fn lookup_prototype<'a>(&self, registry: &'a Registry) -> &'a ep::Module {
+    fn lookup_prototype<'a>(&self, registry: &'a Registry) -> Result<&'a ep::Module, ()> {
         registry
             .borrow_module_by_serialized_id(&(self.lib_name.clone(), self.template_id))
-            .unwrap()
+            .ok_or(())
     }
 
     /// Gets the number of inputs, controls, and complex controls this module should have when
     /// fully restored.
-    fn get_requirements(&self, registry: &Registry) -> (usize, usize, usize) {
-        let p = self.lookup_prototype(registry);
+    fn get_requirements(&self, registry: &Registry) -> Result<(usize, usize, usize), ()> {
+        let p = self.lookup_prototype(registry)?;
         let num_inputs = p.inputs.len();
         let num_controls = p.controls.len();
         let num_ccontrols = p.complex_controls.len();
-        (num_inputs, num_controls, num_ccontrols)
+        Ok((num_inputs, num_controls, num_ccontrols))
     }
 
     // The mode will indicate how data about this module is stored. Different modes take up
@@ -674,31 +693,35 @@ impl SavedModule {
         }
     }
 
-    fn deserialize(slice: &mut &[u8], mode_u2: u8, ordered_lib_names: &[String]) -> Self {
+    fn deserialize(
+        slice: &mut &[u8],
+        mode_u2: u8,
+        ordered_lib_names: &[String],
+    ) -> Result<Self, ()> {
         let (small_coords, small_resource) = decompose_u2(mode_u2);
         let (x, y) = if small_coords {
-            (des_i16(slice) as i32, des_i16(slice) as i32)
+            (des_i16(slice)? as i32, des_i16(slice)? as i32)
         } else {
-            (des_i32(slice), des_i32(slice))
+            (des_i32(slice)?, des_i32(slice)?)
         };
         let (lib_index, template_index) = if small_resource {
-            (0, des_u8(slice) as usize)
+            (0, des_u8(slice)? as usize)
         } else {
-            (des_u8(slice) as usize, des_u16(slice) as usize)
+            (des_u8(slice)? as usize, des_u16(slice)? as usize)
         };
         let lib_name = if lib_index == 0 {
             "base".to_owned()
         } else {
             ordered_lib_names[lib_index as usize - 1].clone()
         };
-        Self {
+        Ok(Self {
             lib_name,
             template_id: template_index,
             controls: Vec::new(),
             complex_controls: Vec::new(),
             input_connections: Vec::new(),
             pos: (x, y),
-        }
+        })
     }
 }
 
@@ -726,7 +749,7 @@ impl SavedModuleGraph {
         Self { modules }
     }
 
-    fn restore(&self, graph: &mut ep::ModuleGraph, registry: &Registry) -> Result<(), String> {
+    fn restore(&self, graph: &mut ep::ModuleGraph, registry: &Registry) -> Result<(), ()> {
         let modules: Vec<_> = self
             .modules
             .iter()
@@ -839,36 +862,38 @@ impl SavedModuleGraph {
         }
     }
 
-    fn deserialize(slice: &mut &[u8], registry: &Registry) -> Self {
-        let num_libs = des_u8(slice);
+    fn deserialize(slice: &mut &[u8], registry: &Registry) -> Result<Self, ()> {
+        let num_libs = des_u8(slice)?;
         let mut ordered_lib_names = Vec::new();
         for _ in 0..num_libs {
-            ordered_lib_names.push(des_str(slice));
+            ordered_lib_names.push(des_str(slice)?);
         }
-        let num_modules = des_u16(slice) as usize;
-        let mod_modes = des_u2_slice(slice, num_modules);
-        let mut modules =
-            mod_modes.imc(|mode| SavedModule::deserialize(slice, *mode, &ordered_lib_names));
+        let num_modules = des_u16(slice)? as usize;
+        let mod_modes = des_u2_slice(slice, num_modules)?;
+        let mut modules: Vec<_> = mod_modes
+            .iter()
+            .map(|mode| SavedModule::deserialize(slice, *mode, &ordered_lib_names))
+            .collect::<Result<_, _>>()?;
 
         let (mut num_inputs, mut num_controls, mut num_ccontrols) = (0, 0, 0);
         for module in &modules {
-            let (i, c, cc) = module.get_requirements(registry);
+            let (i, c, cc) = module.get_requirements(registry)?;
             num_inputs += i;
             num_controls += c;
             num_ccontrols += cc;
         }
 
-        let input_modes = des_u2_slice(slice, num_inputs);
+        let input_modes = des_u2_slice(slice, num_inputs)?;
         let mut inputs = vec![None; num_inputs];
         let mut num_mode1_inputs = 0;
         for (index, mode) in input_modes.iter().cloned().enumerate() {
             if mode == 0 || mode == 2 || mode == 3 {
-                inputs[index] = Some(SavedInputConnection::deserialize_mode023(slice, mode));
+                inputs[index] = Some(SavedInputConnection::deserialize_mode023(slice, mode)?);
             } else {
                 num_mode1_inputs += 1;
             }
         }
-        let u4_data = des_u4_slice(slice, num_mode1_inputs);
+        let u4_data = des_u4_slice(slice, num_mode1_inputs)?;
         let mut data_index = 0;
         for (index, mode) in input_modes.iter().cloned().enumerate() {
             if mode == 1 {
@@ -879,7 +904,7 @@ impl SavedModuleGraph {
             }
         }
 
-        let control_modes = des_u2_slice(slice, num_controls);
+        let control_modes = des_u2_slice(slice, num_controls)?;
         let mut controls = vec![None; num_controls];
         let mut num_mode3_controls = 0;
         let mut num_lanes = 0;
@@ -887,12 +912,12 @@ impl SavedModuleGraph {
             if mode == 3 {
                 num_mode3_controls += 1;
             } else {
-                let (control, lanes) = SavedControl::deserialize_mode012(slice, mode);
+                let (control, lanes) = SavedControl::deserialize_mode012(slice, mode)?;
                 num_lanes += lanes;
                 controls[index] = Some((control, lanes));
             }
         }
-        let u4_data = des_u4_slice(slice, num_mode3_controls);
+        let u4_data = des_u4_slice(slice, num_mode3_controls)?;
         let mut data_index = 0;
         for (index, mode) in control_modes.iter().cloned().enumerate() {
             if mode == 3 {
@@ -903,15 +928,19 @@ impl SavedModuleGraph {
             }
         }
 
-        let complex_controls: Vec<_> = (0..num_ccontrols)
-            .map(|_| SavedComplexControl::deserialize(slice))
-            .collect();
-        let lane_modes = des_u4_slice(slice, num_lanes);
-        let lanes = lane_modes.imc(|mode| SavedAutomationLane::deserialize(slice, *mode));
+        let mut complex_controls = Vec::new();
+        for _ in 0..num_ccontrols {
+            complex_controls.push(SavedComplexControl::deserialize(slice)?);
+        }
+        let lane_modes = des_u4_slice(slice, num_lanes)?;
+        let mut lanes = Vec::new();
+        for mode in lane_modes.into_iter() {
+            lanes.push(SavedAutomationLane::deserialize(slice, mode)?);
+        }
 
         let (mut ip, mut cp, mut ccp, mut lp) = (0, 0, 0, 0);
         for module in &mut modules {
-            let (i, c, cc) = module.get_requirements(registry);
+            let (i, c, cc) = module.get_requirements(registry)?;
             for _ in 0..i {
                 module.input_connections.push(inputs[ip].clone().unwrap());
                 ip += 1;
@@ -931,7 +960,7 @@ impl SavedModuleGraph {
             }
         }
 
-        Self { modules }
+        Ok(Self { modules })
     }
 }
 
@@ -998,7 +1027,9 @@ impl Patch {
         graph: &mut ep::ModuleGraph,
         registry: &Registry,
     ) -> Result<(), String> {
-        self.note_graph.restore(graph, registry)
+        self.note_graph
+            .restore(graph, registry)
+            .map_err(|_| "ERROR: Patch data is corrupt".to_owned())
     }
 
     pub fn write(&self) -> io::Result<()> {
@@ -1033,15 +1064,22 @@ impl Patch {
         reader
             .read_to_end(&mut everything)
             .map_err(|_| "ERROR: Failed to read patch data".to_owned())?;
-        let everything = base64::decode_config(&everything, base64::URL_SAFE_NO_PAD)
-            .map_err(|_| "ERROR: Patch data is corrupted".to_owned())?;
+
+        let err_map = |_| "ERROR: Patch data is corrupt".to_owned();
+        let everything =
+            base64::decode_config(&everything, base64::URL_SAFE_NO_PAD).map_err(err_map)?;
+
+        let err_map = |_| "ERROR: Patch data is corrupt".to_owned();
         let mut ptr = &everything[..];
-        assert!(
-            des_u8(&mut ptr) == 0,
-            "TODO: Nice error, newer save format."
-        );
-        let name = des_str(&mut ptr);
-        let note_graph = SavedModuleGraph::deserialize(&mut ptr, registry);
+        if des_u8(&mut ptr).map_err(err_map)? > 0 {
+            return Err("ERROR: patch was created in a newer version of Audiobench".to_owned());
+        }
+
+        let err_map = |_| "ERROR: Patch data is corrupt".to_owned();
+        let name = des_str(&mut ptr).map_err(err_map)?;
+
+        let note_graph = SavedModuleGraph::deserialize(&mut ptr, registry)
+            .map_err(|_| "ERROR: Patch data is corrupt".to_owned())?;
         Ok(Self {
             source,
             name,
