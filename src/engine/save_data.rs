@@ -195,7 +195,6 @@ fn des_u16(slice: &mut &[u8]) -> Result<u16, ()> {
     if slice.len() < 2 {
         return Err(());
     }
-    debug_assert!(slice.len() >= 2);
     let res = u16::from_be_bytes([slice[0], slice[1]]);
     advance_des(slice, 2);
     Ok(res)
@@ -206,7 +205,6 @@ fn des_i32(slice: &mut &[u8]) -> Result<i32, ()> {
     if slice.len() < 4 {
         return Err(());
     }
-    debug_assert!(slice.len() >= 4);
     let res = i32::from_be_bytes([slice[0], slice[1], slice[2], slice[3]]);
     advance_des(slice, 4);
     Ok(res)
@@ -988,7 +986,7 @@ impl Patch {
 
     pub fn load_readable(
         source: String,
-        reader: &mut io::BufReader<impl Read>,
+        reader: &mut impl Read,
         registry: &Registry,
     ) -> Result<Self, String> {
         Self::deserialize(PatchSource::Readable(source), reader, registry)
@@ -996,7 +994,7 @@ impl Patch {
 
     pub fn load_writable(
         source: PathBuf,
-        reader: &mut io::BufReader<impl Read>,
+        reader: &mut impl Read,
         registry: &Registry,
     ) -> Result<Self, String> {
         Self::deserialize(PatchSource::Writable(source), reader, registry)
@@ -1057,7 +1055,7 @@ impl Patch {
 
     fn deserialize(
         source: PatchSource,
-        reader: &mut io::BufReader<impl Read>,
+        reader: &mut impl Read,
         registry: &Registry,
     ) -> Result<Self, String> {
         let mut everything = Vec::new();

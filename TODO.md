@@ -1,5 +1,4 @@
 # Things with no dependencies
-Vertically stack small modules
 LFO
 Transposer
 Beat sequencer
@@ -25,7 +24,11 @@ Highlight connections when hovering over things like outputs and automation
   lanes to see more easily what's connected to what
 Play a pretend note when moving knobs so you can see its effect without playing your own note.
 Undo / redo
-Make the add modules menu look nice
+Make the add modules menu look better
+Search filters for the add module menu
+  alphabetical sort vs category sort
+  require certain inputs / outputs
+  scrollbar too maybe
 Make window resizable
 Nicer error when a patch requires newer modules (not just "patch is corrupt")
 

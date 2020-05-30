@@ -336,6 +336,7 @@ pub struct Registry {
     scripts: HashMap<String, String>,
     icon_indexes: HashMap<String, usize>,
     icons: Vec<Vec<u8>>,
+    unloaded_patches: Vec<(String, Option<PathBuf>, Vec<u8>)>,
     patches: Vec<Rcrc<Patch>>,
     patch_paths: HashMap<String, usize>,
     library_path: PathBuf,
@@ -396,7 +397,7 @@ impl Registry {
         full_path: Option<PathBuf>,
         buffer: Vec<u8>,
     ) -> Result<(), String> {
-        let mut reader = std::io::BufReader::new(std::io::Cursor::new(buffer));
+        let mut reader = std::io::Cursor::new(buffer);
         let patch = if let Some(full_path) = full_path {
             crate::engine::save_data::Patch::load_writable(full_path, &mut reader, &self)
         } else {
@@ -443,7 +444,7 @@ impl Registry {
         } else if file_name.ends_with(".ns") {
             self.load_script_resource(&full_name, buffer)?;
         } else if file_name.ends_with(".abpatch") {
-            self.load_patch(&full_name, full_path, buffer)?;
+            self.unloaded_patches.push((full_name, full_path, buffer));
         } else if file_name.ends_with(".md") {
             // Ignore, probably just readme / license type stuff.
         } else {
@@ -612,6 +613,8 @@ impl Registry {
                 err
             )
         })?;
+        let mut loaded_libraries = HashSet::new();
+        loaded_libraries.insert("base".to_owned());
         for entry in fs::read_dir(&self.library_path).map_err(|err| {
             format!(
                 "ERROR: Failed to read libraries from {}, caused by:\n{}",
@@ -624,14 +627,42 @@ impl Registry {
             } else {
                 continue;
             };
-            println!("{:?}", entry.path());
             if entry.path().is_dir() {
+                #[rustfmt::skip]
+                let name = entry.path().file_name().unwrap().to_string_lossy().into_owned();
+                if loaded_libraries.contains(&name) {
+                    return Err(format!(
+                        "ERROR: You have installed multiple libraries named {}",
+                        name
+                    ));
+                }
+                loaded_libraries.insert(name);
                 self.load_library_from_folder(&entry.path())?;
-            } else if entry.path().extension() == Some(std::ffi::OsStr::new(".ablib")) {
+            } else if entry.path().extension() == Some(std::ffi::OsStr::new("ablib")) {
+                #[rustfmt::skip]
+                let name = entry.path().file_name().unwrap().to_string_lossy().into_owned();
+                let name = String::from(&name[..name.len() - 6]);
+                if loaded_libraries.contains(&name) {
+                    return Err(format!(
+                        "ERROR: You have installed multiple libraries named {}",
+                        name
+                    ));
+                }
+                loaded_libraries.insert(name);
                 self.load_library_from_file(&entry.path())?;
             } else {
-                panic!("TODO: Nice error, file is not a library");
+                return Err(format!(
+                    "ERROR: The following library does not have the right extension (.ablib):\n{}",
+                    entry.path().to_string_lossy()
+                ));
             }
+        }
+
+        // We wait to load patches in case patches depend on libraries that aren't loaded yet when
+        // the library they are a part of is being loaded.
+        let unloaded_patches = std::mem::take(&mut self.unloaded_patches);
+        for (name, path, data) in unloaded_patches.into_iter() {
+            self.load_patch(&name, path, data)?;
         }
 
         Ok(())
@@ -651,6 +682,7 @@ impl Registry {
             scripts: HashMap::new(),
             icon_indexes: HashMap::new(),
             icons: Vec::new(),
+            unloaded_patches: Vec::new(),
             patches: Vec::new(),
             patch_paths: HashMap::new(),
             library_path,
