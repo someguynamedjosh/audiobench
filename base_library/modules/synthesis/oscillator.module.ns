@@ -1,4 +1,4 @@
-DATA_TYPE SAMPLE = amplitude[0?]:TYPE + Waveform(0, 0.0):TYPE + pitch:TYPE;
+DATA_TYPE SAMPLE = amplitude[0?]:TYPE + Waveform(0, 0.0):TYPE + pitch[0?]:TYPE;
 [BUFFER_LENGTH]SAMPLE audio;
 
 static phase {
@@ -10,7 +10,7 @@ for i = 0 to BUFFER_LENGTH no_unroll {
     SAMPLE value = 0.0;
     for subsample = 0 to OVERSAMPLING {
         value = value + amplitude[i?] * Waveform(i, phase);
-        phase = (phase + pitch / SAMPLE_RATE / Itof(OVERSAMPLING)) % 1.0;
+        phase = (phase + pitch[i?] / SAMPLE_RATE / Itof(OVERSAMPLING)) % 1.0;
     }
     audio[i] = value / Itof(OVERSAMPLING);
 }

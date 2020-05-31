@@ -32,7 +32,10 @@ impl Control {
 
     pub fn sever_connections_with(&mut self, module: &Rcrc<Module>) {
         for index in (0..self.automation.len()).rev() {
-            if std::ptr::eq(self.automation[index].connection.0.as_ref(), module.as_ref()) {
+            if std::ptr::eq(
+                self.automation[index].connection.0.as_ref(),
+                module.as_ref(),
+            ) {
                 self.automation.remove(index);
             }
         }
@@ -230,10 +233,10 @@ impl Clone for Module {
             template: Rc::clone(&self.template),
             controls: self
                 .controls
-                .iter()
-                .map(|control_ref| rcrc((*control_ref.borrow()).clone()))
-                .collect(),
-            complex_controls: self.complex_controls.clone(),
+                .imc(|control_ref| rcrc((*control_ref.borrow()).clone())),
+            complex_controls: self
+                .complex_controls
+                .imc(|control_ref| rcrc((*control_ref.borrow()).clone())),
             pos: self.pos,
             inputs: self.inputs.clone(),
             feedback_data: None,

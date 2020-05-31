@@ -1,5 +1,4 @@
 # Things with no dependencies
-Fix Multiple modules share complex control references
 Transposer
 Beat sequencer
 Pitch sequencer
