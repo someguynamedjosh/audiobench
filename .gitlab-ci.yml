@@ -39,6 +39,8 @@ build-windows:
   script:
     - choco install cmake.install -y --version=3.16.7 --installargs 'ADD_CMAKE_TO_PATH=User'
     - refreshenv
+    - echo "Despite the fact that chocolatey promises that refreshenv works, it in fact does absolutely nothing and is useless"
+    - $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
     - cmake --version
     - choco install rust --version=1.41.0 -y
     - choco install mingw -y
