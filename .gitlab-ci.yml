@@ -37,6 +37,7 @@ build-windows:
   stage: build
   script:
     - choco install llvm -y --version=7.0.1
+    - $Env:LLVM_SYS_70_PREFIX="c:\Program Files\LLVM\"
     - choco install cmake -y --version=3.16.7 --installargs 'ADD_CMAKE_TO_PATH=System'
     - choco install rust -y
     - choco install mingw -y
