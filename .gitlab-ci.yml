@@ -37,7 +37,9 @@ build-windows:
     - windows-1809
   stage: build
   script:
-    - choco install cmake -y --version=3.16.7 --installargs 'ADD_CMAKE_TO_PATH=System'
+    - choco install cmake.install -y --version=3.16.7 --installargs 'ADD_CMAKE_TO_PATH=User'
+    - refreshenv
+    - cmake --version
     - choco install rust --version=1.41.0 -y
     - choco install mingw -y
     - choco install windows-sdk-10.0 -y
