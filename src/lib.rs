@@ -232,6 +232,16 @@ impl Instance {
         }
     }
 
+    pub fn scroll(&mut self, delta: f32) {
+        if let Some(gui) = &mut self.gui {
+            let action = gui.on_scroll(&self.registry, delta);
+            action.map(|a| self.perform_action(a));
+        } else if self.critical_error.is_none() {
+            debug_assert!(false, "mouse_up called, but no GUI exists.");
+            eprintln!("WARNING: mouse_up called, but no GUI exists.");
+        }
+    }
+
     pub fn key_press(&mut self, key: u8) {
         if let Some(gui) = &mut self.gui {
             let action = gui.on_key_press(&self.registry, key);
@@ -325,32 +335,37 @@ pub unsafe extern "C" fn ABDestroyUI(instance: *mut Instance) {
 #[no_mangle]
 pub unsafe extern "C" fn ABUIMouseDown(
     instance: *mut Instance,
-    x: i32,
-    y: i32,
+    x: f32,
+    y: f32,
     right_click: bool,
     shift: bool,
     precise: bool,
 ) {
-    (*instance).mouse_down(x as f32, y as f32, right_click, shift, precise);
+    (*instance).mouse_down(x, y, right_click, shift, precise);
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn ABUIMouseMove(
     instance: *mut Instance,
-    x: i32,
-    y: i32,
+    x: f32,
+    y: f32,
     right_click: bool,
     shift: bool,
     precise: bool,
 ) {
     // TOTO: I don't think we're in canvas anymore
     // TODO: Make ABI functions accept floats
-    (*instance).mouse_move(x as f32, y as f32, right_click, shift, precise);
+    (*instance).mouse_move(x, y, right_click, shift, precise);
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn ABUIMouseUp(instance: *mut Instance) {
     (*instance).mouse_up();
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ABUIScroll(instance: *mut Instance, delta: f32) {
+    (*instance).scroll(delta);
 }
 
 #[no_mangle]

@@ -34,8 +34,9 @@ extern "C" {
     void ABCreateUI(ABInstanceRef);
     void ABDrawUI(ABInstanceRef, void *extraData, void *iconStore);
     void ABDestroyUI(ABInstanceRef);
-    void ABUIMouseDown(ABInstanceRef, int, int, bool, bool, bool);
-    void ABUIMouseMove(ABInstanceRef, int, int, bool, bool, bool);
+    void ABUIMouseDown(ABInstanceRef, float, float, bool, bool, bool);
+    void ABUIMouseMove(ABInstanceRef, float, float, bool, bool, bool);
     void ABUIMouseUp(ABInstanceRef);
+    void ABUIScroll(ABInstanceRef, float);
     void ABUIKeyPress(ABInstanceRef, char);
 }

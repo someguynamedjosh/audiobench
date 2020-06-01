@@ -29,6 +29,7 @@ public:
     void mouseMove(const MouseEvent &event) override;
     void mouseDrag(const MouseEvent &event) override;
     void mouseUp(const MouseEvent &event) override;
+    virtual void mouseWheelMove(const MouseEvent &event, const MouseWheelDetails &wheel) override;
     virtual bool keyPressed(const KeyPress &key, Component *originatingComponent) override;
     void timerCallback() override { 
       repaint(); 

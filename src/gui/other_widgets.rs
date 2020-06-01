@@ -361,7 +361,8 @@ impl PatchBrowser {
             MouseAction::RenamePatch(text.to_owned())
         });
         let save_icon = registry.lookup_icon("base:save").unwrap();
-        let mut save_button = IconButton::create((GRID_P + hw - CG * 2.0 - GRID_P, 0.0), CG, save_icon);
+        let mut save_button =
+            IconButton::create((GRID_P + hw - CG * 2.0 - GRID_P, 0.0), CG, save_icon);
         let new_icon = registry.lookup_icon("base:add").unwrap();
         let new_button = IconButton::create((GRID_P + hw - CG, 0.0), CG, new_icon);
 
@@ -629,7 +630,7 @@ impl ModuleBrowser {
         let entries: Vec<_> = registry
             .borrow_modules()
             .imc(|module| ModuleBrowserEntry::from(module));
-        let vertical_stacking = size.1 / (ModuleBrowserEntry::HEIGHT + GRID_P);
+        let vertical_stacking = (size.1 / (ModuleBrowserEntry::HEIGHT + GRID_P)).floor();
 
         let mut alphabetical_order: Vec<_> = (0..entries.len()).collect();
         alphabetical_order.sort_by(|a, b| entries[*a].name.cmp(&entries[*b].name));
@@ -726,7 +727,8 @@ impl ModuleBrowser {
         for (index, entry) in list.iter().enumerate() {
             let index = index as f32;
             let (x, y) = (
-                (index / self.vertical_stacking) * (ModuleBrowserEntry::WIDTH + GRID_P) + GRID_P,
+                (index / self.vertical_stacking).floor() * (ModuleBrowserEntry::WIDTH + GRID_P)
+                    + GRID_P,
                 (index % self.vertical_stacking) * (ModuleBrowserEntry::HEIGHT + GRID_P) + GRID_P,
             );
             g.push_state();

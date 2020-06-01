@@ -287,6 +287,17 @@ impl Gui {
             .flatten()
     }
 
+    pub fn on_scroll(&mut self, registry: &Registry, delta: f32) -> Option<InstanceAction> {
+        if let GuiScreen::NoteGraph = self.current_screen {
+            return self
+                .graph
+                .on_scroll(delta)
+                .map(|a| self.perform_action(registry, a))
+                .flatten();
+        }
+        None
+    }
+
     pub fn on_key_press(&mut self, registry: &Registry, key: u8) -> Option<InstanceAction> {
         // For some reason JUCE gives CR for enter instead of LF.
         let key = if key == 13 { 10 } else { key };

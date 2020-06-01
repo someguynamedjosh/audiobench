@@ -1,6 +1,6 @@
 use crate::engine::parts as ep;
 use crate::engine::registry::Registry;
-use crate::gui::action::{DropTarget, MouseAction};
+use crate::gui::action::{DropTarget, GuiAction, MouseAction};
 use crate::gui::constants::*;
 use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
 use crate::gui::module_widgets::{self, KnobEditor, ModuleWidget};
@@ -858,15 +858,17 @@ impl ModuleGraph {
             .iter()
             .map(|module_rc| Module::create(registry, Rc::clone(module_rc)))
             .collect();
-        Self {
+        let mut res = Self {
             pos: (0.0, 0.0),
             size,
-            zoom: rcrc(2.0),
+            zoom: rcrc(1.0),
             offset: rcrc((0.0, 0.0)),
             graph,
             modules,
             detail_menu_widget: None,
-        }
+        };
+        res.recenter();
+        res
     }
 
     pub fn rebuild(&mut self, registry: &Registry) {
@@ -919,7 +921,8 @@ impl ModuleGraph {
             y2 = y2.max(corner2.1);
         }
         let center = ((x2 - x1) / 2.0 + x1, (y2 - y1) / 2.0 + y1);
-        let offset = center.sub((self.size.0 / 2.0, self.size.1 / 2.0));
+        let zoom = *self.zoom.borrow();
+        let offset = center.sub((self.size.0 / zoom / 2.0, self.size.1 / zoom / 2.0));
         *self.offset.borrow_mut() = (-offset.0 as f32, -offset.1 as f32);
     }
 
@@ -955,12 +958,13 @@ impl ModuleGraph {
         mouse_pos: (f32, f32),
         mods: &MouseMods,
     ) -> MouseAction {
-        let scale = 1.0 / *self.zoom.borrow();
         let mouse_pos = self.translate_mouse_pos(mouse_pos);
         if let Some(widget) = &self.detail_menu_widget {
             let local_pos = mouse_pos.sub(widget.get_pos());
             if local_pos.inside(widget.get_bounds()) {
-                return widget.respond_to_mouse_press(local_pos, mods).scaled(scale);
+                return widget
+                    .respond_to_mouse_press(local_pos, mods)
+                    .scaled(Rc::clone(&self.zoom));
             } else {
                 self.detail_menu_widget = None;
             }
@@ -968,10 +972,19 @@ impl ModuleGraph {
         for module in self.modules.iter().rev() {
             let action = module.respond_to_mouse_press(mouse_pos, mods);
             if !action.is_none() {
-                return action.scaled(scale);
+                return action.scaled(Rc::clone(&self.zoom));
             }
         }
-        MouseAction::PanOffset(Rc::clone(&self.offset)).scaled(scale)
+        MouseAction::PanOffset(Rc::clone(&self.offset)).scaled(Rc::clone(&self.zoom))
+    }
+
+    pub fn on_scroll(&mut self, delta: f32) -> Option<GuiAction> {
+        let mut offset = self.offset.borrow_mut();
+        let mut zoom = self.zoom.borrow_mut();
+        *offset = offset.sub((self.size.0 / *zoom / 2.0, self.size.1 / *zoom / 2.0));
+        *zoom *= f32::exp(delta / 3.0);
+        *offset = offset.add((self.size.0 / *zoom / 2.0, self.size.1 / *zoom / 2.0));
+        None
     }
 
     pub fn get_drop_target_at(&self, mouse_pos: (f32, f32)) -> DropTarget {

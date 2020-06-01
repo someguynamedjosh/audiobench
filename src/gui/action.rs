@@ -67,7 +67,7 @@ pub enum MouseAction {
     NewPatch(Box<dyn Fn(&Rcrc<Patch>)>),
     LoadPatch(Rcrc<Patch>),
     FocusTextField(Rcrc<TextField>),
-    Scaled(Box<MouseAction>, f32),
+    Scaled(Box<MouseAction>, Rcrc<f32>),
 }
 
 impl MouseAction {
@@ -80,7 +80,7 @@ impl MouseAction {
     }
 
     // This will return self if !self.allow_scaled()
-    pub fn scaled(self, scale: f32) -> Self {
+    pub fn scaled(self, scale: Rcrc<f32>) -> Self {
         if self.allow_scaled() {
             Self::Scaled(Box::new(self), scale)
         } else {
@@ -308,7 +308,8 @@ impl MouseAction {
                 offset_ref.1 += delta.1;
             }
             Self::Scaled(base, scale) => {
-                return base.on_drag((delta.0 * *scale, delta.1 * *scale), mods);
+                let scale = *scale.borrow();
+                return base.on_drag((delta.0 / scale, delta.1 / scale), mods);
             }
             _ => (),
         }

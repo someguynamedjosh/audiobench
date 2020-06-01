@@ -307,6 +307,11 @@ void AudiobenchAudioProcessorEditor::mouseUp(const MouseEvent &event)
     ABUIMouseUp(processor.ab);
 }
 
+void AudiobenchAudioProcessorEditor::mouseWheelMove(const MouseEvent &event, const MouseWheelDetails &wheel)
+{
+    ABUIScroll(processor.ab, wheel.deltaY);
+}
+
 bool AudiobenchAudioProcessorEditor::keyPressed(const KeyPress &key, Component *originatingComponent)
 {
     ABUIKeyPress(processor.ab, (char)key.getTextCharacter());
