@@ -1,10 +1,7 @@
 # Things with no dependencies
-Transposer
-Beat sequencer
-Pitch sequencer
 Center the canvas when loading a new patch
-scroll to zoom
 Windows VST build
+scroll to zoom
 Inverted lanes
 "never" trigger default
 pitch bend & mod wheel
@@ -14,8 +11,11 @@ flush out NaN errors in envelope
 Fix rendering of controls that have a zero point outside of their range
 More default waveforms (ramp up/down, sin)
 More snapping points when dragging knobs
+Global timing and tempo
 
 # Things with missing dependencies
+Beat sequencer
+Pitch sequencer
 
 # Low-priority things without dependencies
 Int boxes are a pain to use because double-click.

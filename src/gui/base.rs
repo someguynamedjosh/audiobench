@@ -115,14 +115,11 @@ impl Gui {
     ) -> Self {
         let size = (640, 480);
         let y = other_widgets::MenuBar::HEIGHT;
+        let screen_size = (size.0, size.1 - y);
 
-        let patch_browser = other_widgets::PatchBrowser::create(
-            current_patch,
-            registry,
-            (0, y),
-            (size.0, size.1 - y),
-        );
-        let mut graph = audio_widgets::ModuleGraph::create(registry, graph_ref);
+        let patch_browser =
+            other_widgets::PatchBrowser::create(current_patch, registry, (0, y), screen_size);
+        let mut graph = audio_widgets::ModuleGraph::create(registry, graph_ref, screen_size);
         graph.pos.1 = y;
         let module_browser =
             other_widgets::ModuleBrowser::create(registry, (0, y), (size.0, size.1 - y));

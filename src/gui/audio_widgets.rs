@@ -841,6 +841,7 @@ impl Module {
 
 pub struct ModuleGraph {
     pub pos: (i32, i32),
+    size: (i32, i32),
     offset: Rcrc<(i32, i32)>,
     graph: Rcrc<ep::ModuleGraph>,
     modules: Vec<Module>,
@@ -849,7 +850,7 @@ pub struct ModuleGraph {
 }
 
 impl ModuleGraph {
-    pub fn create(registry: &Registry, graph: Rcrc<ep::ModuleGraph>) -> Self {
+    pub fn create(registry: &Registry, graph: Rcrc<ep::ModuleGraph>, size: (i32, i32)) -> Self {
         let modules = graph
             .borrow()
             .borrow_modules()
@@ -858,6 +859,7 @@ impl ModuleGraph {
             .collect();
         Self {
             pos: (0, 0),
+            size,
             offset: rcrc((0, 0)),
             graph,
             modules,
@@ -894,6 +896,29 @@ impl ModuleGraph {
             .iter()
             .map(|module_rc| Module::create(registry, Rc::clone(module_rc)))
             .collect();
+        self.recenter();
+    }
+
+    fn recenter(&mut self) {
+        let (mut x1, mut y1) = (std::i32::MAX, std::i32::MAX);
+        let (mut x2, mut y2) = (std::i32::MIN, std::i32::MIN);
+        if self.modules.len() == 0 {
+            x1 = 0;
+            y1 = 0;
+            x2 = 0;
+            y2 = 0;
+        }
+        for module in &self.modules {
+            let corner1 = module.get_pos();
+            let corner2 = corner1.add(module.size);
+            x1 = x1.min(corner1.0);
+            y1 = y1.min(corner1.1);
+            x2 = x2.max(corner2.0);
+            y2 = y2.max(corner2.1);
+        }
+        let center = ((x2 - x1) / 2 + x1, (y2 - y1) / 2 + y1);
+        let offset = center.sub((self.size.0 / 2, self.size.1 / 2));
+        *self.offset.borrow_mut() = (0, 0).sub(offset);
     }
 
     pub fn add_module(&mut self, registry: &Registry, mut module: ep::Module) {
