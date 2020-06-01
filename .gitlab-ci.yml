@@ -37,7 +37,8 @@ build-windows:
   stage: build
   script:
     - choco install llvm -y --version=7.0.1
-    - choco install cmake -y --version=3.16.7
+    - choco install cmake -y --version=3.16.7 --installargs 'ADD_CMAKE_TO_PATH=System'
+    - choco install rust -y
     - cd frontends/juce/
     - git submodule init
     - git submodule update
