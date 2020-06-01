@@ -29,6 +29,27 @@ build-linux:
     paths:
       - frontends/juce/artifacts/
 
+build-windows:
+  tags:
+    - shared-windows
+    - windows
+    - windows-1809
+  stage: build
+  script:
+    - choco install llvm --version=7.0.1
+    - choco install cmake --version=3.16.7
+    - cd frontends/juce/
+    - git submodule init
+    - git submodule update
+    - .\build_win
+  only:
+    - master
+    - merge_requests
+  artifacts:
+    expire_in: 2h
+    paths:
+      - frontends/juce/artifacts/
+
 build-website:
   stage: build
   image: alpine
@@ -50,7 +71,7 @@ pages:
     - mkdir public
     - mv docs/website/artifacts/* public/
     - mkdir public/builds/
-    - mv frontends/juce/artifacts/* public/
+    - mv frontends/juce/artifacts/* public/builds/
   only:
     - master
   artifacts:
