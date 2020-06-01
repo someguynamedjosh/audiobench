@@ -7,7 +7,8 @@ build-linux:
   stage: build
   image: rust:latest
   script:
-    - SOURCE_DIR="${pwd}"
+    - pwd
+    - export SOURCE_DIR="${pwd}"
     - cd /
     - wget https://github.com/Kitware/CMake/releases/download/v3.16.7/cmake-3.16.7-Linux-x86_64.tar.gz
     - tar -xzf cmake-3.16.7-Linux-x86_64.tar.gz
@@ -15,6 +16,7 @@ build-linux:
     - apt update
     - apt -y install llvm-7 libxrandr-dev libxinerama-dev libxcursor-dev libasound-dev
     - export LLVM_SYS_70_PREFIX=/usr/bin/llvm-7/
+    - echo $SOURCE_DIR
     - cd $SOURCE_DIR
     - cd frontends/juce/
     - ./build_linux.sh --release
