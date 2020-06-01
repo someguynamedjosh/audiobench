@@ -10,7 +10,7 @@ cargo build --release
 md artifacts -ea 0
 md _build -ea 0
 cd _build
-cmake ..
+cmake -Thost=x64 ..
 cd ..
 cmake --build _build --config Release
 Tree _build\Audiobench_artefacts\ /F
