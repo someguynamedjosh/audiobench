@@ -36,8 +36,8 @@ build-windows:
     - windows-1809
   stage: build
   script:
-    - choco install llvm --version=7.0.1
-    - choco install cmake --version=3.16.7
+    - choco install llvm -y --version=7.0.1
+    - choco install cmake -y --version=3.16.7
     - cd frontends/juce/
     - git submodule init
     - git submodule update
