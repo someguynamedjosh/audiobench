@@ -53,8 +53,8 @@ pub enum MouseAction {
         precise_value: f32,
     },
     SetComplexControl(Rcrc<ep::ComplexControl>, String),
-    MoveModule(Rcrc<ep::Module>, (i32, i32)),
-    PanOffset(Rcrc<(i32, i32)>),
+    MoveModule(Rcrc<ep::Module>, (f32, f32)),
+    PanOffset(Rcrc<(f32, f32)>),
     ConnectInput(Rcrc<ep::Module>, usize),
     ConnectOutput(Rcrc<ep::Module>, usize),
     OpenMenu(Box<module_widgets::KnobEditor>),
@@ -67,6 +67,7 @@ pub enum MouseAction {
     NewPatch(Box<dyn Fn(&Rcrc<Patch>)>),
     LoadPatch(Rcrc<Patch>),
     FocusTextField(Rcrc<TextField>),
+    Scaled(Box<MouseAction>, f32),
 }
 
 impl MouseAction {
@@ -78,9 +79,26 @@ impl MouseAction {
         }
     }
 
+    // This will return self if !self.allow_scaled()
+    pub fn scaled(self, scale: f32) -> Self {
+        if self.allow_scaled() {
+            Self::Scaled(Box::new(self), scale)
+        } else {
+            self
+        }
+    }
+
+    pub fn allow_scaled(&self) -> bool {
+        match self {
+            Self::MoveModule(..) => true,
+            Self::PanOffset(..) => true,
+            _ => false,
+        }
+    }
+
     pub(in crate::gui) fn on_drag(
         &mut self,
-        delta: (i32, i32),
+        delta: (f32, f32),
         mods: &MouseMods,
     ) -> (Option<GuiAction>, Option<Tooltip>) {
         match self {
@@ -88,7 +106,7 @@ impl MouseAction {
                 let delta = delta.0 - delta.1;
                 // How many pixels the user must drag across to cover the entire range of the knob.
                 const DRAG_PIXELS: f32 = 200.0;
-                let mut delta = delta as f32 / DRAG_PIXELS;
+                let mut delta = delta / DRAG_PIXELS;
                 if mods.precise {
                     delta *= 0.2;
                 }
@@ -278,7 +296,7 @@ impl MouseAction {
                 *tracking = tracking.add(delta);
                 let mut module_ref = module.borrow_mut();
                 if mods.shift {
-                    const SPACING: i32 = grid(1) + GRID_P;
+                    const SPACING: f32 = (grid(1) + GRID_P) as f32;
                     module_ref.pos = tracking.sub((tracking.0 % SPACING, tracking.1 % SPACING));
                 } else {
                     module_ref.pos = *tracking;
@@ -288,6 +306,9 @@ impl MouseAction {
                 let mut offset_ref = offset.borrow_mut();
                 offset_ref.0 += delta.0;
                 offset_ref.1 += delta.1;
+            }
+            Self::Scaled(base, scale) => {
+                return base.on_drag((delta.0 * *scale, delta.1 * *scale), mods);
             }
             _ => (),
         }
@@ -337,6 +358,9 @@ impl MouseAction {
             }
             Self::ManipulateHertzControl { .. } => {
                 return Some(GuiAction::Elevate(InstanceAction::ReloadStructure))
+            }
+            Self::Scaled(base, ..) => {
+                return base.on_drop(target);
             }
             _ => (),
         }
@@ -399,6 +423,9 @@ impl MouseAction {
                     // If not, don't bother reloading the structure, which causes a notable hiccup.
                 }
             }
+            Self::Scaled(base, ..) => {
+                return base.on_click();
+            }
             _ => (),
         }
         None
@@ -439,6 +466,9 @@ impl MouseAction {
                     return Some(GuiAction::Elevate(InstanceAction::ReloadStructure));
                     // If not, don't bother reloading the structure, which causes a notable hiccup.
                 }
+            }
+            Self::Scaled(base, ..) => {
+                return base.on_double_click();
             }
             _ => return self.on_click(),
         }

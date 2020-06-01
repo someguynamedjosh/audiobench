@@ -27,6 +27,11 @@ void applyOffset(void *gp, int x, int y)
     ((Graphics *)gp)->addTransform(AffineTransform().translated(x, y));
 }
 
+void applyScale(void *gp, float s)
+{
+    ((Graphics *)gp)->addTransform(AffineTransform().scaled(s));
+}
+
 void setColor(void *gp, uint8_t r, uint8_t g, uint8_t b)
 {
     ((Graphics *)gp)->setColour(Colour(r, g, b));
@@ -132,6 +137,8 @@ void writeConsoleText(void *gp, int w, int h, char *text)
                 inEscapeCode = false;
                 // Change text appearence. We don't bother parsing any others because they aren't
                 // useful.
+                // Also there's only like 7 colors supported here because it's just writing error
+                // messages.
                 if (c == 'm')
                 {
                     if (escapeCode == "[0m")
@@ -225,6 +232,7 @@ AudiobenchAudioProcessorEditor::AudiobenchAudioProcessorEditor(AudiobenchAudioPr
     fns.pushState = pushState;
     fns.popState = popState;
     fns.applyOffset = applyOffset;
+    fns.applyScale = applyScale;
 
     fns.setColor = setColor;
     fns.setAlpha = setAlpha_notJuce;

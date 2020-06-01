@@ -545,7 +545,7 @@ impl Module {
     }
 
     pub fn input_position(module: &ep::Module, input_index: i32) -> (i32, i32) {
-        let module_pos = module.pos;
+        let module_pos = (module.pos.0 as i32, module.pos.1 as i32);
         (
             module_pos.0 + JACK_SIZE,
             module_pos.1 + Self::jack_y(input_index),
@@ -553,7 +553,7 @@ impl Module {
     }
 
     pub fn output_position(module: &ep::Module, output_index: i32) -> (i32, i32) {
-        let module_pos = module.pos;
+        let module_pos = (module.pos.0 as i32, module.pos.1 as i32);
         let module_size = module.template.borrow().size;
         let module_width = fatgrid(module_size.0) + MODULE_IO_WIDTH * 2 + JACK_SIZE;
         (
@@ -623,7 +623,8 @@ impl Module {
     }
 
     fn get_pos(&self) -> (i32, i32) {
-        self.module.borrow().pos
+        let pos = self.module.borrow().pos;
+        (pos.0 as i32, pos.1 as i32)
     }
 
     pub fn respond_to_mouse_press(&self, mouse_pos: (i32, i32), mods: &MouseMods) -> MouseAction {
@@ -842,7 +843,8 @@ impl Module {
 pub struct ModuleGraph {
     pub pos: (i32, i32),
     size: (i32, i32),
-    offset: Rcrc<(i32, i32)>,
+    offset: Rcrc<(f32, f32)>,
+    zoom: Rcrc<f32>,
     graph: Rcrc<ep::ModuleGraph>,
     modules: Vec<Module>,
     // Box because eventually this is going to be dyn.
@@ -860,7 +862,8 @@ impl ModuleGraph {
         Self {
             pos: (0, 0),
             size,
-            offset: rcrc((0, 0)),
+            zoom: rcrc(2.0),
+            offset: rcrc((0.0, 0.0)),
             graph,
             modules,
             detail_menu_widget: None,
@@ -918,7 +921,7 @@ impl ModuleGraph {
         }
         let center = ((x2 - x1) / 2 + x1, (y2 - y1) / 2 + y1);
         let offset = center.sub((self.size.0 / 2, self.size.1 / 2));
-        *self.offset.borrow_mut() = (0, 0).sub(offset);
+        *self.offset.borrow_mut() = (-offset.0 as f32, -offset.1 as f32);
     }
 
     pub fn add_module(&mut self, registry: &Registry, mut module: ep::Module) {
@@ -939,20 +942,26 @@ impl ModuleGraph {
         self.modules.remove(index);
     }
 
+    fn translate_mouse_pos(&self, mouse_pos: (i32, i32)) -> (i32, i32) {
+        let offset = self.offset.borrow();
+        let zoom = *self.zoom.borrow();
+        (
+            ((mouse_pos.0) as f32 / zoom - offset.0) as i32 - self.pos.0,
+            ((mouse_pos.1) as f32 / zoom - offset.1) as i32 - self.pos.1,
+        )
+    }
+
     pub fn respond_to_mouse_press(
         &mut self,
         mouse_pos: (i32, i32),
         mods: &MouseMods,
     ) -> MouseAction {
-        let offset = self.offset.borrow();
-        let mouse_pos = (
-            mouse_pos.0 - offset.0 - self.pos.0,
-            mouse_pos.1 - offset.1 - self.pos.1,
-        );
+        let scale = 1.0 / *self.zoom.borrow();
+        let mouse_pos = self.translate_mouse_pos(mouse_pos);
         if let Some(widget) = &self.detail_menu_widget {
             let local_pos = mouse_pos.sub(widget.get_pos());
             if local_pos.inside(widget.get_bounds()) {
-                return widget.respond_to_mouse_press(local_pos, mods);
+                return widget.respond_to_mouse_press(local_pos, mods).scaled(scale);
             } else {
                 self.detail_menu_widget = None;
             }
@@ -960,14 +969,15 @@ impl ModuleGraph {
         for module in self.modules.iter().rev() {
             let action = module.respond_to_mouse_press(mouse_pos, mods);
             if !action.is_none() {
-                return action;
+                return action.scaled(scale);
             }
         }
-        MouseAction::PanOffset(Rc::clone(&self.offset))
+        MouseAction::PanOffset(Rc::clone(&self.offset)).scaled(scale)
     }
 
     pub fn get_drop_target_at(&self, mouse_pos: (i32, i32)) -> DropTarget {
         let offset = self.offset.borrow();
+        let offset = (offset.0 as i32, offset.1 as i32);
         let mouse_pos = (
             mouse_pos.0 - offset.0 - self.pos.0,
             mouse_pos.1 - offset.1 - self.pos.1,
@@ -982,11 +992,7 @@ impl ModuleGraph {
     }
 
     pub fn get_tooltip_at(&self, mouse_pos: (i32, i32)) -> Option<Tooltip> {
-        let offset = self.offset.borrow();
-        let mouse_pos = (
-            mouse_pos.0 - offset.0 - self.pos.0,
-            mouse_pos.1 - offset.1 - self.pos.1,
-        );
+        let mouse_pos = self.translate_mouse_pos(mouse_pos);
         if let Some(dmw) = &self.detail_menu_widget {
             let local_pos = mouse_pos.sub(dmw.get_pos());
             if local_pos.inside(dmw.get_bounds()) {
@@ -1003,10 +1009,11 @@ impl ModuleGraph {
 
     pub fn draw(&self, g: &mut GrahpicsWrapper, gui_state: &Gui) {
         let offset = self.offset.borrow();
+        let offset = (offset.0 as i32, offset.1 as i32);
         g.push_state();
+        g.apply_scale(*self.zoom.borrow());
         g.apply_offset(offset.0 + self.pos.0, offset.1 + self.pos.1);
-        let (mx, my) = gui_state.get_current_mouse_pos();
-        let (mx, my) = (mx - offset.0 - self.pos.0, my - offset.1 - self.pos.1);
+        let (mx, my) = self.translate_mouse_pos(gui_state.get_current_mouse_pos());
         let highlight = if gui_state.is_dragging() {
             let cma = gui_state.borrow_current_mouse_action();
             if let MouseAction::ConnectInput(module, index) = cma {

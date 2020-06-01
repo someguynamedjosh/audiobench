@@ -220,7 +220,7 @@ pub struct Module {
     pub template: Rcrc<ModuleTemplate>,
     pub controls: Vec<Rcrc<Control>>,
     pub complex_controls: Vec<Rcrc<ComplexControl>>,
-    pub pos: (i32, i32),
+    pub pos: (f32, f32),
     pub inputs: Vec<InputConnection>,
     pub feedback_data: Option<Rcrc<Vec<f32>>>,
 }
@@ -255,7 +255,7 @@ impl Module {
             template,
             controls,
             complex_controls,
-            pos: (0, 0),
+            pos: (0.0, 0.0),
             inputs: default_inputs
                 .into_iter()
                 .map(|i| InputConnection::Default(i))

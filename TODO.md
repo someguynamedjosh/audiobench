@@ -1,7 +1,6 @@
 # Things with no dependencies
-Center the canvas when loading a new patch
 Windows VST build
-scroll to zoom
+Convert all mouse / GUI code to floats
 Inverted lanes
 "never" trigger default
 pitch bend & mod wheel

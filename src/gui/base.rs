@@ -217,7 +217,8 @@ impl Gui {
                 }
             }
             if self.dragged {
-                let (gui_action, tooltip) = self.mouse_action.on_drag(delta, mods);
+                let fdelta = (delta.0 as f32, delta.1 as f32);
+                let (gui_action, tooltip) = self.mouse_action.on_drag(fdelta, mods);
                 new_tooltip = tooltip;
                 self.click_position = new_pos;
                 retval = gui_action

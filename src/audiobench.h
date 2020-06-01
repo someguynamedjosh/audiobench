@@ -5,6 +5,7 @@ struct ABGraphicsFunctions {
     void (*pushState)(void*);
     void (*popState)(void*);
     void (*applyOffset)(void*, int, int);
+    void (*applyScale)(void*, float);
 
     void (*setColor)(void*, uint8_t, uint8_t, uint8_t);
     void (*setAlpha)(void*, float);

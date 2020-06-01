@@ -62,6 +62,23 @@ impl TupleUtil for (i32, i32) {
     }
 }
 
+impl TupleUtil for (f32, f32) {
+    #[inline]
+    fn add(self, other: Self) -> Self {
+        (self.0 + other.0, self.1 + other.1)
+    }
+
+    #[inline]
+    fn sub(self, other: Self) -> Self {
+        (self.0 - other.0, self.1 - other.1)
+    }
+
+    #[inline]
+    fn inside(self, bounds: Self) -> bool {
+        self.0 >= 0.0 && self.1 >= 0.0 && self.0 <= bounds.0 && self.1 <= bounds.1
+    }
+}
+
 pub fn format_decimal(value: f32, digits: i32) -> String {
     let digits = match value {
         v if v <= 0.0 => digits,

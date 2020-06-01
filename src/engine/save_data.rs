@@ -603,6 +603,7 @@ impl SavedModule {
             ));
         }
         let pos = module.pos;
+        let pos = (pos.0 as i32, pos.1 as i32);
         drop(template_ref);
         Self {
             lib_name,
@@ -616,7 +617,7 @@ impl SavedModule {
 
     fn restore(&self, registry: &Registry) -> Result<ep::Module, ()> {
         let mut m = self.lookup_prototype(registry)?.clone();
-        m.pos = self.pos;
+        m.pos = (self.pos.0 as f32, self.pos.1 as f32);
         for index in 0..self.complex_controls.len() {
             self.complex_controls[index].restore(&mut *m.complex_controls[index].borrow_mut());
         }

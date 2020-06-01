@@ -5,6 +5,7 @@ pub struct GraphicsFunctions {
     push_state: fn(*mut i8),
     pop_state: fn(*mut i8),
     apply_offset: fn(*mut i8, i32, i32),
+    apply_scale: fn(*mut i8, f32),
 
     set_color: fn(*mut i8, u8, u8, u8),
     set_alpha: fn(*mut i8, f32),
@@ -28,6 +29,9 @@ impl GraphicsFunctions {
             panic!("ERROR: Graphics functions not set by frontend!");
         }
         fn apply_offset(_data: *mut i8, _x: i32, _y: i32) {
+            panic!("ERROR: Graphics functions not set by frontend!");
+        }
+        fn apply_scale(_data: *mut i8, _s: f32) {
             panic!("ERROR: Graphics functions not set by frontend!");
         }
         fn set_color(_data: *mut i8, _r: u8, _g: u8, _b: u8) {
@@ -86,6 +90,7 @@ impl GraphicsFunctions {
             push_state,
             pop_state,
             apply_offset,
+            apply_scale,
             set_color,
             set_alpha,
             clear,
@@ -144,6 +149,10 @@ impl<'a> GrahpicsWrapper<'a> {
 
     pub fn apply_offset(&mut self, x: i32, y: i32) {
         (self.graphics_fns.apply_offset)(self.aux_data, x, y);
+    }
+
+    pub fn apply_scale(&mut self, s: f32) {
+        (self.graphics_fns.apply_scale)(self.aux_data, s);
     }
 
     pub fn set_color(&mut self, color: &(u8, u8, u8)) {
