@@ -2,6 +2,7 @@ image: alpine
 
 stages:
   - build
+  - publish
 
 build-linux:
   stage: build
@@ -24,5 +25,34 @@ build-linux:
     - master
     - merge_requests
   artifacts:
+    expire_in: 2h
     paths:
-      - frontends/juce/artifacts/*
+      - frontends/juce/artifacts/
+
+build-website:
+  stage: build
+  image: alpine
+  script:
+    - cd docs/website
+    - mkdir artifacts
+    - cp -r src/* artifacts/
+  only:
+    - master
+  artifacts:
+    expire_in: 2h
+    paths:
+      - docs/website/artifacts/
+
+pages:
+  stage: publish
+  image: alpine
+  script:
+    - mkdir public
+    - mv docs/website/artifacts/* public/
+    - mkdir public/builds/
+    - mv frontends/juce/artifacts/* public/
+  only:
+    - master
+  artifacts:
+    paths:
+      - public

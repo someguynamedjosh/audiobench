@@ -53,8 +53,8 @@ else
     cmake --build _build --config Debug
 fi
 cd $FRONTEND_ROOT
-cp _build/Audiobench_artefacts/Standalone/Audiobench artifacts/Audiobench_Standalone_Linux_x64.bin
-cp _build/Audiobench_artefacts/VST3/Audiobench.vst3/Contents/x86_64-linux/Audiobench.so artifacts/Audiobench_VST3_Linux_x64.so
+cp _build/Audiobench_artefacts/Standalone/Audiobench artifacts/Audiobench_Linux_x64_Standalone.bin
+cp _build/Audiobench_artefacts/VST3/Audiobench.vst3/Contents/x86_64-linux/Audiobench.so artifacts/Audiobench_Linux_x64_VST3.so
 echo "Success!"
 
 if [ "$1" == "run" ]; then
