@@ -1,6 +1,5 @@
 # Things with no dependencies
 - Windows VST build
-- Actual controls for zooming
 - Inverted lanes
 - "never" trigger default
 - pitch bend & mod wheel

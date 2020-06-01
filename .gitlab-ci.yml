@@ -49,7 +49,7 @@ build-windows:
     - choco install 7zip -y
     - 7z e llvm_src.tar.xz
     - 7z x llvm_src.tar
-    - cd llvm_src
+    - cd llvm-7.1.0.src
     - mkdir build
     - cd build
     - cmake ..
