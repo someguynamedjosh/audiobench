@@ -18,7 +18,8 @@ build-linux:
     - cd $SOURCE_DIR
     - cd frontends/juce/
     - git submodule init
-    - ./build_linux.sh --release
+    - git submodule update
+    - ./build_linux.sh release
   only:
     - master
     - merge_requests
