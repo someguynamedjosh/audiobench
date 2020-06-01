@@ -11,7 +11,7 @@ build-linux:
     - cd /
     - wget https://github.com/Kitware/CMake/releases/download/v3.16.7/cmake-3.16.7-Linux-x86_64.tar.gz
     - tar -xzf cmake-3.16.7-Linux-x86_64.tar.gz
-    - eport PATH="$PATH:/cmake-3.16.7-Linux-x86_64/bin"
+    - export PATH="$PATH:/cmake-3.16.7-Linux-x86_64/bin"
     - apt update
     - apt -y install llvm-7 libxrandr-dev libxinerama-dev libxcursor-dev libasound-dev
     - export LLVM_SYS_70_PREFIX=/usr/bin/llvm-7/
