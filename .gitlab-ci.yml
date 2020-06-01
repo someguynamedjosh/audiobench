@@ -39,6 +39,7 @@ build-windows:
     - choco install cmake -y --version=3.16.7 --installargs 'ADD_CMAKE_TO_PATH=System'
     - choco install rust -y
     - choco install mingw -y
+    - choco install windows-sdk-10.0
     - cargo install llvmenv
     - llvmenv init
     - llvmenv build-entry 7.0.0
