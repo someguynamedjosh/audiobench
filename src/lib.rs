@@ -152,17 +152,17 @@ impl Instance {
         let mut g = GrahpicsWrapper::new(&self.graphics_fns, data, icon_store);
         if let Some(err) = &self.critical_error {
             g.set_color(&(0, 0, 0));
-            g.fill_rect(0, 0, 640, 480);
+            g.fill_rect(0.0, 0.0, 640.0, 480.0);
             g.set_color(&(255, 255, 255));
-            g.write_console_text(640, 480, err);
+            g.write_console_text(640.0, 480.0, err);
         // If there is no critical error, then the engine initialized successfully.
         } else if let Some(err) = self.engine.as_ref().unwrap().clone_critical_error() {
             // This way we don't have to copy it in the future.
             self.critical_error = Some(err.clone());
             g.set_color(&(0, 0, 0));
-            g.fill_rect(0, 0, 640, 480);
+            g.fill_rect(0.0, 0.0, 640.0, 480.0);
             g.set_color(&(255, 255, 255));
-            g.write_console_text(640, 480, &err);
+            g.write_console_text(640.0, 480.0, &err);
         } else {
             // If the engine has new feedback data (from audio being played) then copy it over before
             // we render the UI so it will show up in the UI.
@@ -188,7 +188,7 @@ impl Instance {
         }
     }
 
-    pub fn mouse_down(&mut self, x: i32, y: i32, right_click: bool, shift: bool, precise: bool) {
+    pub fn mouse_down(&mut self, x: f32, y: f32, right_click: bool, shift: bool, precise: bool) {
         if let Some(gui) = &mut self.gui {
             let mods = MouseMods {
                 right_click,
@@ -207,7 +207,7 @@ impl Instance {
         }
     }
 
-    pub fn mouse_move(&mut self, x: i32, y: i32, right_click: bool, shift: bool, precise: bool) {
+    pub fn mouse_move(&mut self, x: f32, y: f32, right_click: bool, shift: bool, precise: bool) {
         if let Some(gui) = &mut self.gui {
             let mods = MouseMods {
                 right_click,
@@ -331,7 +331,7 @@ pub unsafe extern "C" fn ABUIMouseDown(
     shift: bool,
     precise: bool,
 ) {
-    (*instance).mouse_down(x, y, right_click, shift, precise);
+    (*instance).mouse_down(x as f32, y as f32, right_click, shift, precise);
 }
 
 #[no_mangle]
@@ -343,7 +343,9 @@ pub unsafe extern "C" fn ABUIMouseMove(
     shift: bool,
     precise: bool,
 ) {
-    (*instance).mouse_move(x, y, right_click, shift, precise);
+    // TOTO: I don't think we're in canvas anymore
+    // TODO: Make ABI functions accept floats
+    (*instance).mouse_move(x as f32, y as f32, right_click, shift, precise);
 }
 
 #[no_mangle]

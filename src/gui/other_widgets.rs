@@ -8,10 +8,6 @@ use crate::gui::{GuiScreen, InteractionHint, MouseMods, Status, Tooltip};
 use crate::util::*;
 use std::collections::HashSet;
 
-fn bound_check(coord: (i32, i32), bounds: (i32, i32)) -> bool {
-    coord.0 >= 0 && coord.1 >= 0 && coord.0 <= bounds.0 && coord.1 <= bounds.1
-}
-
 pub struct MenuBar {
     screens: Vec<GuiScreen>,
     screen_icons: Vec<usize>,
@@ -24,7 +20,7 @@ pub struct MenuBar {
 }
 
 impl MenuBar {
-    pub const HEIGHT: i32 = grid(1) + GRID_P * 3;
+    pub const HEIGHT: f32 = grid(1) + GRID_P * 3.0;
 
     pub fn create(registry: &Registry, screens: Vec<GuiScreen>) -> Self {
         let screen_icons = screens
@@ -43,7 +39,7 @@ impl MenuBar {
         }
     }
 
-    pub fn get_tooltip_at(&self, mouse_pos: (i32, i32)) -> Option<Tooltip> {
+    pub fn get_tooltip_at(&self, mouse_pos: (f32, f32)) -> Option<Tooltip> {
         if mouse_pos.1 < Self::HEIGHT {
             let screen_index = ((mouse_pos.0 - GRID_P) / (GRID_P + grid(1))) as usize;
             if screen_index < self.screens.len() {
@@ -68,8 +64,8 @@ impl MenuBar {
         self.status = None;
     }
 
-    pub fn respond_to_mouse_press(&self, mouse_pos: (i32, i32), mods: &MouseMods) -> MouseAction {
-        if !bound_check(mouse_pos, (99999, Self::HEIGHT)) {
+    pub fn respond_to_mouse_press(&self, mouse_pos: (f32, f32), mods: &MouseMods) -> MouseAction {
+        if !mouse_pos.inside((99999.0, Self::HEIGHT)) {
             return MouseAction::None;
         }
         let new_screen = ((mouse_pos.0 - GRID_P) / (GRID_P + grid(1))) as usize;
@@ -80,7 +76,7 @@ impl MenuBar {
         }
     }
 
-    pub fn draw(&self, width: i32, current_screen: GuiScreen, g: &mut GrahpicsWrapper) {
+    pub fn draw(&self, width: f32, current_screen: GuiScreen, g: &mut GrahpicsWrapper) {
         let current_screen_index = self
             .screens
             .iter()
@@ -88,13 +84,13 @@ impl MenuBar {
             .unwrap() as i32;
 
         g.set_color(&COLOR_SURFACE);
-        g.fill_rect(0, 0, width, Self::HEIGHT);
+        g.fill_rect(0.0, 0.0, width, Self::HEIGHT);
 
-        const GP: i32 = GRID_P;
-        const GP2: i32 = GRID_P / 2;
-        const CS: i32 = CORNER_SIZE;
-        const HEIGHT: i32 = MenuBar::HEIGHT;
-        const ITEM_HEIGHT: i32 = HEIGHT - GP * 2;
+        const GP: f32 = GRID_P;
+        const GP2: f32 = GRID_P / 2.0;
+        const CS: f32 = CORNER_SIZE;
+        const HEIGHT: f32 = MenuBar::HEIGHT;
+        const ITEM_HEIGHT: f32 = HEIGHT - GP * 2.0;
 
         g.set_color(&COLOR_BG);
         g.fill_rounded_rect(
@@ -105,34 +101,34 @@ impl MenuBar {
             CS,
         );
 
-        const HINT_HEIGHT: i32 = grid(1) - 2;
-        const ICON_PAD: i32 = 1;
-        const ICON_SIZE: i32 = HINT_HEIGHT - ICON_PAD * 2;
-        const HINT_AREA_WIDTH: i32 = ICON_SIZE * 4 + GP * 3 + ICON_PAD * 6;
+        const HINT_HEIGHT: f32 = grid(1) - 2.0;
+        const ICON_PAD: f32 = 1.0;
+        const ICON_SIZE: f32 = HINT_HEIGHT - ICON_PAD * 2.0;
+        const HINT_AREA_WIDTH: f32 = ICON_SIZE * 4.0 + GP * 3.0 + ICON_PAD * 6.0;
         let status = self.status.is_some();
         {
             g.set_color(&COLOR_SURFACE);
             g.fill_rounded_rect(
                 width - HINT_AREA_WIDTH,
-                0,
+                0.0,
                 HINT_AREA_WIDTH,
-                HINT_HEIGHT * 2 + GP * 3,
+                HINT_HEIGHT * 2.0 + GP * 3.0,
                 CS,
             );
 
-            const Y1: i32 = GP;
-            const Y2: i32 = Y1 + HINT_HEIGHT + GP;
-            fn hint_width(num_icons: i32) -> i32 {
+            const Y1: f32 = GP;
+            const Y2: f32 = Y1 + HINT_HEIGHT + GP;
+            fn hint_width(num_icons: f32) -> f32 {
                 (ICON_SIZE + ICON_PAD) * num_icons + ICON_PAD
             }
             fn draw_hint(
                 active: bool,
                 g: &mut GrahpicsWrapper,
-                rx: i32,
-                y: i32,
+                rx: f32,
+                y: f32,
                 icons: &[usize],
-            ) -> i32 {
-                let w = hint_width(icons.len() as i32);
+            ) -> f32 {
+                let w = hint_width(icons.len() as f32);
                 let x = rx - GP - w;
                 if active {
                     g.set_color(&COLOR_TEXT);
@@ -144,7 +140,7 @@ impl MenuBar {
                     for (index, icon) in icons.iter().enumerate() {
                         g.draw_icon(
                             *icon,
-                            x + ICON_PAD + (ICON_PAD + ICON_SIZE) * index as i32,
+                            x + ICON_PAD + (ICON_PAD + ICON_SIZE) * index as f32,
                             y + ICON_PAD,
                             ICON_SIZE,
                         );
@@ -190,7 +186,7 @@ impl MenuBar {
         }
         g.fill_rounded_rect(tooltip_x, coord(0), tooltip_width, ITEM_HEIGHT, CS);
         let text_x = tooltip_x + GP;
-        let text_width = tooltip_width - GP * 2;
+        let text_width = tooltip_width - GP * 2.0;
         g.set_color(&COLOR_TEXT);
         let text = if let Some(status) = self.status.as_ref() {
             &status.text
@@ -250,15 +246,15 @@ impl TextField {
 }
 
 pub struct TextBox {
-    pos: (i32, i32),
-    size: (i32, i32),
+    pos: (f32, f32),
+    size: (f32, f32),
     field: Rcrc<TextField>,
 }
 
 impl TextBox {
     pub fn create(
-        pos: (i32, i32),
-        size: (i32, i32),
+        pos: (f32, f32),
+        size: (f32, f32),
         start_value: String,
         defocus_action: fn(&str) -> MouseAction,
     ) -> Self {
@@ -271,14 +267,14 @@ impl TextBox {
 
     pub fn respond_to_mouse_press(
         &mut self,
-        mouse_pos: (i32, i32),
+        mouse_pos: (f32, f32),
         mods: &MouseMods,
     ) -> MouseAction {
         MouseAction::FocusTextField(Rc::clone(&self.field))
     }
 
     pub fn draw(&self, g: &mut GrahpicsWrapper) {
-        const GP: i32 = GRID_P;
+        const GP: f32 = GRID_P;
         let field = self.field.borrow();
         let text = &field.text;
         let focused = field.focused;
@@ -286,26 +282,26 @@ impl TextBox {
         g.apply_offset(self.pos.0, self.pos.1);
 
         g.set_color(if focused { &COLOR_IO_AREA } else { &COLOR_BG });
-        g.fill_rounded_rect(0, 0, self.size.0, self.size.1, CORNER_SIZE);
+        g.fill_rounded_rect(0.0, 0.0, self.size.0, self.size.1, CORNER_SIZE);
         g.set_color(&COLOR_TEXT);
         const H: HAlign = HAlign::Left;
         const V: VAlign = VAlign::Center;
-        let w = self.size.0 - GP * 2;
-        g.write_text(FONT_SIZE, GP, 0, w, self.size.1, H, V, 1, text);
+        let w = self.size.0 - GP * 2.0;
+        g.write_text(FONT_SIZE, GP, 0.0, w, self.size.1, H, V, 1, text);
 
         g.pop_state();
     }
 }
 
 pub struct IconButton {
-    pos: (i32, i32),
-    size: i32,
+    pos: (f32, f32),
+    size: f32,
     icon: usize,
     enabled: bool,
 }
 
 impl IconButton {
-    pub fn create(pos: (i32, i32), size: i32, icon: usize) -> Self {
+    pub fn create(pos: (f32, f32), size: f32, icon: usize) -> Self {
         Self {
             pos,
             size,
@@ -314,7 +310,7 @@ impl IconButton {
         }
     }
 
-    pub fn mouse_in_bounds(&self, mouse_pos: (i32, i32)) -> bool {
+    pub fn mouse_in_bounds(&self, mouse_pos: (f32, f32)) -> bool {
         self.enabled && mouse_pos.sub(self.pos).inside((self.size, self.size))
     }
 
@@ -323,13 +319,13 @@ impl IconButton {
         g.apply_offset(self.pos.0, self.pos.1);
 
         g.set_color(&COLOR_BG);
-        g.fill_rounded_rect(0, 0, self.size, self.size, CORNER_SIZE);
-        const IP: i32 = GRID_P / 2;
-        g.draw_white_icon(self.icon, IP, IP, self.size - IP * 2);
+        g.fill_rounded_rect(0.0, 0.0, self.size, self.size, CORNER_SIZE);
+        const IP: f32 = GRID_P / 2.0;
+        g.draw_white_icon(self.icon, IP, IP, self.size - IP * 2.0);
         if !self.enabled {
             g.set_color(&COLOR_BG);
             g.set_alpha(0.5);
-            g.fill_rounded_rect(0, 0, self.size, self.size, CORNER_SIZE);
+            g.fill_rounded_rect(0.0, 0.0, self.size, self.size, CORNER_SIZE);
         }
 
         g.pop_state();
@@ -337,8 +333,8 @@ impl IconButton {
 }
 
 pub struct PatchBrowser {
-    pos: (i32, i32),
-    size: (i32, i32),
+    pos: (f32, f32),
+    size: (f32, f32),
     name_box: TextBox,
     save_button: IconButton,
     new_button: IconButton,
@@ -350,24 +346,24 @@ impl PatchBrowser {
     pub fn create(
         current_patch: &Rcrc<Patch>,
         registry: &Registry,
-        pos: (i32, i32),
-        size: (i32, i32),
+        pos: (f32, f32),
+        size: (f32, f32),
     ) -> Self {
         // How large each half of the GUI takes.
-        let hw = (size.0 - GRID_P * 3) / 2;
-        const CG: i32 = PatchBrowser::CG;
+        let hw = (size.0 - GRID_P * 3.0) / 2.0;
+        const CG: f32 = PatchBrowser::CG;
         // How many icon buttons to the right of the name box.
-        const NUM_ICONS: i32 = 2;
+        const NUM_ICONS: f32 = 2.0;
         // Width of the name box.
         let namew = hw - (CG + GRID_P) * NUM_ICONS;
         let patch_name = current_patch.borrow().borrow_name().to_owned();
-        let name_box = TextBox::create((GRID_P, 0), (namew, CG), patch_name, |text| {
+        let name_box = TextBox::create((GRID_P, 0.0), (namew, CG), patch_name, |text| {
             MouseAction::RenamePatch(text.to_owned())
         });
         let save_icon = registry.lookup_icon("base:save").unwrap();
-        let mut save_button = IconButton::create((GRID_P + hw - CG * 2 - GRID_P, 0), CG, save_icon);
+        let mut save_button = IconButton::create((GRID_P + hw - CG * 2.0 - GRID_P, 0.0), CG, save_icon);
         let new_icon = registry.lookup_icon("base:add").unwrap();
-        let new_button = IconButton::create((GRID_P + hw - CG, 0), CG, new_icon);
+        let new_button = IconButton::create((GRID_P + hw - CG, 0.0), CG, new_icon);
 
         let entries = registry.borrow_patches().clone();
         let current_entry_index = registry
@@ -397,7 +393,7 @@ impl PatchBrowser {
         self.save_button.enabled = entry_ref.is_writable();
     }
 
-    pub fn get_tooltip_at(&self, mouse_pos: (i32, i32)) -> Option<Tooltip> {
+    pub fn get_tooltip_at(&self, mouse_pos: (f32, f32)) -> Option<Tooltip> {
         let mouse_pos = mouse_pos.sub(self.pos);
         {
             let mouse_pos = mouse_pos.sub(self.name_box.pos);
@@ -429,7 +425,7 @@ impl PatchBrowser {
                 interaction: InteractionHint::LeftClick.into(),
             });
         }
-        let hw = (self.size.0 - GRID_P * 3) / 2;
+        let hw = (self.size.0 - GRID_P * 3.0) / 2.0;
         if mouse_pos.0 <= hw && mouse_pos.1 > self.name_box.size.1 + GRID_P {
             return Some(Tooltip {
                 text: "Click a patch to load it".to_owned(),
@@ -441,7 +437,7 @@ impl PatchBrowser {
 
     pub fn respond_to_mouse_press(
         &mut self,
-        mouse_pos: (i32, i32),
+        mouse_pos: (f32, f32),
         mods: &MouseMods,
     ) -> MouseAction {
         let mouse_pos = mouse_pos.sub(self.pos);
@@ -465,11 +461,11 @@ impl PatchBrowser {
             }));
         }
         // How large each half of the GUI takes.
-        let hw = (self.size.0 - GRID_P * 3) / 2;
+        let hw = (self.size.0 - GRID_P * 3.0) / 2.0;
         if mouse_pos.0 <= hw && mouse_pos.1 > self.name_box.size.1 + GRID_P {
             let entry_index =
                 (mouse_pos.1 - self.name_box.size.1 - GRID_P) / PatchBrowser::ENTRY_HEIGHT;
-            if entry_index >= 0 && entry_index < self.entries.borrow().len() as i32 {
+            if entry_index >= 0.0 && entry_index < self.entries.borrow().len() as f32 {
                 self.current_entry_index = entry_index as usize;
                 self.update_on_patch_change();
                 return MouseAction::LoadPatch(Rc::clone(
@@ -481,32 +477,32 @@ impl PatchBrowser {
     }
 
     // A slightly larger grid size.
-    const CG: i32 = grid(1) + GRID_P;
-    const ENTRY_HEIGHT: i32 = Self::CG;
+    const CG: f32 = grid(1) + GRID_P;
+    const ENTRY_HEIGHT: f32 = Self::CG;
 
     pub fn draw(&self, g: &mut GrahpicsWrapper) {
         g.push_state();
         g.apply_offset(self.pos.0, self.pos.1);
 
         // How large each half of the GUI takes.
-        let hw = (self.size.0 - GRID_P * 3) / 2;
-        const GP: i32 = GRID_P;
+        let hw = (self.size.0 - GRID_P * 3.0) / 2.0;
+        const GP: f32 = GRID_P;
 
         g.set_color(&COLOR_SURFACE);
-        g.fill_rect(0, 0, self.size.0, self.size.1);
+        g.fill_rect(0.0, 0.0, self.size.0, self.size.1);
         self.name_box.draw(g);
         self.save_button.draw(g);
         self.new_button.draw(g);
 
-        const CG: i32 = PatchBrowser::CG;
+        const CG: f32 = PatchBrowser::CG;
         let y = CG + GP;
         g.set_color(&COLOR_BG);
         g.fill_rounded_rect(GP, y, hw, self.size.1 - y - GP, CORNER_SIZE);
         g.set_color(&COLOR_TEXT);
         for (index, entry) in self.entries.borrow().iter().enumerate() {
-            const HEIGHT: i32 = PatchBrowser::ENTRY_HEIGHT;
+            const HEIGHT: f32 = PatchBrowser::ENTRY_HEIGHT;
             let x = GP;
-            let y = y + HEIGHT * index as i32;
+            let y = y + HEIGHT * index as f32;
             if index == self.current_entry_index {
                 g.set_color(&COLOR_IO_AREA);
                 g.fill_rounded_rect(x, y, hw, HEIGHT, CORNER_SIZE);
@@ -516,12 +512,12 @@ impl PatchBrowser {
             const H: HAlign = HAlign::Left;
             const V: VAlign = VAlign::Center;
             let name = entry.borrow_name();
-            g.write_text(FONT_SIZE, x + GP, y, hw - GP * 2, HEIGHT, H, V, 1, name);
+            g.write_text(FONT_SIZE, x + GP, y, hw - GP * 2.0, HEIGHT, H, V, 1, name);
             if !entry.is_writable() {
                 const H: HAlign = HAlign::Right;
                 g.set_alpha(0.5);
                 let t = "[Factory]";
-                g.write_text(FONT_SIZE, x + GP, y, hw - GP * 2, HEIGHT, H, V, 1, t);
+                g.write_text(FONT_SIZE, x + GP, y, hw - GP * 2.0, HEIGHT, H, V, 1, t);
                 g.set_alpha(1.0);
             }
         }
@@ -539,8 +535,8 @@ struct ModuleBrowserEntry {
 }
 
 impl ModuleBrowserEntry {
-    const WIDTH: i32 = fatgrid(6);
-    const HEIGHT: i32 = fatgrid(1);
+    const WIDTH: f32 = fatgrid(6);
+    const HEIGHT: f32 = fatgrid(1);
 
     fn from(module: &ep::Module) -> Self {
         let template_ref = module.template.borrow();
@@ -566,29 +562,29 @@ impl ModuleBrowserEntry {
     }
 
     fn draw(&self, g: &mut GrahpicsWrapper) {
-        const CS: i32 = CORNER_SIZE;
-        const BAND_SIZE: i32 = GRID_P;
-        const ICON_SPACE: i32 = fatgrid(1) / 2;
-        const ICON_PADDING: i32 = 2;
-        const ICON_SIZE: i32 = (ICON_SPACE * 2 - ICON_PADDING * 4) / 2;
+        const CS: f32 = CORNER_SIZE;
+        const BAND_SIZE: f32 = GRID_P;
+        const ICON_SPACE: f32 = fatgrid(1) / 2.0;
+        const ICON_PADDING: f32 = 2.0;
+        const ICON_SIZE: f32 = (ICON_SPACE * 2.0 - ICON_PADDING * 4.0) / 2.0;
 
-        let num_ports = self.input_icons.len().max(self.output_icons.len()) as i32;
+        let num_ports = self.input_icons.len().max(self.output_icons.len()) as f32;
         let port_space = ICON_PADDING + (ICON_PADDING + ICON_SIZE) * num_ports;
         g.set_color(&COLOR_SURFACE);
         let main_width = Self::WIDTH - port_space - BAND_SIZE;
-        g.fill_rounded_rect(0, 0, main_width + BAND_SIZE, Self::HEIGHT, CS);
+        g.fill_rounded_rect(0.0, 0.0, main_width + BAND_SIZE, Self::HEIGHT, CS);
         g.set_color(&COLOR_TEXT);
-        g.fill_rounded_rect(main_width, 0, port_space + BAND_SIZE, Self::HEIGHT, CS);
+        g.fill_rounded_rect(main_width, 0.0, port_space + BAND_SIZE, Self::HEIGHT, CS);
         g.set_color(&COLOR_IO_AREA);
-        g.fill_rect(main_width, 0, BAND_SIZE, Self::HEIGHT);
-        g.fill_rect(main_width + BAND_SIZE, Self::HEIGHT / 2, port_space, 1);
+        g.fill_rect(main_width, 0.0, BAND_SIZE, Self::HEIGHT);
+        g.fill_rect(main_width + BAND_SIZE, Self::HEIGHT / 2.0, port_space, 1.0);
 
         g.set_color(&COLOR_TEXT);
         g.write_text(
             FONT_SIZE,
             GRID_P,
-            0,
-            main_width - GRID_P / 2,
+            0.0,
+            main_width - GRID_P / 2.0,
             Self::HEIGHT,
             HAlign::Left,
             VAlign::Center,
@@ -596,14 +592,14 @@ impl ModuleBrowserEntry {
             &self.name,
         );
         for (index, icon) in self.input_icons.iter().enumerate() {
-            let index = index as i32;
+            let index = index as f32;
             let x = main_width + BAND_SIZE + ICON_PADDING + (ICON_SIZE + ICON_PADDING) * index;
             g.draw_icon(*icon, x, ICON_PADDING, ICON_SIZE);
         }
         for (index, icon) in self.output_icons.iter().enumerate() {
-            let index = index as i32;
+            let index = index as f32;
             let x = main_width + BAND_SIZE + ICON_PADDING + (ICON_SIZE + ICON_PADDING) * index;
-            g.draw_icon(*icon, x, ICON_SIZE + ICON_PADDING * 3, ICON_SIZE);
+            g.draw_icon(*icon, x, ICON_SIZE + ICON_PADDING * 3.0, ICON_SIZE);
         }
     }
 }
@@ -619,9 +615,9 @@ enum SortMethod {
 }
 
 pub struct ModuleBrowser {
-    pos: (i32, i32),
-    size: (i32, i32),
-    vertical_stacking: i32,
+    pos: (f32, f32),
+    size: (f32, f32),
+    vertical_stacking: f32,
     entries: Vec<ModuleBrowserEntry>,
     alphabetical_list: Vec<VisualEntry>,
     categorical_list: Vec<VisualEntry>,
@@ -629,7 +625,7 @@ pub struct ModuleBrowser {
 }
 
 impl ModuleBrowser {
-    pub fn create(registry: &Registry, pos: (i32, i32), size: (i32, i32)) -> Self {
+    pub fn create(registry: &Registry, pos: (f32, f32), size: (f32, f32)) -> Self {
         let entries: Vec<_> = registry
             .borrow_modules()
             .imc(|module| ModuleBrowserEntry::from(module));
@@ -680,7 +676,7 @@ impl ModuleBrowser {
         }
     }
 
-    fn get_entry_at(&self, mouse_pos: (i32, i32)) -> Option<&ModuleBrowserEntry> {
+    fn get_entry_at(&self, mouse_pos: (f32, f32)) -> Option<&ModuleBrowserEntry> {
         let mouse_pos = (mouse_pos.0 - self.pos.0, mouse_pos.1 - self.pos.1);
         let clicked_index = mouse_pos.0 / (ModuleBrowserEntry::WIDTH + GRID_P)
             * self.vertical_stacking
@@ -699,7 +695,7 @@ impl ModuleBrowser {
         }
     }
 
-    pub fn get_tooltip_at(&self, mouse_pos: (i32, i32)) -> Option<Tooltip> {
+    pub fn get_tooltip_at(&self, mouse_pos: (f32, f32)) -> Option<Tooltip> {
         if let Some(entry) = self.get_entry_at(mouse_pos) {
             Some(Tooltip {
                 text: entry.prototype.template.borrow().tooltip.clone(),
@@ -712,7 +708,7 @@ impl ModuleBrowser {
 
     pub fn respond_to_mouse_press(
         &mut self,
-        mouse_pos: (i32, i32),
+        mouse_pos: (f32, f32),
         mods: &MouseMods,
     ) -> MouseAction {
         if let Some(entry) = self.get_entry_at(mouse_pos) {
@@ -728,7 +724,7 @@ impl ModuleBrowser {
 
         let list = self.get_current_list();
         for (index, entry) in list.iter().enumerate() {
-            let index = index as i32;
+            let index = index as f32;
             let (x, y) = (
                 (index / self.vertical_stacking) * (ModuleBrowserEntry::WIDTH + GRID_P) + GRID_P,
                 (index % self.vertical_stacking) * (ModuleBrowserEntry::HEIGHT + GRID_P) + GRID_P,
@@ -741,8 +737,8 @@ impl ModuleBrowser {
                     g.set_color(&COLOR_TEXT);
                     g.write_text(
                         BIG_FONT_SIZE,
-                        0,
-                        0,
+                        0.0,
+                        0.0,
                         ModuleBrowserEntry::WIDTH,
                         ModuleBrowserEntry::HEIGHT,
                         HAlign::Center,

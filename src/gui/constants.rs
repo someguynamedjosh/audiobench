@@ -1,60 +1,60 @@
 /// Pixels of padding between grid squares.
-pub const GRID_P: i32 = 6;
+const GRID_P_INT: i32 = 6;
+pub const GRID_P: f32 = GRID_P_INT as f32;
 /// Number of pixels a single grid square takes.
 const GRID_1: i32 = 18;
 
 /// Computes the amount of space (in pixels) taken by the given number of grid tiles, with
 /// padding between each tile.
-pub const fn grid(num_spaces: i32) -> i32 {
-    GRID_1 * num_spaces + GRID_P * (num_spaces - 1)
+pub const fn grid(num_spaces: i32) -> f32 {
+    (GRID_1 * num_spaces + GRID_P_INT * (num_spaces - 1)) as f32
 }
 
 /// Like grid, but returns the amount of space used including extra outside padding. Use  
 /// alongside the fatcoord function.
-pub const fn fatgrid(num_spaces: i32) -> i32 {
-    GRID_1 * num_spaces + GRID_P * (num_spaces + 1)
+pub const fn fatgrid(num_spaces: i32) -> f32 {
+    (GRID_1 * num_spaces + GRID_P_INT * (num_spaces + 1)) as f32
 }
 
 /// Computes the coordinate where the provided grid cell begins. For example, 0 would return
 /// GRID_P and 1 would return GRID_1 + GRID_P * 2.
-pub const fn coord(index: i32) -> i32 {
-    GRID_1 * index + GRID_P * (index + 1)
+pub const fn coord(index: i32) -> f32 {
+    (GRID_1 * index + GRID_P_INT * (index + 1)) as f32
 }
 /// Like coord, but allows space for extra padding. Use alongside the fatgrid function.
-pub const fn fatcoord(index: i32) -> i32 {
-    GRID_1 * index + GRID_P * index
+pub const fn fatcoord(index: i32) -> f32 {
+    (GRID_1 * index + GRID_P_INT * index) as f32
 }
 
-pub const KNOB_OUTSIDE_SPACE: i32 = 1;
-pub const KNOB_INSIDE_SPACE: i32 = 6;
-pub const KNOB_AUTOMATION_SPACE: i32 = grid(2) / 2 - KNOB_OUTSIDE_SPACE - KNOB_INSIDE_SPACE;
-pub const KNOB_LANE_GAP: i32 = 1;
-pub const KNOB_MAX_LANE_SIZE: i32 = 4;
+pub const KNOB_OUTSIDE_SPACE: f32 = 1.0;
+pub const KNOB_INSIDE_SPACE: f32 = 6.0;
+pub const KNOB_AUTOMATION_SPACE: f32 = grid(2) / 2.0 - KNOB_OUTSIDE_SPACE - KNOB_INSIDE_SPACE;
+pub const KNOB_LANE_GAP: f32 = 1.0;
+pub const KNOB_MAX_LANE_SIZE: f32 = 4.0;
 
-pub const KNOB_MENU_LANE_SIZE: i32 = 16;
-pub const KNOB_MENU_KNOB_OR: i32 = 60;
-pub const KNOB_MENU_KNOB_IR: i32 = 40;
-pub const KNOB_MENU_LANE_GAP: i32 = 2;
+pub const KNOB_MENU_LANE_SIZE: f32 = 16.0;
+pub const KNOB_MENU_KNOB_OR: f32 = 60.0;
+pub const KNOB_MENU_KNOB_IR: f32 = 40.0;
+pub const KNOB_MENU_LANE_GAP: f32 = 2.0;
 
-pub const CORNER_SIZE: i32 = 4;
-pub const FONT_SIZE: i32 = 12;
-pub const BIG_FONT_SIZE: i32 = 14;
+pub const CORNER_SIZE: f32 = 4.0;
+pub const FONT_SIZE: f32 = 12.0;
+pub const BIG_FONT_SIZE: f32 = 14.0;
 
-pub const MODULE_SHADOW_RADIUS: i32 = 25;
-pub const POPUP_SHADOW_RADIUS: i32 = 40;
-pub const JACK_SIZE: i32 = GRID_1;
-pub const JACK_ICON_PADDING: i32 = 1;
-pub const JACK_SMALL_ICON_SIZE: i32 = 12;
+pub const MODULE_SHADOW_RADIUS: f32 = 25.0;
+pub const POPUP_SHADOW_RADIUS: f32 = 40.0;
+pub const JACK_SIZE: f32 = GRID_1 as f32;
+pub const JACK_ICON_PADDING: f32 = 1.0;
+pub const JACK_SMALL_ICON_SIZE: f32 = 12.0;
 // Width of the area dedicated to input or output on each module.
-pub const MODULE_IO_WIDTH: i32 = JACK_SIZE + GRID_P;
+pub const MODULE_IO_WIDTH: f32 = JACK_SIZE + GRID_P as f32;
 
-// Originally 22 but that made grid modules with a reasonable amount of space between them have 
+// Originally 22 but that made grid modules with a reasonable amount of space between them have
 // the weird loop-around fallback wire.
-pub const WIRE_MIN_SEGMENT_LENGTH: i32 = 21; 
+pub const WIRE_MIN_SEGMENT_LENGTH: f32 = 21.0;
 // Amount of x and y offset required to create a 45 degree line MIN_WIRE_SEGMENT_LENGTH long
-pub const WIRE_MIN_DIAGONAL_SIZE: i32 =
-    (WIRE_MIN_SEGMENT_LENGTH as f32 * std::f32::consts::SQRT_2 / 2.0) as i32;
-pub const WIRE_SPACING: i32 = (GRID_1 + GRID_P) / 4;
+pub const WIRE_MIN_DIAGONAL_SIZE: f32 = WIRE_MIN_SEGMENT_LENGTH * std::f32::consts::SQRT_2 / 2.0;
+pub const WIRE_SPACING: f32 = (GRID_1 + GRID_P_INT) as f32 / 4.0;
 
 const fn hex_color(hex: u32) -> (u8, u8, u8) {
     (

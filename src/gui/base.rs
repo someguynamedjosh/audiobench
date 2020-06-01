@@ -91,7 +91,7 @@ impl GuiScreen {
 }
 
 pub struct Gui {
-    size: (i32, i32),
+    size: (f32, f32),
     current_screen: GuiScreen,
     menu_bar: other_widgets::MenuBar,
     patch_browser: other_widgets::PatchBrowser,
@@ -99,8 +99,8 @@ pub struct Gui {
     module_browser: other_widgets::ModuleBrowser,
 
     mouse_action: MouseAction,
-    click_position: (i32, i32),
-    mouse_pos: (i32, i32),
+    click_position: (f32, f32),
+    mouse_pos: (f32, f32),
     mouse_down: bool,
     dragged: bool,
     last_click: Instant,
@@ -113,16 +113,16 @@ impl Gui {
         current_patch: &Rcrc<Patch>,
         graph_ref: Rcrc<ep::ModuleGraph>,
     ) -> Self {
-        let size = (640, 480);
+        let size = (640.0, 480.0);
         let y = other_widgets::MenuBar::HEIGHT;
         let screen_size = (size.0, size.1 - y);
 
         let patch_browser =
-            other_widgets::PatchBrowser::create(current_patch, registry, (0, y), screen_size);
+            other_widgets::PatchBrowser::create(current_patch, registry, (0.0, y), screen_size);
         let mut graph = audio_widgets::ModuleGraph::create(registry, graph_ref, screen_size);
         graph.pos.1 = y;
         let module_browser =
-            other_widgets::ModuleBrowser::create(registry, (0, y), (size.0, size.1 - y));
+            other_widgets::ModuleBrowser::create(registry, (0.0, y), (size.0, size.1 - y));
 
         Self {
             size,
@@ -133,8 +133,8 @@ impl Gui {
             module_browser,
 
             mouse_action: MouseAction::None,
-            click_position: (0, 0),
-            mouse_pos: (0, 0),
+            click_position: (0.0, 0.0),
+            mouse_pos: (0.0, 0.0),
             mouse_down: false,
             dragged: false,
             last_click: Instant::now() - Duration::from_secs(100),
@@ -170,7 +170,7 @@ impl Gui {
     pub fn on_mouse_down(
         &mut self,
         registry: &Registry,
-        pos: (i32, i32),
+        pos: (f32, f32),
         mods: &MouseMods,
     ) -> Option<InstanceAction> {
         self.menu_bar.clear_status();
@@ -195,11 +195,11 @@ impl Gui {
     }
 
     /// Minimum number of pixels the mouse must move before dragging starts.
-    const MIN_DRAG_DELTA: i32 = 4;
+    const MIN_DRAG_DELTA: f32 = 4.0;
     pub fn on_mouse_move(
         &mut self,
         registry: &Registry,
-        new_pos: (i32, i32),
+        new_pos: (f32, f32),
         mods: &MouseMods,
     ) -> Option<InstanceAction> {
         let mut retval = None;
@@ -325,7 +325,7 @@ impl Gui {
         &self.mouse_action
     }
 
-    pub(super) fn get_current_mouse_pos(&self) -> (i32, i32) {
+    pub(super) fn get_current_mouse_pos(&self) -> (f32, f32) {
         self.mouse_pos
     }
 }

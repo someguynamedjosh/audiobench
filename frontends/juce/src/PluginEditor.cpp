@@ -22,7 +22,7 @@ void popState(void *gp)
     ((Graphics *)gp)->restoreState();
 }
 
-void applyOffset(void *gp, int x, int y)
+void applyOffset(void *gp, float x, float y)
 {
     ((Graphics *)gp)->addTransform(AffineTransform().translated(x, y));
 }
@@ -47,22 +47,22 @@ void clear(void *gp)
     ((Graphics *)gp)->fillAll();
 }
 
-void strokeLine(void *gp, int x1, int y1, int x2, int y2, float weight)
+void strokeLine(void *gp, float x1, float y1, float x2, float y2, float weight)
 {
     ((Graphics *)gp)->drawLine(x1 - 0.5f, y1 - 0.5f, x2 - 0.5f, y2 - 0.5f, weight);
 }
 
-void fillRect(void *gp, int x, int y, int w, int h)
+void fillRect(void *gp, float x, float y, float w, float h)
 {
     ((Graphics *)gp)->fillRect(x, y, w, h);
 }
 
-void fillRoundedRect(void *gp, int x, int y, int w, int h, int cornerSize)
+void fillRoundedRect(void *gp, float x, float y, float w, float h, float cornerSize)
 {
     ((Graphics *)gp)->fillRoundedRectangle(x, y, w, h, cornerSize);
 }
 
-void fillPie(void *gp, int x, int y, int r, int ir, float sr, float er)
+void fillPie(void *gp, float x, float y, float r, float ir, float sr, float er)
 {
     Path pie;
     pie.addPieSegment(
@@ -78,8 +78,8 @@ void fillPie(void *gp, int x, int y, int r, int ir, float sr, float er)
 }
 
 void writeText(
-    void *gp, int fontSize, int x, int y, int w, int h, char halign,
-    char valign, int maxLines, char *text)
+    void *gp, float fontSize, float x, float y, float w, float h, uint8_t halign,
+    uint8_t valign, int maxLines, char *text)
 {
     int justification = 0;
     if (halign == 0)
@@ -111,7 +111,7 @@ void writeText(
     ((Graphics *)gp)->drawFittedText(str, x, y, w, h, justification, maxLines);
 }
 
-void writeConsoleText(void *gp, int w, int h, char *text)
+void writeConsoleText(void *gp, float w, float h, char *text)
 {
     String str = String(text);
 
@@ -193,7 +193,7 @@ void writeConsoleText(void *gp, int w, int h, char *text)
     ((Graphics *)gp)->setFont(oldFont);
 }
 
-void drawIcon(void *gp, void *iconStore, bool white, int index, int x, int y, int size)
+void drawIcon(void *gp, void *iconStore, bool white, int index, float x, float y, float size)
 {
     index = index * 2 + (white ? 1 : 0);
     (*(std::vector<std::unique_ptr<Drawable>> *)iconStore)[index]->draw(
@@ -201,7 +201,7 @@ void drawIcon(void *gp, void *iconStore, bool white, int index, int x, int y, in
         AffineTransform::scale(size / 24.0f).translated(x, y));
 }
 
-void drawDropShadow(void *gp, int x, int y, int w, int h, int radius)
+void drawDropShadow(void *gp, float x, float y, float w, float h, float radius)
 {
     Graphics *g = (Graphics *)gp;
     auto black = Colours::black.withAlpha(0.4f);

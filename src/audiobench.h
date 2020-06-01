@@ -4,20 +4,20 @@ typedef void *ABInstanceRef;
 struct ABGraphicsFunctions {
     void (*pushState)(void*);
     void (*popState)(void*);
-    void (*applyOffset)(void*, int, int);
+    void (*applyOffset)(void*, float, float);
     void (*applyScale)(void*, float);
 
     void (*setColor)(void*, uint8_t, uint8_t, uint8_t);
     void (*setAlpha)(void*, float);
     void (*clear)(void*);
-    void (*strokeLine)(void*, int, int, int, int, float);
-    void (*fillRect)(void*, int, int, int, int);
-    void (*fillRoundedRect)(void*, int, int, int, int, int);
-    void (*fillPie)(void*, int, int, int, int, float, float);
-    void (*writeText)(void*, int, int, int, int, int, char, char, int, char*);
-    void (*writeConsoleText)(void*, int, int, char*);
-    void (*drawIcon)(void*, void*, bool, int, int, int, int);
-    void (*drawDropShadow)(void*, int, int, int, int, int);
+    void (*strokeLine)(void*, float, float, float, float, float);
+    void (*fillRect)(void*, float, float, float, float);
+    void (*fillRoundedRect)(void*, float, float, float, float, float);
+    void (*fillPie)(void*, float, float, float, float, float, float);
+    void (*writeText)(void*, float, float, float, float, float, uint8_t, uint8_t, int, char*);
+    void (*writeConsoleText)(void*, float, float, char*);
+    void (*drawIcon)(void*, void*, bool, int, float, float, float);
+    void (*drawDropShadow)(void*, float, float, float, float, float);
 };
 
 extern "C" {

@@ -13,16 +13,16 @@ use std::f32::consts::PI;
 fn draw_automation_wire(
     g: &mut GrahpicsWrapper,
     face_down: bool,
-    x1: i32,
-    y1: i32,
-    x2: i32,
-    mut y2: i32,
+    x1: f32,
+    y1: f32,
+    x2: f32,
+    mut y2: f32,
 ) {
-    const S: i32 = WIRE_MIN_SEGMENT_LENGTH;
-    const D: i32 = WIRE_MIN_DIAGONAL_SIZE;
-    const SD: i32 = S + D;
+    const S: f32 = WIRE_MIN_SEGMENT_LENGTH;
+    const D: f32 = WIRE_MIN_DIAGONAL_SIZE;
+    const SD: f32 = S + D;
     const W: f32 = 2.0;
-    let mut stroke_line: Box<dyn FnMut(i32, i32, i32, i32)> = if face_down {
+    let mut stroke_line: Box<dyn FnMut(f32, f32, f32, f32)> = if face_down {
         let pivot = y1;
         y2 = pivot - (y2 - pivot);
         Box::new(move |x1, y1, x2, y2| {
@@ -43,7 +43,7 @@ fn draw_automation_wire(
             stroke_line(x1 + S, y1, x1 + SD, y1 + D);
             let down_segment_length = dy - D;
             let left_segment_length = -dx - D;
-            let diagonal = down_segment_length.min(left_segment_length) / 2;
+            let diagonal = down_segment_length.min(left_segment_length) / 2.0;
             let dsl = down_segment_length - diagonal + S;
             let lsl = left_segment_length - diagonal + S;
             let diagonal = diagonal + D;
@@ -52,14 +52,14 @@ fn draw_automation_wire(
             stroke_line(x2 + D + lsl, y2 + SD, x2 + D, y2 + SD);
             stroke_line(x2 + D, y2 + SD, x2, y2 + S);
             stroke_line(x2, y2 + S, x2, y2);
-        } else if dy <= -SD * 2 - D {
+        } else if dy <= -SD * 2.0 - D {
             stroke_line(x1, y1, x1 + S, y1);
             stroke_line(x1 + S, y1, x1 + SD, y1 - D);
             stroke_line(x1 + SD, y1 - D, x1 + SD, y1 - SD);
             stroke_line(x1 + SD, y1 - SD, x1 + S, y1 - SD - D);
-            let up_segment_length = -SD * 2 - D - dy;
+            let up_segment_length = -SD * 2.0 - D - dy;
             let left_segment_length = -dx - D;
-            let diagonal = up_segment_length.min(left_segment_length) / 2;
+            let diagonal = up_segment_length.min(left_segment_length) / 2.0;
             let usl = up_segment_length - diagonal + S;
             // let lsl = left_segment_length - diagonal + S;
             let diagonal = diagonal + D;
@@ -73,7 +73,7 @@ fn draw_automation_wire(
             stroke_line(x1 + SD, y1 + SD, x1 + S, y1 + SD + D);
             let left_segment_length = -dx - D;
             let up_segment_length = D - dy;
-            let diagonal = left_segment_length.min(up_segment_length) / 2;
+            let diagonal = left_segment_length.min(up_segment_length) / 2.0;
             let usl = up_segment_length - diagonal + S;
             let lsl = left_segment_length - diagonal + S;
             // let diagonal = diagonal + D;
@@ -84,17 +84,17 @@ fn draw_automation_wire(
     } else if dx >= SD && dy <= -SD {
         let right_segment_length = dx - SD;
         let up_segment_length = -SD - dy;
-        let diagonal = right_segment_length.min(up_segment_length) / 2;
+        let diagonal = right_segment_length.min(up_segment_length) / 2.0;
         let rsl = right_segment_length - diagonal + S;
         // let usl = up_segment_length - diagonal + S;
         let diagonal = diagonal + D;
         stroke_line(x1, y1, x1 + rsl, y1);
         stroke_line(x1 + rsl, y1, x2, y1 - diagonal);
         stroke_line(x2, y1 - diagonal, x2, y2);
-    } else if dx >= -D && dy <= -SD * 2 - D {
+    } else if dx >= -D && dy <= -SD * 2.0 - D {
         let right_segment_length = dx + D;
-        let up_segment_length = -SD * 2 - D - dy;
-        let diagonal = right_segment_length.min(up_segment_length) / 2;
+        let up_segment_length = -SD * 2.0 - D - dy;
+        let diagonal = right_segment_length.min(up_segment_length) / 2.0;
         let rsl = right_segment_length - diagonal + S;
         let usl = up_segment_length - diagonal + S;
         let diag = diagonal + D;
@@ -105,10 +105,10 @@ fn draw_automation_wire(
         stroke_line(x2 + SD, y2 + D + usl, x2 + D, y2 + D + usl);
         stroke_line(x2 + D, y2 + D + usl, x2, y2 + usl);
         stroke_line(x2, y2 + usl, x2, y2);
-    } else if dx >= SD * 2 + D && dy >= D {
-        let right_segment_length = dx - SD * 2 - D;
+    } else if dx >= SD * 2.0 + D && dy >= D {
+        let right_segment_length = dx - SD * 2.0 - D;
         let down_segment_length = dy - D;
-        let diagonal = right_segment_length.min(down_segment_length) / 2;
+        let diagonal = right_segment_length.min(down_segment_length) / 2.0;
         // let rsl = right_segment_length - diagonal + S;
         let dsl = down_segment_length - diagonal + S;
         let diagonal = diagonal + D;
@@ -119,10 +119,10 @@ fn draw_automation_wire(
         stroke_line(x1 + SD + diagonal, y2 + SD, x2 - D, y2 + SD);
         stroke_line(x2 - D, y2 + SD, x2, y2 + S);
         stroke_line(x2, y2 + S, x2, y2);
-    } else if dx >= SD * 2 + D {
-        let right_segment_length = dx - SD * 2 - D;
+    } else if dx >= SD * 2.0 + D {
+        let right_segment_length = dx - SD * 2.0 - D;
         let up_segment_length = -dy + D;
-        let diagonal = right_segment_length.min(up_segment_length) / 2;
+        let diagonal = right_segment_length.min(up_segment_length) / 2.0;
         // let rsl = right_segment_length - diagonal + S;
         let usl = up_segment_length - diagonal + S;
         let diagonal = diagonal + D;
@@ -136,7 +136,7 @@ fn draw_automation_wire(
     } else if dy >= D {
         let down_segment_length = dy - D;
         let right_segment_length = dx + D;
-        let diagonal = down_segment_length.min(right_segment_length) / 2;
+        let diagonal = down_segment_length.min(right_segment_length) / 2.0;
         // let dsl = down_segment_length - diagonal + S;
         let rsl = right_segment_length - diagonal + S;
         let diagonal = diagonal + D;
@@ -161,12 +161,12 @@ fn draw_automation_wire(
 }
 
 // x1, y1 is coord of input, x2, y2 is coord of output.
-fn draw_io_wire(g: &mut GrahpicsWrapper, x1: i32, y1: i32, x2: i32, mut y2: i32) {
-    const S: i32 = WIRE_MIN_SEGMENT_LENGTH;
-    const D: i32 = WIRE_MIN_DIAGONAL_SIZE;
-    const SD: i32 = S + D;
+fn draw_io_wire(g: &mut GrahpicsWrapper, x1: f32, y1: f32, x2: f32, mut y2: f32) {
+    const S: f32 = WIRE_MIN_SEGMENT_LENGTH;
+    const D: f32 = WIRE_MIN_DIAGONAL_SIZE;
+    const SD: f32 = S + D;
     const W: f32 = 2.0;
-    let mut stroke_line: Box<dyn FnMut(i32, i32, i32, i32)> = if y2 < y1 {
+    let mut stroke_line: Box<dyn FnMut(f32, f32, f32, f32)> = if y2 < y1 {
         let pivot = y1;
         // Since pivot is y1, y1 remains unchanged.
         y2 = pivot - (y2 - pivot);
@@ -182,16 +182,16 @@ fn draw_io_wire(g: &mut GrahpicsWrapper, x1: i32, y1: i32, x2: i32, mut y2: i32)
     };
     let dx = x2 - x1;
     let dy = y2 - y1;
-    if -dx - S * 2 >= dy {
+    if -dx - S * 2.0 >= dy {
         let diagonal = dy;
-        let lsl = (-dx - diagonal) / 2;
+        let lsl = (-dx - diagonal) / 2.0;
         stroke_line(x1, y1, x1 - lsl, y1);
         stroke_line(x1 - lsl, y1, x2 + lsl, y2);
         stroke_line(x2 + lsl, y2, x2, y2);
-    } else if dx <= -SD * 2 && dy >= SD + D {
-        let left_segment_length = -dx - SD * 2;
+    } else if dx <= -SD * 2.0 && dy >= SD + D {
+        let left_segment_length = -dx - SD * 2.0;
         let up_segment_length = dy - SD - D;
-        let diag = left_segment_length.min(up_segment_length) / 2;
+        let diag = left_segment_length.min(up_segment_length) / 2.0;
         let lsl = left_segment_length - diag + S;
         // let usl = up_segment_length - diag + S;
         let diag = diag + D;
@@ -200,10 +200,10 @@ fn draw_io_wire(g: &mut GrahpicsWrapper, x1: i32, y1: i32, x2: i32, mut y2: i32)
         stroke_line(x1 - SD, y1 + D, x1 - SD, y2 - diag);
         stroke_line(x1 - SD, y2 - diag, x2 + lsl, y2);
         stroke_line(x2 + lsl, y2, x2, y2);
-    } else if dx >= -S && dy >= 2 * S + 4 * D {
+    } else if dx >= -S && dy >= 2.0 * S + 4.0 * D {
         let right_segment_length = dx + S;
-        let up_segment_length = dy - 2 * S - 4 * D;
-        let diag = right_segment_length.min(up_segment_length) / 2;
+        let up_segment_length = dy - 2.0 * S - 4.0 * D;
+        let diag = right_segment_length.min(up_segment_length) / 2.0;
         let rsl = right_segment_length - diag + S;
         let usl = up_segment_length - diag + S;
         // let diag = diag + D;
@@ -216,10 +216,10 @@ fn draw_io_wire(g: &mut GrahpicsWrapper, x1: i32, y1: i32, x2: i32, mut y2: i32)
         stroke_line(x2 + SD, y2 - D - usl, x2 + SD, y2 - D);
         stroke_line(x2 + SD, y2 - D, x2 + S, y2);
         stroke_line(x2 + S, y2, x2, y2);
-    } else if dy >= 2 * S + 4 * D {
+    } else if dy >= 2.0 * S + 4.0 * D {
         let left_segment_length = -dx - S;
-        let up_segment_length = dy - 2 * S - 4 * D;
-        let diag = left_segment_length.min(up_segment_length) / 2;
+        let up_segment_length = dy - 2.0 * S - 4.0 * D;
+        let diag = left_segment_length.min(up_segment_length) / 2.0;
         let lsl = left_segment_length - diag + S;
         let usl = up_segment_length - diag + S;
         let diag = diag + D;
@@ -235,7 +235,7 @@ fn draw_io_wire(g: &mut GrahpicsWrapper, x1: i32, y1: i32, x2: i32, mut y2: i32)
     } else if dx >= -S {
         let right_segment_length = dx + S;
         let up_segment_length = dy;
-        let diag = right_segment_length.min(up_segment_length) / 2;
+        let diag = right_segment_length.min(up_segment_length) / 2.0;
         // let rsl = right_segment_length - diag + S;
         let usl = up_segment_length - diag + S;
         let diag = diag + D;
@@ -268,7 +268,7 @@ struct InputJack {
     tooltip: Tooltip,
     icon: usize,
     small_icon: Option<usize>,
-    pos: (i32, i32),
+    pos: (f32, f32),
 }
 
 impl InputJack {
@@ -277,8 +277,8 @@ impl InputJack {
         tooltip: String,
         mut icon: usize,
         custom_icon: Option<usize>,
-        x: i32,
-        y: i32,
+        x: f32,
+        y: f32,
     ) -> Self {
         let small_icon = if let Some(custom) = custom_icon {
             let small_icon = icon;
@@ -299,12 +299,12 @@ impl InputJack {
         }
     }
 
-    fn mouse_in_bounds(&self, mouse_pos: (i32, i32)) -> bool {
+    fn mouse_in_bounds(&self, mouse_pos: (f32, f32)) -> bool {
         let mouse_pos = (
             mouse_pos.0 - self.pos.0 + JACK_SIZE,
             mouse_pos.1 - self.pos.1,
         );
-        mouse_pos.inside((JACK_SIZE * 2, JACK_SIZE))
+        mouse_pos.inside((JACK_SIZE * 2.0, JACK_SIZE))
     }
 
     fn draw(
@@ -316,9 +316,9 @@ impl InputJack {
     ) {
         g.push_state();
         g.apply_offset(self.pos.0, self.pos.1);
-        const JS: i32 = JACK_SIZE;
-        const CS: i32 = CORNER_SIZE;
-        const JIP: i32 = JACK_ICON_PADDING;
+        const JS: f32 = JACK_SIZE;
+        const CS: f32 = CORNER_SIZE;
+        const JIP: f32 = JACK_ICON_PADDING;
 
         if mute {
             g.set_color(&COLOR_MUTED_TEXT);
@@ -326,30 +326,30 @@ impl InputJack {
             g.set_color(&COLOR_TEXT);
         }
         if let Some(default) = &default {
-            const X: i32 = -JS;
-            const Y: i32 = (JS - JS) / 2;
-            g.fill_pie(-JS, 0, JS, 0, 0.0, PI * 2.0);
-            g.fill_rect(-JS / 2, 0, JS / 2, JS);
-            g.draw_icon(default.icon, X + JIP, Y + JIP, JS - JIP * 2);
+            const X: f32 = -JS;
+            const Y: f32 = (JS - JS) / 2.0;
+            g.fill_pie(-JS, 0.0, JS, 0.0, 0.0, PI * 2.0);
+            g.fill_rect(-JS / 2.0, 0.0, JS / 2.0, JS);
+            g.draw_icon(default.icon, X + JIP, Y + JIP, JS - JIP * 2.0);
         }
 
-        g.fill_rounded_rect(0, 0, JS, JS, CS);
-        g.fill_rect(0, 0, CS, JS);
+        g.fill_rounded_rect(0.0, 0.0, JS, JS, CS);
+        g.fill_rect(0.0, 0.0, CS, JS);
 
         if let Some(small_icon) = self.small_icon {
-            const JSIS: i32 = JACK_SMALL_ICON_SIZE;
-            const MINI_X: i32 = JS - JSIS / 2;
-            const MINI_Y: i32 = JS - JSIS - JIP;
+            const JSIS: f32 = JACK_SMALL_ICON_SIZE;
+            const MINI_X: f32 = JS - JSIS / 2.0;
+            const MINI_Y: f32 = JS - JSIS - JIP;
             g.fill_rounded_rect(
                 MINI_X - JIP,
                 MINI_Y - JIP,
-                JSIS + JIP * 2,
-                JSIS + JIP * 2,
+                JSIS + JIP * 2.0,
+                JSIS + JIP * 2.0,
                 CS,
             );
             g.draw_icon(small_icon, MINI_X, MINI_Y, JSIS);
         }
-        g.draw_icon(self.icon, JIP, JIP, JS - JIP * 2);
+        g.draw_icon(self.icon, JIP, JIP, JS - JIP * 2.0);
 
         if show_label && !mute {
             const H: HAlign = HAlign::Right;
@@ -357,12 +357,12 @@ impl InputJack {
             const C: VAlign = VAlign::Center;
             const T: VAlign = VAlign::Top;
             if let Some(default) = &default {
-                const X: i32 = -104 - JS;
-                g.write_text(FONT_SIZE, X, -JS / 2, 100, JS, H, B, 1, &self.label);
+                const X: f32 = -100.0 - GRID_P - JS;
+                g.write_text(FONT_SIZE, X, -JS / 2.0, 100.0, JS, H, B, 1, &self.label);
                 let text = format!("({})", default.name);
-                g.write_text(FONT_SIZE, X, JS / 2, 100, JS, H, T, 1, &text);
+                g.write_text(FONT_SIZE, X, JS / 2.0, 100.0, JS, H, T, 1, &text);
             } else {
-                g.write_text(FONT_SIZE, -104, 0, 100, JS, H, C, 1, &self.label);
+                g.write_text(FONT_SIZE, -104.0, 0.0, 100.0, JS, H, C, 1, &self.label);
             }
         }
 
@@ -375,7 +375,7 @@ struct OutputJack {
     tooltip: Tooltip,
     icon: usize,
     small_icon: Option<usize>,
-    pos: (i32, i32),
+    pos: (f32, f32),
 }
 
 impl OutputJack {
@@ -384,8 +384,8 @@ impl OutputJack {
         tooltip: String,
         mut icon: usize,
         custom_icon: Option<usize>,
-        x: i32,
-        y: i32,
+        x: f32,
+        y: f32,
     ) -> Self {
         let small_icon = if let Some(custom) = custom_icon {
             let small_icon = icon;
@@ -406,7 +406,7 @@ impl OutputJack {
         }
     }
 
-    fn mouse_in_bounds(&self, mouse_pos: (i32, i32)) -> bool {
+    fn mouse_in_bounds(&self, mouse_pos: (f32, f32)) -> bool {
         let mouse_pos = (mouse_pos.0 - self.pos.0, mouse_pos.1 - self.pos.1);
         mouse_pos.inside((JACK_SIZE, JACK_SIZE))
     }
@@ -415,36 +415,36 @@ impl OutputJack {
         g.push_state();
         g.apply_offset(self.pos.0, self.pos.1);
 
-        const JS: i32 = JACK_SIZE;
-        const CS: i32 = CORNER_SIZE;
+        const JS: f32 = JACK_SIZE;
+        const CS: f32 = CORNER_SIZE;
         if mute {
             g.set_color(&COLOR_MUTED_TEXT);
         } else {
             g.set_color(&COLOR_TEXT);
         }
-        g.fill_rounded_rect(0, 0, JS, JS, CS);
-        g.fill_rect(JS - CS, 0, CS, JS);
+        g.fill_rounded_rect(0.0, 0.0, JS, JS, CS);
+        g.fill_rect(JS - CS, 0.0, CS, JS);
 
-        const JIP: i32 = JACK_ICON_PADDING;
+        const JIP: f32 = JACK_ICON_PADDING;
         if let Some(small_icon) = self.small_icon {
-            const JSIS: i32 = JACK_SMALL_ICON_SIZE;
-            const MINI_X: i32 = -JSIS / 2;
-            const MINI_Y: i32 = JS - JSIS - JIP;
+            const JSIS: f32 = JACK_SMALL_ICON_SIZE;
+            const MINI_X: f32 = -JSIS / 2.0;
+            const MINI_Y: f32 = JS - JSIS - JIP;
             g.fill_rounded_rect(
                 MINI_X - JIP,
                 MINI_Y - JIP,
-                JSIS + JIP * 2,
-                JSIS + JIP * 2,
+                JSIS + JIP * 2.0,
+                JSIS + JIP * 2.0,
                 CS,
             );
             g.draw_icon(small_icon, MINI_X, MINI_Y, JSIS);
         }
-        g.draw_icon(self.icon, JIP, JIP, JS - JIP * 2);
+        g.draw_icon(self.icon, JIP, JIP, JS - JIP * 2.0);
 
         if show_label && !mute {
             const H: HAlign = HAlign::Left;
             const V: VAlign = VAlign::Center;
-            g.write_text(FONT_SIZE, JS + 4, 0, 100, JS, H, V, 1, &self.label);
+            g.write_text(FONT_SIZE, JS + 4.0, 0.0, 100.0, JS, H, V, 1, &self.label);
         }
 
         g.pop_state();
@@ -453,15 +453,15 @@ impl OutputJack {
 
 #[derive(Clone)]
 pub(in crate::gui) struct WireTracker {
-    module_height: i32,
+    module_height: f32,
     top_slots: Vec<bool>,
     bottom_slots: Vec<bool>,
-    wires: Vec<((i32, i32), (i32, i32), bool)>,
+    wires: Vec<((f32, f32), (f32, f32), bool)>,
 }
 
 impl WireTracker {
-    fn new(module_size: (i32, i32)) -> Self {
-        let num_slots = (module_size.0 - MODULE_IO_WIDTH * 2 - JACK_SIZE) / WIRE_SPACING;
+    fn new(module_size: (f32, f32)) -> Self {
+        let num_slots = (module_size.0 - MODULE_IO_WIDTH * 2.0 - JACK_SIZE) / WIRE_SPACING;
         Self {
             module_height: module_size.1,
             top_slots: vec![false; num_slots as usize],
@@ -469,10 +469,10 @@ impl WireTracker {
             wires: Vec::new(),
         }
     }
-    pub fn add_wire(&mut self, source_coord: (i32, i32), widget_coord: (i32, i32)) {
+    pub fn add_wire(&mut self, source_coord: (f32, f32), widget_coord: (f32, f32)) {
         let slot_index = ((widget_coord.0 - MODULE_IO_WIDTH - JACK_SIZE) / WIRE_SPACING) as usize;
         let slot_index = slot_index.min(self.top_slots.len() - 1);
-        let top = widget_coord.1 <= self.module_height / 2;
+        let top = widget_coord.1 <= self.module_height / 2.0;
         let slots = if top {
             &mut self.top_slots
         } else {
@@ -504,13 +504,13 @@ impl WireTracker {
         slots[empty_slot] = true;
 
         let (endx, endy) = (
-            empty_slot as i32 * WIRE_SPACING + WIRE_SPACING / 2 + MODULE_IO_WIDTH + JACK_SIZE,
-            if top { 0 } else { self.module_height },
+            empty_slot as f32 * WIRE_SPACING + WIRE_SPACING / 2.0 + MODULE_IO_WIDTH + JACK_SIZE,
+            if top { 0.0 } else { self.module_height },
         );
         self.wires.push((source_coord, (endx, endy), top));
     }
 
-    pub fn draw_wires(self, g: &mut GrahpicsWrapper, target_offset: (i32, i32)) {
+    pub fn draw_wires(self, g: &mut GrahpicsWrapper, target_offset: (f32, f32)) {
         for (source, target, face_down) in self.wires {
             draw_automation_wire(
                 g,
@@ -526,7 +526,7 @@ impl WireTracker {
 
 pub struct Module {
     module: Rcrc<ep::Module>,
-    size: (i32, i32),
+    size: (f32, f32),
     label: String,
     inputs: Vec<InputJack>,
     outputs: Vec<OutputJack>,
@@ -540,22 +540,22 @@ impl Drop for Module {
 }
 
 impl Module {
-    fn jack_y(index: i32) -> i32 {
-        coord(index) + JACK_SIZE / 2
+    fn jack_y(index: i32) -> f32 {
+        coord(index) + JACK_SIZE / 2.0
     }
 
-    pub fn input_position(module: &ep::Module, input_index: i32) -> (i32, i32) {
-        let module_pos = (module.pos.0 as i32, module.pos.1 as i32);
+    pub fn input_position(module: &ep::Module, input_index: i32) -> (f32, f32) {
+        let module_pos = (module.pos.0 as f32, module.pos.1 as f32);
         (
             module_pos.0 + JACK_SIZE,
             module_pos.1 + Self::jack_y(input_index),
         )
     }
 
-    pub fn output_position(module: &ep::Module, output_index: i32) -> (i32, i32) {
-        let module_pos = (module.pos.0 as i32, module.pos.1 as i32);
+    pub fn output_position(module: &ep::Module, output_index: i32) -> (f32, f32) {
+        let module_pos = (module.pos.0 as f32, module.pos.1 as f32);
         let module_size = module.template.borrow().size;
-        let module_width = fatgrid(module_size.0) + MODULE_IO_WIDTH * 2 + JACK_SIZE;
+        let module_width = fatgrid(module_size.0) + MODULE_IO_WIDTH * 2.0 + JACK_SIZE;
         (
             module_pos.0 + module_width,
             module_pos.1 + Self::jack_y(output_index),
@@ -563,7 +563,7 @@ impl Module {
     }
 
     pub fn create(registry: &Registry, module: Rcrc<ep::Module>) -> Self {
-        const MIW: i32 = MODULE_IO_WIDTH;
+        const MIW: f32 = MODULE_IO_WIDTH;
         let mut module_ref = module.borrow_mut();
         let template_ref = module_ref.template.borrow();
         let grid_size = template_ref.size;
@@ -579,7 +579,7 @@ impl Module {
             .collect();
 
         let size = (
-            fatgrid(grid_size.0) + MIW * 2 + JACK_SIZE,
+            fatgrid(grid_size.0) + MIW * 2.0 + JACK_SIZE,
             fatgrid(grid_size.1),
         );
         let mut inputs = Vec::new();
@@ -622,12 +622,12 @@ impl Module {
         }
     }
 
-    fn get_pos(&self) -> (i32, i32) {
+    fn get_pos(&self) -> (f32, f32) {
         let pos = self.module.borrow().pos;
-        (pos.0 as i32, pos.1 as i32)
+        (pos.0 as f32, pos.1 as f32)
     }
 
-    pub fn respond_to_mouse_press(&self, mouse_pos: (i32, i32), mods: &MouseMods) -> MouseAction {
+    pub fn respond_to_mouse_press(&self, mouse_pos: (f32, f32), mods: &MouseMods) -> MouseAction {
         let pos = self.get_pos();
         let mouse_pos = (mouse_pos.0 - pos.0, mouse_pos.1 - pos.1);
         if !mouse_pos.inside(self.size) {
@@ -660,7 +660,7 @@ impl Module {
         }
     }
 
-    pub fn get_drop_target_at(&self, mouse_pos: (i32, i32)) -> DropTarget {
+    pub fn get_drop_target_at(&self, mouse_pos: (f32, f32)) -> DropTarget {
         let pos = self.get_pos();
         let mouse_pos = (mouse_pos.0 - pos.0, mouse_pos.1 - pos.1);
         if !mouse_pos.inside(self.size) {
@@ -689,7 +689,7 @@ impl Module {
         DropTarget::None
     }
 
-    fn get_tooltip_at(&self, mouse_pos: (i32, i32)) -> Option<Tooltip> {
+    fn get_tooltip_at(&self, mouse_pos: (f32, f32)) -> Option<Tooltip> {
         let pos = self.get_pos();
         let mouse_pos = (mouse_pos.0 - pos.0, mouse_pos.1 - pos.1);
         if !mouse_pos.inside(self.size) {
@@ -722,15 +722,14 @@ impl Module {
         })
     }
 
-    fn draw_wires(&self, g: &mut GrahpicsWrapper, pos: (i32, i32)) {
+    fn draw_wires(&self, g: &mut GrahpicsWrapper, pos: (f32, f32)) {
         let mut wire_tracker = WireTracker::new(self.size);
         for (widget, _) in &self.widgets {
             widget.add_wires(&mut wire_tracker);
         }
         wire_tracker.draw_wires(g, pos);
         for (index, jack) in self.module.borrow().inputs.iter().enumerate() {
-            let index = index as i32;
-            let y = coord(index) + grid(1) / 2;
+            let y = coord(index as i32) + grid(1) / 2.0;
             if let ep::InputConnection::Wire(module, output_index) = jack {
                 let output_index = *output_index as i32;
                 let module_ref = module.borrow();
@@ -743,9 +742,9 @@ impl Module {
     fn draw(
         &self,
         g: &mut GrahpicsWrapper,
-        mouse_pos: (i32, i32),
+        mouse_pos: (f32, f32),
         highlight: Option<(bool, ep::JackType)>,
-        layer_index: i32,
+        layer_index: usize,
     ) {
         let pos = self.get_pos();
 
@@ -766,22 +765,22 @@ impl Module {
             g.apply_offset(pos.0, pos.1);
             let mouse_pos = mouse_pos.sub(pos);
 
-            const CS: i32 = CORNER_SIZE;
-            const JS: i32 = JACK_SIZE;
-            const MIW: i32 = MODULE_IO_WIDTH;
+            const CS: f32 = CORNER_SIZE;
+            const JS: f32 = JACK_SIZE;
+            const MIW: f32 = MODULE_IO_WIDTH;
 
             g.set_color(&COLOR_IO_AREA);
-            g.fill_rounded_rect(JS, 0, self.size.0 - JS, self.size.1, CS);
+            g.fill_rounded_rect(JS, 0.0, self.size.0 - JS, self.size.1, CS);
             g.set_color(&COLOR_SURFACE);
-            g.fill_rect(JS + MIW, 0, self.size.0 - MIW * 2 - JS, self.size.1);
+            g.fill_rect(JS + MIW, 0.0, self.size.0 - MIW * 2.0 - JS, self.size.1);
 
             g.set_color(&COLOR_TEXT);
             g.write_text(
                 FONT_SIZE,
                 MODULE_IO_WIDTH,
-                -20,
+                -20.0,
                 self.size.0,
-                20,
+                20.0,
                 HAlign::Left,
                 VAlign::Bottom,
                 1,
@@ -841,8 +840,8 @@ impl Module {
 }
 
 pub struct ModuleGraph {
-    pub pos: (i32, i32),
-    size: (i32, i32),
+    pub pos: (f32, f32),
+    size: (f32, f32),
     offset: Rcrc<(f32, f32)>,
     zoom: Rcrc<f32>,
     graph: Rcrc<ep::ModuleGraph>,
@@ -852,7 +851,7 @@ pub struct ModuleGraph {
 }
 
 impl ModuleGraph {
-    pub fn create(registry: &Registry, graph: Rcrc<ep::ModuleGraph>, size: (i32, i32)) -> Self {
+    pub fn create(registry: &Registry, graph: Rcrc<ep::ModuleGraph>, size: (f32, f32)) -> Self {
         let modules = graph
             .borrow()
             .borrow_modules()
@@ -860,7 +859,7 @@ impl ModuleGraph {
             .map(|module_rc| Module::create(registry, Rc::clone(module_rc)))
             .collect();
         Self {
-            pos: (0, 0),
+            pos: (0.0, 0.0),
             size,
             zoom: rcrc(2.0),
             offset: rcrc((0.0, 0.0)),
@@ -873,7 +872,7 @@ impl ModuleGraph {
     pub fn rebuild(&mut self, registry: &Registry) {
         self.detail_menu_widget = None;
         let (mut x1, mut y1, mut x2, mut y2) =
-            (std::i32::MAX, std::i32::MAX, std::i32::MIN, std::i32::MIN);
+            (std::f32::MAX, std::f32::MAX, std::f32::MIN, std::f32::MIN);
         self.modules.clear();
         for module_rc in self.graph.borrow().borrow_modules() {
             let module_widget = Module::create(registry, Rc::clone(module_rc));
@@ -903,13 +902,13 @@ impl ModuleGraph {
     }
 
     fn recenter(&mut self) {
-        let (mut x1, mut y1) = (std::i32::MAX, std::i32::MAX);
-        let (mut x2, mut y2) = (std::i32::MIN, std::i32::MIN);
+        let (mut x1, mut y1) = (std::f32::MAX, std::f32::MAX);
+        let (mut x2, mut y2) = (std::f32::MIN, std::f32::MIN);
         if self.modules.len() == 0 {
-            x1 = 0;
-            y1 = 0;
-            x2 = 0;
-            y2 = 0;
+            x1 = 0.0;
+            y1 = 0.0;
+            x2 = 0.0;
+            y2 = 0.0;
         }
         for module in &self.modules {
             let corner1 = module.get_pos();
@@ -919,8 +918,8 @@ impl ModuleGraph {
             x2 = x2.max(corner2.0);
             y2 = y2.max(corner2.1);
         }
-        let center = ((x2 - x1) / 2 + x1, (y2 - y1) / 2 + y1);
-        let offset = center.sub((self.size.0 / 2, self.size.1 / 2));
+        let center = ((x2 - x1) / 2.0 + x1, (y2 - y1) / 2.0 + y1);
+        let offset = center.sub((self.size.0 / 2.0, self.size.1 / 2.0));
         *self.offset.borrow_mut() = (-offset.0 as f32, -offset.1 as f32);
     }
 
@@ -942,18 +941,18 @@ impl ModuleGraph {
         self.modules.remove(index);
     }
 
-    fn translate_mouse_pos(&self, mouse_pos: (i32, i32)) -> (i32, i32) {
+    fn translate_mouse_pos(&self, mouse_pos: (f32, f32)) -> (f32, f32) {
         let offset = self.offset.borrow();
         let zoom = *self.zoom.borrow();
         (
-            ((mouse_pos.0) as f32 / zoom - offset.0) as i32 - self.pos.0,
-            ((mouse_pos.1) as f32 / zoom - offset.1) as i32 - self.pos.1,
+            ((mouse_pos.0) as f32 / zoom - offset.0) as f32 - self.pos.0,
+            ((mouse_pos.1) as f32 / zoom - offset.1) as f32 - self.pos.1,
         )
     }
 
     pub fn respond_to_mouse_press(
         &mut self,
-        mouse_pos: (i32, i32),
+        mouse_pos: (f32, f32),
         mods: &MouseMods,
     ) -> MouseAction {
         let scale = 1.0 / *self.zoom.borrow();
@@ -975,9 +974,9 @@ impl ModuleGraph {
         MouseAction::PanOffset(Rc::clone(&self.offset)).scaled(scale)
     }
 
-    pub fn get_drop_target_at(&self, mouse_pos: (i32, i32)) -> DropTarget {
+    pub fn get_drop_target_at(&self, mouse_pos: (f32, f32)) -> DropTarget {
         let offset = self.offset.borrow();
-        let offset = (offset.0 as i32, offset.1 as i32);
+        let offset = (offset.0 as f32, offset.1 as f32);
         let mouse_pos = (
             mouse_pos.0 - offset.0 - self.pos.0,
             mouse_pos.1 - offset.1 - self.pos.1,
@@ -991,7 +990,7 @@ impl ModuleGraph {
         DropTarget::None
     }
 
-    pub fn get_tooltip_at(&self, mouse_pos: (i32, i32)) -> Option<Tooltip> {
+    pub fn get_tooltip_at(&self, mouse_pos: (f32, f32)) -> Option<Tooltip> {
         let mouse_pos = self.translate_mouse_pos(mouse_pos);
         if let Some(dmw) = &self.detail_menu_widget {
             let local_pos = mouse_pos.sub(dmw.get_pos());
@@ -1009,7 +1008,7 @@ impl ModuleGraph {
 
     pub fn draw(&self, g: &mut GrahpicsWrapper, gui_state: &Gui) {
         let offset = self.offset.borrow();
-        let offset = (offset.0 as i32, offset.1 as i32);
+        let offset = (offset.0 as f32, offset.1 as f32);
         g.push_state();
         g.apply_scale(*self.zoom.borrow());
         g.apply_offset(offset.0 + self.pos.0, offset.1 + self.pos.1);
