@@ -16,12 +16,12 @@
 //==============================================================================
 /**
 */
-class AudioBenchAudioProcessor  : public AudioProcessor
+class AudiobenchAudioProcessor  : public AudioProcessor
 {
 public:
     //==============================================================================
-    AudioBenchAudioProcessor();
-    ~AudioBenchAudioProcessor();
+    AudiobenchAudioProcessor();
+    ~AudiobenchAudioProcessor();
 
     //==============================================================================
     void prepareToPlay (double sampleRate, int samplesPerBlock) override;
@@ -60,5 +60,5 @@ public:
 
 private:
     //==============================================================================
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioBenchAudioProcessor)
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudiobenchAudioProcessor)
 };

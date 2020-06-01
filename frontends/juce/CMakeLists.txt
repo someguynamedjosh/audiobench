@@ -29,7 +29,7 @@ add_subdirectory(juce_git)
 # Check the readme at `examples/CMake` in the JUCE repo for the full list.
 
 juce_add_plugin(
-    AudioBench 
+    Audiobench 
     # VERSION ...                               # Set this if the plugin version is different to the project version
     # ICON_BIG ...                              # ICON_* arguments specify a path to an image file to use as an icon for the Standalone
     # ICON_SMALL ...
@@ -43,11 +43,11 @@ juce_add_plugin(
     PLUGIN_MANUFACTURER_CODE Juce               # A four-character manufacturer id with at least one upper-case character
     PLUGIN_CODE Dem0                            # A unique four-character plugin id with at least one upper-case character
     FORMATS AU VST3 Standalone                  # The formats to build. Other valid formats are: AAX Unity VST AU AUv3
-    PRODUCT_NAME "AudioBench"                   # The name of the final executable, which can differ from the target name
+    PRODUCT_NAME "Audiobench"                   # The name of the final executable, which can differ from the target name
 )
 
 target_include_directories(
-    AudioBench PRIVATE
+    Audiobench PRIVATE
     "$ENV{PROJECT_ROOT}/src/"
 )
 
@@ -57,7 +57,7 @@ target_include_directories(
 # include all your JUCE module headers; if you're happy to include module headers directly, you
 # probably don't need to call this.
 
-juce_generate_juce_header(AudioBench)
+juce_generate_juce_header(Audiobench)
 
 # `target_sources` adds source files to a target. We pass the target that needs the sources as the
 # first argument, then a visibility parameter for the sources (PRIVATE is normally best practice,
@@ -65,7 +65,7 @@ juce_generate_juce_header(AudioBench)
 # that will be built into the target. This is a standard CMake command.
 
 target_sources(
-    AudioBench PRIVATE
+    Audiobench PRIVATE
     src/PluginEditor.cpp
     src/PluginProcessor.cpp
 )
@@ -78,7 +78,7 @@ target_sources(
 # definitions, pick unique names that are unlikely to collide! This is a standard CMake command.
 
 target_compile_definitions(
-    AudioBench 
+    Audiobench 
     PUBLIC
     JUCE_WEB_BROWSER=0  
     JUCE_USE_CURL=0     
@@ -92,7 +92,7 @@ target_compile_definitions(
 # static library. These source files can be of any kind (wav data, images, fonts, icons etc.).
 # Conversion to binary-data will happen when your target is built.
 
-# juce_add_binary_data(AudioBench SOURCES ...)
+# juce_add_binary_data(Audiobench SOURCES ...)
 
 # `target_link_libraries` links libraries and JUCE modules to other libraries or executables. Here,
 # we're linking our executable target to the `juce::juce_audio_utils` module. Inter-module
@@ -101,7 +101,7 @@ target_compile_definitions(
 # here too. This is a standard CMake command.
 
 target_link_libraries(
-    AudioBench PRIVATE
+    Audiobench PRIVATE
     # AudioPluginData           # If we'd created a binary data target, we'd link to it here
     juce::juce_audio_utils
     "$ENV{RUST_OUTPUT_DIR}/libaudiobench.a"

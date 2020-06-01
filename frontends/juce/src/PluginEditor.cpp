@@ -217,7 +217,7 @@ void drawDropShadow(void *gp, int x, int y, int w, int h, int radius)
 }
 
 //==============================================================================
-AudioBenchAudioProcessorEditor::AudioBenchAudioProcessorEditor(AudioBenchAudioProcessor &p)
+AudiobenchAudioProcessorEditor::AudiobenchAudioProcessorEditor(AudiobenchAudioProcessor &p)
     : AudioProcessorEditor(&p), processor(p)
 {
     // The Rust library will use these functions to paint to the screen.
@@ -266,46 +266,46 @@ AudioBenchAudioProcessorEditor::AudioBenchAudioProcessorEditor(AudioBenchAudioPr
     startTimerHz(40);
 }
 
-AudioBenchAudioProcessorEditor::~AudioBenchAudioProcessorEditor()
+AudiobenchAudioProcessorEditor::~AudiobenchAudioProcessorEditor()
 {
     ABDestroyUI(processor.ab);
 }
 
 //==============================================================================
-void AudioBenchAudioProcessorEditor::paint(Graphics &g)
+void AudiobenchAudioProcessorEditor::paint(Graphics &g)
 {
     // Rust will pass the pointer to the Graphics object as the first argument to the drawing
     // functions whenever it uses them.
     ABDrawUI(processor.ab, (void *)&g, (void *)&iconStore);
 }
 
-void AudioBenchAudioProcessorEditor::mouseDown(const MouseEvent &event)
+void AudiobenchAudioProcessorEditor::mouseDown(const MouseEvent &event)
 {
     ABUIMouseDown(processor.ab, event.x, event.y, event.mods.isPopupMenu(), event.mods.isShiftDown(), event.mods.isAltDown());
 }
 
-void AudioBenchAudioProcessorEditor::mouseMove(const MouseEvent &event)
+void AudiobenchAudioProcessorEditor::mouseMove(const MouseEvent &event)
 {
     ABUIMouseMove(processor.ab, event.x, event.y, event.mods.isPopupMenu(), event.mods.isShiftDown(), event.mods.isAltDown());
 }
 
-void AudioBenchAudioProcessorEditor::mouseDrag(const MouseEvent &event)
+void AudiobenchAudioProcessorEditor::mouseDrag(const MouseEvent &event)
 {
     ABUIMouseMove(processor.ab, event.x, event.y, event.mods.isPopupMenu(), event.mods.isShiftDown(), event.mods.isAltDown());
 }
 
-void AudioBenchAudioProcessorEditor::mouseUp(const MouseEvent &event)
+void AudiobenchAudioProcessorEditor::mouseUp(const MouseEvent &event)
 {
     ABUIMouseUp(processor.ab);
 }
 
-bool AudioBenchAudioProcessorEditor::keyPressed(const KeyPress &key, Component *originatingComponent)
+bool AudiobenchAudioProcessorEditor::keyPressed(const KeyPress &key, Component *originatingComponent)
 {
     ABUIKeyPress(processor.ab, (char)key.getTextCharacter());
     return true;
 }
 
-void AudioBenchAudioProcessorEditor::resized()
+void AudiobenchAudioProcessorEditor::resized()
 {
     // This is generally where you'll want to lay out the positions of any
     // subcomponents in your editor..

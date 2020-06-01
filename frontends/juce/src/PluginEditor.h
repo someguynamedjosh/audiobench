@@ -16,11 +16,11 @@
 //==============================================================================
 /**
 */
-class AudioBenchAudioProcessorEditor  : public AudioProcessorEditor, public Timer, public KeyListener
+class AudiobenchAudioProcessorEditor  : public AudioProcessorEditor, public Timer, public KeyListener
 {
 public:
-    AudioBenchAudioProcessorEditor (AudioBenchAudioProcessor&);
-    ~AudioBenchAudioProcessorEditor();
+    AudiobenchAudioProcessorEditor (AudiobenchAudioProcessor&);
+    ~AudiobenchAudioProcessorEditor();
 
     //==============================================================================
     void paint (Graphics&) override;
@@ -42,9 +42,9 @@ public:
 private:
     // This reference is provided as a quick way for your editor to
     // access the processor object that created it.
-    AudioBenchAudioProcessor& processor;
+    AudiobenchAudioProcessor& processor;
     bool focusGrabbed = false;
     std::vector<std::unique_ptr<Drawable>> iconStore;
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioBenchAudioProcessorEditor)
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudiobenchAudioProcessorEditor)
 };

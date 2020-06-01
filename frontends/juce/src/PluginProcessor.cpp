@@ -14,7 +14,7 @@
 #include "audiobench.h"
 
 //==============================================================================
-AudioBenchAudioProcessor::AudioBenchAudioProcessor()
+AudiobenchAudioProcessor::AudiobenchAudioProcessor()
 #ifndef JucePlugin_PreferredChannelConfigurations
      : AudioProcessor (BusesProperties()
                      #if ! JucePlugin_IsMidiEffect
@@ -29,18 +29,18 @@ AudioBenchAudioProcessor::AudioBenchAudioProcessor()
     ab = ABCreateInstance();
 }
 
-AudioBenchAudioProcessor::~AudioBenchAudioProcessor()
+AudiobenchAudioProcessor::~AudiobenchAudioProcessor()
 {
     ABDestroyInstance(ab);
 }
 
 //==============================================================================
-const String AudioBenchAudioProcessor::getName() const
+const String AudiobenchAudioProcessor::getName() const
 {
     return JucePlugin_Name;
 }
 
-bool AudioBenchAudioProcessor::acceptsMidi() const
+bool AudiobenchAudioProcessor::acceptsMidi() const
 {
    #if JucePlugin_WantsMidiInput
     return true;
@@ -49,7 +49,7 @@ bool AudioBenchAudioProcessor::acceptsMidi() const
    #endif
 }
 
-bool AudioBenchAudioProcessor::producesMidi() const
+bool AudiobenchAudioProcessor::producesMidi() const
 {
    #if JucePlugin_ProducesMidiOutput
     return true;
@@ -58,7 +58,7 @@ bool AudioBenchAudioProcessor::producesMidi() const
    #endif
 }
 
-bool AudioBenchAudioProcessor::isMidiEffect() const
+bool AudiobenchAudioProcessor::isMidiEffect() const
 {
    #if JucePlugin_IsMidiEffect
     return true;
@@ -67,51 +67,51 @@ bool AudioBenchAudioProcessor::isMidiEffect() const
    #endif
 }
 
-double AudioBenchAudioProcessor::getTailLengthSeconds() const
+double AudiobenchAudioProcessor::getTailLengthSeconds() const
 {
     return 0.0;
 }
 
-int AudioBenchAudioProcessor::getNumPrograms()
+int AudiobenchAudioProcessor::getNumPrograms()
 {
     return 1;   // NB: some hosts don't cope very well if you tell them there are 0 programs,
                 // so this should be at least 1, even if you're not really implementing programs.
 }
 
-int AudioBenchAudioProcessor::getCurrentProgram()
+int AudiobenchAudioProcessor::getCurrentProgram()
 {
     return 0;
 }
 
-void AudioBenchAudioProcessor::setCurrentProgram (int index)
+void AudiobenchAudioProcessor::setCurrentProgram (int index)
 {
 }
 
-const String AudioBenchAudioProcessor::getProgramName (int index)
+const String AudiobenchAudioProcessor::getProgramName (int index)
 {
     return {};
 }
 
-void AudioBenchAudioProcessor::changeProgramName (int index, const String& newName)
+void AudiobenchAudioProcessor::changeProgramName (int index, const String& newName)
 {
 }
 
 //==============================================================================
-void AudioBenchAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
+void AudiobenchAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
     // Use this method as the place to do any pre-playback
     // initialisation that you need..
     ABSetBufferLengthAndSampleRate(ab, samplesPerBlock, (int) sampleRate);
 }
 
-void AudioBenchAudioProcessor::releaseResources()
+void AudiobenchAudioProcessor::releaseResources()
 {
     // When playback stops, you can use this as an opportunity to free up any
     // spare memory, etc.
 }
 
 #ifndef JucePlugin_PreferredChannelConfigurations
-bool AudioBenchAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
+bool AudiobenchAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
 {
   #if JucePlugin_IsMidiEffect
     ignoreUnused (layouts);
@@ -134,7 +134,7 @@ bool AudioBenchAudioProcessor::isBusesLayoutSupported (const BusesLayout& layout
 }
 #endif
 
-void AudioBenchAudioProcessor::processBlock (AudioBuffer<float>& buffer, MidiBuffer& midiMessages)
+void AudiobenchAudioProcessor::processBlock (AudioBuffer<float>& buffer, MidiBuffer& midiMessages)
 {
     ScopedNoDenormals noDenormals;
     auto totalNumInputChannels  = getTotalNumInputChannels();
@@ -196,25 +196,25 @@ void AudioBenchAudioProcessor::processBlock (AudioBuffer<float>& buffer, MidiBuf
 }
 
 //==============================================================================
-bool AudioBenchAudioProcessor::hasEditor() const
+bool AudiobenchAudioProcessor::hasEditor() const
 {
     return true; // (change this to false if you choose to not supply an editor)
 }
 
-AudioProcessorEditor* AudioBenchAudioProcessor::createEditor()
+AudioProcessorEditor* AudiobenchAudioProcessor::createEditor()
 {
-    return new AudioBenchAudioProcessorEditor (*this);
+    return new AudiobenchAudioProcessorEditor (*this);
 }
 
 //==============================================================================
-void AudioBenchAudioProcessor::getStateInformation (MemoryBlock& destData)
+void AudiobenchAudioProcessor::getStateInformation (MemoryBlock& destData)
 {
     // You should use this method to store your parameters in the memory block.
     // You could do that either as raw data, or use the XML or ValueTree classes
     // as intermediaries to make it easy to save and load complex data.
 }
 
-void AudioBenchAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
+void AudiobenchAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
 {
     // You should use this method to restore your parameters from this memory block,
     // whose contents will have been created by the getStateInformation() call.
@@ -224,5 +224,5 @@ void AudioBenchAudioProcessor::setStateInformation (const void* data, int sizeIn
 // This creates new instances of the plugin..
 AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
-    return new AudioBenchAudioProcessor();
+    return new AudiobenchAudioProcessor();
 }
