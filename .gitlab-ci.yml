@@ -57,7 +57,7 @@ build-windows:
     - mkdir build
     - cd build
     - refreshenv
-    - cmake ..
+    - cmake -Thost=x64 ..
     - cmake --build .
     - mkdir "C:\LLVM"
     - cmake -DCMAKE_INSTALL_PREFIX="C:\LLVM" -P cmake_install.cmake
