@@ -52,6 +52,7 @@ build-windows:
     - cd llvm-7.1.0.src
     - mkdir build
     - cd build
+    - refreshenv
     - cmake ..
     - cmake --build .
     - mkdir "C:\LLVM"
