@@ -10,6 +10,7 @@ build-linux:
   script:
     - export SOURCE_DIR="$(pwd)"
     - cd /
+    - echo "and of course the default package registry has some old-ass version of cmake"
     - wget https://github.com/Kitware/CMake/releases/download/v3.16.7/cmake-3.16.7-Linux-x86_64.tar.gz
     - tar -xzf cmake-3.16.7-Linux-x86_64.tar.gz
     - export PATH="$PATH:/cmake-3.16.7-Linux-x86_64/bin"
@@ -40,12 +41,26 @@ build-windows:
     - choco install rust --version=1.41.0 -y
     - choco install mingw -y
     - choco install windows-sdk-10.0 -y
-    - cargo install llvmenv
-    - llvmenv init
-    - llvmenv build-entry 7.0.0
+    - echo "this script fills me with pain"
+    - echo "chocolatey's llvm package is missing a binary only available when compiling from source"
+    - echo "llvmenv refuses to build and causes an out of memory error or something"
+    - echo "so now I have to install fucking 7zip"
+    - Invoke-WebRequest -Uri "https://github.com/llvm/llvm-project/releases/download/llvmorg-7.1.0/llvm-7.1.0.src.tar.xz" -OutFile "llvm_src.tar.xz"
+    - choco install 7zip -y
+    - 7z e llvm_src.tar.xz
+    - 7z x llvm_src.tar
+    - cd llvm_src
+    - mkdir build
+    - cd build
+    - cmake ..
+    - cmake --build .
+    - mkdir "C:\LLVM"
+    - cmake -DCMAKE_INSTALL_PREFIX="C:\LLVM" -P cmake_install.cmake
+    - cd ..
     - cd frontends/juce/
     - git submodule init
     - git submodule update
+    - $Env:LLVM_SYS_70_PREFIX="C:\LLVM"
     - .\build_win
   only:
     - master
