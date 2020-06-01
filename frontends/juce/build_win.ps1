@@ -1,3 +1,5 @@
+$ErrorActionPreference = "Stop"
+
 echo "This script will:"
 echo "1. Build Audiobench"
 echo "2. Build the JUCE frontend for Audiobench"

@@ -61,5 +61,5 @@ if [ "$1" == "run" ]; then
     echo ""
     echo "Starting standalone version..."
     # Standalone version
-    ./artifacts/Audiobench_Standalone_Linux_x64.bin
+    ./artifacts/Audiobench_Linux_x64_Standalone.bin
 fi
