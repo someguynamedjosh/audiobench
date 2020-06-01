@@ -8,7 +8,7 @@ build-linux:
   image: rust:latest
   script:
     - pwd
-    - export SOURCE_DIR="${pwd}"
+    - export SOURCE_DIR="$(pwd)"
     - cd /
     - wget https://github.com/Kitware/CMake/releases/download/v3.16.7/cmake-3.16.7-Linux-x86_64.tar.gz
     - tar -xzf cmake-3.16.7-Linux-x86_64.tar.gz
