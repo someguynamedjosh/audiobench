@@ -7,8 +7,8 @@ echo "This version of the script only makes a release version because I don't"
 echo "know how to use Powershell and I don't plan on learning."
 
 cargo build --release
-md artifacts -ea 0
-md _build -ea 0
+mkdir artifacts -ea 0
+mkdir _build -ea 0
 cd _build
 cmake -Thost=x64 ..
 cd ..

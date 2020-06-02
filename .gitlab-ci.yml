@@ -37,6 +37,13 @@ build-windows:
     - windows-1809
   stage: build
   script:
+    - echo "this script fills me with pain"
+    - echo "chocolatey's llvm package is missing a binary only available when compiling from source"
+    - echo "llvmenv refuses to build and causes an out of memory error or something"
+    - echo "so I spent two days figuring out how to compile llvm myself and hosted the build artifacts on another gitlab repo"
+    - git clone "https://gitlab.com/Code_Cube/llvm-win.git" "C:\LLVM"
+    - ls "C:\LLVM"
+    - $Env:LLVM_SYS_70_PREFIX="C:\LLVM"
     - choco install cmake.install -y --version=3.16.7 --installargs 'ADD_CMAKE_TO_PATH=User'
     - refreshenv
     - echo "Despite the fact that chocolatey promises that refreshenv works, it in fact does absolutely nothing and is useless"
@@ -45,27 +52,9 @@ build-windows:
     - choco install rust --version=1.41.0 -y
     - choco install mingw -y
     - choco install windows-sdk-10.0 -y
-    - echo "this script fills me with pain"
-    - echo "chocolatey's llvm package is missing a binary only available when compiling from source"
-    - echo "llvmenv refuses to build and causes an out of memory error or something"
-    - echo "so now I have to install fucking 7zip"
-    - Invoke-WebRequest -Uri "https://github.com/llvm/llvm-project/releases/download/llvmorg-7.1.0/llvm-7.1.0.src.tar.xz" -OutFile "llvm_src.tar.xz"
-    - choco install 7zip -y
-    - 7z e llvm_src.tar.xz
-    - 7z x llvm_src.tar
-    - cd llvm-7.1.0.src
-    - mkdir build
-    - cd build
-    - refreshenv
-    - cmake -Thost=x64 ..
-    - cmake --build .
-    - mkdir "C:\LLVM"
-    - cmake -DCMAKE_INSTALL_PREFIX="C:\LLVM" -P cmake_install.cmake
-    - cd ../..
     - cd frontends/juce/
     - git submodule init
     - git submodule update
-    - $Env:LLVM_SYS_70_PREFIX="C:\LLVM"
     - .\build_win
   only:
     - master
