@@ -42,12 +42,13 @@ build-windows:
     - echo "llvmenv refuses to build and causes an out of memory error or something"
     - echo "so I spent two days figuring out how to compile llvm myself and hosted the build artifacts on another gitlab repo"
     - git clone "https://gitlab.com/Code_Cube/llvm-win.git" "C:\LLVM"
-    - ls "C:\LLVM"
-    - $Env:LLVM_SYS_70_PREFIX="C:\LLVM"
+    - $Env:LLVM_SYS_70_PREFIX="C:\LLVM\"
+    - $Env:Path += ";C:\LLVM\bin"
+    - llvm-config
     - choco install cmake.install -y --version=3.16.7 --installargs 'ADD_CMAKE_TO_PATH=User'
     - refreshenv
     - echo "Despite the fact that chocolatey promises that refreshenv works, it in fact does absolutely nothing and is useless"
-    - $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+    - $Env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
     - cmake --version
     - choco install rust --version=1.41.0 -y
     - choco install mingw -y
