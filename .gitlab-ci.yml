@@ -43,8 +43,9 @@ build-windows:
     - echo "so I spent two days figuring out how to compile llvm myself and hosted the build artifacts on another gitlab repo"
     - git clone "https://gitlab.com/Code_Cube/llvm-win.git" "C:\LLVM"
     - $Env:LLVM_SYS_70_PREFIX="C:\LLVM\"
-    - $Env:Path += ";C:\LLVM\bin"
-    - llvm-config
+    - echo "Validating LLVM install"
+    - C:\LLVM\bin\llvm-config.exe --version
+    - echo "Validated LLVM install"
     - choco install cmake.install -y --version=3.16.7 --installargs 'ADD_CMAKE_TO_PATH=User'
     - refreshenv
     - echo "Despite the fact that chocolatey promises that refreshenv works, it in fact does absolutely nothing and is useless"
