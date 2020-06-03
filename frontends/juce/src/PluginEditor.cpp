@@ -121,7 +121,7 @@ void writeConsoleText(void *gp, float w, float h, char *text)
     float x = 2, y = 14;
     bool inEscapeCode = false;
     String escapeCode = String("");
-    for (auto c : str)
+    for (juce_wchar c : str)
     {
         if (c == '\x1B')
         {
@@ -130,7 +130,7 @@ void writeConsoleText(void *gp, float w, float h, char *text)
         }
         if (inEscapeCode)
         {
-            escapeCode.append(String(&c, 1), 1);
+            escapeCode.append(String::charToString(c), 1);
             // This is a very hacky implementation of an escape sequence parser.
             if (c >= '\x40' && c <= '\x7E' && c != '[')
             {

@@ -30,17 +30,6 @@ build-linux:
     paths:
       - frontends/juce/artifacts/
 
-bug-test:
-  tags:
-    - shared-windows
-    - windows
-    - windows-1809
-  stage: build
-  script:
-    - echo "This text will be visible for the next 10 seconds"
-    - Start-Sleep -s 10
-    - choco install cmake.install -y
-
 build-windows:
   tags:
     - shared-windows
