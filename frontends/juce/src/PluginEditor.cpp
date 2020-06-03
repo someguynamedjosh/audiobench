@@ -178,7 +178,7 @@ void writeConsoleText(void *gp, float w, float h, char *text)
             }
             continue;
         }
-        ((Graphics *)gp)->drawSingleLineText(String(&c, 1), x, y);
+        ((Graphics *)gp)->drawSingleLineText(String::charToString(c), x, y);
         if (c == '\n')
         {
             x = 2;
