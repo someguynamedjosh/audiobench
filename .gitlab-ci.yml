@@ -54,7 +54,6 @@ build-windows:
     - refreshenv
     - echo "Despite the fact that chocolatey promises that refreshenv works, it in fact does absolutely nothing and is useless"
     - $Env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
-    - cmake --version
     - choco install rust --version=1.41.0 -y
     - choco install windows-sdk-10.0 -y
     - cd frontends/juce/

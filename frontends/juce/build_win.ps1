@@ -13,7 +13,7 @@ mkdir _build -ea 0
 $Env:PROJECT_ROOT = Resolve-Path "..\.."
 $Env:RUST_OUTPUT_DIR = "$Env:PROJECT_ROOT\target\release"
 cd _build
-cmake -G"MinGW Makefiles" ..
+cmake ..
 cd ..
 cmake --build _build --config Release
 
