@@ -1,4 +1,4 @@
 [submodule "frontends/juce/juce_git"]
 	path = frontends/juce/juce_git
-	url = git@gitlab.com:Code_Cube/ab-juce.git
+	url = https://gitlab.com/Code_Cube/ab-juce.git
 	branch = juce6

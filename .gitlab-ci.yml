@@ -37,6 +37,8 @@ build-windows:
     - windows-1809
   stage: build
   script:
+    - git submodule init
+    - git submodule update
     - echo "this script fills me with pain"
     - echo "chocolatey's llvm package is missing a binary only available when compiling from source"
     - echo "llvmenv refuses to build and causes an out of memory error or something"
@@ -57,8 +59,6 @@ build-windows:
     - choco install rust --version=1.41.0 -y
     - choco install windows-sdk-10.0 -y
     - cd frontends/juce/
-    - git submodule init
-    - git submodule update
     - .\build_win
   only:
     - master
