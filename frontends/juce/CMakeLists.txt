@@ -14,7 +14,15 @@ project(AUDIO_PLUGIN_EXAMPLE VERSION 0.0.1)
 # included JUCE directly in your source tree (perhaps as a submodule), you'll need to tell CMake to
 # include that subdirectory as part of the build.
 
-add_subdirectory(juce_git)
+# For whatever reason, gitlab's runners can't handle just doing add_subdirectory. It complains about
+# out of memory errors despite the fact that the same technique works fine on a fresh VM with half
+# the RAM. Sourcing everything from another directory should fix it. Of course it's not the right
+# way to do it but I'm done with trying to find the right way. The errors make no sense anymore.
+if (WIN32)
+    find_package(JUCE CONFIG REQUIRED)
+else()
+    add_subdirectory(juce_git)
+endif()
 
 # If you are building a VST2 or AAX plugin, CMake needs to be told where to find these SDKs on your
 # system. This setup should be done before calling `juce_add_plugin`.
@@ -100,11 +108,23 @@ target_compile_definitions(
 # linked automatically. If we'd generated a binary data target above, we would need to link to it
 # here too. This is a standard CMake command.
 
-target_link_libraries(
-    Audiobench PRIVATE
-    # AudioPluginData           # If we'd created a binary data target, we'd link to it here
-    juce::juce_audio_utils
-    "$ENV{RUST_OUTPUT_DIR}/libaudiobench.a"
-    z
-    curses
-)
+if(WIN32)
+    target_link_libraries(
+        Audiobench PRIVATE
+        # AudioPluginData           # If we'd created a binary data target, we'd link to it here
+        juce::juce_audio_utils
+        "$ENV{RUST_OUTPUT_DIR}/audiobench.lib"
+        z
+        ws2_32
+        userenv
+    )
+else()
+    target_link_libraries(
+        Audiobench PRIVATE
+        # AudioPluginData           # If we'd created a binary data target, we'd link to it here
+        juce::juce_audio_utils
+        "$ENV{RUST_OUTPUT_DIR}/libaudiobench.a"
+        z
+        curses
+    )
+endif()
