@@ -62,6 +62,10 @@ void fillRoundedRect(void *gp, float x, float y, float w, float h, float cornerS
     ((Graphics *)gp)->fillRoundedRectangle(x, y, w, h, cornerSize);
 }
 
+#ifndef M_PI_2
+#define M_PI_2 1.57079632679
+#endif
+
 void fillPie(void *gp, float x, float y, float r, float ir, float sr, float er)
 {
     Path pie;
