@@ -11,7 +11,7 @@ mkdir juce6_built -ea 0
 $Env:JUCE6_PREFIX = Resolve-Path "juce6_built"
 $Env:JUCE6_PREFIX = $Env:JUCE6_PREFIX -replace "\\", "/"
 cd juce_git
-cmake -Bcmake-build-install -DCMAKE_INSTALL_PREFIX="$Env:JUCE6_PREFIX" -G"MinGW Makefiles"
+cmake -Bcmake-build-install -DCMAKE_INSTALL_PREFIX="$Env:JUCE6_PREFIX" -G"Visual Studio 16 2019" -A x64
 cmake --build cmake-build-install --target install
 cd ..
 $Env:JUCE_DIR = "$Env:JUCE6_PREFIX/lib/cmake/JUCE-6.0.0"
@@ -26,9 +26,7 @@ $Env:PROJECT_ROOT = Resolve-Path "../.."
 $Env:PROJECT_ROOT = $Env:PROJECT_ROOT -replace "\\", "/"
 $Env:RUST_OUTPUT_DIR = "$Env:PROJECT_ROOT/target/release"
 cd _build
-$Env:CC = "C:/ProgramData/chocolatey/bin/gcc.exe"
-$Env:CXX = "C:/ProgramData/chocolatey/bin/g++.exe"
-cmake -DJUCE_DIR="$Env:JUCE_DIR" -G"MinGW Makefiles" ..
+cmake -DJUCE_DIR="$Env:JUCE_DIR" -G"Visual Studio 16 2019" -A x64 ..
 cd ..
 cmake --build _build --config Release
 
