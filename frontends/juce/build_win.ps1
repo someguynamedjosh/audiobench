@@ -31,5 +31,5 @@ cd ..
 cmake --build _build --config Release
 
 Tree _build/Audiobench_artefacts/ /F
-cp _build/Audiobench_artefacts/Standalone/Audiobench.exe artifacts/Audiobench_Windows_x64_Standalone.exe
-cp _build/Audiobench_artefacts/VST3/Audiobench.vst3/Contents/x86_64-windows/Audiobench.dll artifacts/Audiobench_Windows_x64_VST3.dll
+cp _build/Audiobench_artefacts/Release/Standalone/Audiobench.exe artifacts/Audiobench_Windows_x64_Standalone.exe
+cp _build/Audiobench_artefacts/Release/VST3/Audiobench.vst3/Contents/x86_64-win/Audiobench.vst3 artifacts/Audiobench_Windows_x64_VST3.vst3
