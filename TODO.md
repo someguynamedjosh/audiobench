@@ -1,5 +1,6 @@
 # Things with no dependencies
-- Windows VST build
+- Statically link visual c++ runtime
+- Investigate reducing windows build times
 - Inverted lanes
 - "never" trigger default
 - pitch bend & mod wheel
