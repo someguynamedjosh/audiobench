@@ -1,5 +1,4 @@
 # Things with no dependencies
-- Fix rendering of controls that have a zero point outside of their range
 - More default waveforms (ramp up/down, sin)
 - More snapping points when dragging knobs
 - Global timing and tempo
@@ -8,6 +7,8 @@
 - Don't unwrap the engine in the main instance, only map.
 - Interpolation for MIDI parameters
 - Add ctrl / shift hints to the mouse hint indicator thing
+- Allow editing the ends of a maxed-out automation lane by clicking outside the 
+  bounds of the lane as if it were a full circle instead of a half circle.
 
 # Things with missing dependencies
 - Trigger sequencer
@@ -34,6 +35,7 @@
 - Optional smoothing for MIDI controls
 - Reorganize engine modules and their contents
 - Make website look nice
+- Things for making waveforms using harmonics of other waveforms
 
 # Code organization stuff
 - Use more TupleUtil functions

@@ -340,7 +340,7 @@ impl ModuleWidget for Knob {
             0.0,
             grid(2),
             KNOB_INSIDE_SPACE * 2.0,
-            zero_angle,
+            zero_angle.clam(MAX_ANGLE, MIN_ANGLE),
             value_angle,
         );
         g.set_alpha(1.0);
@@ -1020,7 +1020,7 @@ impl KnobEditor {
         let zero_angle = value_to_angle(control.range, 0.0);
         let value = *self.value.borrow();
         let value_angle = value_to_angle(control.range, value);
-        g.fill_pie(-KOR, -KOR, KOR * 2.0, KIR * 2.0, zero_angle, value_angle);
+        g.fill_pie(-KOR, -KOR, KOR * 2.0, KIR * 2.0, zero_angle.clam(0.0, PI), value_angle);
 
         const GAP: f32 = KNOB_MENU_LANE_GAP;
         const LS: f32 = KNOB_MENU_LANE_SIZE;
