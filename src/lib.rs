@@ -53,6 +53,11 @@ impl Instance {
 impl Instance {
     fn perform_action(&mut self, action: gui::action::InstanceAction) {
         match action {
+            gui::action::InstanceAction::Sequence(actions) => {
+                for action in actions {
+                    self.perform_action(action);
+                }
+            }
             gui::action::InstanceAction::ReloadAuxData => {
                 if self.structure_error.is_none() {
                     self.engine.as_mut().unwrap().reload_values();
@@ -96,6 +101,9 @@ impl Instance {
                     }
                     gui.on_patch_change(&self.registry);
                 }
+            }
+            gui::action::InstanceAction::SimpleCallback(callback) => {
+                (callback)();
             }
         }
     }

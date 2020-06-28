@@ -8,6 +8,7 @@ use crate::util::*;
 
 // Describes an action that should be performed on an instance level.
 pub enum InstanceAction {
+    Sequence(Vec<InstanceAction>),
     /// Indicates the structure of the graph has changed and it should be reloaded.
     ReloadStructure,
     /// Indicates a value has changed, so the aux input data should be recollected.
@@ -17,11 +18,13 @@ pub enum InstanceAction {
     SavePatch,
     NewPatch(Box<dyn Fn(&Rcrc<Patch>)>),
     LoadPatch(Rcrc<Patch>),
+    SimpleCallback(Box<dyn Fn()>),
 }
 
 // Describes an action the GUI object should perform. Prevents passing a bunch of arguments to
 // MouseAction functions for each action that needs to modify something in the GUI.
 pub enum GuiAction {
+    Sequence(Vec<GuiAction>),
     OpenMenu(Box<module_widgets::KnobEditor>),
     SwitchScreen(GuiScreen),
     AddModule(ep::Module),
@@ -33,6 +36,7 @@ pub enum GuiAction {
 // TODO: Organize this?
 pub enum MouseAction {
     None,
+    Sequence(Vec<MouseAction>),
     ManipulateControl(Rcrc<ep::Control>, f32),
     ManipulateLane(Rcrc<ep::Control>, usize),
     ManipulateLaneStart(Rcrc<ep::Control>, usize, f32),
@@ -68,6 +72,7 @@ pub enum MouseAction {
     LoadPatch(Rcrc<Patch>),
     FocusTextField(Rcrc<TextField>),
     Scaled(Box<MouseAction>, Rcrc<f32>),
+    SimpleCallback(Box<dyn Fn()>),
 }
 
 impl MouseAction {
@@ -102,6 +107,11 @@ impl MouseAction {
         mods: &MouseMods,
     ) -> (Option<GuiAction>, Option<Tooltip>) {
         match self {
+            Self::Sequence(actions) => {
+                for action in actions {
+                    action.on_drag(delta, mods);
+                }
+            }
             Self::ManipulateControl(control, tracking) => {
                 let delta = delta.0 - delta.1;
                 // How many pixels the user must drag across to cover the entire range of the knob.
@@ -318,6 +328,14 @@ impl MouseAction {
 
     pub(in crate::gui) fn on_drop(self, target: DropTarget) -> Option<GuiAction> {
         match self {
+            Self::Sequence(actions) => {
+                return Some(GuiAction::Sequence(
+                    actions
+                        .into_iter()
+                        .filter_map(|action| action.on_drop(target.clone()))
+                        .collect(),
+                ));
+            }
             Self::ConnectInput(in_module, in_index) => {
                 let mut in_ref = in_module.borrow_mut();
                 let template_ref = in_ref.template.borrow();
@@ -363,6 +381,9 @@ impl MouseAction {
             Self::Scaled(base, ..) => {
                 return base.on_drop(target);
             }
+            Self::SimpleCallback(callback) => {
+                return Some(GuiAction::Elevate(InstanceAction::SimpleCallback(callback)));
+            }
             _ => (),
         }
         None
@@ -370,6 +391,14 @@ impl MouseAction {
 
     pub(in crate::gui) fn on_click(self) -> Option<GuiAction> {
         match self {
+            Self::Sequence(actions) => {
+                return Some(GuiAction::Sequence(
+                    actions
+                        .into_iter()
+                        .filter_map(|action| action.on_click())
+                        .collect(),
+                ));
+            }
             Self::OpenMenu(menu) => return Some(GuiAction::OpenMenu(menu)),
             Self::SwitchScreen(screen_index) => return Some(GuiAction::SwitchScreen(screen_index)),
             Self::AddModule(module) => return Some(GuiAction::AddModule(module)),
@@ -427,6 +456,9 @@ impl MouseAction {
             Self::Scaled(base, ..) => {
                 return base.on_click();
             }
+            Self::SimpleCallback(callback) => {
+                return Some(GuiAction::Elevate(InstanceAction::SimpleCallback(callback)));
+            }
             _ => (),
         }
         None
@@ -434,6 +466,14 @@ impl MouseAction {
 
     pub(in crate::gui) fn on_double_click(self) -> Option<GuiAction> {
         match self {
+            Self::Sequence(actions) => {
+                return Some(GuiAction::Sequence(
+                    actions
+                        .into_iter()
+                        .filter_map(|action| action.on_double_click())
+                        .collect(),
+                ));
+            }
             Self::ManipulateControl(control, ..) => {
                 let mut cref = control.borrow_mut();
                 cref.value = cref.default;
@@ -471,12 +511,16 @@ impl MouseAction {
             Self::Scaled(base, ..) => {
                 return base.on_double_click();
             }
+            Self::SimpleCallback(callback) => {
+                return Some(GuiAction::Elevate(InstanceAction::SimpleCallback(callback)));
+            }
             _ => return self.on_click(),
         }
         None
     }
 }
 
+#[derive(Clone)]
 pub enum DropTarget {
     None,
     Control(Rcrc<ep::Control>),

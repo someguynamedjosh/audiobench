@@ -246,6 +246,14 @@ impl Gui {
 
     fn perform_action(&mut self, registry: &Registry, action: GuiAction) -> Option<InstanceAction> {
         match action {
+            GuiAction::Sequence(actions) => {
+                return Some(InstanceAction::Sequence(
+                    actions
+                        .into_iter()
+                        .filter_map(|action| self.perform_action(registry, action))
+                        .collect(),
+                ));
+            }
             GuiAction::OpenMenu(menu) => self.graph.open_menu(menu),
             GuiAction::SwitchScreen(new_index) => self.current_screen = new_index,
             GuiAction::AddModule(module) => {

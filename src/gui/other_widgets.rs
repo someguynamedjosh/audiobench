@@ -221,15 +221,15 @@ impl MenuBar {
 pub struct TextField {
     pub text: String,
     focused: bool,
-    defocus_action: fn(&str) -> MouseAction,
+    defocus_action: Box<dyn Fn(&str) -> MouseAction>,
 }
 
 impl TextField {
-    fn new(start_value: String, defocus_action: fn(&str) -> MouseAction) -> Self {
+    fn new(start_value: String, defocus_action: Box<dyn Fn(&str) -> MouseAction>) -> Self {
         Self {
             text: start_value,
             focused: false,
-            defocus_action,
+            defocus_action: Box::new(defocus_action),
         }
     }
 
@@ -256,7 +256,7 @@ impl TextBox {
         pos: (f32, f32),
         size: (f32, f32),
         start_value: String,
-        defocus_action: fn(&str) -> MouseAction,
+        defocus_action: Box<dyn Fn(&str) -> MouseAction>,
     ) -> Self {
         Self {
             pos,
@@ -339,6 +339,7 @@ pub struct PatchBrowser {
     save_button: IconButton,
     new_button: IconButton,
     entries: Rcrc<Vec<Rcrc<Patch>>>,
+    alphabetical_order: Rcrc<Vec<usize>>,
     current_entry_index: usize,
 }
 
@@ -357,9 +358,6 @@ impl PatchBrowser {
         // Width of the name box.
         let namew = hw - (CG + GRID_P) * NUM_ICONS;
         let patch_name = current_patch.borrow().borrow_name().to_owned();
-        let name_box = TextBox::create((GRID_P, 0.0), (namew, CG), patch_name, |text| {
-            MouseAction::RenamePatch(text.to_owned())
-        });
         let save_icon = registry.lookup_icon("base:save").unwrap();
         let mut save_button =
             IconButton::create((GRID_P + hw - CG * 2.0 - GRID_P, 0.0), CG, save_icon);
@@ -376,15 +374,48 @@ impl PatchBrowser {
             save_button.enabled = false;
         }
 
+        let alphabetical_order = rcrc((0..entries.len()).collect());
+        let entries = rcrc(entries);
+        Self::sort(&entries, &alphabetical_order);
+
+        let (entries2, order2) = (Rc::clone(&entries), Rc::clone(&alphabetical_order));
+        let name_box = TextBox::create(
+            (GRID_P, 0.0),
+            (namew, CG),
+            patch_name,
+            Box::new(move |text| {
+                let (entries3, order3) = (Rc::clone(&entries2), Rc::clone(&order2));
+                MouseAction::Sequence(vec![
+                    MouseAction::RenamePatch(text.to_owned()),
+                    MouseAction::SimpleCallback(Box::new(move || Self::sort(&entries3, &order3))),
+                ])
+            }),
+        );
+
         Self {
             pos,
             size,
             name_box,
             save_button,
             new_button,
-            entries: rcrc(entries),
+            entries,
+            alphabetical_order,
             current_entry_index,
         }
+    }
+
+    fn sort(entries: &Rcrc<Vec<Rcrc<Patch>>>, alphabetical_order: &Rcrc<Vec<usize>>) {
+        let entries = entries.borrow();
+        alphabetical_order.borrow_mut().sort_by(|a, b| {
+            entries[*a]
+                .borrow()
+                .borrow_name()
+                .cmp(&entries[*b].borrow().borrow_name())
+        });
+    }
+
+    fn sort_self(&mut self) {
+        Self::sort(&self.entries, &self.alphabetical_order);
     }
 
     fn update_on_patch_change(&mut self) {
@@ -450,6 +481,7 @@ impl PatchBrowser {
             }
         }
         if self.save_button.mouse_in_bounds(mouse_pos) {
+            self.sort_self();
             return MouseAction::SavePatch;
         }
         if self.new_button.mouse_in_bounds(mouse_pos) {
@@ -457,6 +489,7 @@ impl PatchBrowser {
             let entries = Rc::clone(&self.entries);
             self.save_button.enabled = true;
             self.name_box.field.borrow_mut().text = "New Patch".to_owned();
+            self.sort_self();
             return MouseAction::NewPatch(Box::new(move |new_patch| {
                 entries.borrow_mut().push(Rc::clone(new_patch))
             }));
@@ -467,7 +500,8 @@ impl PatchBrowser {
             let entry_index =
                 (mouse_pos.1 - self.name_box.size.1 - GRID_P) / PatchBrowser::ENTRY_HEIGHT;
             if entry_index >= 0.0 && entry_index < self.entries.borrow().len() as f32 {
-                self.current_entry_index = entry_index as usize;
+                let entry_index = self.alphabetical_order.borrow()[entry_index as usize];
+                self.current_entry_index = entry_index;
                 self.update_on_patch_change();
                 return MouseAction::LoadPatch(Rc::clone(
                     &self.entries.borrow()[self.current_entry_index],
@@ -500,11 +534,12 @@ impl PatchBrowser {
         g.set_color(&COLOR_BG);
         g.fill_rounded_rect(GP, y, hw, self.size.1 - y - GP, CORNER_SIZE);
         g.set_color(&COLOR_TEXT);
-        for (index, entry) in self.entries.borrow().iter().enumerate() {
+        for index in 0..self.alphabetical_order.borrow().len() {
+            let entry = &self.entries.borrow()[self.alphabetical_order.borrow()[index]];
             const HEIGHT: f32 = PatchBrowser::ENTRY_HEIGHT;
             let x = GP;
             let y = y + HEIGHT * index as f32;
-            if index == self.current_entry_index {
+            if self.alphabetical_order.borrow()[index] == self.current_entry_index {
                 g.set_color(&COLOR_IO_AREA);
                 g.fill_rounded_rect(x, y, hw, HEIGHT, CORNER_SIZE);
                 g.set_color(&COLOR_TEXT);

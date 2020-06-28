@@ -1,5 +1,4 @@
 # Things with no dependencies
-- alphabetize patch list
 - check all the corner cases of the new save format
 - flush out NaN errors in envelope
 - Fix rendering of controls that have a zero point outside of their range
@@ -9,6 +8,7 @@
 - Get rid of JUCE logo
 - Show error to user on panic?
 - Don't unwrap the engine in the main instance, only map.
+- Interpolation for MIDI parameters
 
 # Things with missing dependencies
 - Trigger sequencer
