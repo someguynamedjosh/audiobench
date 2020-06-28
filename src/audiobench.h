@@ -28,6 +28,8 @@ extern "C" {
     float *ABSetBufferLengthAndSampleRate(ABInstanceRef, int, int);
     void ABNoteOn(ABInstanceRef, int, float);
     void ABNoteOff(ABInstanceRef, int);
+    void ABPitchWheel(ABInstanceRef, float);
+    void ABControl(ABInstanceRef, int, float);
     float *ABRenderAudio(ABInstanceRef);
     void ABSetGraphicsFunctions(ABInstanceRef, ABGraphicsFunctions);
 

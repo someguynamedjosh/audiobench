@@ -124,6 +124,14 @@ impl Instance {
         self.engine.as_mut().map(|e| e.note_off(index));
     }
 
+    pub fn set_pitch_wheel(&mut self, value: f32) {
+        self.engine.as_mut().map(|e| e.set_pitch_wheel(value));
+    }
+
+    pub fn set_control(&mut self, index: usize, value: f32) {
+        self.engine.as_mut().map(|e| e.set_control(index, value));
+    }
+
     pub fn render_audio(&mut self) -> &[f32] {
         if let Some(engine) = self.engine.as_mut() {
             engine.render_audio()
@@ -298,6 +306,16 @@ pub unsafe extern "C" fn ABNoteOn(instance: *mut Instance, index: i32, velocity:
 #[no_mangle]
 pub unsafe extern "C" fn ABNoteOff(instance: *mut Instance, index: i32) {
     (*instance).note_off(index)
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ABPitchWheel(instance: *mut Instance, value: f32) {
+    (*instance).set_pitch_wheel(value)
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ABControl(instance: *mut Instance, index: i32, value: f32) {
+    (*instance).set_control(index as usize, value)
 }
 
 #[no_mangle]

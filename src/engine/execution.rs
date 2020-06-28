@@ -12,6 +12,22 @@ pub struct ExecEnvironment {
     sample_rate: i32,
 }
 
+pub struct AuxMidiData {
+    // MIDI specifies each MIDI Channel has 128 controls.
+    pub controller_values: [f32; 128],
+    // The pitch wheel is seperate from other controls due to its higher precision.
+    pub pitch_wheel_value: f32,
+}
+
+impl AuxMidiData {
+    pub fn new() -> Self {
+        Self {
+            controller_values: [0.0; 128],
+            pitch_wheel_value: 0.0,
+        }
+    }
+}
+
 impl ExecEnvironment {
     pub fn new(registry: &Registry) -> Self {
         let mut compiler = nodespeak::Compiler::new();
@@ -66,6 +82,15 @@ impl ExecEnvironment {
         }
     }
 
+    pub fn set_aux_midi_data(&mut self, aux_midi_data: &AuxMidiData) {
+        let midi_controls_input =
+            &mut self.input[self.buffer_length + 4..self.buffer_length + 4 + 128];
+        // MIDI standard specifies 128 controls
+        for index in 0..128 {
+            midi_controls_input[index] = aux_midi_data.controller_values[index];
+        }
+    }
+
     pub fn change_aux_input_data(&mut self, new_aux_input_data: &[f32]) {
         debug_assert!(new_aux_input_data.len() == self.input.len() - self.default_inputs_len);
         self.input[self.default_inputs_len..].clone_from_slice(new_aux_input_data);
@@ -85,8 +110,9 @@ impl ExecEnvironment {
         // global_velocity: FLOAT
         // global_note_status: FLOAT
         // global_note_time: [BL]FLOAT
-        // global_aux_data: [starting_aux_data.len()]FLOAT
-        self.default_inputs_len = 4 + buffer_length;
+        // global_aux_data: [starting_aux_data.len()][1]FLOAT
+        // global_midi_controls: [128]FLOAT
+        self.default_inputs_len = 4 + buffer_length + 128;
         self.input = vec![0.0; self.default_inputs_len];
         self.input.append(&mut starting_aux_data);
         // global_audio_out: [BL][2]FLOAT

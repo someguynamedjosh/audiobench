@@ -249,6 +249,7 @@ impl<'a> CodeGenerator<'a> {
         header.push_str(concat!(
             "input FLOAT global_pitch, global_velocity, global_note_status, global_should_update;\n",
             "input [BUFFER_LENGTH][1]FLOAT global_note_time;\n",
+            "input [128]FLOAT global_midi_controls;\n",
             "output [BUFFER_LENGTH][2]FLOAT global_audio_out;\n",
         ));
 

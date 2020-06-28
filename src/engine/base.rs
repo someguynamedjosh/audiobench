@@ -1,7 +1,8 @@
 use crate::engine;
 use crate::engine::codegen;
+use crate::engine::execution::{AuxMidiData, ExecEnvironment};
+use crate::engine::note_manager::NoteManager;
 use crate::engine::save_data::Patch;
-use crate::engine::{execution::ExecEnvironment, note_manager::NoteManager};
 use crate::util::*;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
@@ -53,6 +54,7 @@ pub struct Engine {
     executor: ExecEnvironment,
     rendered_audio: Vec<f32>,
     last_feedback_data_update: Instant,
+    aux_midi_data: AuxMidiData,
 }
 
 impl Engine {
@@ -115,6 +117,7 @@ impl Engine {
             executor,
             rendered_audio: Vec::new(),
             last_feedback_data_update: Instant::now(),
+            aux_midi_data: AuxMidiData::new(),
         })
     }
 
@@ -232,6 +235,25 @@ impl Engine {
         self.ctd_mux.lock().unwrap().note_manager.note_off(index)
     }
 
+    pub fn set_pitch_wheel(&mut self, new_pitch_wheel: f32) {
+        assert!(
+            new_pitch_wheel >= -1.0 && new_pitch_wheel <= 1.0,
+            "{} is not a valid pitch wheel value.",
+            new_pitch_wheel
+        );
+        self.aux_midi_data.pitch_wheel_value = new_pitch_wheel;
+    }
+
+    pub fn set_control(&mut self, index: usize, value: f32) {
+        assert!(
+            value >= -1.0 && value <= 1.0,
+            "{} is not a valid control value.",
+            value
+        );
+        assert!(index < 128, "{} is not a valid control index.", index);
+        self.aux_midi_data.controller_values[index] = value;
+    }
+
     pub fn render_audio(&mut self) -> &[f32] {
         let mut ctd = self.ctd_mux.lock().unwrap();
 
@@ -274,6 +296,7 @@ impl Engine {
             ctd.note_manager
                 .render_all_notes(
                     &mut self.executor,
+                    &self.aux_midi_data,
                     &mut self.rendered_audio[..],
                     update_feedback_data,
                 )

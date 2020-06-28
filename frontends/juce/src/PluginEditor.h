@@ -34,7 +34,6 @@ public:
     void timerCallback() override { 
       repaint(); 
       if (!focusGrabbed && isShowing()) {
-        std::cout << "Grabbed!" << std::endl;
         grabKeyboardFocus();
         focusGrabbed = true;
       }

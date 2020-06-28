@@ -146,6 +146,12 @@ void AudiobenchAudioProcessor::processBlock (AudioBuffer<float>& buffer, MidiBuf
         auto message = meta.getMessage();
         if (message.isNoteOn()) {
             ABNoteOn(ab, message.getNoteNumber(), message.getFloatVelocity());
+        } else if (message.isPitchWheel()) {
+            float value = (message.getPitchWheelValue() - 0x2000 + 0.5f) / (0x2000 - 0.5f);
+            ABPitchWheel(ab, value);
+        } else if (message.isController()) {
+            float value = (message.getControllerValue() - 0x40 + 0.5f) / (0x40 - 0.5f);
+            ABControl(ab, message.getControllerNumber(), value);
         }
     }
     for (auto meta : midiMessages) {
@@ -164,6 +170,14 @@ void AudiobenchAudioProcessor::processBlock (AudioBuffer<float>& buffer, MidiBuf
     //         std::cout << "On " << message.getNoteNumber() << std::endl;
     //     } else if (message.isNoteOff()) {
     //         std::cout << "Off " << message.getNoteNumber() << std::endl;
+    //     } else if (message.isPitchWheel()) {
+    //         std::cout << "Pitch " << message.getPitchWheelValue() << std::endl;
+    //     } else if (message.isChannelPressure()) {
+    //         std::cout << "Pressure " 
+    //             << message.getChannel() << " " << message.getChannelPressureValue() << std::endl;
+    //     } else if (message.isController()) {
+    //         std::cout << "Controller " 
+    //             << message.getControllerNumber() << " " << message.getControllerValue() << std::endl;
     //     } else {
     //         std::cout << "Weird message" << std::endl;
     //     }

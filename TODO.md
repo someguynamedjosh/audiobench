@@ -1,5 +1,5 @@
 # Things with no dependencies
-- pitch bend & mod wheel
+- Fix website links
 - alphabetize patch list
 - check all the corner cases of the new save format
 - flush out NaN errors in envelope
@@ -8,10 +8,13 @@
 - More snapping points when dragging knobs
 - Global timing and tempo
 - Get rid of JUCE logo
+- Show error to user on panic?
+- Don't unwrap the engine in the main instance, only map.
 
 # Things with missing dependencies
 - Trigger sequencer
 - Pitch sequencer
+- Variable range for pitch wheel
 
 # Low-priority things without dependencies
 - Int boxes are a pain to use because double-click.
@@ -29,6 +32,9 @@
   - scrollbar too maybe
 - Make window resizable
 - Nicer error when a patch requires newer modules (not just "patch is corrupt")
+- Higher precision for MIDI controls
+- Optional smoothing for MIDI controls
+- Reorganize engine modules and their contents
 
 # Code organization stuff
 - Use more TupleUtil functions

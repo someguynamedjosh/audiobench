@@ -1,4 +1,4 @@
-use crate::engine::execution::ExecEnvironment;
+use crate::engine::execution::{ExecEnvironment, AuxMidiData};
 use crate::util::*;
 use array_macro::array;
 
@@ -44,9 +44,12 @@ impl NoteManager {
     pub fn render_all_notes(
         &mut self,
         executor: &mut ExecEnvironment,
+        aux_midi_data: &AuxMidiData,
         render_into: &mut [f32],
         mut collect_feedback_data: bool,
     ) -> Result<Option<Vec<f32>>, String> {
+        // Pitch offset range is +- 2 semitones
+        let pitch_multiplier = (2.0f32).powf(aux_midi_data.pitch_wheel_value * 2.0 / 12.0);
         let mut feedback_data = None;
 
         let buffer_length = executor.get_current_buffer_length();
@@ -70,9 +73,10 @@ impl NoteManager {
             }
         }
 
+        executor.set_aux_midi_data(aux_midi_data);
         for note in self.held_notes.iter_mut() {
             if let Some(voice) = note {
-                executor.set_pitch_input(voice.pitch);
+                executor.set_pitch_input(voice.pitch * pitch_multiplier);
                 executor.set_velocity_input(voice.velocity.to_range(-1.0, 1.0));
                 executor.set_note_status_input(if voice.start_trigger { 2.0 } else { 0.0 });
                 voice.start_trigger = false;
@@ -107,7 +111,7 @@ impl NoteManager {
         let min_silent_samples = (MIN_SILENT_TIME / time_per_sample) as usize;
         let mut voice_kill_list = Vec::new();
         for (voice_index, voice) in self.decaying_notes.iter_mut().enumerate() {
-            executor.set_pitch_input(voice.pitch);
+            executor.set_pitch_input(voice.pitch * pitch_multiplier);
             executor.set_velocity_input(voice.velocity.to_range(-1.0, 1.0));
             executor.set_note_status_input(if voice.release_trigger { 1.0 } else { 0.0 });
             voice.release_trigger = false;
