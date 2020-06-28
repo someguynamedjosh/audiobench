@@ -1,5 +1,4 @@
 # Things with no dependencies
-- Fix website links
 - alphabetize patch list
 - check all the corner cases of the new save format
 - flush out NaN errors in envelope
@@ -17,7 +16,7 @@
 - Variable range for pitch wheel
 
 # Low-priority things without dependencies
-- Int boxes are a pain to use because double-click.
+- Int boxes are a pain to use because double-click
 - Output silent audio while recompiling instead of hanging the thread
 - Get a better icon for waveforms
 - Better nothing icon
@@ -35,6 +34,7 @@
 - Higher precision for MIDI controls
 - Optional smoothing for MIDI controls
 - Reorganize engine modules and their contents
+- Make website look nice
 
 # Code organization stuff
 - Use more TupleUtil functions
