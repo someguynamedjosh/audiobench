@@ -18,10 +18,12 @@ for i = 0 to BUFFER_LENGTH no_unroll {
         // Prevent div/0 errors.
         value = time / (attack[i?][0?] + 0.001);
     } else if phase == DECAY_PHASE {
+        // No div0 errors because this phase will be skipped if decay is zero.
         value = 1.0 - (1.0 - sustain[i?][0?]) * (time / decay[i?][0?]);
     } else if phase == HOLD_PHASE {
         value = sustain[i?][0?];
     } else if phase == RELEASE_PHASE {
+        // No div0 errors because this phase will be skipped if decay is zero.
         value = last_value * (1.0 - time / release[i?][0?]);
     } else { // SILENT_PHASE
         value = 0.0;
@@ -40,7 +42,7 @@ for i = 0 to BUFFER_LENGTH no_unroll {
         last_value = value;
         if time > attack[i?][0?] {
             time = time - attack[i?][0?];
-            if time > decay[i?][0?] {
+            if time >= decay[i?][0?] {
                 time = time - decay[i?][0?];
                 phase = HOLD_PHASE;
             } else {
@@ -49,7 +51,7 @@ for i = 0 to BUFFER_LENGTH no_unroll {
         }
     } else if phase == DECAY_PHASE {
         last_value = value;
-        if time > decay[i?][0?] {
+        if time >= decay[i?][0?] {
             time = time - decay[i?][0?];
             phase = HOLD_PHASE;
             last_value = sustain[i?][0?];
@@ -57,7 +59,7 @@ for i = 0 to BUFFER_LENGTH no_unroll {
     } else if phase == HOLD_PHASE {
         // Do nothing.
     } else if phase == RELEASE_PHASE {
-        if time > release[i?][0?] {
+        if time >= release[i?][0?] {
             phase = SILENT_PHASE;
         }
     }

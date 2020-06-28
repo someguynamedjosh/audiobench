@@ -1,6 +1,4 @@
 # Things with no dependencies
-- check all the corner cases of the new save format
-- flush out NaN errors in envelope
 - Fix rendering of controls that have a zero point outside of their range
 - More default waveforms (ramp up/down, sin)
 - More snapping points when dragging knobs
@@ -9,6 +7,7 @@
 - Show error to user on panic?
 - Don't unwrap the engine in the main instance, only map.
 - Interpolation for MIDI parameters
+- Add ctrl / shift hints to the mouse hint indicator thing
 
 # Things with missing dependencies
 - Trigger sequencer
