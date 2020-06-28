@@ -925,23 +925,30 @@ impl KnobEditor {
                     let lane = auto_lanes - lane - 1;
                     let range = control.range;
                     let lane_range = control.automation[lane].range;
-                    let min_angle = lane_range.0.from_range_to_range(range.0, range.1, PI, 0.0);
-                    let max_angle = lane_range.1.from_range_to_range(range.0, range.1, PI, 0.0);
-                    // TODO: Handle inverted lanes.
-                    return if angle > min_angle {
+                    let mut min_angle = lane_range.0.from_range_to_range(range.0, range.1, PI, 0.0);
+                    let mut max_angle = lane_range.1.from_range_to_range(range.0, range.1, PI, 0.0);
+                    let ends_flipped = lane_range.0 > lane_range.1;
+                    if ends_flipped {
+                        let tmp = min_angle;
+                        min_angle = max_angle;
+                        max_angle = tmp;
+                    }
+                    if angle < min_angle && angle > max_angle {
+                        return if mods.right_click {
+                            MouseAction::RemoveLane(Rc::clone(&self.control), lane)
+                        } else {
+                            MouseAction::ManipulateLane(Rc::clone(&self.control), lane)
+                        };
+                    }
+                    // xor
+                    return if (angle > min_angle) != ends_flipped {
                         MouseAction::ManipulateLaneStart(
                             Rc::clone(&self.control),
                             lane,
                             lane_range.0,
                         )
-                    } else if angle < max_angle {
-                        MouseAction::ManipulateLaneEnd(Rc::clone(&self.control), lane, lane_range.1)
                     } else {
-                        if mods.right_click {
-                            MouseAction::RemoveLane(Rc::clone(&self.control), lane)
-                        } else {
-                            MouseAction::ManipulateLane(Rc::clone(&self.control), lane)
-                        }
+                        MouseAction::ManipulateLaneEnd(Rc::clone(&self.control), lane, lane_range.1)
                     };
                 }
             }
@@ -1017,7 +1024,6 @@ impl KnobEditor {
 
         const GAP: f32 = KNOB_MENU_LANE_GAP;
         const LS: f32 = KNOB_MENU_LANE_SIZE;
-        // TODO: Handle inverted lanes.
         for (index, lane) in control.automation.iter().rev().enumerate() {
             let ir = KOR + GAP + (GAP + LS) * index as f32;
             let or = ir + LS;
@@ -1026,6 +1032,11 @@ impl KnobEditor {
             g.set_color(&COLOR_AUTOMATION);
             let min_angle = value_to_angle(control.range, lane.range.0);
             let max_angle = value_to_angle(control.range, lane.range.1);
+            let ir = if lane.range.0 > lane.range.1 {
+                ir + LS / 2.0
+            } else {
+                ir
+            };
             g.fill_pie(-or, -or, or * 2.0, ir * 2.0, min_angle, max_angle);
         }
 

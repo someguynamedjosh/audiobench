@@ -1,5 +1,4 @@
 # Things with no dependencies
-- Windows VST build
 - Inverted lanes
 - "never" trigger default
 - pitch bend & mod wheel
@@ -13,7 +12,7 @@
 - Get rid of JUCE logo
 
 # Things with missing dependencies
-- Beat sequencer
+- Trigger sequencer
 - Pitch sequencer
 
 # Low-priority things without dependencies
