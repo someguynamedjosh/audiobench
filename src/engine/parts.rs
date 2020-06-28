@@ -133,6 +133,11 @@ impl JackType {
                     code: "global_release_trigger",
                     icon: "base:note_up",
                 },
+                DefaultInputDescription {
+                    name: "Never",
+                    code: "FALSE",
+                    icon: "base:nothing",
+                },
             ],
         }
     }

@@ -618,7 +618,7 @@ enum SortMethod {
 pub struct ModuleBrowser {
     pos: (f32, f32),
     size: (f32, f32),
-    vertical_stacking: f32,
+    vertical_stacking: usize,
     entries: Vec<ModuleBrowserEntry>,
     alphabetical_list: Vec<VisualEntry>,
     categorical_list: Vec<VisualEntry>,
@@ -630,7 +630,7 @@ impl ModuleBrowser {
         let entries: Vec<_> = registry
             .borrow_modules()
             .imc(|module| ModuleBrowserEntry::from(module));
-        let vertical_stacking = (size.1 / (ModuleBrowserEntry::HEIGHT + GRID_P)).floor();
+        let vertical_stacking = (size.1 / (ModuleBrowserEntry::HEIGHT + GRID_P)).floor() as usize;
 
         let mut alphabetical_order: Vec<_> = (0..entries.len()).collect();
         alphabetical_order.sort_by(|a, b| entries[*a].name.cmp(&entries[*b].name));
@@ -679,10 +679,9 @@ impl ModuleBrowser {
 
     fn get_entry_at(&self, mouse_pos: (f32, f32)) -> Option<&ModuleBrowserEntry> {
         let mouse_pos = (mouse_pos.0 - self.pos.0, mouse_pos.1 - self.pos.1);
-        let clicked_index = mouse_pos.0 / (ModuleBrowserEntry::WIDTH + GRID_P)
+        let clicked_index = (mouse_pos.0 / (ModuleBrowserEntry::WIDTH + GRID_P)) as usize
             * self.vertical_stacking
-            + mouse_pos.1 / (ModuleBrowserEntry::HEIGHT + GRID_P);
-        let clicked_index = clicked_index as usize;
+            + (mouse_pos.1 / (ModuleBrowserEntry::HEIGHT + GRID_P)) as usize;
         let list = self.get_current_list();
         if clicked_index < list.len() {
             let entry = &list[clicked_index];
@@ -725,11 +724,11 @@ impl ModuleBrowser {
 
         let list = self.get_current_list();
         for (index, entry) in list.iter().enumerate() {
-            let index = index as f32;
             let (x, y) = (
-                (index / self.vertical_stacking).floor() * (ModuleBrowserEntry::WIDTH + GRID_P)
+                (index / self.vertical_stacking) as f32 * (ModuleBrowserEntry::WIDTH + GRID_P)
                     + GRID_P,
-                (index % self.vertical_stacking) * (ModuleBrowserEntry::HEIGHT + GRID_P) + GRID_P,
+                (index % self.vertical_stacking) as f32 * (ModuleBrowserEntry::HEIGHT + GRID_P)
+                    + GRID_P,
             );
             g.push_state();
             g.apply_offset(x, y);
