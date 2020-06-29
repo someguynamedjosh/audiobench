@@ -4,10 +4,12 @@ inputs:
     type: waveform
     label: Carrier
     tooltip: The base waveform to modulate
+    default: 3
   Modulator:
     type: waveform
     label: Modulator
     tooltip: Controls how the carrier is modulated
+    default: 3
 outputs:
   Waveform:
     type: waveform

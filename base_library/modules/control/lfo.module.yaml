@@ -8,6 +8,7 @@ inputs:
     type: waveform
     label: Waveform
     tooltip: The waveform to repeatedly play
+    default: 3
 outputs:
   audio:
     type: audio

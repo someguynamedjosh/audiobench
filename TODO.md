@@ -1,5 +1,4 @@
 # Things with no dependencies
-- More default waveforms (ramp up/down, sin)
 - More snapping points when dragging knobs
 - Global timing and tempo
 - Get rid of JUCE logo
@@ -9,6 +8,7 @@
 - Add ctrl / shift hints to the mouse hint indicator thing
 - Allow editing the ends of a maxed-out automation lane by clicking outside the 
   bounds of the lane as if it were a full circle instead of a half circle.
+- Rename 'base' to 'factory'
 
 # Things with missing dependencies
 - Trigger sequencer

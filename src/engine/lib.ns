@@ -3,7 +3,11 @@ if global_note_status == 1.0 { global_release_trigger[0] = TRUE; }
 [BUFFER_LENGTH]BOOL global_start_trigger = FALSE;
 if global_note_status == 2.0 { global_start_trigger[0] = TRUE; }
 BOOL global_update_feedback_data = global_should_update == 1.0;
-macro FlatWaveform(buffer_pos, phase):(value) { FLOAT value = 0.0; }
+
+macro FlatWaveform(buffer_pos, phase):(value) { AUTO value = 0.0; }
+macro RampUpWaveform(buffer_pos, phase):(value) { AUTO value = phase * 2.0 - 1.0; }
+macro RampDownWaveform(buffer_pos, phase):(value) { AUTO value = 1.0 - phase * 2.0; }
+macro SineWaveform(buffer_pos, phase):(value) { AUTO value = Sin(phase * TAU); }
 
 macro DisplayWaveform(UpdateFn, Waveform) {
     [60]FLOAT feedback;

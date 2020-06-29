@@ -111,12 +111,29 @@ impl JackType {
                 code: "global_pitch",
                 icon: "base:note",
             }],
-            Self::Waveform => &[DefaultInputDescription {
-                name: "Silence",
-                code: "FlatWaveform",
-                // TODO: Better icon.
-                icon: "base:nothing",
-            }],
+            Self::Waveform => &[
+                DefaultInputDescription {
+                    name: "Silence",
+                    code: "FlatWaveform",
+                    // TODO: Better icon.
+                    icon: "base:nothing",
+                },
+                DefaultInputDescription {
+                    name: "Ramp Up",
+                    code: "RampUpWaveform",
+                    icon: "base:ramp_up",
+                },
+                DefaultInputDescription {
+                    name: "Ramp Down",
+                    code: "RampDownWaveform",
+                    icon: "base:ramp_down",
+                },
+                DefaultInputDescription {
+                    name: "Sine Wave",
+                    code: "SineWaveform",
+                    icon: "base:sine_wave",
+                },
+            ],
             Self::Audio => &[DefaultInputDescription {
                 name: "Silence",
                 code: "0.0",
