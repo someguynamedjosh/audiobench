@@ -1,6 +1,7 @@
 use super::*;
 use crate::engine::parts as ep;
 use crate::engine::registry::Registry;
+use crate::engine::yaml::YamlNode;
 use crate::gui::constants::*;
 use crate::util::*;
 
@@ -65,6 +66,13 @@ pub enum WidgetOutline {
         type_control_index: usize,
         grid_pos: (i32, i32),
     },
+    DurationBox {
+        tooltip: String,
+        ccontrol_index: usize,
+        type_control_index: usize,
+        grid_pos: (i32, i32),
+        label: String,
+    },
 }
 
 impl WidgetOutline {
@@ -85,8 +93,206 @@ impl WidgetOutline {
             Self::HertzBox { .. } => FeedbackDataRequirement::None,
             Self::OptionBox { .. } => FeedbackDataRequirement::None,
             Self::TimingSelector { .. } => FeedbackDataRequirement::None,
+            Self::DurationBox { .. } => FeedbackDataRequirement::None,
         }
     }
+}
+
+pub fn outline_from_yaml(
+    yaml: &YamlNode,
+    controls: &Vec<Rcrc<ep::Control>>,
+    complex_controls: &mut Vec<Rcrc<ep::ComplexControl>>,
+) -> Result<WidgetOutline, String> {
+    let x = yaml.unique_child("x")?.i32()?;
+    let y = yaml.unique_child("y")?.i32()?;
+    let grid_pos = (x, y);
+    let tooltip_node = yaml.unique_child("tooltip");
+    let find_control_index = |name: &str| {
+        controls
+            .iter()
+            .position(|item| &item.borrow().code_name == name)
+            .ok_or_else(|| {
+                format!(
+                    "ERROR: Invalid widget {}, caused by:\nERROR: No control named {}.",
+                    &yaml.full_name, name
+                )
+            })
+    };
+    let find_complex_control_index = |name: &str| {
+        complex_controls
+            .iter()
+            .position(|item| &item.borrow().code_name == name)
+            .ok_or_else(|| {
+                format!(
+                    "ERROR: Invalid widget {}, caused by:\nERROR: No complex control named {}.",
+                    &yaml.full_name, name
+                )
+            })
+    };
+    let mut set_default = Vec::new();
+    let outline = match &yaml.name[..] {
+        "knob" => {
+            let control_name = &yaml.unique_child("control")?.value;
+            let control_index = find_control_index(control_name)?;
+            let label = yaml.unique_child("label")?.value.clone();
+            WidgetOutline::Knob {
+                tooltip: tooltip_node?.value.clone(),
+                control_index,
+                grid_pos,
+                label,
+            }
+        }
+        "envelope_graph" => {
+            let grid_size = (
+                yaml.unique_child("w")?.i32()?,
+                yaml.unique_child("h")?.i32()?,
+            );
+            let feedback_name = yaml.unique_child("feedback_name")?.value.clone();
+            WidgetOutline::EnvelopeGraph {
+                grid_pos,
+                grid_size,
+                feedback_name,
+            }
+        }
+        "waveform_graph" => {
+            let grid_size = (
+                yaml.unique_child("w")?.i32()?,
+                yaml.unique_child("h")?.i32()?,
+            );
+            let feedback_name = yaml.unique_child("feedback_name")?.value.clone();
+            WidgetOutline::WaveformGraph {
+                grid_pos,
+                grid_size,
+                feedback_name,
+            }
+        }
+        "int_box" => {
+            let ccontrol_name = &yaml.unique_child("control")?.value;
+            let ccontrol_index = find_complex_control_index(ccontrol_name)?;
+            let min = yaml.unique_child("min")?.i32()?;
+            let max = yaml.unique_child("max")?.i32()?;
+            let default = if let Ok(child) = yaml.unique_child("default") {
+                child.i32()?
+            } else {
+                min
+            };
+            let label = yaml.unique_child("label")?.value.clone();
+            set_default.push((ccontrol_index, format!("{}", default)));
+            WidgetOutline::IntBox {
+                tooltip: tooltip_node?.value.clone(),
+                ccontrol_index,
+                grid_pos,
+                range: (min, max),
+                label,
+            }
+        }
+        "hertz_box" => {
+            let ccontrol_name = &yaml.unique_child("control")?.value;
+            let ccontrol_index = find_complex_control_index(ccontrol_name)?;
+            let min = yaml.unique_child("min")?.f32()?;
+            let max = yaml.unique_child("max")?.f32()?;
+            let default = if let Ok(child) = yaml.unique_child("default") {
+                child.f32()?
+            } else {
+                min
+            };
+            let label = yaml.unique_child("label")?.value.clone();
+            set_default.push((ccontrol_index, format!("{:.1}", default)));
+            WidgetOutline::HertzBox {
+                tooltip: tooltip_node?.value.clone(),
+                ccontrol_index,
+                grid_pos,
+                range: (min, max),
+                label,
+            }
+        }
+        "option_box" => {
+            let grid_size = (
+                yaml.unique_child("w")?.i32()?,
+                yaml.unique_child("h")?.i32()?,
+            );
+            let ccontrol_name = &yaml.unique_child("control")?.value;
+            let ccontrol_index = find_complex_control_index(ccontrol_name)?;
+            let default = if let Ok(child) = yaml.unique_child("default") {
+                child.i32()?
+            } else {
+                0
+            };
+            let mut options = Vec::new();
+            for child in &yaml.unique_child("options")?.children {
+                options.push(child.name.clone());
+            }
+            if options.len() < 2 {
+                return Err(format!(
+                    concat!(
+                        "ERROR: Invalid widget {}, caused by:\n",
+                        "ERROR: Option box must have at least 2 options."
+                    ),
+                    &yaml.full_name
+                ));
+            }
+            let label = yaml.unique_child("label")?.value.clone();
+            set_default.push((ccontrol_index, format!("{}", default)));
+            WidgetOutline::OptionBox {
+                tooltip: tooltip_node?.value.clone(),
+                ccontrol_index,
+                grid_pos,
+                grid_size,
+                options,
+                label,
+            }
+        }
+        "timing_selector" => {
+            let source_control_name = &yaml.unique_child("source_control")?.value;
+            let source_control_index = find_complex_control_index(source_control_name)?;
+            set_default.push((source_control_index, "FALSE".to_owned()));
+            let type_control_name = &yaml.unique_child("type_control")?.value;
+            let type_control_index = find_complex_control_index(type_control_name)?;
+            set_default.push((type_control_index, "FALSE".to_owned()));
+            WidgetOutline::TimingSelector {
+                source_control_index,
+                type_control_index,
+                grid_pos,
+            }
+        }
+        "duration_box" => {
+            let ccontrol_name = &yaml.unique_child("control")?.value;
+            let ccontrol_index = find_complex_control_index(ccontrol_name)?;
+            let default = if let Ok(child) = yaml.unique_child("default") {
+                child.value.clone()
+            } else {
+                "1.00".to_owned()
+            };
+            set_default.push((ccontrol_index, default));
+            let type_control_name = &yaml.unique_child("type_control")?.value;
+            let type_control_index = find_complex_control_index(type_control_name)?;
+            let label = yaml.unique_child("label")?.value.clone();
+            WidgetOutline::DurationBox {
+                tooltip: tooltip_node?.value.clone(),
+                ccontrol_index,
+                type_control_index,
+                grid_pos,
+                label,
+            }
+        }
+        _ => {
+            return Err(format!(
+                "ERROR: Invalid widget {}, caused by:\nERROR: {} is not a valid widget type.",
+                &yaml.full_name, &yaml.name
+            ))
+        }
+    };
+    for (index, value) in set_default {
+        if complex_controls[index].borrow().value != "" {
+            return Err(format!(
+                "ERROR: Multiple widgets controlling the same complex control {}.",
+                complex_controls[index].borrow().code_name
+            ));
+        }
+        complex_controls[index].borrow_mut().default = value.clone();
+        complex_controls[index].borrow_mut().value = value;
+    }
+    Ok(outline)
 }
 
 pub(in crate::gui) fn widget_from_outline(
@@ -189,6 +395,20 @@ pub(in crate::gui) fn widget_from_outline(
             Rc::clone(&ccontrols[*type_control_index]),
             convert_grid_pos(*grid_pos),
             registry,
+        )),
+        WidgetOutline::DurationBox {
+            tooltip,
+            ccontrol_index,
+            type_control_index,
+            grid_pos,
+            label,
+            ..
+        } => Box::new(DurationBox::create(
+            tooltip.clone(),
+            Rc::clone(&ccontrols[*ccontrol_index]),
+            Rc::clone(&ccontrols[*type_control_index]),
+            convert_grid_pos(*grid_pos),
+            label.clone(),
         )),
     };
     let feedback_data_len = outline.get_feedback_data_requirement().size();

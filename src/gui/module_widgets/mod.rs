@@ -1,3 +1,4 @@
+mod duration_box;
 mod envelope_graph;
 mod hertz_box;
 mod int_box;
@@ -8,6 +9,7 @@ mod timing_selector;
 mod traits;
 mod waveform_graph;
 
+pub use duration_box::*;
 pub use envelope_graph::*;
 pub use hertz_box::*;
 pub use int_box::*;

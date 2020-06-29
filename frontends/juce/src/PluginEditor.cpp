@@ -183,7 +183,7 @@ void writeConsoleText(void *gp, float w, float h, char *text)
             continue;
         }
         ((Graphics *)gp)->drawSingleLineText(String::charToString(c), x, y);
-        if (c == '\n')
+        if (c == '\n' || x >= w - 14)
         {
             x = 2;
             y += 14;

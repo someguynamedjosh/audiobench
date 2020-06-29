@@ -2,8 +2,8 @@ use crate::engine::parts as ep;
 use crate::engine::save_data::Patch;
 use crate::gui::constants::*;
 use crate::gui::module_widgets;
-use crate::gui::{GuiScreen, InteractionHint, MouseMods, Tooltip};
 use crate::gui::ui_widgets::TextField;
+use crate::gui::{GuiScreen, InteractionHint, MouseMods, Tooltip};
 use crate::util::*;
 
 // Describes an action that should be performed on an instance level.
@@ -55,6 +55,11 @@ pub enum MouseAction {
         min: f32,
         max: f32,
         precise_value: f32,
+    },
+    ManipulateDurationControl {
+        cref: Rcrc<ep::ComplexControl>,
+        precise_value: f32,
+        denominator: bool,
     },
     SetComplexControl(Rcrc<ep::ComplexControl>, String),
     MoveModule(Rcrc<ep::Module>, (f32, f32)),
@@ -125,11 +130,7 @@ impl MouseAction {
                 let range = control_ref.range;
                 let delta = delta * (range.1 - range.0) as f32;
                 *tracking = (*tracking + delta).clam(range.0, range.1);
-                let steps = if mods.precise {
-                    60.0
-                } else {
-                    12.0
-                };
+                let steps = if mods.precise { 60.0 } else { 12.0 };
                 if mods.shift {
                     let r08 = tracking.from_range_to_range(range.0, range.1, 0.0, steps + 0.8);
                     let snapped = (r08 - 0.4).round();
@@ -196,11 +197,7 @@ impl MouseAction {
                 let delta = delta * (range.1 - range.0) as f32;
                 let lane = &mut control_ref.automation[*lane_index];
                 *tracking = (*tracking + delta).clam(range.0, range.1);
-                let steps = if mods.precise {
-                    60.0
-                } else {
-                    12.0
-                };
+                let steps = if mods.precise { 60.0 } else { 12.0 };
                 if mods.shift {
                     let r08 = tracking.from_range_to_range(range.0, range.1, 0.0, steps + 0.8);
                     let snapped = (r08 - 0.4).round();
@@ -236,11 +233,7 @@ impl MouseAction {
                 let delta = delta * (range.1 - range.0) as f32;
                 let lane = &mut control_ref.automation[*lane_index];
                 *tracking = (*tracking + delta).clam(range.0, range.1);
-                let steps = if mods.precise {
-                    60.0
-                } else {
-                    12.0
-                };
+                let steps = if mods.precise { 60.0 } else { 12.0 };
                 if mods.shift {
                     let r08 = tracking.from_range_to_range(range.0, range.1, 0.0, steps + 0.8);
                     let snapped = (r08 - 0.4).round();
@@ -317,6 +310,63 @@ impl MouseAction {
                     cref.borrow_mut().value = str_value;
                 }
             }
+            Self::ManipulateDurationControl {
+                cref,
+                precise_value,
+                denominator,
+            } => {
+                // If we are editing a fraction...
+                if cref.borrow().value.contains("/") {
+                    // How many pixels the user must drag across to change the value by 1.
+                    const DRAG_PIXELS: f32 = 12.0;
+                    let delta = delta.0 - delta.1;
+                    let mut delta = delta as f32 / DRAG_PIXELS;
+                    if mods.precise {
+                        delta *= 0.2;
+                    }
+                    *precise_value += delta;
+                    *precise_value = precise_value.min(98.0);
+                    *precise_value = precise_value.max(1.0);
+                    let str_value = cref.borrow().value.clone();
+                    let slash_pos = str_value.find('/').unwrap();
+                    let mut num = (str_value[..slash_pos]).parse::<f32>().unwrap() as i32;
+                    let mut den = (str_value[slash_pos + 1..]).parse::<f32>().unwrap() as i32;
+                    if *denominator {
+                        den = *precise_value as i32;
+                    } else {
+                        num = *precise_value as i32;
+                    }
+                    let str_value = format!("{}.0/{}.0", num, den);
+                    if str_value != cref.borrow().value {
+                        cref.borrow_mut().value = str_value;
+                    }
+                } else {
+                    // How many pixels the user must drag across to double the value
+                    const PIXELS_PER_OCTAVE: f32 = 40.0;
+                    let delta = delta.0 - delta.1;
+                    let mut delta = delta as f32 / PIXELS_PER_OCTAVE;
+                    if mods.precise {
+                        delta *= 0.2;
+                    }
+                    let multiplier = (2.0f32).powf(delta);
+                    *precise_value *= multiplier;
+                    *precise_value = precise_value.min(99.8);
+                    *precise_value = precise_value.max(0.0003);
+                    let decimals = if *precise_value < 0.999 {
+                        3
+                    } else if *precise_value < 9.99 {
+                        2
+                    } else if *precise_value < 99.9 {
+                        1
+                    } else {
+                        0
+                    };
+                    let str_value = format!("{:.1$}", *precise_value, decimals);
+                    if str_value != cref.borrow().value {
+                        cref.borrow_mut().value = str_value;
+                    }
+                }
+            }
             Self::MoveModule(module, tracking) => {
                 *tracking = tracking.add(delta);
                 let mut module_ref = module.borrow_mut();
@@ -391,6 +441,9 @@ impl MouseAction {
                 return Some(GuiAction::Elevate(InstanceAction::ReloadStructure))
             }
             Self::ManipulateHertzControl { .. } => {
+                return Some(GuiAction::Elevate(InstanceAction::ReloadStructure))
+            }
+            Self::ManipulateDurationControl { .. } => {
                 return Some(GuiAction::Elevate(InstanceAction::ReloadStructure))
             }
             Self::Scaled(base, ..) => {

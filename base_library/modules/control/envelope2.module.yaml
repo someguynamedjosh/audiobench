@@ -20,6 +20,7 @@ controls:
 complex_controls:
   TIME_SOURCE:
   TIME_TYPE:
+  ATTACK:
 gui: 
   label: Envelope
   category: Control
@@ -32,3 +33,10 @@ gui:
       y: 0
       source_control: TIME_SOURCE
       type_control: TIME_TYPE
+    duration_box:
+      x: 0
+      y: 2
+      control: ATTACK
+      type_control: TIME_TYPE
+      label: Attack
+      tooltip: How long the envelope takes to rise to full volume
