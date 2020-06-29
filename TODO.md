@@ -1,5 +1,4 @@
 # Things with no dependencies
-- More snapping points when dragging knobs
 - Global timing and tempo
 - Get rid of JUCE logo
 - Show error to user on panic?

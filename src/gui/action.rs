@@ -125,10 +125,15 @@ impl MouseAction {
                 let range = control_ref.range;
                 let delta = delta * (range.1 - range.0) as f32;
                 *tracking = (*tracking + delta).clam(range.0, range.1);
+                let steps = if mods.precise {
+                    60.0
+                } else {
+                    12.0
+                };
                 if mods.shift {
-                    let r08 = tracking.from_range_to_range(range.0, range.1, 0.0, 8.8);
+                    let r08 = tracking.from_range_to_range(range.0, range.1, 0.0, steps + 0.8);
                     let snapped = (r08 - 0.4).round();
-                    control_ref.value = snapped.from_range_to_range(0.0, 8.0, range.0, range.1);
+                    control_ref.value = snapped.from_range_to_range(0.0, steps, range.0, range.1);
                 } else {
                     control_ref.value = *tracking;
                 }
@@ -191,10 +196,15 @@ impl MouseAction {
                 let delta = delta * (range.1 - range.0) as f32;
                 let lane = &mut control_ref.automation[*lane_index];
                 *tracking = (*tracking + delta).clam(range.0, range.1);
+                let steps = if mods.precise {
+                    60.0
+                } else {
+                    12.0
+                };
                 if mods.shift {
-                    let r08 = tracking.from_range_to_range(range.0, range.1, 0.0, 8.8);
+                    let r08 = tracking.from_range_to_range(range.0, range.1, 0.0, steps + 0.8);
                     let snapped = (r08 - 0.4).round();
-                    lane.range.0 = snapped.from_range_to_range(0.0, 8.0, range.0, range.1);
+                    lane.range.0 = snapped.from_range_to_range(0.0, steps, range.0, range.1);
                 } else {
                     lane.range.0 = *tracking;
                 }
@@ -226,10 +236,15 @@ impl MouseAction {
                 let delta = delta * (range.1 - range.0) as f32;
                 let lane = &mut control_ref.automation[*lane_index];
                 *tracking = (*tracking + delta).clam(range.0, range.1);
+                let steps = if mods.precise {
+                    60.0
+                } else {
+                    12.0
+                };
                 if mods.shift {
-                    let r08 = tracking.from_range_to_range(range.0, range.1, 0.0, 8.8);
+                    let r08 = tracking.from_range_to_range(range.0, range.1, 0.0, steps + 0.8);
                     let snapped = (r08 - 0.4).round();
-                    lane.range.1 = snapped.from_range_to_range(0.0, 8.0, range.0, range.1);
+                    lane.range.1 = snapped.from_range_to_range(0.0, steps, range.0, range.1);
                 } else {
                     lane.range.1 = *tracking;
                 }
