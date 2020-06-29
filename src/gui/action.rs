@@ -2,8 +2,8 @@ use crate::engine::parts as ep;
 use crate::engine::save_data::Patch;
 use crate::gui::constants::*;
 use crate::gui::module_widgets;
-use crate::gui::other_widgets::TextField;
 use crate::gui::{GuiScreen, InteractionHint, MouseMods, Tooltip};
+use crate::gui::ui_widgets::TextField;
 use crate::util::*;
 
 // Describes an action that should be performed on an instance level.

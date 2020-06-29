@@ -1,10 +1,10 @@
 use crate::engine::parts as ep;
 use crate::engine::registry::Registry;
 use crate::engine::save_data::Patch;
+use crate::gui;
 use crate::gui::action::{GuiAction, InstanceAction, MouseAction};
 use crate::gui::constants::*;
 use crate::gui::graphics::GrahpicsWrapper;
-use crate::gui::{audio_widgets, other_widgets};
 use crate::util::*;
 use enumflags2::BitFlags;
 use std::time::{Duration, Instant};
@@ -93,10 +93,10 @@ impl GuiScreen {
 pub struct Gui {
     size: (f32, f32),
     current_screen: GuiScreen,
-    menu_bar: other_widgets::MenuBar,
-    patch_browser: other_widgets::PatchBrowser,
-    graph: audio_widgets::ModuleGraph,
-    module_browser: other_widgets::ModuleBrowser,
+    menu_bar: gui::ui_widgets::MenuBar,
+    patch_browser: gui::ui_widgets::PatchBrowser,
+    graph: gui::graph::ModuleGraph,
+    module_browser: gui::ui_widgets::ModuleBrowser,
 
     mouse_action: MouseAction,
     click_position: (f32, f32),
@@ -104,7 +104,7 @@ pub struct Gui {
     mouse_down: bool,
     dragged: bool,
     last_click: Instant,
-    focused_text_field: Option<Rcrc<other_widgets::TextField>>,
+    focused_text_field: Option<Rcrc<gui::ui_widgets::TextField>>,
 }
 
 impl Gui {
@@ -114,20 +114,20 @@ impl Gui {
         graph_ref: Rcrc<ep::ModuleGraph>,
     ) -> Self {
         let size = (640.0, 480.0);
-        let y = other_widgets::MenuBar::HEIGHT;
+        let y = gui::ui_widgets::MenuBar::HEIGHT;
         let screen_size = (size.0, size.1 - y);
 
         let patch_browser =
-            other_widgets::PatchBrowser::create(current_patch, registry, (0.0, y), screen_size);
-        let mut graph = audio_widgets::ModuleGraph::create(registry, graph_ref, screen_size);
+            gui::ui_widgets::PatchBrowser::create(current_patch, registry, (0.0, y), screen_size);
+        let mut graph = gui::graph::ModuleGraph::create(registry, graph_ref, screen_size);
         graph.pos.1 = y;
         let module_browser =
-            other_widgets::ModuleBrowser::create(registry, (0.0, y), (size.0, size.1 - y));
+            gui::ui_widgets::ModuleBrowser::create(registry, (0.0, y), (size.0, size.1 - y));
 
         Self {
             size,
             current_screen: GuiScreen::NoteGraph,
-            menu_bar: other_widgets::MenuBar::create(registry, GuiScreen::all()),
+            menu_bar: gui::ui_widgets::MenuBar::create(registry, GuiScreen::all()),
             patch_browser,
             graph,
             module_browser,
@@ -180,7 +180,7 @@ impl Gui {
                 ret = self.perform_action(registry, action);
             }
         };
-        if pos.1 <= other_widgets::MenuBar::HEIGHT {
+        if pos.1 <= gui::ui_widgets::MenuBar::HEIGHT {
             self.mouse_action = self.menu_bar.respond_to_mouse_press(pos, mods);
         } else {
             self.mouse_action = match self.current_screen {
