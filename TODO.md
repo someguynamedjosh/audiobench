@@ -35,6 +35,7 @@
 - Reorganize engine modules and their contents
 - Make website look nice
 - Things for making waveforms using harmonics of other waveforms
+- Update tooltip when clicking on timing control
 
 # Code organization stuff
 - Use more TupleUtil functions

@@ -1,0 +1,34 @@
+save_id: 14
+inputs:
+  reset_trigger:
+    type: trigger 
+    icon: base:reset
+    label: Reset Trigger
+    tooltip: Trigger to reset the envelope to the beginning
+  release_trigger:
+    type: trigger 
+    icon: base:note_up
+    label: Release Trigger
+    default: 1
+    tooltip: Trigger to switch to the release section of the envelope
+outputs:
+  signal:
+    type: audio
+    label: Signal
+    tooltip: The current value of the envelope
+controls:
+complex_controls:
+  TIME_SOURCE:
+  TIME_TYPE:
+gui: 
+  label: Envelope
+  category: Control
+  tooltip: A basic ADSR envelope, useful for making parameters fade in and out.
+  width: 8
+  height: 4
+  widgets:
+    timing_selector:
+      x: 0
+      y: 0
+      source_control: TIME_SOURCE
+      type_control: TIME_TYPE

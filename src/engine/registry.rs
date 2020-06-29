@@ -58,7 +58,7 @@ fn create_widget_outline_from_yaml(
                 )
             })
     };
-    let mut set_default = None;
+    let mut set_default = Vec::new();
     let outline = match &yaml.name[..] {
         "knob" => {
             let control_name = &yaml.unique_child("control")?.value;
@@ -106,7 +106,7 @@ fn create_widget_outline_from_yaml(
                 min
             };
             let label = yaml.unique_child("label")?.value.clone();
-            set_default = Some((ccontrol_index, format!("{}", default)));
+            set_default.push((ccontrol_index, format!("{}", default)));
             WidgetOutline::IntBox {
                 tooltip: tooltip_node?.value.clone(),
                 ccontrol_index,
@@ -126,7 +126,7 @@ fn create_widget_outline_from_yaml(
                 min
             };
             let label = yaml.unique_child("label")?.value.clone();
-            set_default = Some((ccontrol_index, format!("{:.1}", default)));
+            set_default.push((ccontrol_index, format!("{:.1}", default)));
             WidgetOutline::HertzBox {
                 tooltip: tooltip_node?.value.clone(),
                 ccontrol_index,
@@ -161,7 +161,7 @@ fn create_widget_outline_from_yaml(
                 ));
             }
             let label = yaml.unique_child("label")?.value.clone();
-            set_default = Some((ccontrol_index, format!("{}", default)));
+            set_default.push((ccontrol_index, format!("{}", default)));
             WidgetOutline::OptionBox {
                 tooltip: tooltip_node?.value.clone(),
                 ccontrol_index,
@@ -171,6 +171,19 @@ fn create_widget_outline_from_yaml(
                 label,
             }
         }
+        "timing_selector" => {
+            let source_control_name = &yaml.unique_child("source_control")?.value;
+            let source_control_index = find_complex_control_index(source_control_name)?;
+            set_default.push((source_control_index, "FALSE".to_owned()));
+            let type_control_name = &yaml.unique_child("type_control")?.value;
+            let type_control_index = find_complex_control_index(type_control_name)?;
+            set_default.push((type_control_index, "FALSE".to_owned()));
+            WidgetOutline::TimingSelector {
+                source_control_index,
+                type_control_index,
+                grid_pos,
+            }
+        }
         _ => {
             return Err(format!(
                 "ERROR: Invalid widget {}, caused by:\nERROR: {} is not a valid widget type.",
@@ -178,7 +191,7 @@ fn create_widget_outline_from_yaml(
             ))
         }
     };
-    if let Some((index, value)) = set_default {
+    for (index, value) in set_default {
         if complex_controls[index].borrow().value != "" {
             return Err(format!(
                 "ERROR: Multiple widgets controlling the same complex control {}.",
