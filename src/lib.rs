@@ -1,5 +1,6 @@
 mod engine;
 mod gui;
+mod registry;
 mod util;
 
 use gui::graphics::{GrahpicsWrapper, GraphicsFunctions};
@@ -7,7 +8,7 @@ use gui::{Gui, MouseMods};
 
 pub struct Instance {
     engine: Option<engine::Engine>,
-    registry: engine::registry::Registry,
+    registry: registry::Registry,
     graphics_fns: GraphicsFunctions,
     gui: Option<Gui>,
     critical_error: Option<String>,
@@ -19,7 +20,7 @@ impl Instance {
     fn new() -> Self {
         let mut critical_error = None;
 
-        let (mut registry, registry_load_result) = engine::registry::Registry::new();
+        let (mut registry, registry_load_result) = registry::Registry::new();
         if let Err(err) = registry_load_result {
             critical_error = Some(format!(
                 "Encountered a critical error while loading your libraries:\n{}",

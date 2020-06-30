@@ -1,5 +1,5 @@
+use super::Registry;
 use crate::engine::parts as ep;
-use crate::engine::registry::Registry;
 use crate::util::*;
 use std::collections::{HashMap, HashSet};
 use std::io::{self, Read, Write};

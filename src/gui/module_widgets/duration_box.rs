@@ -18,7 +18,7 @@ pub struct DurationBox {
 impl DurationBox {
     const WIDTH: f32 = grid(2);
     const HEIGHT: f32 = grid(2) - FONT_SIZE - GRID_P / 2.0;
-    pub(super) fn create(
+    pub fn create(
         tooltip: String,
         ccontrol: Rcrc<ep::ComplexControl>,
         type_control: Rcrc<ep::ComplexControl>,

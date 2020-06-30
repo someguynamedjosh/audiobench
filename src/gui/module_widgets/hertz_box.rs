@@ -1,6 +1,6 @@
 use super::ModuleWidget;
 use crate::engine::parts as ep;
-use crate::engine::registry::Registry;
+use crate::registry::Registry;
 use crate::gui::action::MouseAction;
 use crate::gui::constants::*;
 use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
@@ -19,7 +19,7 @@ pub struct HertzBox {
 impl HertzBox {
     const WIDTH: f32 = grid(3);
     const HEIGHT: f32 = grid(2) - FONT_SIZE - GRID_P / 2.0;
-    pub(super) fn create(
+    pub fn create(
         tooltip: String,
         registry: &Registry,
         ccontrol: Rcrc<ep::ComplexControl>,

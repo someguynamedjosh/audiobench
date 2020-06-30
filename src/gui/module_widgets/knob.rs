@@ -19,7 +19,7 @@ pub struct Knob {
 }
 
 impl Knob {
-    pub(super) fn create(tooltip: String, control: Rcrc<ep::Control>, pos: (f32, f32), label: String) -> Knob {
+    pub fn create(tooltip: String, control: Rcrc<ep::Control>, pos: (f32, f32), label: String) -> Knob {
         Knob {
             tooltip,
             control,

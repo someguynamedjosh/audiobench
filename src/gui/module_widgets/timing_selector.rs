@@ -1,6 +1,6 @@
 use super::ModuleWidget;
 use crate::engine::parts as ep;
-use crate::engine::registry::Registry;
+use crate::registry::Registry;
 use crate::gui::action::{MouseAction};
 use crate::gui::constants::*;
 use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
@@ -19,7 +19,7 @@ pub struct TimingSelector {
 }
 
 impl TimingSelector {
-    pub(super) fn create(
+    pub fn create(
         source_control: Rcrc<ep::ComplexControl>,
         type_control: Rcrc<ep::ComplexControl>,
         pos: (f32, f32),

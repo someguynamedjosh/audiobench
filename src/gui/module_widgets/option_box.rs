@@ -17,7 +17,7 @@ pub struct OptionBox {
 }
 
 impl OptionBox {
-    pub(super) fn create(
+    pub fn create(
         tooltip: String,
         ccontrol: Rcrc<ep::ComplexControl>,
         pos: (f32, f32),

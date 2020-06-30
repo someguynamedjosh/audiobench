@@ -3,7 +3,7 @@ use crate::gui::graph::WireTracker;
 use crate::gui::graphics::GrahpicsWrapper;
 use crate::gui::{MouseMods, Tooltip};
 
-pub(in crate::gui) trait ModuleWidget {
+pub trait ModuleWidget {
     fn get_position(&self) -> (f32, f32);
     fn get_bounds(&self) -> (f32, f32);
     fn draw(

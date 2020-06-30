@@ -10,7 +10,7 @@ pub struct WaveformGraph {
 }
 
 impl WaveformGraph {
-    pub(super) fn create(pos: (f32, f32), size: (f32, f32)) -> Self {
+    pub fn create(pos: (f32, f32), size: (f32, f32)) -> Self {
         Self { pos, size }
     }
 }

@@ -1,10 +1,10 @@
 use crate::engine::parts as ep;
-use crate::engine::registry::Registry;
-use crate::engine::save_data::Patch;
 use crate::gui;
 use crate::gui::action::{GuiAction, InstanceAction, MouseAction};
 use crate::gui::constants::*;
 use crate::gui::graphics::GrahpicsWrapper;
+use crate::registry::save_data::Patch;
+use crate::registry::Registry;
 use crate::util::*;
 use enumflags2::BitFlags;
 use std::time::{Duration, Instant};

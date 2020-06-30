@@ -17,5 +17,5 @@ pub use knob::*;
 pub use option_box::*;
 pub use outline::*;
 pub use timing_selector::*;
-pub(in crate::gui) use traits::*;
+pub use traits::*;
 pub use waveform_graph::*;
