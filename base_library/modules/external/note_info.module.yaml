@@ -1,10 +1,6 @@
 save_id: 4
 inputs:
 outputs:
-  time:
-    type: time
-    label: Time
-    tooltip: How long the current note has been playing for
   pitch:
     type: pitch
     label: Pitch

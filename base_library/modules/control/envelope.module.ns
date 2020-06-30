@@ -1,89 +1,69 @@
-[BUFFER_LENGTH]FLOAT signal = -1.0;
+[BUFFER_LENGTH]FLOAT signal;
 
-INT ATTACK_PHASE = 0;
-INT DECAY_PHASE = 1;
-INT HOLD_PHASE = 2;
-INT RELEASE_PHASE = 3;
-INT SILENT_PHASE = 4;
-
-static time, phase, last_value {
-    FLOAT time = 0.0;
-    INT phase = ATTACK_PHASE;
+static start, releasing, last_value {
+    FLOAT start = 0.0;
+    BOOL releasing = FALSE;
     FLOAT last_value = 0.0;
 }
 
+AUTO timing = GetTiming(TIME_SOURCE, TIME_TYPE);
+assert timing:TYPE == [BUFFER_LENGTH]FLOAT;
 for i = 0 to BUFFER_LENGTH no_unroll {
+    if !releasing {
+        if reset_trigger[i?] {
+            start = timing[i];
+        }
+        if release_trigger[i?] {
+            start = timing[i];
+            releasing = TRUE;
+        }
+    }
+
+    FLOAT now = timing[i] - start;
     FLOAT value;
-    if phase == ATTACK_PHASE {
-        // Prevent div/0 errors.
-        value = time / (attack[i?][0?] + 0.001);
-    } else if phase == DECAY_PHASE {
-        // No div0 errors because this phase will be skipped if decay is zero.
-        value = 1.0 - (1.0 - sustain[i?][0?]) * (time / decay[i?][0?]);
-    } else if phase == HOLD_PHASE {
-        value = sustain[i?][0?];
-    } else if phase == RELEASE_PHASE {
-        // No div0 errors because this phase will be skipped if decay is zero.
-        value = last_value * (1.0 - time / release[i?][0?]);
-    } else { // SILENT_PHASE
-        value = 0.0;
+    if releasing {
+        if now < RELEASE_TIME {
+            value = last_value * (1.0 - now / RELEASE_TIME);
+        } else {
+            value = 0.0;
+        }
+    } else {
+        if now < ATTACK_TIME {
+            value = now / ATTACK_TIME;
+        } else {
+            now = now - ATTACK_TIME;
+            if now < DECAY_TIME {
+                value = 1.0 - now / DECAY_TIME * (1.0 - sustain[i?][0?]);
+            } else {
+                value = sustain[i?][0?];
+            }
+        }
+        last_value = value;
     }
 
     signal[i] = value * 2.0 - 1.0;
-    time = time + 1.0 / SAMPLE_RATE;
-    
-    if reset_trigger[i?] {
-        phase = ATTACK_PHASE;
-        time = 0.0;
-    } else if release_trigger[i?] {
-        phase = RELEASE_PHASE;
-        time = 0.0;
-    } else if phase == ATTACK_PHASE {
-        last_value = value;
-        if time > attack[i?][0?] {
-            time = time - attack[i?][0?];
-            if time >= decay[i?][0?] {
-                time = time - decay[i?][0?];
-                phase = HOLD_PHASE;
-            } else {
-                phase = DECAY_PHASE;
-            }
-        }
-    } else if phase == DECAY_PHASE {
-        last_value = value;
-        if time >= decay[i?][0?] {
-            time = time - decay[i?][0?];
-            phase = HOLD_PHASE;
-            last_value = sustain[i?][0?];
-        }
-    } else if phase == HOLD_PHASE {
-        // Do nothing.
-    } else if phase == RELEASE_PHASE {
-        if time >= release[i?][0?] {
-            phase = SILENT_PHASE;
-        }
-    }
 }
 
 if global_update_feedback_data {
-    FLOAT real_time;
-    if phase == ATTACK_PHASE {
-        real_time = time;
-    } else if phase == DECAY_PHASE {
-        real_time = attack[0?][0?] + time;
-    } else if phase == HOLD_PHASE {
-        real_time = attack[0?][0?] + decay[0?][0?];
-    } else if phase == RELEASE_PHASE {
-        real_time = attack[0?][0?] + decay[0?][0?] + time;
-    } else if phase == SILENT_PHASE {
-        real_time = attack[0?][0?] + decay[0?][0?] + release[0?][0?];
+    FLOAT now_time = timing[0] - start;
+    if releasing {
+        now_time = now_time + ATTACK_TIME + DECAY_TIME;
+        if now_time > ATTACK_TIME + DECAY_TIME + RELEASE_TIME {
+            now_time = ATTACK_TIME + DECAY_TIME + RELEASE_TIME;
+        }
+    } else if now_time > ATTACK_TIME + DECAY_TIME {
+        now_time = ATTACK_TIME + DECAY_TIME;
+    }
+    FLOAT multiplier = 1.0;
+    if TIME_TYPE { // If times are measured in beats...
+        multiplier = 60.0 / global_bpm;
     }
     SetGraphFeedback([
-        attack[0?][0?],
-        decay[0?][0?],
+        ATTACK_TIME * multiplier,
+        DECAY_TIME * multiplier,
         sustain[0?][0?],
-        release[0?][0?],
-        real_time,
+        RELEASE_TIME * multiplier,
+        now_time * multiplier,
         signal[0][0?],
     ]);
 }

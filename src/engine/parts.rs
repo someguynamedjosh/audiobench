@@ -57,7 +57,6 @@ pub enum InputConnection {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum JackType {
-    Time,
     Pitch,
     Waveform,
     Audio,
@@ -80,7 +79,6 @@ pub struct DefaultInput {
 impl JackType {
     pub fn from_str(input: &str) -> Result<Self, ()> {
         match input {
-            "time" => Ok(Self::Time),
             "pitch" => Ok(Self::Pitch),
             "waveform" => Ok(Self::Waveform),
             "audio" => Ok(Self::Audio),
@@ -91,7 +89,6 @@ impl JackType {
 
     pub fn icon_name(&self) -> &'static str {
         match self {
-            Self::Time => "base:time",
             Self::Pitch => "base:pitch",
             Self::Waveform => "base:waveform",
             Self::Audio => "base:audio",
@@ -101,11 +98,6 @@ impl JackType {
 
     fn default_option_descriptions(&self) -> &'static [DefaultInputDescription] {
         match self {
-            Self::Time => &[DefaultInputDescription {
-                name: "Note Time",
-                code: "global_note_time",
-                icon: "base:note",
-            }],
             Self::Pitch => &[DefaultInputDescription {
                 name: "Note Pitch",
                 code: "global_pitch",

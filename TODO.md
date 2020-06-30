@@ -1,5 +1,4 @@
 # Things with no dependencies
-- Global timing and tempo
 - Get rid of JUCE logo
 - Show error to user on panic?
 - Don't unwrap the engine in the main instance, only map.
@@ -8,6 +7,11 @@
 - Allow editing the ends of a maxed-out automation lane by clicking outside the 
   bounds of the lane as if it were a full circle instead of a half circle.
 - Rename 'base' to 'factory'
+- Add cursor to waveform display (Use in LFO module)
+- Fix new patch (created with + button) not showing up on list
+- Make inputs not change default when you try to connect them to something but they don't connect to anything
+- Why does it randomly stop letting me connect things?!?!?!?!
+- Support saving/loading through VST API so that it works in DAWs and such
 
 # Things with missing dependencies
 - Trigger sequencer
