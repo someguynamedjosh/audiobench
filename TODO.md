@@ -1,5 +1,4 @@
 # Things with no dependencies
-- Don't unwrap the engine in the main instance, only map.
 - Interpolation for MIDI parameters
 - Add ctrl / shift hints to the mouse hint indicator thing
 - Allow editing the ends of a maxed-out automation lane by clicking outside the 

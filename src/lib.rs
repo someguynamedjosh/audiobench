@@ -59,47 +59,47 @@ impl Instance {
                 }
             }
             gui::action::InstanceAction::ReloadAuxData => {
-                if self.structure_error.is_none() {
-                    self.engine.as_mut().unwrap().reload_values();
-                }
+                self.engine.as_mut().map(|e| e.reload_values());
             }
             gui::action::InstanceAction::ReloadStructure => {
-                let res = self.engine.as_mut().unwrap().reload_structure();
-                if let Err(err) = res {
-                    if let Some(gui) = &mut self.gui {
-                        gui.display_error(err.clone());
+                if let Some(e) = self.engine.as_mut() {
+                    let res = e.reload_structure();
+                    if let Err(err) = res {
+                        if let Some(gui) = &mut self.gui {
+                            gui.display_error(err.clone());
+                        }
+                        self.structure_error = Some(err);
+                    } else {
+                        if let Some(gui) = &mut self.gui {
+                            gui.clear_status();
+                        }
+                        self.structure_error = None;
                     }
-                    self.structure_error = Some(err);
-                } else {
-                    if let Some(gui) = &mut self.gui {
-                        gui.clear_status();
-                    }
-                    self.structure_error = None;
                 }
             }
             gui::action::InstanceAction::RenamePatch(name) => {
-                self.engine.as_mut().unwrap().rename_current_patch(name);
+                self.engine.as_mut().map(|e| e.rename_current_patch(name));
             }
             gui::action::InstanceAction::SavePatch => {
-                self.engine.as_mut().unwrap().save_current_patch();
-                if let Some(gui) = &mut self.gui {
-                    gui.display_success("Saved successfully!".to_owned());
-                }
+                self.engine.as_mut().map(|e| e.save_current_patch());
+                self.gui
+                    .as_mut()
+                    .map(|g| g.display_success("Saved successfully!".to_owned()));
             }
             gui::action::InstanceAction::NewPatch(callback) => {
-                callback(self.engine.as_mut().unwrap().new_patch(&mut self.registry));
+                if let Some(e) = self.engine.as_mut() {
+                    callback(e.new_patch(&mut self.registry));
+                }
             }
             gui::action::InstanceAction::LoadPatch(patch) => {
-                let res = self
-                    .engine
-                    .as_mut()
-                    .unwrap()
-                    .load_patch(&self.registry, patch);
-                if let Some(gui) = &mut self.gui {
-                    if let Err(err) = res {
-                        gui.display_error(err);
+                if let Some(e) = self.engine.as_mut() {
+                    let res = e.load_patch(&self.registry, patch);
+                    if let Some(gui) = &mut self.gui {
+                        if let Err(err) = res {
+                            gui.display_error(err);
+                        }
+                        gui.on_patch_change(&self.registry);
                     }
-                    gui.on_patch_change(&self.registry);
                 }
             }
             gui::action::InstanceAction::SimpleCallback(callback) => {
@@ -139,7 +139,6 @@ impl Instance {
     pub fn set_control(&mut self, index: usize, value: f32) {
         self.engine.as_mut().map(|e| e.set_control(index, value));
     }
-
 
     pub fn set_bpm(&mut self, bpm: f32) {
         self.engine.as_mut().map(|e| e.set_bpm(bpm));
