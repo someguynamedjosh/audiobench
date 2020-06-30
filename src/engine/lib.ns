@@ -17,3 +17,18 @@ macro DisplayWaveform(UpdateFn, Waveform) {
     }
     UpdateFn(feedback);
 }
+
+macro GetTiming(SOURCE, TYPE):(timing) {
+    assert SOURCE:TYPE == BOOL;
+    assert TYPE:TYPE == BOOL;
+    AUTO timing;
+    if !SOURCE and !TYPE {
+        timing = global_note_time;
+    } else if SOURCE and !TYPE {
+        timing = global_song_time;
+    } else if !SOURCE and TYPE {
+        timing = global_note_beats;
+    } else if SOURCE and TYPE {
+        timing = global_song_beats;
+    }
+}

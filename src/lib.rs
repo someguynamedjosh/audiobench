@@ -140,6 +140,19 @@ impl Instance {
         self.engine.as_mut().map(|e| e.set_control(index, value));
     }
 
+
+    pub fn set_bpm(&mut self, bpm: f32) {
+        self.engine.as_mut().map(|e| e.set_bpm(bpm));
+    }
+
+    pub fn set_song_time(&mut self, time: f32) {
+        self.engine.as_mut().map(|e| e.set_song_time(time));
+    }
+
+    pub fn set_song_beats(&mut self, beats: f32) {
+        self.engine.as_mut().map(|e| e.set_song_beats(beats));
+    }
+
     pub fn render_audio(&mut self) -> &[f32] {
         if let Some(engine) = self.engine.as_mut() {
             engine.render_audio()
@@ -324,6 +337,21 @@ pub unsafe extern "C" fn ABPitchWheel(instance: *mut Instance, value: f32) {
 #[no_mangle]
 pub unsafe extern "C" fn ABControl(instance: *mut Instance, index: i32, value: f32) {
     (*instance).set_control(index as usize, value)
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ABBpm(instance: *mut Instance, bpm: f32) {
+    (*instance).set_bpm(bpm)
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ABSongTime(instance: *mut Instance, time: f32) {
+    (*instance).set_song_time(time)
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ABSongBeats(instance: *mut Instance, beats: f32) {
+    (*instance).set_song_beats(beats)
 }
 
 #[no_mangle]

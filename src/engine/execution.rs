@@ -17,6 +17,9 @@ pub struct AuxMidiData {
     pub controller_values: [f32; 128],
     // The pitch wheel is seperate from other controls due to its higher precision.
     pub pitch_wheel_value: f32,
+    pub bpm: f32,
+    pub song_time: f32,
+    pub song_beats: f32,
 }
 
 impl AuxMidiData {
@@ -24,6 +27,9 @@ impl AuxMidiData {
         Self {
             controller_values: [0.0; 128],
             pitch_wheel_value: 0.0,
+            bpm: 120.0,
+            song_time: 0.0,
+            song_beats: 0.0,
         }
     }
 }
@@ -73,13 +79,41 @@ impl ExecEnvironment {
         self.input[3] = should_update;
     }
 
-    pub fn set_note_time_input(&mut self, base: f32, increment: f32) {
-        let time_input = &mut self.input[4..self.buffer_length + 4];
+    fn set_timing_input(&mut self, start_index: usize, base: f32, increment: f32) {
+        let data = &mut self.input[start_index..self.buffer_length + start_index];
         let mut value = base;
         for index in 0..self.buffer_length {
-            time_input[index] = value;
+            data[index] = value;
             value += increment;
         }
+    }
+
+    pub fn set_note_time_input(&mut self, base: f32) {
+        self.set_timing_input(4, base, 1.0 / self.sample_rate as f32);
+    }
+
+    pub fn set_note_beats_input(&mut self, base: f32, aux_midi_data: &AuxMidiData) {
+        self.set_timing_input(
+            4 + self.buffer_length,
+            base,
+            aux_midi_data.bpm / 60.0 / self.sample_rate as f32,
+        );
+    }
+
+    fn set_song_time_input(&mut self, base: f32) {
+        self.set_timing_input(
+            4 + 2 * self.buffer_length,
+            base,
+            1.0 / self.sample_rate as f32,
+        );
+    }
+
+    fn set_song_beats_input(&mut self, base: f32, aux_midi_data: &AuxMidiData) {
+        self.set_timing_input(
+            4 + 3 * self.buffer_length,
+            base,
+            aux_midi_data.bpm / 60.0 / self.sample_rate as f32,
+        );
     }
 
     pub fn set_aux_midi_data(&mut self, aux_midi_data: &AuxMidiData) {
@@ -89,6 +123,8 @@ impl ExecEnvironment {
         for index in 0..128 {
             midi_controls_input[index] = aux_midi_data.controller_values[index];
         }
+        self.set_song_time_input(aux_midi_data.song_time);
+        self.set_song_beats_input(aux_midi_data.song_beats, aux_midi_data);
     }
 
     pub fn change_aux_input_data(&mut self, new_aux_input_data: &[f32]) {
@@ -110,9 +146,12 @@ impl ExecEnvironment {
         // global_velocity: FLOAT
         // global_note_status: FLOAT
         // global_note_time: [BL]FLOAT
-        // global_aux_data: [starting_aux_data.len()][1]FLOAT
+        // global_note_beats: [BL]FLOAT
+        // global_song_time: [BL]FLOAT
+        // global_song_beats: [BL]FLOAT
         // global_midi_controls: [128]FLOAT
-        self.default_inputs_len = 4 + buffer_length + 128;
+        // global_aux_data: [starting_aux_data.len()][1]FLOAT
+        self.default_inputs_len = 4 + 4 * buffer_length + 128;
         self.input = vec![0.0; self.default_inputs_len];
         self.input.append(&mut starting_aux_data);
         // global_audio_out: [BL][2]FLOAT

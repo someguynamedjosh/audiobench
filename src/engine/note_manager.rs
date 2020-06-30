@@ -1,4 +1,4 @@
-use crate::engine::execution::{ExecEnvironment, AuxMidiData};
+use crate::engine::execution::{AuxMidiData, ExecEnvironment};
 use crate::util::*;
 use array_macro::array;
 
@@ -6,6 +6,7 @@ struct ActiveVoice {
     pitch: f32,
     velocity: f32,
     elapsed_samples: usize,
+    elapsed_beats: f32,
     silent_samples: usize,
     start_trigger: bool,
     release_trigger: bool,
@@ -80,10 +81,8 @@ impl NoteManager {
                 executor.set_velocity_input(voice.velocity.to_range(-1.0, 1.0));
                 executor.set_note_status_input(if voice.start_trigger { 2.0 } else { 0.0 });
                 voice.start_trigger = false;
-                executor.set_note_time_input(
-                    voice.elapsed_samples as f32 * time_per_sample,
-                    time_per_sample,
-                );
+                executor.set_note_time_input(voice.elapsed_samples as f32 * time_per_sample);
+                executor.set_note_beats_input(voice.elapsed_beats, aux_midi_data);
 
                 let record_feedback_now =
                     if voice.elapsed_samples == shortest_voice_duration && collect_feedback_data {
@@ -105,6 +104,8 @@ impl NoteManager {
                     render_into[i] += voice_audio[i];
                 }
                 voice.elapsed_samples += buffer_length;
+                voice.elapsed_beats +=
+                    buffer_length as f32 * aux_midi_data.bpm / 60.0 / sample_rate as f32;
             }
         }
 
@@ -115,10 +116,7 @@ impl NoteManager {
             executor.set_velocity_input(voice.velocity.to_range(-1.0, 1.0));
             executor.set_note_status_input(if voice.release_trigger { 1.0 } else { 0.0 });
             voice.release_trigger = false;
-            executor.set_note_time_input(
-                voice.elapsed_samples as f32 * time_per_sample,
-                time_per_sample,
-            );
+            executor.set_note_time_input(voice.elapsed_samples as f32 * time_per_sample);
 
             let record_feedback_now =
                 if voice.elapsed_samples == shortest_voice_duration && collect_feedback_data {
@@ -175,6 +173,7 @@ impl NoteManager {
             pitch: equal_tempered_tuning(note_index),
             velocity,
             elapsed_samples: 0,
+            elapsed_beats: 0.0,
             silent_samples: 0,
             start_trigger: false,
             release_trigger: false,

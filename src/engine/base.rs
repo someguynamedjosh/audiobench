@@ -254,6 +254,18 @@ impl Engine {
         self.aux_midi_data.controller_values[index] = value;
     }
 
+    pub fn set_bpm(&mut self, bpm: f32) {
+        self.aux_midi_data.bpm = bpm;
+    }
+
+    pub fn set_song_time(&mut self, time: f32) {
+        self.aux_midi_data.song_time = time;
+    }
+
+    pub fn set_song_beats(&mut self, beats: f32) {
+        self.aux_midi_data.song_beats = beats;
+    }
+
     pub fn render_audio(&mut self) -> &[f32] {
         let mut ctd = self.ctd_mux.lock().unwrap();
 
@@ -317,6 +329,9 @@ impl Engine {
         if let Some(data) = feedback_data {
             ctd.new_feedback_data = Some(data);
         }
+        let delta_time = ctd.buffer_length as f32 / ctd.sample_rate as f32;
+        self.aux_midi_data.song_time += delta_time;
+        self.aux_midi_data.song_beats += delta_time * self.aux_midi_data.bpm / 60.0;
         &self.rendered_audio[..]
     }
 }

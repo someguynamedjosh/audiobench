@@ -248,7 +248,7 @@ impl<'a> CodeGenerator<'a> {
         header.push_str(&format!("FLOAT SAMPLE_RATE = {}.0;\n", sample_rate,));
         header.push_str(concat!(
             "input FLOAT global_pitch, global_velocity, global_note_status, global_should_update;\n",
-            "input [BUFFER_LENGTH][1]FLOAT global_note_time;\n",
+            "input [BUFFER_LENGTH]FLOAT global_note_time, global_note_beats, global_song_time, global_song_beats;\n",
             "input [128]FLOAT global_midi_controls;\n",
             "output [BUFFER_LENGTH][2]FLOAT global_audio_out;\n",
         ));

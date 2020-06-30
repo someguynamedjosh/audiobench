@@ -29,6 +29,9 @@ extern "C" {
     void ABNoteOn(ABInstanceRef, int, float);
     void ABNoteOff(ABInstanceRef, int);
     void ABPitchWheel(ABInstanceRef, float);
+    void ABBpm(ABInstanceRef, float);
+    void ABSongTime(ABInstanceRef, float);
+    void ABSongBeats(ABInstanceRef, float);
     void ABControl(ABInstanceRef, int, float);
     float *ABRenderAudio(ABInstanceRef);
     void ABSetGraphicsFunctions(ABInstanceRef, ABGraphicsFunctions);
