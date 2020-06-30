@@ -117,6 +117,7 @@ impl NoteManager {
             executor.set_note_status_input(if voice.release_trigger { 1.0 } else { 0.0 });
             voice.release_trigger = false;
             executor.set_note_time_input(voice.elapsed_samples as f32 * time_per_sample);
+            executor.set_note_beats_input(voice.elapsed_beats, aux_midi_data);
 
             let record_feedback_now =
                 if voice.elapsed_samples == shortest_voice_duration && collect_feedback_data {
@@ -141,6 +142,8 @@ impl NoteManager {
                 }
             }
             voice.elapsed_samples += buffer_length;
+            voice.elapsed_beats +=
+                buffer_length as f32 * aux_midi_data.bpm / 60.0 / sample_rate as f32;
             if all_silent {
                 voice.silent_samples += buffer_length;
                 if voice.silent_samples >= min_silent_samples {
@@ -175,7 +178,7 @@ impl NoteManager {
             elapsed_samples: 0,
             elapsed_beats: 0.0,
             silent_samples: 0,
-            start_trigger: false,
+            start_trigger: true,
             release_trigger: false,
             static_data,
         })

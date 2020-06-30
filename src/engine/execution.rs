@@ -79,6 +79,10 @@ impl ExecEnvironment {
         self.input[3] = should_update;
     }
 
+    fn set_bpm_input(&mut self, bpm: f32) {
+        self.input[4] = bpm;
+    }
+
     fn set_timing_input(&mut self, start_index: usize, base: f32, increment: f32) {
         let data = &mut self.input[start_index..self.buffer_length + start_index];
         let mut value = base;
@@ -89,12 +93,12 @@ impl ExecEnvironment {
     }
 
     pub fn set_note_time_input(&mut self, base: f32) {
-        self.set_timing_input(4, base, 1.0 / self.sample_rate as f32);
+        self.set_timing_input(5, base, 1.0 / self.sample_rate as f32);
     }
 
     pub fn set_note_beats_input(&mut self, base: f32, aux_midi_data: &AuxMidiData) {
         self.set_timing_input(
-            4 + self.buffer_length,
+            5 + self.buffer_length,
             base,
             aux_midi_data.bpm / 60.0 / self.sample_rate as f32,
         );
@@ -102,7 +106,7 @@ impl ExecEnvironment {
 
     fn set_song_time_input(&mut self, base: f32) {
         self.set_timing_input(
-            4 + 2 * self.buffer_length,
+            5 + 2 * self.buffer_length,
             base,
             1.0 / self.sample_rate as f32,
         );
@@ -110,15 +114,16 @@ impl ExecEnvironment {
 
     fn set_song_beats_input(&mut self, base: f32, aux_midi_data: &AuxMidiData) {
         self.set_timing_input(
-            4 + 3 * self.buffer_length,
+            5 + 3 * self.buffer_length,
             base,
             aux_midi_data.bpm / 60.0 / self.sample_rate as f32,
         );
     }
 
     pub fn set_aux_midi_data(&mut self, aux_midi_data: &AuxMidiData) {
+        self.set_bpm_input(aux_midi_data.bpm);
         let midi_controls_input =
-            &mut self.input[self.buffer_length + 4..self.buffer_length + 4 + 128];
+            &mut self.input[self.buffer_length * 4 + 5..self.buffer_length * 4 + 5 + 128];
         // MIDI standard specifies 128 controls
         for index in 0..128 {
             midi_controls_input[index] = aux_midi_data.controller_values[index];
@@ -145,13 +150,14 @@ impl ExecEnvironment {
         // global_pitch: FLOAT
         // global_velocity: FLOAT
         // global_note_status: FLOAT
+        // global_bpm: FLOAT
         // global_note_time: [BL]FLOAT
         // global_note_beats: [BL]FLOAT
         // global_song_time: [BL]FLOAT
         // global_song_beats: [BL]FLOAT
         // global_midi_controls: [128]FLOAT
         // global_aux_data: [starting_aux_data.len()][1]FLOAT
-        self.default_inputs_len = 4 + 4 * buffer_length + 128;
+        self.default_inputs_len = 5 + 4 * buffer_length + 128;
         self.input = vec![0.0; self.default_inputs_len];
         self.input.append(&mut starting_aux_data);
         // global_audio_out: [BL][2]FLOAT

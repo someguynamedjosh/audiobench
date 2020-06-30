@@ -36,6 +36,7 @@
 - Make website look nice
 - Things for making waveforms using harmonics of other waveforms
 - Update tooltip when clicking on timing control
+- Add and/or/xor to nodespeak
 
 # Code organization stuff
 - Use more TupleUtil functions

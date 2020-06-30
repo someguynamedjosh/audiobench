@@ -40,7 +40,7 @@ impl ModuleWidget for DurationBox {
         self.pos
     }
     fn get_bounds(&self) -> (f32, f32) {
-        (grid(3), grid(2))
+        (grid(2), grid(2))
     }
     fn respond_to_mouse_press(
         &self,
@@ -93,7 +93,7 @@ impl ModuleWidget for DurationBox {
     fn get_tooltip_at(&self, local_pos: (f32, f32)) -> Option<Tooltip> {
         Some(Tooltip {
             text: self.tooltip.clone(),
-            interaction: InteractionHint::LeftClickAndDrag | InteractionHint::DoubleClick,
+            interaction: InteractionHint::LeftClickAndDrag | InteractionHint::RightClick
         })
     }
 
