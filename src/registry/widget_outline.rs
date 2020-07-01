@@ -295,7 +295,7 @@ pub(super) fn outline_from_yaml(
     Ok(outline)
 }
 
-pub(super) fn widget_from_outline(
+pub fn widget_from_outline(
     registry: &Registry,
     controls: &Vec<Rcrc<ep::Control>>,
     ccontrols: &Vec<Rcrc<ep::ComplexControl>>,

@@ -1,6 +1,6 @@
 use super::Module;
 use crate::engine::parts as ep;
-use crate::engine::registry::Registry;
+use crate::registry::Registry;
 use crate::gui::action::{DropTarget, GuiAction, MouseAction};
 use crate::gui::constants::*;
 use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};

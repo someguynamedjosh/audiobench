@@ -1,11 +1,11 @@
 use super::WireTracker;
 use crate::engine::parts as ep;
-use crate::engine::registry::Registry;
 use crate::gui::action::{DropTarget, GuiAction, MouseAction};
 use crate::gui::constants::*;
 use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
 use crate::gui::module_widgets::{self, KnobEditor, ModuleWidget};
 use crate::gui::{Gui, InteractionHint, MouseMods, Tooltip};
+use crate::registry::{widget_outline, Registry};
 use crate::util::*;
 use std::f32::consts::PI;
 
@@ -247,7 +247,7 @@ impl Module {
             .widget_outlines
             .iter()
             .map(|wo| {
-                module_widgets::widget_from_outline(registry, module_controls, module_ccontrols, wo)
+                widget_outline::widget_from_outline(registry, module_controls, module_ccontrols, wo)
             })
             .collect();
 

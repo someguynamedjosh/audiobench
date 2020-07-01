@@ -1,4 +1,4 @@
-use crate::gui::module_widgets::WidgetOutline;
+use crate::registry::module_template::ModuleTemplate;
 use crate::util::*;
 use std::collections::{HashMap, HashSet};
 
@@ -337,10 +337,6 @@ impl ModuleGraph {
             module.borrow_mut().sever_connections_with(&module_rc);
         }
         self.modules.remove(index);
-    }
-
-    pub fn adopt_module(&mut self, module: Module) {
-        self.modules.push(rcrc(module));
     }
 
     pub fn borrow_modules(&self) -> &[Rcrc<Module>] {

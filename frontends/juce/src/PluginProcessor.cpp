@@ -101,7 +101,7 @@ void AudiobenchAudioProcessor::prepareToPlay (double sampleRate, int samplesPerB
 {
     // Use this method as the place to do any pre-playback
     // initialisation that you need..
-    ABSetBufferLengthAndSampleRate(ab, samplesPerBlock, (int) sampleRate);
+    ABSetHostFormat(ab, samplesPerBlock, (int) sampleRate);
 }
 
 void AudiobenchAudioProcessor::releaseResources()
@@ -145,7 +145,7 @@ void AudiobenchAudioProcessor::processBlock (AudioBuffer<float>& buffer, MidiBuf
     for (auto meta : midiMessages) {
         auto message = meta.getMessage();
         if (message.isNoteOn()) {
-            ABNoteOn(ab, message.getNoteNumber(), message.getFloatVelocity());
+            ABStartNote(ab, message.getNoteNumber(), message.getFloatVelocity());
         } else if (message.isPitchWheel()) {
             float value = (message.getPitchWheelValue() - 0x2000 + 0.5f) / (0x2000 - 0.5f);
             ABPitchWheel(ab, value);
@@ -157,7 +157,7 @@ void AudiobenchAudioProcessor::processBlock (AudioBuffer<float>& buffer, MidiBuf
     for (auto meta : midiMessages) {
         auto message = meta.getMessage();
         if (message.isNoteOff()) {
-            ABNoteOff(ab, message.getNoteNumber());
+            ABReleaseNote(ab, message.getNoteNumber());
         }
     }
     // MIDI seems to do weird things, this may be helpful in the future.

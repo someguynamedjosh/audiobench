@@ -60,11 +60,11 @@ impl Instance {
                 }
             }
             gui::action::InstanceAction::ReloadAuxData => {
-                self.engine.as_mut().map(|e| e.reload_values());
+                self.engine.as_mut().map(|e| e.reload_aux_data());
             }
             gui::action::InstanceAction::ReloadStructure => {
                 if let Some(e) = self.engine.as_mut() {
-                    let res = e.reload_structure();
+                    let res = e.recompile();
                     if let Err(err) = res {
                         if let Some(gui) = &mut self.gui {
                             gui.display_error(err.clone());
@@ -117,20 +117,20 @@ impl Instance {
         self.registry.borrow_icon_data(icon_index)
     }
 
-    pub fn set_buffer_length_and_sample_rate(&mut self, buffer_length: i32, sample_rate: i32) {
+    pub fn set_host_format(&mut self, buffer_length: usize, sample_rate: usize) {
         if let Some(engine) = self.engine.as_mut() {
-            engine.set_buffer_length_and_sample_rate(buffer_length, sample_rate)
+            engine.set_host_format(buffer_length, sample_rate)
         } else {
             self.silence.resize(buffer_length as usize * 2, 0.0);
         }
     }
 
-    pub fn note_on(&mut self, index: i32, velocity: f32) {
-        self.engine.as_mut().map(|e| e.note_on(index, velocity));
+    pub fn start_note(&mut self, index: usize, velocity: f32) {
+        self.engine.as_mut().map(|e| e.start_note(index, velocity));
     }
 
-    pub fn note_off(&mut self, index: i32) {
-        self.engine.as_mut().map(|e| e.note_off(index));
+    pub fn release_note(&mut self, index: usize) {
+        self.engine.as_mut().map(|e| e.release_note(index));
     }
 
     pub fn set_pitch_wheel(&mut self, value: f32) {
@@ -311,22 +311,22 @@ pub unsafe extern "C" fn ABGetIconData(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ABSetBufferLengthAndSampleRate(
+pub unsafe extern "C" fn ABSetHostFormat(
     instance: *mut Instance,
     buffer_length: i32,
     sample_rate: i32,
 ) {
-    (*instance).set_buffer_length_and_sample_rate(buffer_length, sample_rate)
+    (*instance).set_host_format(buffer_length as usize, sample_rate as usize)
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ABNoteOn(instance: *mut Instance, index: i32, velocity: f32) {
-    (*instance).note_on(index, velocity)
+pub unsafe extern "C" fn ABStartNote(instance: *mut Instance, index: i32, velocity: f32) {
+    (*instance).start_note(index as usize, velocity)
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ABNoteOff(instance: *mut Instance, index: i32) {
-    (*instance).note_off(index)
+pub unsafe extern "C" fn ABReleaseNote(instance: *mut Instance, index: i32) {
+    (*instance).release_note(index as usize)
 }
 
 #[no_mangle]

@@ -257,7 +257,7 @@ pub(super) fn draw_io_wire(g: &mut GrahpicsWrapper, x1: f32, y1: f32, x2: f32, m
 }
 
 #[derive(Clone)]
-pub(in crate::gui) struct WireTracker {
+pub struct WireTracker {
     module_height: f32,
     top_slots: Vec<bool>,
     bottom_slots: Vec<bool>,

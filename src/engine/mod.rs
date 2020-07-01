@@ -1,7 +1,6 @@
 mod base;
-pub mod codegen;
-pub mod execution;
-pub mod note_manager;
+mod codegen;
+mod data_trackers;
 pub mod parts;
 
 pub use base::*;

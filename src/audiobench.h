@@ -25,9 +25,9 @@ extern "C" {
     void ABDestroyInstance(ABInstanceRef);
     int ABGetNumIcons(ABInstanceRef);
     void ABGetIconData(ABInstanceRef, int iconIndex, void **dataBufferPtr, int *sizePtr);
-    float *ABSetBufferLengthAndSampleRate(ABInstanceRef, int, int);
-    void ABNoteOn(ABInstanceRef, int, float);
-    void ABNoteOff(ABInstanceRef, int);
+    float *ABSetHostFormat(ABInstanceRef, int, int);
+    void ABStartNote(ABInstanceRef, int, float);
+    void ABReleaseNote(ABInstanceRef, int);
     void ABPitchWheel(ABInstanceRef, float);
     void ABBpm(ABInstanceRef, float);
     void ABSongTime(ABInstanceRef, float);

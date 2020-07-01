@@ -110,3 +110,24 @@ impl<Item> IterMapCollect<Item> for &[Item] {
         self.iter().map(fun).collect()
     }
 }
+
+pub trait RawDataSource {
+    fn as_raw(&self) -> &[u8];
+    fn as_raw_mut(&mut self) -> &mut [u8];
+}
+
+impl<T: Sized> RawDataSource for Vec<T> {
+    fn as_raw(&self) -> &[u8] {
+        unsafe {
+            let out_len = self.len() * std::mem::size_of::<T>();
+            std::slice::from_raw_parts(self.as_ptr() as *const u8, out_len)
+        }
+    }
+
+    fn as_raw_mut(&mut self) -> &mut [u8] {
+        unsafe {
+            let out_len = self.len() * std::mem::size_of::<T>();
+            std::slice::from_raw_parts_mut(self.as_mut_ptr() as *mut u8, out_len)
+        }
+    }
+}
