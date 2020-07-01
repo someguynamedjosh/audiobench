@@ -180,13 +180,13 @@ impl InputPacker {
             midi_controls_data[index] = host_data.controller_values[index];
         }
         self.set_timing_input(
-            5 + 3 * self.format.buffer_len,
+            5 + 2 * self.format.buffer_len,
             host_data.song_time,
             1.0 / self.format.sample_rate as f32,
         );
         self.set_timing_input(
-            5 + 4 * self.format.buffer_len,
-            host_data.song_time,
+            5 + 3 * self.format.buffer_len,
+            host_data.song_beats,
             host_data.bpm / 60.0 / self.format.sample_rate as f32,
         );
     }
@@ -292,7 +292,7 @@ impl NoteTracker {
 
     pub(super) fn equal_tempered_tuning(index: usize) -> f32 {
         // MIDI note 69 is 440Hz. 12 notes is an octave (double / half frequency).
-        440.0 * (2.0f32).powf((index - 69) as f32 / 12.0)
+        440.0 * (2.0f32).powf((index as i32 - 69) as f32 / 12.0)
     }
 
     pub(super) fn start_note(&mut self, static_data: StaticData, index: usize, velocity: f32) {
@@ -313,6 +313,7 @@ impl NoteTracker {
 
     pub(super) fn release_note(&mut self, index: usize) {
         if let Some(mut note) = self.held_notes[index].take() {
+            note.start_trigger = false;
             note.release_trigger = true;
             self.decaying_notes.push(note);
         }
@@ -329,11 +330,14 @@ impl NoteTracker {
             } else {
                 note.elapsed_samples += self.format.buffer_len;
                 note.elapsed_beats += buffer_beats;
+                note.start_trigger = false;
+                note.release_trigger = false;
             }
         }
         for note in self.held_notes.iter_mut().filter_map(|o| o.as_mut()) {
             note.elapsed_samples += self.format.buffer_len;
             note.elapsed_beats += buffer_beats;
+            note.start_trigger = false;
         }
     }
 
@@ -437,10 +441,6 @@ impl AudiobenchProgram {
                     &mut note.static_data,
                 )?;
             }
-            note.elapsed_samples += buf_len;
-            note.elapsed_beats += buf_time * host_data.bpm / 60.0;
-            note.start_trigger = false;
-            note.release_trigger = false;
             let mut silent = true;
             for i in 0..buf_len * 2 {
                 audio_output[i] += output.borrow_audio()[i];

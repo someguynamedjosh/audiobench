@@ -1,5 +1,4 @@
 # Things with no dependencies
-- Interpolation for MIDI parameters
 - Add ctrl / shift hints to the mouse hint indicator thing
 - Allow editing the ends of a maxed-out automation lane by clicking outside the 
   bounds of the lane as if it were a full circle instead of a half circle.
@@ -38,6 +37,7 @@
 - Things for making waveforms using harmonics of other waveforms
 - Update tooltip when clicking on timing control
 - Add and/or/xor to nodespeak
+- Optional variable smoothing for MIDI controls
 
 # Code organization stuff
 - Use more TupleUtil functions
