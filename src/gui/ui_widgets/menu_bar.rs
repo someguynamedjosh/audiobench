@@ -29,12 +29,12 @@ impl MenuBar {
         Self {
             screens,
             screen_icons,
-            lclick: registry.lookup_icon("base:left_click").unwrap(),
-            rclick: registry.lookup_icon("base:right_click").unwrap(),
-            drag: registry.lookup_icon("base:move").unwrap(),
-            and: registry.lookup_icon("base:add").unwrap(),
-            alt: registry.lookup_icon("base:alt").unwrap(),
-            shift: registry.lookup_icon("base:shift").unwrap(),
+            lclick: registry.lookup_icon("factory:left_click").unwrap(),
+            rclick: registry.lookup_icon("factory:right_click").unwrap(),
+            drag: registry.lookup_icon("factory:move").unwrap(),
+            and: registry.lookup_icon("factory:add").unwrap(),
+            alt: registry.lookup_icon("factory:alt").unwrap(),
+            shift: registry.lookup_icon("factory:shift").unwrap(),
             tooltip: Default::default(),
             status: None,
         }

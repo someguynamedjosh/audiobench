@@ -86,7 +86,7 @@ pub(super) fn create_module_prototype_from_yaml(
         let type_name = &input_description.unique_child("type")?.value;
         let typ = ep::JackType::from_str(type_name)
             .map_err(|_| format!("ERROR: {} is not a valid input type.", type_name))?;
-        // The base library should always come with these icons.
+        // The factory library should always come with these icons.
         let icon = *icon_indexes.get(typ.icon_name()).unwrap();
         let custom_icon = if let Ok(node) = input_description.unique_child("icon") {
             Some(
@@ -126,7 +126,7 @@ pub(super) fn create_module_prototype_from_yaml(
         let type_name = &output_description.unique_child("type")?.value;
         let typ = ep::JackType::from_str(type_name)
             .map_err(|_| format!("ERROR: {} is not a valid output type.", type_name))?;
-        // The base library should always come with these icons.
+        // The factory library should always come with these icons.
         let icon = *icon_indexes.get(typ.icon_name()).unwrap();
         let custom_icon = if let Ok(node) = output_description.unique_child("icon") {
             Some(

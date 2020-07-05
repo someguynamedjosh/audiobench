@@ -279,10 +279,10 @@ impl Registry {
     }
 
     fn initialize(&mut self) -> Result<(), String> {
-        let base_library = std::include_bytes!(concat!(env!("OUT_DIR"), "/base.ablib"));
-        let reader = std::io::Cursor::new(base_library as &[u8]);
-        self.load_zipped_library("base", reader)
-            .map_err(|e| format!("ERROR: Failed to load base library, caused by:\n{}", e))?;
+        let factory_library = std::include_bytes!(concat!(env!("OUT_DIR"), "/factory.ablib"));
+        let reader = std::io::Cursor::new(factory_library as &[u8]);
+        self.load_zipped_library("factory", reader)
+            .map_err(|e| format!("ERROR: Failed to load factory library, caused by:\n{}", e))?;
 
         let user_library_path = self.library_path.join("user");
         fs::create_dir_all(&user_library_path).map_err(|err| {
@@ -293,7 +293,7 @@ impl Registry {
             )
         })?;
         let mut loaded_libraries = HashSet::new();
-        loaded_libraries.insert("base".to_owned());
+        loaded_libraries.insert("factory".to_owned());
         for entry in fs::read_dir(&self.library_path).map_err(|err| {
             format!(
                 "ERROR: Failed to read libraries from {}, caused by:\n{}",

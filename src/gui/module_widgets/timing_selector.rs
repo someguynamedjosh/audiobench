@@ -29,10 +29,10 @@ impl TimingSelector {
             source_control,
             type_control,
             pos,
-            note_icon: registry.lookup_icon("base:note").unwrap(),
-            song_icon: registry.lookup_icon("base:treble_clef").unwrap(),
-            time_icon: registry.lookup_icon("base:time").unwrap(),
-            beats_icon: registry.lookup_icon("base:metronome").unwrap(),
+            note_icon: registry.lookup_icon("factory:note").unwrap(),
+            song_icon: registry.lookup_icon("factory:treble_clef").unwrap(),
+            time_icon: registry.lookup_icon("factory:time").unwrap(),
+            beats_icon: registry.lookup_icon("factory:metronome").unwrap(),
         }
     }
 

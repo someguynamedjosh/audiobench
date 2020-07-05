@@ -2,12 +2,12 @@ save_id: 14
 inputs:
   reset_trigger:
     type: trigger 
-    icon: base:reset
+    icon: factory:reset
     label: Reset Trigger
     tooltip: Trigger to reset the envelope to the beginning
   release_trigger:
     type: trigger 
-    icon: base:note_up
+    icon: factory:note_up
     label: Release Trigger
     default: 1
     tooltip: Trigger to switch to the release section of the envelope

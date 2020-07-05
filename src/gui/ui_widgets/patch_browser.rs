@@ -33,10 +33,10 @@ impl PatchBrowser {
         // Width of the name box.
         let namew = hw - (CG + GRID_P) * NUM_ICONS;
         let patch_name = current_patch.borrow().borrow_name().to_owned();
-        let save_icon = registry.lookup_icon("base:save").unwrap();
+        let save_icon = registry.lookup_icon("factory:save").unwrap();
         let mut save_button =
             IconButton::create((GRID_P + hw - CG * 2.0 - GRID_P, 0.0), CG, save_icon);
-        let new_icon = registry.lookup_icon("base:add").unwrap();
+        let new_icon = registry.lookup_icon("factory:add").unwrap();
         let new_button = IconButton::create((GRID_P + hw - CG, 0.0), CG, new_icon);
 
         let entries = registry.borrow_patches().clone();

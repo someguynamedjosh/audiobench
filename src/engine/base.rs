@@ -55,8 +55,8 @@ impl Engine {
         };
         let default_patch = Rc::clone(
             registry
-                .get_patch_by_name("base:patches/default.abpatch")
-                .ok_or("Could not find base:patches/default.abpatch".to_owned())?,
+                .get_patch_by_name("factory:patches/default.abpatch")
+                .ok_or("Could not find factory:patches/default.abpatch".to_owned())?,
         );
         default_patch
             .borrow()

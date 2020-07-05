@@ -89,10 +89,10 @@ impl JackType {
 
     pub fn icon_name(&self) -> &'static str {
         match self {
-            Self::Pitch => "base:pitch",
-            Self::Waveform => "base:waveform",
-            Self::Audio => "base:audio",
-            Self::Trigger => "base:trigger",
+            Self::Pitch => "factory:pitch",
+            Self::Waveform => "factory:waveform",
+            Self::Audio => "factory:audio",
+            Self::Trigger => "factory:trigger",
         }
     }
 
@@ -101,51 +101,51 @@ impl JackType {
             Self::Pitch => &[DefaultInputDescription {
                 name: "Note Pitch",
                 code: "global_pitch",
-                icon: "base:note",
+                icon: "factory:note",
             }],
             Self::Waveform => &[
                 DefaultInputDescription {
                     name: "Silence",
                     code: "FlatWaveform",
                     // TODO: Better icon.
-                    icon: "base:nothing",
+                    icon: "factory:nothing",
                 },
                 DefaultInputDescription {
                     name: "Ramp Up",
                     code: "RampUpWaveform",
-                    icon: "base:ramp_up",
+                    icon: "factory:ramp_up",
                 },
                 DefaultInputDescription {
                     name: "Ramp Down",
                     code: "RampDownWaveform",
-                    icon: "base:ramp_down",
+                    icon: "factory:ramp_down",
                 },
                 DefaultInputDescription {
                     name: "Sine Wave",
                     code: "SineWaveform",
-                    icon: "base:sine_wave",
+                    icon: "factory:sine_wave",
                 },
             ],
             Self::Audio => &[DefaultInputDescription {
                 name: "Silence",
                 code: "0.0",
-                icon: "base:nothing",
+                icon: "factory:nothing",
             }],
             Self::Trigger => &[
                 DefaultInputDescription {
                     name: "Note Start",
                     code: "global_start_trigger",
-                    icon: "base:note_down",
+                    icon: "factory:note_down",
                 },
                 DefaultInputDescription {
                     name: "Note Release",
                     code: "global_release_trigger",
-                    icon: "base:note_up",
+                    icon: "factory:note_up",
                 },
                 DefaultInputDescription {
                     name: "Never",
                     code: "FALSE",
-                    icon: "base:nothing",
+                    icon: "factory:nothing",
                 },
             ],
         }
@@ -157,7 +157,7 @@ impl JackType {
             .map(|desc| DefaultInput {
                 name: desc.name,
                 code: desc.code,
-                // The base library should have all the listed icons.
+                // The factory library should have all the listed icons.
                 icon: *icon_indexes.get(desc.icon).unwrap(),
             })
             .collect()

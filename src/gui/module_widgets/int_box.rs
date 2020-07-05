@@ -34,10 +34,10 @@ impl IntBox {
             pos,
             range,
             label,
-            // Base library is guaranteed to have these icons.
+            // Factory library is guaranteed to have these icons.
             icons: (
-                registry.lookup_icon("base:increase").unwrap(),
-                registry.lookup_icon("base:decrease").unwrap(),
+                registry.lookup_icon("factory:increase").unwrap(),
+                registry.lookup_icon("factory:decrease").unwrap(),
             ),
         }
     }

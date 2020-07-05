@@ -154,9 +154,9 @@ impl InputPacker {
         result
     }
 
-    pub(super) fn set_timing_input(&mut self, start_index: usize, base: f32, increment: f32) {
+    pub(super) fn set_timing_input(&mut self, start_index: usize, factory: f32, increment: f32) {
         let data = &mut self.packed_data[start_index..self.format.buffer_len + start_index];
-        let mut value = base;
+        let mut value = factory;
         for index in 0..self.format.buffer_len {
             data[index] = value;
             value += increment;

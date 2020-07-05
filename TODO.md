@@ -1,5 +1,4 @@
 # Things with no dependencies
-- Rename 'base' to 'factory'
 - Add cursor to waveform display (Use in LFO module)
 - Fix new patch (created with + button) not showing up on list
 - Make inputs not change default when you try to connect them to something but they don't connect to anything

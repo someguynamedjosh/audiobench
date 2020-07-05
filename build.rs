@@ -3,13 +3,13 @@ use std::path::Path;
 
 fn main() {
     // Can't use env! because it isn't defined when the build script is first compiled.
-    let output_path = Path::new(&std::env::var("OUT_DIR").unwrap()).join("base.ablib");
+    let output_path = Path::new(&std::env::var("OUT_DIR").unwrap()).join("factory.ablib");
     let mut output_file = fs::File::create(output_path).unwrap();
     let mut zip_writer = zip::ZipWriter::new(output_file);
     let options =
         zip::write::FileOptions::default().compression_method(zip::CompressionMethod::Deflated);
 
-    let input_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("base_library");
+    let input_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("factory_library");
     println!("cargo:rerun-if-changed={:?}", input_path.as_os_str());
     // https://github.com/mvdnes/zip-rs/blob/master/examples/write_dir.rs
     for entry in walkdir::WalkDir::new(input_path.clone()).into_iter() {

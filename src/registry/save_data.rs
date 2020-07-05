@@ -661,7 +661,7 @@ impl SavedModule {
     // different amount of space, so this helps save space.
     fn get_ser_mode_u2(&self) -> u8 {
         let small_coords = self.pos.0.abs() < 0x7FFF && self.pos.1.abs() < 0x7FFF;
-        let small_resource = self.lib_name == "base" && self.template_id < 0xFF;
+        let small_resource = self.lib_name == "factory" && self.template_id < 0xFF;
         compose_u2(small_coords, small_resource)
     }
 
@@ -677,7 +677,7 @@ impl SavedModule {
         if small_resource {
             ser_u8(buffer, self.template_id as u8);
         } else {
-            let lib_id = if self.lib_name == "base" {
+            let lib_id = if self.lib_name == "factory" {
                 0
             } else {
                 ordered_lib_names
@@ -709,7 +709,7 @@ impl SavedModule {
             (des_u8(slice)? as usize, des_u16(slice)? as usize)
         };
         let lib_name = if lib_index == 0 {
-            "base".to_owned()
+            "factory".to_owned()
         } else {
             ordered_lib_names[lib_index as usize - 1].clone()
         };
@@ -768,9 +768,9 @@ impl SavedModuleGraph {
             .iter()
             .map(|module| module.lib_name.clone())
             .collect();
-        lib_names.remove("base"); // Base is always lib #0.
+        lib_names.remove("factory"); // Factory is always lib #0.
         let ordered_lib_names: Vec<_> = lib_names.into_iter().collect();
-        // FE not FF because it doesn't include base.
+        // FE not FF because it doesn't include factory.
         assert!(ordered_lib_names.len() < 0xFE);
         ser_u8(buffer, ordered_lib_names.len() as u8);
         for name in &ordered_lib_names {
