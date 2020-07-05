@@ -1,7 +1,4 @@
 # Things with no dependencies
-- Fix new patch (created with + button) not showing up on list
-- Make inputs not change default when you try to connect them to something but they don't connect to anything
-- Why does it randomly stop letting me connect things?!?!?!?!
 - Support saving/loading through VST API so that it works in DAWs and such
 - Trigger sequencer
 - Pitch sequencer

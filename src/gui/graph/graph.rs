@@ -158,12 +158,7 @@ impl ModuleGraph {
     }
 
     pub fn get_drop_target_at(&self, mouse_pos: (f32, f32)) -> DropTarget {
-        let offset = self.offset.borrow();
-        let offset = (offset.0 as f32, offset.1 as f32);
-        let mouse_pos = (
-            mouse_pos.0 - offset.0 - self.pos.0,
-            mouse_pos.1 - offset.1 - self.pos.1,
-        );
+        let mouse_pos = self.translate_mouse_pos(mouse_pos);
         for module in &self.modules {
             let target = module.get_drop_target_at(mouse_pos);
             if !target.is_none() {
@@ -225,12 +220,12 @@ impl ModuleGraph {
             if let MouseAction::ConnectInput(module, index) = cma {
                 let module_ref = module.borrow();
                 let (sx, sy) = Module::input_position(&*module_ref, *index as i32);
-                g.set_color(&COLOR_DEBUG);
+                g.set_color(&COLOR_TEXT);
                 g.stroke_line(sx, sy, mx, my, 2.0);
             } else if let MouseAction::ConnectOutput(module, index) = cma {
                 let module_ref = module.borrow();
                 let (sx, sy) = Module::output_position(&*module_ref, *index as i32);
-                g.set_color(&COLOR_DEBUG);
+                g.set_color(&COLOR_TEXT);
                 g.stroke_line(sx, sy, mx, my, 2.0);
             }
         }

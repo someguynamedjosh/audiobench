@@ -432,8 +432,10 @@ impl MouseAction {
                     if in_type == out_type {
                         in_ref.inputs[in_index] = ep::InputConnection::Wire(out_module, out_index);
                     }
-                } else {
-                    in_ref.inputs[in_index] = ep::InputConnection::Default(0);
+                // Only change to a default if it used to be connected.
+                } else if let ep::InputConnection::Wire(..) = &in_ref.inputs[in_index] {
+                    let default = in_ref.template.borrow().default_inputs[in_index];
+                    in_ref.inputs[in_index] = ep::InputConnection::Default(default);
                 }
                 return Some(GuiAction::Elevate(InstanceAction::ReloadStructure));
             }

@@ -164,9 +164,11 @@ impl PatchBrowser {
             let entries = Rc::clone(&self.entries);
             self.save_button.enabled = true;
             self.name_box.field.borrow_mut().text = "New Patch".to_owned();
-            self.sort_self();
+            let alphabetical_order = Rc::clone(&self.alphabetical_order);
             return MouseAction::NewPatch(Box::new(move |new_patch| {
-                entries.borrow_mut().push(Rc::clone(new_patch))
+                alphabetical_order.borrow_mut().push(entries.borrow().len());
+                entries.borrow_mut().push(Rc::clone(new_patch));
+                Self::sort(&entries, &alphabetical_order);
             }));
         }
         // How large each half of the GUI takes.
