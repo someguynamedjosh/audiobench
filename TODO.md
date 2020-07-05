@@ -14,8 +14,6 @@
 # Low-priority things without dependencies
 - Int boxes are a pain to use because double-click
 - Output silent audio while recompiling instead of hanging the thread
-- Get a better icon for waveforms
-- Better nothing icon
 - Highlight connections when hovering over things like outputs and automation
   lanes to see more easily what's connected to what
 - Play a pretend note when moving knobs so you can see its effect without playing your own note.
@@ -35,6 +33,7 @@
 - Update tooltip when clicking on timing control
 - Add and/or/xor to nodespeak
 - Optional variable smoothing for MIDI controls
+- Line artifact when rendering default inputs
 
 # Code organization stuff
 - Use more TupleUtil functions
