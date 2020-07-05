@@ -1,5 +1,4 @@
 # Things with no dependencies
-- Add cursor to waveform display (Use in LFO module)
 - Fix new patch (created with + button) not showing up on list
 - Make inputs not change default when you try to connect them to something but they don't connect to anything
 - Why does it randomly stop letting me connect things?!?!?!?!
@@ -7,6 +6,9 @@
 - Trigger sequencer
 - Pitch sequencer
 - Copy/paste patch data
+- Version checks for libraries against engine version
+- Version checks so that new presets don't get loaded with old libraries
+- More visual feedback for typing widget
 
 # Things with missing dependencies
 - Variable range for pitch wheel

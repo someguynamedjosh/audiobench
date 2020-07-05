@@ -83,7 +83,7 @@ impl WidgetOutline {
             },
             Self::WaveformGraph { feedback_name, .. } => FeedbackDataRequirement::Custom {
                 code_name: feedback_name.clone(),
-                size: 60,
+                size: 44, // Graph normally takes up 42 pixels on default zoom.
             },
             Self::EnvelopeGraph { feedback_name, .. } => FeedbackDataRequirement::Custom {
                 code_name: feedback_name.clone(),

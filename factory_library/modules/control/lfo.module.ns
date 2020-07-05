@@ -24,5 +24,6 @@ if global_update_feedback_data {
     macro OffsetWaveform(buffer_pos, phase):(value) {
         AUTO value = ApplyStrength(Waveform(buffer_pos, (phase + base + 1.0) % 1.0), 0);
     }
-    DisplayWaveform(SetGraphFeedback, OffsetWaveform);
+    FLOAT cursor_phase = (timing[0] / CYCLE_TIME) % 1.0;
+    DisplayWaveformWithCursor(SetGraphFeedback, OffsetWaveform, cursor_phase);
 }

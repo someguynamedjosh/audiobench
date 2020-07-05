@@ -10,11 +10,24 @@ macro RampDownWaveform(buffer_pos, phase):(value) { AUTO value = 1.0 - phase * 2
 macro SineWaveform(buffer_pos, phase):(value) { AUTO value = Sin(phase * TAU); }
 
 macro DisplayWaveform(UpdateFn, Waveform) {
-    [60]FLOAT feedback;
-    for i = 0 to 60 no_unroll {
-        FLOAT fphase = Itof(i) / 59.0;
+    [44]FLOAT feedback;
+    for i = 0 to 42 no_unroll {
+        FLOAT fphase = Itof(i) / 42.0;
         feedback[i] = Waveform(0, fphase)[0?];
     }
+    feedback[42] = -1.0;
+    feedback[43] = -1.0;
+    UpdateFn(feedback);
+}
+
+macro DisplayWaveformWithCursor(UpdateFn, Waveform, cursor_phase) {
+    [44]FLOAT feedback;
+    for i = 0 to 42 no_unroll {
+        FLOAT fphase = Itof(i) / 42.0;
+        feedback[i] = Waveform(0, fphase)[0?];
+    }
+    feedback[42] = cursor_phase;
+    feedback[43] = Waveform(0, cursor_phase)[0?];
     UpdateFn(feedback);
 }
 
