@@ -1,6 +1,4 @@
 # Things with no dependencies
-- Allow editing the ends of a maxed-out automation lane by clicking outside the 
-  bounds of the lane as if it were a full circle instead of a half circle.
 - Rename 'base' to 'factory'
 - Add cursor to waveform display (Use in LFO module)
 - Fix new patch (created with + button) not showing up on list
@@ -9,6 +7,7 @@
 - Support saving/loading through VST API so that it works in DAWs and such
 - Trigger sequencer
 - Pitch sequencer
+- Copy/paste patch data
 
 # Things with missing dependencies
 - Variable range for pitch wheel

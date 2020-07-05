@@ -19,7 +19,12 @@ pub struct Knob {
 }
 
 impl Knob {
-    pub fn create(tooltip: String, control: Rcrc<ep::Control>, pos: (f32, f32), label: String) -> Knob {
+    pub fn create(
+        tooltip: String,
+        control: Rcrc<ep::Control>,
+        pos: (f32, f32),
+        label: String,
+    ) -> Knob {
         Knob {
             tooltip,
             control,
@@ -274,6 +279,24 @@ impl KnobEditor {
                     };
                 }
             }
+        } else {
+            // If we clicked under one of the automation lanes...
+            if cy > 0.0 && fcx.abs() > KNOB_MENU_KNOB_OR {
+                let lane = ((fcx.abs() - KNOB_MENU_KNOB_OR)
+                    / (KNOB_MENU_LANE_SIZE + KNOB_MENU_LANE_GAP))
+                    as usize;
+                if lane >= auto_lanes {
+                    return MouseAction::None;
+                }
+                let lane_range = control.automation[lane].range;
+                let ends_flipped = lane_range.0 > lane_range.1;
+                // xor
+                return if (fcx > 0.0) != ends_flipped {
+                    MouseAction::ManipulateLaneEnd(Rc::clone(&self.control), lane, lane_range.1)
+                } else {
+                    MouseAction::ManipulateLaneStart(Rc::clone(&self.control), lane, lane_range.0)
+                };
+            }
         }
         MouseAction::None
     }
@@ -291,6 +314,22 @@ impl KnobEditor {
         let auto_lanes = control.automation.len();
         // Clicked somewhere in the top "half" where the main knob and automation lanes are.
         if !(angle >= 0.0 && angle <= PI) {
+            // If we clicked under one of the automation lanes...
+            if cy > 0.0 && fcx.abs() > KNOB_MENU_KNOB_OR {
+                let lane = ((fcx.abs() - KNOB_MENU_KNOB_OR)
+                    / (KNOB_MENU_LANE_SIZE + KNOB_MENU_LANE_GAP))
+                    as usize;
+                if lane < auto_lanes {
+                    return Some(Tooltip {
+                        text: format!(
+                            "Automation lane #{}, click + drag to move one of the ends.",
+                            lane + 1,
+                        ),
+                        interaction: InteractionHint::LeftClickAndDrag
+                            | InteractionHint::DoubleClick,
+                    });
+                }
+            }
             return None;
         }
         let radius = radius as f32;
