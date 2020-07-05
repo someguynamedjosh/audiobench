@@ -1,9 +1,9 @@
 use crate::engine::parts as ep;
-use crate::registry::save_data::Patch;
 use crate::gui::constants::*;
 use crate::gui::module_widgets;
 use crate::gui::ui_widgets::TextField;
 use crate::gui::{GuiScreen, InteractionHint, MouseMods, Tooltip};
+use crate::registry::save_data::Patch;
 use crate::util::*;
 
 // Describes an action that should be performed on an instance level.
@@ -150,7 +150,9 @@ impl MouseAction {
                             format_decimal(control_ref.value, 4),
                             control_ref.suffix
                         ),
-                        interaction: InteractionHint::LeftClickAndDrag.into(),
+                        interaction: InteractionHint::LeftClickAndDrag
+                            | InteractionHint::Alt
+                            | InteractionHint::Shift,
                     }),
                 );
             }
@@ -215,7 +217,9 @@ impl MouseAction {
                     Some(GuiAction::Elevate(InstanceAction::ReloadAuxData)),
                     Some(Tooltip {
                         text: tttext,
-                        interaction: InteractionHint::LeftClickAndDrag.into(),
+                        interaction: InteractionHint::LeftClickAndDrag
+                            | InteractionHint::Alt
+                            | InteractionHint::Shift,
                     }),
                 );
             }
@@ -251,7 +255,9 @@ impl MouseAction {
                     Some(GuiAction::Elevate(InstanceAction::ReloadAuxData)),
                     Some(Tooltip {
                         text: tttext,
-                        interaction: InteractionHint::LeftClickAndDrag.into(),
+                        interaction: InteractionHint::LeftClickAndDrag
+                            | InteractionHint::Alt
+                            | InteractionHint::Shift,
                     }),
                 );
             }
@@ -366,6 +372,13 @@ impl MouseAction {
                         cref.borrow_mut().value = str_value;
                     }
                 }
+                return (
+                    None,
+                    Some(Tooltip {
+                        text: "".to_owned(),
+                        interaction: InteractionHint::LeftClickAndDrag | InteractionHint::Alt,
+                    }),
+                );
             }
             Self::MoveModule(module, tracking) => {
                 *tracking = tracking.add(delta);
@@ -376,6 +389,13 @@ impl MouseAction {
                 } else {
                     module_ref.pos = *tracking;
                 }
+                return (
+                    None,
+                    Some(Tooltip {
+                        text: "".to_owned(),
+                        interaction: InteractionHint::LeftClickAndDrag | InteractionHint::Shift,
+                    }),
+                );
             }
             Self::PanOffset(offset) => {
                 let mut offset_ref = offset.borrow_mut();

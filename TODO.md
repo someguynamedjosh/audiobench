@@ -1,5 +1,4 @@
 # Things with no dependencies
-- Add ctrl / shift hints to the mouse hint indicator thing
 - Allow editing the ends of a maxed-out automation lane by clicking outside the 
   bounds of the lane as if it were a full circle instead of a half circle.
 - Rename 'base' to 'factory'
@@ -8,10 +7,10 @@
 - Make inputs not change default when you try to connect them to something but they don't connect to anything
 - Why does it randomly stop letting me connect things?!?!?!?!
 - Support saving/loading through VST API so that it works in DAWs and such
-
-# Things with missing dependencies
 - Trigger sequencer
 - Pitch sequencer
+
+# Things with missing dependencies
 - Variable range for pitch wheel
 
 # Low-priority things without dependencies

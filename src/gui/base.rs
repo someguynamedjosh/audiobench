@@ -16,6 +16,8 @@ pub enum InteractionHint {
     RightClick = 0x2,
     LeftClickAndDrag = 0x4,
     DoubleClick = 0x8,
+    Alt = 0x10,
+    Shift = 0x20,
 }
 
 #[derive(Clone)]

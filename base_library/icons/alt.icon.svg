@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   viewBox="0 0 24 24"
+   fill="black"
+   width="18px"
+   height="18px"
+   version="1.1"
+   id="svg6">
+  <metadata
+     id="metadata12">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title></dc:title>
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <defs
+     id="defs10" />
+  <path
+     d="M0 0h24v24H0z"
+     fill="none"
+     id="path4" />
+  <g
+     id="flowRoot31"
+     style="font-style:normal;font-weight:normal;font-size:1.33333337px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none"
+     transform="matrix(9.2005296,0,0,10.497581,1,4.2646826)"
+     aria-label="ALT">
+    <path
+       id="path39"
+       style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-family:sans-serif;-inkscape-font-specification:'sans-serif Bold'"
+       d="M 0.76082577,1.2131669 0.67069533,1.0226468 H 0.27760923 L 0.21737879,1.2131669 H 0 L 0.34732182,0.25716692 H 0.59398849 L 0.97820456,1.2131669 Z M 0.63175278,0.8321267 0.47132193,0.4051669 0.32606819,0.8321267 Z" />
+    <path
+       id="path41"
+       style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-family:sans-serif;-inkscape-font-specification:'sans-serif Bold'"
+       d="M 1.086894,1.2131669 V 0.26056645 H 1.3042727 V 1.0226468 h 0.4347576 v 0.1905201 z" />
+    <path
+       id="path43"
+       style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-family:sans-serif;-inkscape-font-specification:'sans-serif Bold'"
+       d="M 2.0650985,1.2131669 H 1.8477197 l 0,-0.76208037 H 1.5216515 l 0,-0.19052008 0.8695152,0 v 0.19052008 l -0.3260682,0 z" />
+  </g>
+</svg>

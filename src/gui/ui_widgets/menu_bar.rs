@@ -12,6 +12,8 @@ pub struct MenuBar {
     rclick: usize,
     drag: usize,
     and: usize,
+    alt: usize,
+    shift: usize,
     tooltip: Tooltip,
     status: Option<Status>,
 }
@@ -31,6 +33,8 @@ impl MenuBar {
             rclick: registry.lookup_icon("base:right_click").unwrap(),
             drag: registry.lookup_icon("base:move").unwrap(),
             and: registry.lookup_icon("base:add").unwrap(),
+            alt: registry.lookup_icon("base:alt").unwrap(),
+            shift: registry.lookup_icon("base:shift").unwrap(),
             tooltip: Default::default(),
             status: None,
         }
@@ -101,7 +105,7 @@ impl MenuBar {
         const HINT_HEIGHT: f32 = grid(1) - 2.0;
         const ICON_PAD: f32 = 1.0;
         const ICON_SIZE: f32 = HINT_HEIGHT - ICON_PAD * 2.0;
-        const HINT_AREA_WIDTH: f32 = ICON_SIZE * 4.0 + GP * 3.0 + ICON_PAD * 6.0;
+        const HINT_AREA_WIDTH: f32 = ICON_SIZE * 5.0 + GP * 4.0 + ICON_PAD * 7.0;
         let status = self.status.is_some();
         {
             g.set_color(&COLOR_SURFACE);
@@ -150,9 +154,15 @@ impl MenuBar {
             let active = self
                 .tooltip
                 .interaction
+                .contains(InteractionHint::Shift)
+                && !status;
+            let x = draw_hint(active, g, width, Y1, &[self.shift]);
+            let active = self
+                .tooltip
+                .interaction
                 .contains(InteractionHint::LeftClickAndDrag)
                 && !status;
-            let x = draw_hint(active, g, width, Y1, &[self.lclick, self.and, self.drag]);
+            let x = draw_hint(active, g, x, Y1, &[self.lclick, self.and, self.drag]);
             let active = self
                 .tooltip
                 .interaction
@@ -163,9 +173,15 @@ impl MenuBar {
             let active = self
                 .tooltip
                 .interaction
+                .contains(InteractionHint::Alt)
+                && !status;
+            let x = draw_hint(active, g, width, Y2, &[self.alt]);
+            let active = self
+                .tooltip
+                .interaction
                 .contains(InteractionHint::DoubleClick)
                 && !status;
-            let x = draw_hint(active, g, width, Y2, &[self.lclick, self.and, self.lclick]);
+            let x = draw_hint(active, g, x, Y2, &[self.lclick, self.and, self.lclick]);
             let active = self
                 .tooltip
                 .interaction
