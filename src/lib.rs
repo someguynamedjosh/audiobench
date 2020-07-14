@@ -125,6 +125,37 @@ impl Instance {
         }
     }
 
+    pub fn serialize_patch(&self) -> Vec<u8> {
+        self.engine
+            .as_ref()
+            .map(|e| e.serialize_current_patch())
+            .unwrap_or_default()
+    }
+
+    pub fn deserialize_patch(&mut self, serialized: Vec<u8>, source_name: String) {
+        let mut reader = std::io::Cursor::new(serialized);
+        let patch = match registry::save_data::Patch::load_readable(
+            source_name,
+            &mut reader,
+            &self.registry,
+        ) {
+            Ok(patch) => patch,
+            Err(message) => {
+                self.critical_error = Some(message);
+                return;
+            }
+        };
+        let patch = util::rcrc(patch);
+        if let Some(engine) = &mut self.engine {
+            if let Err(message) = engine.load_patch(&self.registry, patch) {
+                self.critical_error = Some(message);
+            }
+        }
+        if let Some(gui) = &mut self.gui {
+            gui.on_patch_change(&self.registry);
+        }
+    }
+
     pub fn start_note(&mut self, index: usize, velocity: f32) {
         self.engine.as_mut().map(|e| e.start_note(index, velocity));
     }
@@ -317,6 +348,41 @@ pub unsafe extern "C" fn ABSetHostFormat(
     sample_rate: i32,
 ) {
     (*instance).set_host_format(buffer_length as usize, sample_rate as usize)
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ABSerializePatch(
+    instance: *mut Instance,
+    data_out: *mut *mut u8,
+    size_out: *mut u32,
+) {
+    let data = (*instance).serialize_patch().into_boxed_slice();
+    *size_out = data.len() as u32;
+    *data_out = Box::leak(data).as_mut_ptr();
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ABCleanupSerializedData(
+    data: *mut u8,
+    size: u32,
+) {
+    let slice = std::slice::from_raw_parts_mut(data, size as usize);
+    let boxed = Box::from_raw(slice as *mut [u8]);
+    drop(boxed);
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ABDeserializePatch(
+    instance: *mut Instance,
+    data_in: *mut u8,
+    size_in: u32,
+    name: *const std::os::raw::c_char,
+) {
+    let name = std::ffi::CStr::from_ptr(name);
+    let name = name.to_string_lossy().into();
+    let data = std::slice::from_raw_parts(data_in, size_in as usize);
+    let data = Vec::from(data);
+    (*instance).deserialize_patch(data, name);
 }
 
 #[no_mangle]

@@ -141,6 +141,12 @@ impl Engine {
         patch_ref.write().unwrap();
     }
 
+    pub fn serialize_current_patch(&self) -> Vec<u8> {
+        let mut patch_ref = self.utd.current_patch_save_data.borrow_mut();
+        patch_ref.save_note_graph(&*self.utd.module_graph.borrow());
+        patch_ref.serialize_to_buffer()
+    }
+
     pub fn new_patch(&mut self, registry: &mut Registry) -> &Rcrc<Patch> {
         let new_patch = Rc::clone(registry.create_new_user_patch());
         let mut new_patch_ref = new_patch.borrow_mut();

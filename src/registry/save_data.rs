@@ -1043,6 +1043,12 @@ impl Patch {
         Ok(())
     }
 
+    pub fn serialize_to_buffer(&self) -> Vec<u8> {
+        let mut writer = std::io::Cursor::new(Vec::new());
+        self.serialize(&mut writer).expect("Writing to vec should never fail.");
+        writer.into_inner()
+    }
+
     fn serialize(&self, writer: &mut impl Write) -> io::Result<()> {
         let mut buffer = Vec::new();
         // Format version number.

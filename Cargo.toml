@@ -12,7 +12,6 @@ crate-type = ["staticlib"]
 # fiddling. We also can't catch the panics before they reach the C++ portion because our code
 # involves RefCell and some other nasty things that don't work with catch_unwind
 [profile.dev]
-panic = "abort"
 
 [profile.release]
 panic = "abort"

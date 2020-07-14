@@ -223,15 +223,16 @@ AudioProcessorEditor* AudiobenchAudioProcessor::createEditor()
 //==============================================================================
 void AudiobenchAudioProcessor::getStateInformation (MemoryBlock& destData)
 {
-    // You should use this method to store your parameters in the memory block.
-    // You could do that either as raw data, or use the XML or ValueTree classes
-    // as intermediaries to make it easy to save and load complex data.
+    char *dataPtr;
+    uint dataLen;
+    ABSerializePatch(ab, &dataPtr, &dataLen);
+    destData.append((void*) dataPtr, dataLen);
+    ABCleanupSerializedData(ab, dataPtr, dataLen);
 }
 
 void AudiobenchAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
 {
-    // You should use this method to restore your parameters from this memory block,
-    // whose contents will have been created by the getStateInformation() call.
+    ABDeserializePatch(ab, (char*) data, sizeInBytes, "External Preset\0");
 }
 
 //==============================================================================

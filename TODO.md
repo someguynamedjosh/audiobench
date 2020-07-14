@@ -6,6 +6,7 @@
 - Version checks for libraries against engine version
 - Version checks so that new presets don't get loaded with old libraries
 - More visual feedback for typing widget
+- Clicking on the ends of channels with more than one channel picks the wrong channel
 
 # Things with missing dependencies
 - Variable range for pitch wheel
@@ -33,6 +34,7 @@
 - Add and/or/xor to nodespeak
 - Optional variable smoothing for MIDI controls
 - Line artifact when rendering default inputs
+- Better integration with other VST library preset methods.
 
 # Code organization stuff
 - Use more TupleUtil functions

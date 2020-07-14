@@ -15,7 +15,7 @@ pub struct PatchBrowser {
     new_button: IconButton,
     entries: Rcrc<Vec<Rcrc<Patch>>>,
     alphabetical_order: Rcrc<Vec<usize>>,
-    current_entry_index: usize,
+    current_entry_index: Option<usize>,
 }
 
 impl PatchBrowser {
@@ -43,9 +43,12 @@ impl PatchBrowser {
         let current_entry_index = registry
             .borrow_patches()
             .iter()
-            .position(|patch| std::ptr::eq(patch.as_ref(), current_patch.as_ref()))
-            .unwrap();
-        if !entries[current_entry_index].borrow().is_writable() {
+            .position(|patch| std::ptr::eq(patch.as_ref(), current_patch.as_ref()));
+        if let Some(index) = &current_entry_index {
+            if !entries[*index].borrow().is_writable() {
+                save_button.enabled = false;
+            }
+        } else {
             save_button.enabled = false;
         }
 
@@ -95,9 +98,14 @@ impl PatchBrowser {
 
     fn update_on_patch_change(&mut self) {
         let entries_ref = self.entries.borrow();
-        let entry_ref = entries_ref[self.current_entry_index].borrow();
-        self.name_box.field.borrow_mut().text = entry_ref.borrow_name().to_owned();
-        self.save_button.enabled = entry_ref.is_writable();
+        if let Some(index) = self.current_entry_index {
+            let entry_ref = entries_ref[index].borrow();
+            self.name_box.field.borrow_mut().text = entry_ref.borrow_name().to_owned();
+            self.save_button.enabled = entry_ref.is_writable();
+        } else {
+            self.name_box.field.borrow_mut().text = "External Preset".to_owned();
+            self.save_button.enabled = false;
+        }
     }
 
     pub fn get_tooltip_at(&self, mouse_pos: (f32, f32)) -> Option<Tooltip> {
@@ -160,7 +168,7 @@ impl PatchBrowser {
             return MouseAction::SavePatch;
         }
         if self.new_button.mouse_in_bounds(mouse_pos) {
-            self.current_entry_index = self.entries.borrow().len();
+            self.current_entry_index = Some(self.entries.borrow().len());
             let entries = Rc::clone(&self.entries);
             self.save_button.enabled = true;
             self.name_box.field.borrow_mut().text = "New Patch".to_owned();
@@ -178,10 +186,10 @@ impl PatchBrowser {
                 (mouse_pos.1 - self.name_box.size.1 - GRID_P) / PatchBrowser::ENTRY_HEIGHT;
             if entry_index >= 0.0 && entry_index < self.entries.borrow().len() as f32 {
                 let entry_index = self.alphabetical_order.borrow()[entry_index as usize];
-                self.current_entry_index = entry_index;
+                self.current_entry_index = Some(entry_index);
                 self.update_on_patch_change();
                 return MouseAction::LoadPatch(Rc::clone(
-                    &self.entries.borrow()[self.current_entry_index],
+                    &self.entries.borrow()[entry_index],
                 ));
             }
         }
@@ -216,7 +224,7 @@ impl PatchBrowser {
             const HEIGHT: f32 = PatchBrowser::ENTRY_HEIGHT;
             let x = GP;
             let y = y + HEIGHT * index as f32;
-            if self.alphabetical_order.borrow()[index] == self.current_entry_index {
+            if Some(self.alphabetical_order.borrow()[index]) == self.current_entry_index {
                 g.set_color(&COLOR_IO_AREA);
                 g.fill_rounded_rect(x, y, hw, HEIGHT, CORNER_SIZE);
                 g.set_color(&COLOR_TEXT);
