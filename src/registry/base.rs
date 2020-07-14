@@ -50,9 +50,19 @@ impl Registry {
         self.modules.push(module);
         self.modules_by_resource_id.insert(resource_id, index);
         if self.modules_by_serialized_id.contains_key(&ser_id) {
+            let mut save_ids = HashSet::new();
+            for (this_lib_name, save_id) in self.modules_by_serialized_id.keys() {
+                if this_lib_name == &lib_name {
+                    save_ids.insert(*save_id);
+                }
+            }
+            let mut next_available_id = 0;
+            while save_ids.contains(&next_available_id) {
+                next_available_id += 1;
+            }
             return Err(format!(
-                "ERROR: Multiple modules have {} as their save id",
-                ser_id.1
+                "ERROR: Multiple modules have {} as their save id. The lowest available ID is {}.",
+                ser_id.1, next_available_id
             ));
         }
         self.modules_by_serialized_id.insert(ser_id, index);

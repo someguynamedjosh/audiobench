@@ -13,8 +13,10 @@ end = content.find(end_label)
 replace_with = '\n    // Audiobench is licensed under GPLv3'
 replace_with += '\n    // splashScreen = new JUCESplashScreen (*this);'
 replace_with += '\n    '
-content = content[:start] + replace_with + content[end:]
-
-f = open(path, 'w')
-f.write(content)
-f.close()
+if content[start:end] == replace_with:
+    print('Splash already removed.')
+else:
+    content = content[:start] + replace_with + content[end:]
+    f = open(path, 'w')
+    f.write(content)
+    f.close()
