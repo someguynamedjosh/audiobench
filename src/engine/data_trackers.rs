@@ -197,7 +197,9 @@ impl InputPacker {
         host_data: &HostData,
         update_feedback: bool,
     ) {
-        self.packed_data[0] = note_data.pitch;
+        // Range: +- perfect fifth, todo: make adjustable
+        let pitch_offset: f32 = 2.0f32.powf(host_data.pitch_wheel_value * (7.0 / 12.0));
+        self.packed_data[0] = note_data.pitch * pitch_offset;
         self.packed_data[1] = note_data.velocity;
         self.packed_data[2] = if note_data.start_trigger {
             2.0
