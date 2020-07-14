@@ -11,7 +11,6 @@
 - Variable range for pitch wheel
 
 # Low-priority things without dependencies
-- Int boxes are a pain to use because double-click
 - Output silent audio while recompiling instead of hanging the thread
 - Highlight connections when hovering over things like outputs and automation
   lanes to see more easily what's connected to what
@@ -42,6 +41,7 @@
 - Parameter -> AutoParam, ComplexParam?
 - use fewer i32s, replace with usizes when it would be helpful.
 - Tidy up warnings
+- Proc macro for generating widget outline code
 
 # Long-term goals
 - Effects graph

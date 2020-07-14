@@ -41,8 +41,8 @@ pub enum MouseAction {
     ManipulateLane(Rcrc<ep::Control>, usize),
     ManipulateLaneStart(Rcrc<ep::Control>, usize, f32),
     ManipulateLaneEnd(Rcrc<ep::Control>, usize, f32),
-    ManipulateIntControl {
-        cref: Rcrc<ep::ComplexControl>,
+    ManipulateIntBox{
+        callback: Box<dyn Fn(i32)>,
         min: i32,
         max: i32,
         click_delta: i32,
@@ -261,8 +261,8 @@ impl MouseAction {
                     }),
                 );
             }
-            Self::ManipulateIntControl {
-                cref,
+            Self::ManipulateIntBox {
+                callback,
                 min,
                 max,
                 float_value,
@@ -278,10 +278,7 @@ impl MouseAction {
                 *float_value += delta;
                 *float_value = float_value.min(*max as f32);
                 *float_value = float_value.max(*min as f32);
-                let str_value = format!("{}", *float_value as i32);
-                if str_value != cref.borrow().value {
-                    cref.borrow_mut().value = str_value;
-                }
+                callback(*float_value as i32);
             }
             Self::ManipulateHertzControl {
                 cref,
@@ -459,7 +456,7 @@ impl MouseAction {
                 }
                 return Some(GuiAction::Elevate(InstanceAction::ReloadStructure));
             }
-            Self::ManipulateIntControl { .. } => {
+            Self::ManipulateIntBox { .. } => {
                 return Some(GuiAction::Elevate(InstanceAction::ReloadStructure))
             }
             Self::ManipulateHertzControl { .. } => {
@@ -519,8 +516,8 @@ impl MouseAction {
                 }
                 return Some(GuiAction::Elevate(InstanceAction::ReloadStructure));
             }
-            Self::ManipulateIntControl {
-                cref,
+            Self::ManipulateIntBox {
+                callback,
                 min,
                 max,
                 click_delta,
@@ -529,10 +526,7 @@ impl MouseAction {
                 float_value += click_delta as f32;
                 float_value = float_value.min(max as f32);
                 float_value = float_value.max(min as f32);
-                let str_value = format!("{}", float_value as i32);
-                if str_value != cref.borrow().value {
-                    cref.borrow_mut().value = str_value;
-                }
+                callback(float_value as i32);
                 return Some(GuiAction::Elevate(InstanceAction::ReloadStructure));
             }
             Self::SetComplexControl(control, value) => {
@@ -583,11 +577,6 @@ impl MouseAction {
                 let mut cref = control.borrow_mut();
                 cref.automation[lane].range.1 = cref.range.1;
                 return Some(GuiAction::Elevate(InstanceAction::ReloadAuxData));
-            }
-            Self::ManipulateIntControl { cref, .. } | Self::ManipulateHertzControl { cref, .. } => {
-                let mut cref = cref.borrow_mut();
-                cref.value = cref.default.clone();
-                return Some(GuiAction::Elevate(InstanceAction::ReloadStructure));
             }
             Self::SetComplexControl(control, ..) => {
                 let mut control_ref = control.borrow_mut();
