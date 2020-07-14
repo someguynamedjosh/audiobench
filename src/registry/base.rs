@@ -40,9 +40,15 @@ impl Registry {
         let module = super::module_template::create_module_prototype_from_yaml(
             &self.icon_indexes,
             lib_name.clone(),
-            module_id,
+            module_id.clone(),
             &yaml,
-        )?;
+        )
+        .map_err(|err| {
+            format!(
+                "ERROR: Failed to load module {}, caused by:\n{}",
+                module_id, err
+            )
+        })?;
         let index = self.modules.len();
         let template_ref = module.template.borrow();
         let ser_id = (template_ref.lib_name.clone(), template_ref.template_id);

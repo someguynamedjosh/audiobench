@@ -7,6 +7,7 @@ mod option_box;
 mod outline;
 mod timing_selector;
 mod traits;
+mod trigger_sequence;
 mod waveform_graph;
 
 pub use duration_box::*;
@@ -18,4 +19,5 @@ pub use option_box::*;
 pub use outline::*;
 pub use timing_selector::*;
 pub use traits::*;
+pub use trigger_sequence::*;
 pub use waveform_graph::*;

@@ -1,5 +1,4 @@
 # Things with no dependencies
-- Trigger sequencer
 - Pitch sequencer
 - Copy/paste patch data
 - Version checks for libraries against engine version

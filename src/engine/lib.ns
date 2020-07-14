@@ -33,6 +33,11 @@ macro DisplayWaveformWithCursor(UpdateFn, Waveform, cursor_phase) {
     UpdateFn(feedback);
 }
 
+macro DisplaySequencerPlayhead(UpdateFn, position) {
+    assert position:TYPE == FLOAT;
+    UpdateFn([position]);
+}
+
 macro GetTiming(SOURCE, TYPE):(timing) {
     assert SOURCE:TYPE == BOOL;
     assert TYPE:TYPE == BOOL;

@@ -73,6 +73,19 @@ pub enum WidgetOutline {
         grid_pos: (i32, i32),
         label: String,
     },
+    TriggerSequence {
+        tooltip: String,
+        sequence_control_index: usize,
+        grid_pos: (i32, i32),
+        grid_size: (i32, i32),
+        feedback_name: String,
+    },
+    TriggerSequenceLength {
+        tooltip: String,
+        sequence_control_index: usize,
+        grid_pos: (i32, i32),
+        label: String,
+    },
 }
 
 impl WidgetOutline {
@@ -94,6 +107,11 @@ impl WidgetOutline {
             Self::OptionBox { .. } => FeedbackDataRequirement::None,
             Self::TimingSelector { .. } => FeedbackDataRequirement::None,
             Self::DurationBox { .. } => FeedbackDataRequirement::None,
+            Self::TriggerSequence { feedback_name, .. } => FeedbackDataRequirement::Custom {
+                code_name: feedback_name.clone(),
+                size: 1, // Current position in sequence
+            },
+            Self::TriggerSequenceLength { .. } => FeedbackDataRequirement::None,
         }
     }
 }
@@ -245,10 +263,26 @@ pub(super) fn outline_from_yaml(
         "timing_selector" => {
             let source_control_name = &yaml.unique_child("source_control")?.value;
             let source_control_index = find_complex_control_index(source_control_name)?;
-            set_default.push((source_control_index, "FALSE".to_owned()));
+            set_default.push((
+                source_control_index,
+                if yaml.unique_child("default_song_source").is_ok() {
+                    "TRUE"
+                } else {
+                    "FALSE"
+                }
+                .to_owned(),
+            ));
             let type_control_name = &yaml.unique_child("type_control")?.value;
             let type_control_index = find_complex_control_index(type_control_name)?;
-            set_default.push((type_control_index, "FALSE".to_owned()));
+            set_default.push((
+                type_control_index,
+                if yaml.unique_child("default_beats_type").is_ok() {
+                    "TRUE"
+                } else {
+                    "FALSE"
+                }
+                .to_owned(),
+            ));
             WidgetOutline::TimingSelector {
                 source_control_index,
                 type_control_index,
@@ -271,6 +305,38 @@ pub(super) fn outline_from_yaml(
                 tooltip: tooltip_node?.value.clone(),
                 ccontrol_index,
                 type_control_index,
+                grid_pos,
+                label,
+            }
+        }
+        "trigger_sequence" => {
+            let tooltip = yaml.unique_child("tooltip")?.value.clone();
+            let sequence_control_name = &yaml.unique_child("sequence_control")?.value;
+            let sequence_control_index = find_complex_control_index(sequence_control_name)?;
+            let grid_size = (
+                yaml.unique_child("w")?.i32()?,
+                yaml.unique_child("h")?.i32()?,
+            );
+            let feedback_name = yaml.unique_child("feedback_name")?.value.clone();
+            WidgetOutline::TriggerSequence {
+                tooltip,
+                sequence_control_index,
+                grid_pos,
+                grid_size,
+                feedback_name,
+            }
+        }
+        "trigger_sequence_length" => {
+            let sequence_control_name = &yaml.unique_child("sequence_control")?.value;
+            let sequence_control_index = find_complex_control_index(sequence_control_name)?;
+            let label = yaml.unique_child("label")?.value.clone();
+            set_default.push((
+                sequence_control_index,
+                "[TRUE ,FALSE,FALSE,FALSE,]".to_owned(),
+            ));
+            WidgetOutline::TriggerSequenceLength {
+                tooltip: tooltip_node?.value.clone(),
+                sequence_control_index,
                 grid_pos,
                 label,
             }
@@ -407,6 +473,31 @@ pub fn widget_from_outline(
             tooltip.clone(),
             Rc::clone(&ccontrols[*ccontrol_index]),
             Rc::clone(&ccontrols[*type_control_index]),
+            convert_grid_pos(*grid_pos),
+            label.clone(),
+        )),
+        WidgetOutline::TriggerSequence {
+            tooltip,
+            sequence_control_index,
+            grid_pos,
+            grid_size,
+            ..
+        } => Box::new(TriggerSequence::create(
+            tooltip.clone(),
+            Rc::clone(&ccontrols[*sequence_control_index]),
+            convert_grid_pos(*grid_pos),
+            convert_grid_size(*grid_size),
+        )),
+        WidgetOutline::TriggerSequenceLength {
+            tooltip,
+            sequence_control_index,
+            grid_pos,
+            label,
+            ..
+        } => Box::new(TriggerSequenceLength::create(
+            tooltip.clone(),
+            registry,
+            Rc::clone(&ccontrols[*sequence_control_index]),
             convert_grid_pos(*grid_pos),
             label.clone(),
         )),
