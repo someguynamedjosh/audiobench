@@ -132,10 +132,10 @@ impl Instance {
             .unwrap_or_default()
     }
 
-    pub fn deserialize_patch(&mut self, serialized: Vec<u8>, source_name: String) {
+    pub fn deserialize_patch(&mut self, serialized: Vec<u8>) {
         let mut reader = std::io::Cursor::new(serialized);
         let patch = match registry::save_data::Patch::load_readable(
-            source_name,
+            "External Preset".to_owned(),
             &mut reader,
             &self.registry,
         ) {
@@ -362,12 +362,9 @@ pub unsafe extern "C" fn ABSerializePatch(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ABCleanupSerializedData(
-    data: *mut u8,
-    size: u32,
-) {
+pub unsafe extern "C" fn ABCleanupSerializedData(data: *mut u8, size: u32) {
     let slice = std::slice::from_raw_parts_mut(data, size as usize);
-    let boxed = Box::from_raw(slice as *mut [u8]);
+    let boxed = Box::from_raw(slice);
     drop(boxed);
 }
 
@@ -376,13 +373,10 @@ pub unsafe extern "C" fn ABDeserializePatch(
     instance: *mut Instance,
     data_in: *mut u8,
     size_in: u32,
-    name: *const std::os::raw::c_char,
 ) {
-    let name = std::ffi::CStr::from_ptr(name);
-    let name = name.to_string_lossy().into();
     let data = std::slice::from_raw_parts(data_in, size_in as usize);
     let data = Vec::from(data);
-    (*instance).deserialize_patch(data, name);
+    (*instance).deserialize_patch(data);
 }
 
 #[no_mangle]

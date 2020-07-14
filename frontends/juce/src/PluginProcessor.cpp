@@ -227,12 +227,12 @@ void AudiobenchAudioProcessor::getStateInformation (MemoryBlock& destData)
     uint dataLen;
     ABSerializePatch(ab, &dataPtr, &dataLen);
     destData.append((void*) dataPtr, dataLen);
-    ABCleanupSerializedData(ab, dataPtr, dataLen);
+    ABCleanupSerializedData(dataPtr, dataLen);
 }
 
 void AudiobenchAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
 {
-    ABDeserializePatch(ab, (char*) data, sizeInBytes, "External Preset\0");
+    ABDeserializePatch(ab, (char*) data, sizeInBytes);
 }
 
 //==============================================================================

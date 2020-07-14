@@ -281,13 +281,15 @@ impl NoteTracker {
         }
     }
 
-    pub(super) fn silence_all(&mut self) {
+    pub fn silence_all(&mut self) {
         self.held_notes = array![None; NUM_MIDI_NOTES];
         self.decaying_notes.clear();
     }
 
     pub(super) fn set_data_format(&mut self, format: DataFormat) {
         self.format = format;
+        // Old notes may not be compatible with the new data format.
+        self.silence_all();
     }
 
     pub(super) fn equal_tempered_tuning(index: usize) -> f32 {

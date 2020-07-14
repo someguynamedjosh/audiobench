@@ -183,7 +183,6 @@ impl Engine {
     pub fn recompile(&mut self) -> Result<(), String> {
         let mut ctd = self.ctd_mux.lock().unwrap();
 
-        ctd.notes.silence_all();
         let module_graph_ref = self.utd.module_graph.borrow();
         let new_gen = codegen::generate_code(&*module_graph_ref, &ctd.host_format)
             .map_err(|_| format!("The note graph cannot contain feedback loops"))?;

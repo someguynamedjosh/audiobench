@@ -1,5 +1,4 @@
 # Things with no dependencies
-- Support saving/loading through VST API so that it works in DAWs and such
 - Trigger sequencer
 - Pitch sequencer
 - Copy/paste patch data
