@@ -1,4 +1,4 @@
-use super::widget_outline::{self, WidgetOutline};
+use crate::gui::module_widgets::{WidgetOutline};
 use super::yaml::YamlNode;
 use crate::engine::parts as ep;
 use crate::util::*;
@@ -64,7 +64,7 @@ pub(super) fn create_module_prototype_from_yaml(
     let height = gui_description.unique_child("height")?.i32()?;
     let mut widgets = Vec::new();
     for widget_description in &widgets_description.children {
-        widgets.push(widget_outline::outline_from_yaml(
+        widgets.push(WidgetOutline::from_yaml(
             widget_description,
             &controls,
             &mut complex_controls,

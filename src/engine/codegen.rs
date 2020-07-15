@@ -1,6 +1,6 @@
 use super::data_trackers::{AuxDataCollector, DataFormat, FeedbackDisplayer, HostFormat};
 use crate::engine::parts::*;
-use crate::registry::widget_outline::FeedbackDataRequirement;
+use crate::gui::module_widgets::FeedbackDataRequirement;
 use crate::util::*;
 
 pub(super) struct CodeGenResult {

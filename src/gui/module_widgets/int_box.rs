@@ -4,8 +4,9 @@ use crate::gui::action::MouseAction;
 use crate::gui::constants::*;
 use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
 use crate::gui::{InteractionHint, MouseMods, Tooltip};
-use crate::registry::Registry;
+use crate::registry::{yaml::YamlNode, Registry};
 use crate::util::*;
+use yaml_widget_boilerplate::make_widget_outline;
 
 #[derive(Clone)]
 pub struct IntBoxBase {
@@ -125,6 +126,19 @@ impl<T: IntBoxImpl> ModuleWidget for T {
     }
 }
 
+make_widget_outline! {
+    widget_struct: IntBox,
+    constructor: create(
+        registry: RegistryRef,
+        pos: GridPos,
+        control: ComplexControlRef,
+        range: IntRange,
+        label: String,
+        tooltip: String,
+    ),
+    complex_control_default_provider: get_defaults,
+}
+
 #[derive(Clone)]
 pub struct IntBox {
     base: IntBoxBase,
@@ -133,17 +147,31 @@ pub struct IntBox {
 
 impl IntBox {
     pub fn create(
-        tooltip: String,
         registry: &Registry,
-        ccontrol: Rcrc<ep::ComplexControl>,
         pos: (f32, f32),
+        ccontrol: Rcrc<ep::ComplexControl>,
         range: (i32, i32),
         label: String,
+        tooltip: String,
     ) -> IntBox {
         IntBox {
             base: IntBoxBase::create(tooltip, registry, pos, range, label),
             ccontrol,
         }
+    }
+
+    fn get_defaults(
+        outline: &GeneratedIntBoxOutline,
+        yaml: &YamlNode,
+    ) -> Result<Vec<(usize, String)>, String> {
+        Ok(vec![(
+            outline.control_index,
+            if let Ok(child) = yaml.unique_child("default") {
+                child.i32()?.to_string()
+            } else {
+                outline.range.0.to_string()
+            },
+        )])
     }
 }
 
@@ -158,8 +186,6 @@ impl IntBoxImpl for IntBox {
 
     fn make_callback(&self) -> Box<dyn Fn(i32)> {
         let ccontrol = Rc::clone(&self.ccontrol);
-        Box::new(move |new_value| {
-            ccontrol.borrow_mut().value = format!("{}", new_value)
-        })
+        Box::new(move |new_value| ccontrol.borrow_mut().value = format!("{}", new_value))
     }
 }

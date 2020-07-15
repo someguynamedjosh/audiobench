@@ -3,9 +3,9 @@ use crate::engine::parts as ep;
 use crate::gui::action::{DropTarget, GuiAction, MouseAction};
 use crate::gui::constants::*;
 use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
-use crate::gui::module_widgets::{self, KnobEditor, ModuleWidget};
+use crate::gui::module_widgets::{self, KnobEditor, ModuleWidget, WidgetOutline};
 use crate::gui::{Gui, InteractionHint, MouseMods, Tooltip};
-use crate::registry::{widget_outline, Registry};
+use crate::registry::Registry;
 use crate::util::*;
 use std::f32::consts::PI;
 
@@ -246,9 +246,7 @@ impl Module {
         let widgets = template_ref
             .widget_outlines
             .iter()
-            .map(|wo| {
-                widget_outline::widget_from_outline(registry, module_controls, module_ccontrols, wo)
-            })
+            .map(|wo| wo.instantiate(registry, module_controls, module_ccontrols))
             .collect();
 
         let size = (

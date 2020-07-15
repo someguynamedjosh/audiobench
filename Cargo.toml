@@ -25,6 +25,7 @@ nodespeak = "0.1"
 num = "0.2"
 rand = "0.7"
 single_value_channel = "1.2"
+yaml_widget_boilerplate = { path = "yaml_widget_boilerplate" }
 zip = "0.5"
 
 [build-dependencies]
