@@ -4,7 +4,20 @@ use crate::gui::action::MouseAction;
 use crate::gui::constants::*;
 use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
 use crate::gui::{InteractionHint, MouseMods, Tooltip};
+use crate::registry::yaml::YamlNode;
 use crate::util::*;
+
+yaml_widget_boilerplate::make_widget_outline! {
+    widget_struct: DurationBox,
+    constructor: create(
+        pos: GridPos,
+        control: ComplexControlRef,
+        type_control: ComplexControlRef,
+        label: String,
+        tooltip: String,
+    ),
+    complex_control_default_provider: get_defaults,
+}
 
 #[derive(Clone)]
 pub struct DurationBox {
@@ -19,11 +32,11 @@ impl DurationBox {
     const WIDTH: f32 = grid(2);
     const HEIGHT: f32 = grid(2) - FONT_SIZE - GRID_P / 2.0;
     pub fn create(
-        tooltip: String,
+        pos: (f32, f32),
         ccontrol: Rcrc<ep::ComplexControl>,
         type_control: Rcrc<ep::ComplexControl>,
-        pos: (f32, f32),
         label: String,
+        tooltip: String,
     ) -> DurationBox {
         DurationBox {
             tooltip,
@@ -32,6 +45,20 @@ impl DurationBox {
             pos,
             label,
         }
+    }
+
+    fn get_defaults(
+        outline: &GeneratedDurationBoxOutline,
+        yaml: &YamlNode,
+    ) -> Result<Vec<(usize, String)>, String> {
+        Ok(vec![(
+            outline.control_index,
+            if let Ok(child) = yaml.unique_child("default") {
+                child.value.clone()
+            } else {
+                "1.00".to_owned()
+            },
+        )])
     }
 }
 
@@ -93,7 +120,7 @@ impl ModuleWidget for DurationBox {
     fn get_tooltip_at(&self, local_pos: (f32, f32)) -> Option<Tooltip> {
         Some(Tooltip {
             text: self.tooltip.clone(),
-            interaction: InteractionHint::LeftClickAndDrag | InteractionHint::RightClick
+            interaction: InteractionHint::LeftClickAndDrag | InteractionHint::RightClick,
         })
     }
 

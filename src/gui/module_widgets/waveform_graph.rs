@@ -3,6 +3,16 @@ use crate::gui::constants::*;
 use crate::gui::graphics::GrahpicsWrapper;
 use crate::util::*;
 
+yaml_widget_boilerplate::make_widget_outline! {
+    widget_struct: WaveformGraph,
+    constructor: create(
+        pos: GridPos,
+        size: GridSize,
+    ),
+    // 42 pixels wide on normal zoom, +2 for cursor.
+    feedback: custom(44),
+}
+
 #[derive(Clone)]
 pub struct WaveformGraph {
     pos: (f32, f32),

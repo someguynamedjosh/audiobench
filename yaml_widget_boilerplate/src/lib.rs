@@ -16,6 +16,7 @@ enum ConstructorItemType {
     IntRange,
     FloatRange,
     String,
+    StringList,
 }
 
 struct ConstructorItem {
@@ -40,6 +41,10 @@ impl ConstructorItem {
             ConstructorItemType::String => {
                 vec![(self.name.clone(), quote! {::std::string::String})]
             }
+            ConstructorItemType::StringList => vec![(
+                self.name.clone(),
+                quote! {::std::vec::Vec<::std::string::String>},
+            )],
         }
     }
 
@@ -50,7 +55,9 @@ impl ConstructorItem {
                 let name = self.name.clone();
                 quote! {
                     let #name = (
-                        crate::gui::constants::coord(yaml.unique_child("x")?.i32()?),
+                        crate::gui::constants::coord(yaml.unique_child("x")?.i32()?)
+                            + crate::gui::constants::JACK_SIZE
+                            + crate::gui::constants::MODULE_IO_WIDTH,
                         crate::gui::constants::coord(yaml.unique_child("y")?.i32()?),
                     );
                 }
@@ -106,6 +113,26 @@ impl ConstructorItem {
                     let #name = yaml.unique_child(stringify!(#name))?.value.clone();
                 }
             }
+            ConstructorItemType::StringList => {
+                let name = self.name.clone();
+                quote! {
+                    let mut #name = Vec::new();
+                    for child in &yaml.unique_child(stringify!(#name))?.children {
+                        #name.push(child.name.clone());
+                    }
+                    if #name.len() < 2 {
+                        return Err(format!(
+                            concat!(
+                                "ERROR: Invalid widget {}, caused by:\n",
+                                "ERROR: ",
+                                stringify!(#name),
+                                " must have at least 2 options."
+                            ),
+                            &yaml.full_name
+                        ));
+                    }
+                }
+            }
         }
     }
 
@@ -116,7 +143,8 @@ impl ConstructorItem {
             | ConstructorItemType::GridSize
             | ConstructorItemType::IntRange
             | ConstructorItemType::FloatRange
-            | ConstructorItemType::String => {
+            | ConstructorItemType::String
+            | ConstructorItemType::StringList => {
                 let name = self.name.clone();
                 quote! { self.#name.clone() }
             }
@@ -146,6 +174,7 @@ impl Parse for ConstructorItem {
             "IntRange" => ConstructorItemType::IntRange,
             "FloatRange" => ConstructorItemType::FloatRange,
             "String" => ConstructorItemType::String,
+            "StringList" => ConstructorItemType::StringList,
             _ => panic!(
                 "{} is not a recognized constructor parameter type",
                 type_name
@@ -241,7 +270,7 @@ pub fn make_widget_outline(args: TokenStream) -> TokenStream {
         outline_fields.append(&mut constructor_arg.get_outline_fields());
     }
 
-    let feedback_requirement_code = match feedback_description {
+    let feedback_requirement_code = match &feedback_description {
         None => quote! { crate::gui::module_widgets::FeedbackDataRequirement::None },
         Some(FeedbackDescription::Control) => {
             let control_name = constructor_description
@@ -278,11 +307,16 @@ pub fn make_widget_outline(args: TokenStream) -> TokenStream {
         .iter()
         .map(|(name, _typ)| name.clone())
         .collect();
-    let field_from_yaml_code: Vec<_> = constructor_description
+    let mut field_from_yaml_code: Vec<_> = constructor_description
         .args
         .iter()
         .map(|arg| arg.create_from_yaml_code())
         .collect();
+    if let Some(FeedbackDescription::Custom { .. }) = &feedback_description {
+        field_from_yaml_code.push(quote! {
+            let feedback_name = yaml.unique_child("feedback_name")?.value.clone();
+        });
+    }
     let outline_fields: Vec<_> = outline_fields
         .into_iter()
         .map(|(name, typ)| {
@@ -323,7 +357,7 @@ pub fn make_widget_outline(args: TokenStream) -> TokenStream {
         }
 
         impl #outline_name {
-            pub fn get_feedback_data_requirement()
+            pub fn get_feedback_data_requirement(&self)
                 -> crate::gui::module_widgets::FeedbackDataRequirement {
                 #feedback_requirement_code
             }
@@ -403,8 +437,7 @@ pub fn make_widget_outline_enum(args: TokenStream) -> TokenStream {
     let feedback_body: Vec<_> = class_names
         .iter()
         .map(|name| {
-            let outline_struct_name = format_ident!("Generated{}Outline", name);
-            quote! { Self::#name(..) => #outline_struct_name::get_feedback_data_requirement() }
+            quote! { Self::#name(outline) => outline.get_feedback_data_requirement() }
         })
         .collect();
     let from_yaml_body: Vec<_> = class_names

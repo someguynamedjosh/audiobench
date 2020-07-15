@@ -1,11 +1,25 @@
 use super::ModuleWidget;
 use crate::engine::parts as ep;
-use crate::registry::Registry;
 use crate::gui::action::MouseAction;
 use crate::gui::constants::*;
 use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
 use crate::gui::{InteractionHint, MouseMods, Tooltip};
+use crate::registry::yaml::YamlNode;
+use crate::registry::Registry;
 use crate::util::*;
+
+yaml_widget_boilerplate::make_widget_outline! {
+    widget_struct: HertzBox,
+    constructor: create(
+        registry: RegistryRef,
+        pos: GridPos,
+        control: ComplexControlRef,
+        range: FloatRange,
+        label: String,
+        tooltip: String,
+    ),
+    complex_control_default_provider: get_defaults,
+}
 
 #[derive(Clone)]
 pub struct HertzBox {
@@ -20,12 +34,12 @@ impl HertzBox {
     const WIDTH: f32 = grid(3);
     const HEIGHT: f32 = grid(2) - FONT_SIZE - GRID_P / 2.0;
     pub fn create(
-        tooltip: String,
         registry: &Registry,
-        ccontrol: Rcrc<ep::ComplexControl>,
         pos: (f32, f32),
+        ccontrol: Rcrc<ep::ComplexControl>,
         range: (f32, f32),
         label: String,
+        tooltip: String,
     ) -> HertzBox {
         HertzBox {
             tooltip,
@@ -34,6 +48,20 @@ impl HertzBox {
             range,
             label,
         }
+    }
+
+    fn get_defaults(
+        outline: &GeneratedHertzBoxOutline,
+        yaml: &YamlNode,
+    ) -> Result<Vec<(usize, String)>, String> {
+        Ok(vec![(
+            outline.control_index,
+            if let Ok(child) = yaml.unique_child("default") {
+                format!("{:.1}", child.f32()?)
+            } else {
+                format!("{:.1}", outline.range.0)
+            },
+        )])
     }
 }
 

@@ -1,11 +1,23 @@
 use super::ModuleWidget;
 use crate::engine::parts as ep;
-use crate::registry::Registry;
-use crate::gui::action::{MouseAction};
+use crate::gui::action::MouseAction;
 use crate::gui::constants::*;
 use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
 use crate::gui::{InteractionHint, MouseMods, Tooltip};
+use crate::registry::yaml::YamlNode;
+use crate::registry::Registry;
 use crate::util::*;
+
+yaml_widget_boilerplate::make_widget_outline! {
+    widget_struct: TimingSelector,
+    constructor: create(
+        registry: RegistryRef,
+        pos: GridPos,
+        source_control: ComplexControlRef,
+        type_control: ComplexControlRef,
+    ),
+    complex_control_default_provider: get_defaults,
+}
 
 #[derive(Clone)]
 pub struct TimingSelector {
@@ -20,10 +32,10 @@ pub struct TimingSelector {
 
 impl TimingSelector {
     pub fn create(
+        registry: &Registry,
+        pos: (f32, f32),
         source_control: Rcrc<ep::ComplexControl>,
         type_control: Rcrc<ep::ComplexControl>,
-        pos: (f32, f32),
-        registry: &Registry,
     ) -> Self {
         Self {
             source_control,
@@ -42,6 +54,32 @@ impl TimingSelector {
 
     fn type_value(&self) -> bool {
         self.type_control.borrow().value == "TRUE"
+    }
+
+    fn get_defaults(
+        outline: &GeneratedTimingSelectorOutline,
+        yaml: &YamlNode,
+    ) -> Result<Vec<(usize, String)>, String> {
+        Ok(vec![
+            (
+                outline.source_control_index,
+                if let Ok(..) = yaml.unique_child("default_song_source") {
+                    "TRUE"
+                } else {
+                    "FALSE"
+                }
+                .to_owned(),
+            ),
+            (
+                outline.type_control_index,
+                if let Ok(..) = yaml.unique_child("default_beats_type") {
+                    "TRUE"
+                } else {
+                    "FALSE"
+                }
+                .to_owned(),
+            ),
+        ])
     }
 }
 

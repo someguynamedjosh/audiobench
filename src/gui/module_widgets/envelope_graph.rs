@@ -3,6 +3,16 @@ use crate::gui::constants::*;
 use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
 use std::f32::consts::PI;
 
+yaml_widget_boilerplate::make_widget_outline! {
+    widget_struct: EnvelopeGraph,
+    constructor: create(
+        pos: GridPos,
+        size: GridSize,
+    ),
+    // 4 for parameters, 2 for cursor.
+    feedback: custom(6),
+}
+
 #[derive(Clone)]
 pub struct EnvelopeGraph {
     pos: (f32, f32),

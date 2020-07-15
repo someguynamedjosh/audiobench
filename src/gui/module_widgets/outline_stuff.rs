@@ -17,14 +17,14 @@ impl FeedbackDataRequirement {
 }
 
 yaml_widget_boilerplate::make_widget_outline_enum![
+    DurationBox,
+    EnvelopeGraph,
+    HertzBox,
     IntBox,
-    // DurationBox,
-    // EnvelopeGraph,
-    // HertzBox,
-    // Knob,
-    // OptionBox,
-    // TimingSelector,
-    // TriggerSequence,
-    // TriggerSequenceLength,
-    // WaveformGraph,
+    Knob,
+    OptionBox,
+    TimingSelector,
+    TriggerSequence,
+    TriggerSequenceLength,
+    WaveformGraph,
 ];

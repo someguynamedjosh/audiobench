@@ -1,4 +1,5 @@
 use super::ModuleWidget;
+use crate::registry::yaml::YamlNode;
 use crate::engine::parts as ep;
 use crate::gui::action::{MouseAction};
 use crate::gui::constants::*;
@@ -6,24 +7,37 @@ use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
 use crate::gui::{InteractionHint, MouseMods, Tooltip};
 use crate::util::*;
 
+yaml_widget_boilerplate::make_widget_outline! {
+    widget_struct: OptionBox,
+    constructor: create(
+        pos: GridPos,
+        size: GridSize,
+        control: ComplexControlRef,
+        options: StringList,
+        label: String,
+        tooltip: String,
+    ),
+    complex_control_default_provider: get_defaults,
+}
+
 #[derive(Clone)]
 pub struct OptionBox {
-    tooltip: String,
-    ccontrol: Rcrc<ep::ComplexControl>,
     pos: (f32, f32),
     size: (f32, f32),
+    ccontrol: Rcrc<ep::ComplexControl>,
     options: Vec<String>,
     label: String,
+    tooltip: String,
 }
 
 impl OptionBox {
     pub fn create(
-        tooltip: String,
-        ccontrol: Rcrc<ep::ComplexControl>,
         pos: (f32, f32),
         size: (f32, f32),
+        ccontrol: Rcrc<ep::ComplexControl>,
         options: Vec<String>,
         label: String,
+        tooltip: String,
     ) -> OptionBox {
         OptionBox {
             tooltip,
@@ -33,6 +47,20 @@ impl OptionBox {
             options,
             label,
         }
+    }
+
+    fn get_defaults(
+        outline: &GeneratedOptionBoxOutline,
+        yaml: &YamlNode,
+    ) -> Result<Vec<(usize, String)>, String> {
+        Ok(vec![(
+            outline.control_index,
+            if let Ok(child) = yaml.unique_child("default") {
+                child.i32()?.to_string()
+            } else {
+                0.to_string()
+            },
+        )])
     }
 }
 

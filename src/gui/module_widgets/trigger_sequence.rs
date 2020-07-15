@@ -1,3 +1,4 @@
+use crate::registry::yaml::YamlNode;
 use super::ModuleWidget;
 use super::{IntBoxBase, IntBoxImpl};
 use crate::engine::parts as ep;
@@ -7,6 +8,18 @@ use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
 use crate::gui::{InteractionHint, MouseMods, Tooltip};
 use crate::registry::Registry;
 use crate::util::*;
+
+yaml_widget_boilerplate::make_widget_outline! {
+    widget_struct: TriggerSequence,
+    constructor: create(
+        pos: GridPos,
+        size: GridSize,
+        sequence_control: ComplexControlRef,
+        tooltip: String,
+    ),
+    // Feedback for playhead
+    feedback: custom(1),
+}
 
 #[derive(Clone)]
 pub struct TriggerSequence {
@@ -25,10 +38,10 @@ impl TriggerSequence {
     const STEP_GAP: f32 = CORNER_SIZE / 2.0;
 
     pub fn create(
-        tooltip: String,
-        sequence_control: Rcrc<ep::ComplexControl>,
         pos: (f32, f32),
         size: (f32, f32),
+        sequence_control: Rcrc<ep::ComplexControl>,
+        tooltip: String,
     ) -> TriggerSequence {
         TriggerSequence {
             tooltip,
@@ -138,6 +151,18 @@ fn parse_sequence_length(control: &Rcrc<ep::ComplexControl>) -> usize {
     (control.borrow().value.len() - 2) / TriggerSequence::TRIGGER_VALUE.len()
 }
 
+yaml_widget_boilerplate::make_widget_outline! {
+    widget_struct: TriggerSequenceLength,
+    constructor: create(
+        registry: RegistryRef,
+        pos: GridPos,
+        sequence_control: ComplexControlRef,
+        label: String,
+        tooltip: String,
+    ),
+    complex_control_default_provider: get_defaults,
+}
+
 pub struct TriggerSequenceLength {
     base: IntBoxBase,
     sequence_control: Rcrc<ep::ComplexControl>,
@@ -145,16 +170,26 @@ pub struct TriggerSequenceLength {
 
 impl TriggerSequenceLength {
     pub fn create(
-        tooltip: String,
         registry: &Registry,
-        sequence_control: Rcrc<ep::ComplexControl>,
         pos: (f32, f32),
+        sequence_control: Rcrc<ep::ComplexControl>,
         label: String,
+        tooltip: String,
     ) -> Self {
         Self {
             base: IntBoxBase::create(tooltip, registry, pos, (1, 99), label),
             sequence_control,
         }
+    }
+
+    fn get_defaults(
+        outline: &GeneratedTriggerSequenceLengthOutline,
+        yaml: &YamlNode,
+    ) -> Result<Vec<(usize, String)>, String> {
+        Ok(vec![(
+            outline.sequence_control_index,
+            "[TRUE ,FALSE,FALSE,FALSE,]".to_owned(),
+        )])
     }
 }
 

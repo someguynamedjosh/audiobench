@@ -8,6 +8,17 @@ use crate::gui::{InteractionHint, MouseMods, Tooltip};
 use crate::util::*;
 use std::f32::consts::PI;
 
+yaml_widget_boilerplate::make_widget_outline! {
+    widget_struct: Knob,
+    constructor: create(
+        pos: GridPos,
+        control: ControlRef,
+        label: String,
+        tooltip: String,
+    ),
+    feedback: control,
+}
+
 #[derive(Clone)]
 pub struct Knob {
     tooltip: String,
@@ -20,10 +31,10 @@ pub struct Knob {
 
 impl Knob {
     pub fn create(
-        tooltip: String,
-        control: Rcrc<ep::Control>,
         pos: (f32, f32),
+        control: Rcrc<ep::Control>,
         label: String,
+        tooltip: String,
     ) -> Knob {
         Knob {
             tooltip,

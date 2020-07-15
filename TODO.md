@@ -1,10 +1,11 @@
 # Things with no dependencies
-- Pitch sequencer
+- Value sequencer
 - Copy/paste patch data
 - Version checks for libraries against engine version
 - Version checks so that new presets don't get loaded with old libraries
 - More visual feedback for typing widget
 - Clicking on the ends of channels with more than one channel picks the wrong channel
+- Pitch wheel deadzone
 
 # Things with missing dependencies
 - Variable range for pitch wheel
@@ -40,7 +41,6 @@
 - Parameter -> AutoParam, ComplexParam?
 - use fewer i32s, replace with usizes when it would be helpful.
 - Tidy up warnings
-- Proc macro for generating widget outline code
 
 # Long-term goals
 - Effects graph
