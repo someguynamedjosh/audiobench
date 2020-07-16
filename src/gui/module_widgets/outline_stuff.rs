@@ -26,5 +26,7 @@ yaml_widget_boilerplate::make_widget_outline_enum![
     TimingSelector,
     TriggerSequence,
     TriggerSequenceLength,
+    ValueSequence,
+    ValueSequenceLength,
     WaveformGraph,
 ];

@@ -33,9 +33,15 @@ macro DisplayWaveformWithCursor(UpdateFn, Waveform, cursor_phase) {
     UpdateFn(feedback);
 }
 
-macro DisplaySequencerPlayhead(UpdateFn, position) {
+macro DisplayTriggerSequencePlayhead(UpdateFn, position) {
     assert position:TYPE == FLOAT;
     UpdateFn([position]);
+}
+
+macro DisplayValueSequenceData(UpdateFn, playhead_position, ramping_amount) {
+    assert playhead_position:TYPE == FLOAT;
+    assert ramping_amount:TYPE == FLOAT;
+    UpdateFn([playhead_position, ramping_amount]);
 }
 
 macro GetTiming(SOURCE, TYPE):(timing) {

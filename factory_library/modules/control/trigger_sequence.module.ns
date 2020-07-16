@@ -12,7 +12,7 @@ assert timing:TYPE == [BUFFER_LENGTH]FLOAT;
 
 if global_update_feedback_data {
     FLOAT value = ((timing[0] - base_time) / STEP_TIME) % Itof(NUM_STEPS);
-    DisplaySequencerPlayhead(SetPlayheadFeedback, value);
+    DisplayTriggerSequencePlayhead(SetPlayheadFeedback, value);
 }
 
 for i = 0 to BUFFER_LENGTH no_unroll {
@@ -23,6 +23,5 @@ for i = 0 to BUFFER_LENGTH no_unroll {
     if last_step != step_now {
         last_step = step_now;
         out_trigger[i] = SEQUENCE[step_now];
-        AUTO a = SEQUENCE[Ftoi(base_time)];
     }
 }

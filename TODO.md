@@ -6,6 +6,7 @@
 - More visual feedback for typing widget
 - Clicking on the ends of channels with more than one channel picks the wrong channel
 - Pitch wheel deadzone
+- Mixer module
 
 # Things with missing dependencies
 - Variable range for pitch wheel

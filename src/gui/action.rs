@@ -41,7 +41,7 @@ pub enum MouseAction {
     ManipulateLane(Rcrc<ep::Control>, usize),
     ManipulateLaneStart(Rcrc<ep::Control>, usize, f32),
     ManipulateLaneEnd(Rcrc<ep::Control>, usize, f32),
-    ManipulateIntBox{
+    ManipulateIntBox {
         callback: Box<dyn Fn(i32)>,
         min: i32,
         max: i32,
@@ -61,6 +61,13 @@ pub enum MouseAction {
         precise_value: f32,
         denominator: bool,
     },
+    ManipulateSequencedValue {
+        cref: Rcrc<ep::ComplexControl>,
+        value_start: usize,
+        value_end: usize,
+        float_value: f32,
+        value_formatter: fn(f32) -> String,
+    },
     SetComplexControl(Rcrc<ep::ComplexControl>, String),
     MoveModule(Rcrc<ep::Module>, (f32, f32)),
     PanOffset(Rcrc<(f32, f32)>),
@@ -78,6 +85,17 @@ pub enum MouseAction {
     FocusTextField(Rcrc<TextField>),
     Scaled(Box<MouseAction>, Rcrc<f32>),
     SimpleCallback(Box<dyn Fn()>),
+}
+
+fn maybe_snap_value(value: f32, range: (f32, f32), mods: &MouseMods) -> f32 {
+    let steps = if mods.precise { 72.0 } else { 12.0 };
+    if mods.shift {
+        let r08 = value.from_range_to_range(range.0, range.1, 0.0, steps + 0.8);
+        let snapped = (r08 - 0.4).round();
+        snapped.from_range_to_range(0.0, steps, range.0, range.1)
+    } else {
+        value
+    }
 }
 
 impl MouseAction {
@@ -130,14 +148,7 @@ impl MouseAction {
                 let range = control_ref.range;
                 let delta = delta * (range.1 - range.0) as f32;
                 *tracking = (*tracking + delta).clam(range.0, range.1);
-                let steps = if mods.precise { 60.0 } else { 12.0 };
-                if mods.shift {
-                    let r08 = tracking.from_range_to_range(range.0, range.1, 0.0, steps + 0.8);
-                    let snapped = (r08 - 0.4).round();
-                    control_ref.value = snapped.from_range_to_range(0.0, steps, range.0, range.1);
-                } else {
-                    control_ref.value = *tracking;
-                }
+                control_ref.value = maybe_snap_value(*tracking, range, mods);
                 for lane in &mut control_ref.automation {
                     lane.range.0 = (lane.range.0 + delta).clam(range.0, range.1);
                     lane.range.1 = (lane.range.1 + delta).clam(range.0, range.1);
@@ -199,14 +210,7 @@ impl MouseAction {
                 let delta = delta * (range.1 - range.0) as f32;
                 let lane = &mut control_ref.automation[*lane_index];
                 *tracking = (*tracking + delta).clam(range.0, range.1);
-                let steps = if mods.precise { 60.0 } else { 12.0 };
-                if mods.shift {
-                    let r08 = tracking.from_range_to_range(range.0, range.1, 0.0, steps + 0.8);
-                    let snapped = (r08 - 0.4).round();
-                    lane.range.0 = snapped.from_range_to_range(0.0, steps, range.0, range.1);
-                } else {
-                    lane.range.0 = *tracking;
-                }
+                lane.range.0 = maybe_snap_value(*tracking, range, mods);
                 let tttext = format!(
                     "{0}{2} to {1}{2}",
                     format_decimal(lane.range.0, 4),
@@ -237,14 +241,7 @@ impl MouseAction {
                 let delta = delta * (range.1 - range.0) as f32;
                 let lane = &mut control_ref.automation[*lane_index];
                 *tracking = (*tracking + delta).clam(range.0, range.1);
-                let steps = if mods.precise { 60.0 } else { 12.0 };
-                if mods.shift {
-                    let r08 = tracking.from_range_to_range(range.0, range.1, 0.0, steps + 0.8);
-                    let snapped = (r08 - 0.4).round();
-                    lane.range.1 = snapped.from_range_to_range(0.0, steps, range.0, range.1);
-                } else {
-                    lane.range.1 = *tracking;
-                }
+                lane.range.1 = maybe_snap_value(*tracking, range, mods);
                 let tttext = format!(
                     "{0}{2} to {1}{2}",
                     format_decimal(lane.range.0, 4),
@@ -377,6 +374,42 @@ impl MouseAction {
                     }),
                 );
             }
+            Self::ManipulateSequencedValue {
+                cref,
+                value_start,
+                value_end,
+                float_value,
+                value_formatter,
+            } => {
+                let delta = delta.0 - delta.1;
+                // How many pixels the user must drag across to cover half the slider range.
+                const DRAG_PIXELS: f32 = 100.0;
+                let mut delta = delta as f32 / DRAG_PIXELS;
+                if mods.precise {
+                    delta *= 0.2;
+                }
+                *float_value += delta;
+                *float_value = float_value.max(-1.0).min(1.0);
+                let set_value = maybe_snap_value(*float_value, (-1.0, 1.0), mods);
+                let formatted = value_formatter(set_value);
+                let mut borrowed = cref.borrow_mut();
+                let new_value = format!(
+                    "{}{}{}",
+                    &borrowed.value[..*value_start],
+                    formatted,
+                    &borrowed.value[*value_end..]
+                );
+                borrowed.value = new_value;
+                return (
+                    None,
+                    Some(Tooltip {
+                        text: format!("{:.3}", set_value),
+                        interaction: InteractionHint::LeftClickAndDrag
+                            | InteractionHint::Shift
+                            | InteractionHint::Alt,
+                    }),
+                );
+            }
             Self::MoveModule(module, tracking) => {
                 *tracking = tracking.add(delta);
                 let mut module_ref = module.borrow_mut();
@@ -463,6 +496,9 @@ impl MouseAction {
                 return Some(GuiAction::Elevate(InstanceAction::ReloadStructure))
             }
             Self::ManipulateDurationControl { .. } => {
+                return Some(GuiAction::Elevate(InstanceAction::ReloadStructure))
+            }
+            Self::ManipulateSequencedValue { .. } => {
                 return Some(GuiAction::Elevate(InstanceAction::ReloadStructure))
             }
             Self::Scaled(base, ..) => {
