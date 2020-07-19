@@ -2,7 +2,7 @@ use super::Registry;
 use crate::engine::parts as ep;
 use crate::util::*;
 use std::collections::{HashMap, HashSet};
-use std::io::{self, Read, Write};
+use std::io::{self, Write};
 use std::path::PathBuf;
 
 #[inline]
@@ -985,20 +985,26 @@ impl Patch {
         }
     }
 
-    pub fn load_readable(
-        source: String,
-        reader: &mut impl Read,
-        registry: &Registry,
-    ) -> Result<Self, String> {
-        Self::deserialize(PatchSource::Readable(source), reader, registry)
+    fn load(source: PatchSource, data: &[u8], registry: &Registry) -> Result<Self, String> {
+        let mut patch = Self {
+            name: Default::default(),
+            note_graph: SavedModuleGraph::blank(),
+            source,
+        };
+        patch.load_from_serialized_data(data, registry)?;
+        Ok(patch)
+    }
+
+    pub fn load_readable(source: String, data: &[u8], registry: &Registry) -> Result<Self, String> {
+        Self::load(PatchSource::Readable(source), data, registry)
     }
 
     pub fn load_writable(
         source: PathBuf,
-        reader: &mut impl Read,
+        data: &[u8],
         registry: &Registry,
     ) -> Result<Self, String> {
-        Self::deserialize(PatchSource::Writable(source), reader, registry)
+        Self::load(PatchSource::Writable(source), data, registry)
     }
 
     pub fn is_writable(&self) -> bool {
@@ -1039,56 +1045,35 @@ impl Patch {
         };
         let file = std::fs::File::create(path)?;
         let mut writer = std::io::BufWriter::new(file);
-        self.serialize(&mut writer)?;
+        let contents = self.serialize();
+        writer.write_all(contents.as_bytes());
         Ok(())
     }
 
-    pub fn serialize_to_buffer(&self) -> Vec<u8> {
-        let mut writer = std::io::Cursor::new(Vec::new());
-        self.serialize(&mut writer).expect("Writing to vec should never fail.");
-        writer.into_inner()
-    }
-
-    fn serialize(&self, writer: &mut impl Write) -> io::Result<()> {
+    pub fn serialize(&self) -> String {
         let mut buffer = Vec::new();
         // Format version number.
         ser_u8(&mut buffer, 0);
         ser_str(&mut buffer, &self.name);
         self.note_graph.serialize(&mut buffer);
-        let encoded = base64::encode_config(&buffer, base64::URL_SAFE_NO_PAD);
-        write!(writer, "{}", encoded)?;
-        Ok(())
+        base64::encode_config(&buffer, base64::URL_SAFE_NO_PAD)
     }
 
-    fn deserialize(
-        source: PatchSource,
-        reader: &mut impl Read,
+    pub fn load_from_serialized_data(
+        &mut self,
+        data: &[u8],
         registry: &Registry,
-    ) -> Result<Self, String> {
-        let mut everything = Vec::new();
-        reader
-            .read_to_end(&mut everything)
-            .map_err(|_| "ERROR: Failed to read patch data".to_owned())?;
-
+    ) -> Result<(), String> {
         let err_map = |_| "ERROR: Patch data is corrupt".to_owned();
-        let everything =
-            base64::decode_config(&everything, base64::URL_SAFE_NO_PAD).map_err(err_map)?;
-
-        let err_map = |_| "ERROR: Patch data is corrupt".to_owned();
+        let everything = base64::decode_config(data, base64::URL_SAFE_NO_PAD).map_err(err_map)?;
         let mut ptr = &everything[..];
+        let err_map = |_| "ERROR: Patch data is corrupt".to_owned();
         if des_u8(&mut ptr).map_err(err_map)? > 0 {
             return Err("ERROR: patch was created in a newer version of Audiobench".to_owned());
         }
-
-        let err_map = |_| "ERROR: Patch data is corrupt".to_owned();
-        let name = des_str(&mut ptr).map_err(err_map)?;
-
-        let note_graph = SavedModuleGraph::deserialize(&mut ptr, registry)
+        self.name = des_str(&mut ptr).map_err(err_map)?;
+        self.note_graph = SavedModuleGraph::deserialize(&mut ptr, registry)
             .map_err(|_| "ERROR: Patch data is corrupt".to_owned())?;
-        Ok(Self {
-            source,
-            name,
-            note_graph,
-        })
+        Ok(())
     }
 }

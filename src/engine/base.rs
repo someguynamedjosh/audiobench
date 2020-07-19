@@ -141,10 +141,10 @@ impl Engine {
         patch_ref.write().unwrap();
     }
 
-    pub fn serialize_current_patch(&self) -> Vec<u8> {
+    pub fn serialize_current_patch(&self) -> String {
         let mut patch_ref = self.utd.current_patch_save_data.borrow_mut();
         patch_ref.save_note_graph(&*self.utd.module_graph.borrow());
-        patch_ref.serialize_to_buffer()
+        patch_ref.serialize()
     }
 
     pub fn new_patch(&mut self, registry: &mut Registry) -> &Rcrc<Patch> {
@@ -154,8 +154,25 @@ impl Engine {
         new_patch_ref.save_note_graph(&*self.utd.module_graph.borrow());
         new_patch_ref.write().unwrap();
         drop(new_patch_ref);
+        // Don't reload anything because we are just copying the current patch data.
         self.utd.current_patch_save_data = new_patch;
         &self.utd.current_patch_save_data
+    }
+
+    pub fn new_patch_from_clipboard(
+        &mut self,
+        registry: &mut Registry,
+        clipboard_data: &[u8],
+    ) -> Result<&Rcrc<Patch>, String> {
+        let new_patch = Rc::clone(registry.create_new_user_patch());
+        let mut new_patch_ref = new_patch.borrow_mut();
+        new_patch_ref.load_from_serialized_data(clipboard_data, registry)?;
+        let name = format!("{} (pasted)", new_patch_ref.borrow_name());
+        new_patch_ref.set_name(name);
+        new_patch_ref.write().unwrap();
+        drop(new_patch_ref);
+        self.load_patch(registry, Rc::clone(&new_patch))?;
+        Ok(&self.utd.current_patch_save_data)
     }
 
     pub fn load_patch(&mut self, registry: &Registry, patch: Rcrc<Patch>) -> Result<(), String> {

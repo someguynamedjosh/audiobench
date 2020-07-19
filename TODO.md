@@ -1,12 +1,13 @@
 # Things with no dependencies
-- Value sequencer
-- Copy/paste patch data
 - Version checks for libraries against engine version
 - Version checks so that new presets don't get loaded with old libraries
 - More visual feedback for typing widget
 - Clicking on the ends of channels with more than one channel picks the wrong channel
 - Pitch wheel deadzone
 - Mixer module
+- Noise module
+- Scrollbar for patch list
+- Comb filter
 
 # Things with missing dependencies
 - Variable range for pitch wheel

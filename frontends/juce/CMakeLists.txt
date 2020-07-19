@@ -118,6 +118,12 @@ if(WIN32)
         userenv
     )
 else()
+    # The clipboard library I'm using uses a weird X11 wrapper to do its dirty work making this 
+    # whole blob necessary.
+    find_package(ECM REQUIRED NO_MODULE)
+    set(CMAKE_MODULE_PATH ${ECM_FIND_MODULE_DIR})
+    find_package(XCB REQUIRED COMPONENTS XCB RENDER SHAPE XFIXES)
+
     target_link_libraries(
         Audiobench PRIVATE
         # AudioPluginData           # If we'd created a binary data target, we'd link to it here
@@ -125,5 +131,6 @@ else()
         "$ENV{RUST_OUTPUT_DIR}/libaudiobench.a"
         z
         curses
+        ${XCB_LIBRARIES}
     )
 endif()

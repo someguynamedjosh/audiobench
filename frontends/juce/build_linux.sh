@@ -49,7 +49,7 @@ fi
 mkdir -p artifacts
 mkdir -p _build
 cd _build
-cmake ..
+cmake -Wno-dev ..
 cd ..
 if [ "$1" == "release" ]; then
     cmake --build _build --config Release

@@ -92,11 +92,10 @@ impl Registry {
         full_path: Option<PathBuf>,
         buffer: Vec<u8>,
     ) -> Result<(), String> {
-        let mut reader = std::io::Cursor::new(buffer);
         let patch = if let Some(full_path) = full_path {
-            Patch::load_writable(full_path, &mut reader, &self)
+            Patch::load_writable(full_path, &buffer[..], &self)
         } else {
-            Patch::load_readable(name.to_owned(), &mut reader, &self)
+            Patch::load_readable(name.to_owned(), &buffer[..], &self)
         }
         .map_err(|err| {
             format!(

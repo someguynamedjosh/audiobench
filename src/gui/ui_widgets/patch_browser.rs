@@ -13,6 +13,8 @@ pub struct PatchBrowser {
     name_box: TextBox,
     save_button: IconButton,
     new_button: IconButton,
+    copy_button: IconButton,
+    paste_button: IconButton,
     entries: Rcrc<Vec<Rcrc<Patch>>>,
     alphabetical_order: Rcrc<Vec<usize>>,
     current_entry_index: Option<usize>,
@@ -29,15 +31,20 @@ impl PatchBrowser {
         let hw = (size.0 - GRID_P * 3.0) / 2.0;
         const CG: f32 = PatchBrowser::CG;
         // How many icon buttons to the right of the name box.
-        const NUM_ICONS: f32 = 2.0;
+        const NUM_ICONS: f32 = 4.0;
         // Width of the name box.
         let namew = hw - (CG + GRID_P) * NUM_ICONS;
         let patch_name = current_patch.borrow().borrow_name().to_owned();
         let save_icon = registry.lookup_icon("factory:save").unwrap();
         let mut save_button =
-            IconButton::create((GRID_P + hw - CG * 2.0 - GRID_P, 0.0), CG, save_icon);
+            IconButton::create((GRID_P + hw - CG * 4.0 - GRID_P * 3.0, 0.0), CG, save_icon);
         let new_icon = registry.lookup_icon("factory:add").unwrap();
-        let new_button = IconButton::create((GRID_P + hw - CG, 0.0), CG, new_icon);
+        let new_button =
+            IconButton::create((GRID_P + hw - CG * 3.0 - GRID_P * 2.0, 0.0), CG, new_icon);
+        let copy_icon = registry.lookup_icon("factory:copy").unwrap();
+        let copy_button = IconButton::create((GRID_P + hw - CG * 2.0 - GRID_P, 0.0), CG, copy_icon);
+        let paste_icon = registry.lookup_icon("factory:paste").unwrap();
+        let paste_button = IconButton::create((GRID_P + hw - CG, 0.0), CG, paste_icon);
 
         let entries = registry.borrow_patches().clone();
         let current_entry_index = registry
@@ -76,6 +83,8 @@ impl PatchBrowser {
             name_box,
             save_button,
             new_button,
+            copy_button,
+            paste_button,
             entries,
             alphabetical_order,
             current_entry_index,
@@ -140,6 +149,19 @@ impl PatchBrowser {
                 interaction: InteractionHint::LeftClick.into(),
             });
         }
+        if self.copy_button.mouse_in_bounds(mouse_pos) {
+            return Some(Tooltip {
+                text: "Copy the current patch to the clipboard (includes unsaved changes)"
+                    .to_owned(),
+                interaction: InteractionHint::LeftClick.into(),
+            });
+        }
+        if self.paste_button.mouse_in_bounds(mouse_pos) {
+            return Some(Tooltip {
+                text: "Paste clipboard data as a new patch".to_owned(),
+                interaction: InteractionHint::LeftClick.into(),
+            });
+        }
         let hw = (self.size.0 - GRID_P * 3.0) / 2.0;
         if mouse_pos.0 <= hw && mouse_pos.1 > self.name_box.size.1 + GRID_P {
             return Some(Tooltip {
@@ -167,17 +189,28 @@ impl PatchBrowser {
             self.sort_self();
             return MouseAction::SavePatch;
         }
-        if self.new_button.mouse_in_bounds(mouse_pos) {
-            self.current_entry_index = Some(self.entries.borrow().len());
+        let new_patch_callback: Box<dyn Fn(&Rcrc<Patch>)> = {
             let entries = Rc::clone(&self.entries);
-            self.save_button.enabled = true;
-            self.name_box.field.borrow_mut().text = "New Patch".to_owned();
             let alphabetical_order = Rc::clone(&self.alphabetical_order);
-            return MouseAction::NewPatch(Box::new(move |new_patch| {
+            let name_field = Rc::clone(&self.name_box.field);
+            Box::new(move |new_patch| {
                 alphabetical_order.borrow_mut().push(entries.borrow().len());
                 entries.borrow_mut().push(Rc::clone(new_patch));
+                name_field.borrow_mut().text = new_patch.borrow().borrow_name().to_owned();
                 Self::sort(&entries, &alphabetical_order);
-            }));
+            })
+        };
+        if self.new_button.mouse_in_bounds(mouse_pos) {
+            self.current_entry_index = Some(self.entries.borrow().len());
+            self.save_button.enabled = true;
+            return MouseAction::NewPatch(new_patch_callback);
+        } else if self.paste_button.mouse_in_bounds(mouse_pos) {
+            self.current_entry_index = Some(self.entries.borrow().len());
+            self.save_button.enabled = true;
+            return MouseAction::PastePatchFromClipboard(new_patch_callback);
+        }
+        if self.copy_button.mouse_in_bounds(mouse_pos) {
+            return MouseAction::CopyPatchToClipboard;
         }
         // How large each half of the GUI takes.
         let hw = (self.size.0 - GRID_P * 3.0) / 2.0;
@@ -188,9 +221,7 @@ impl PatchBrowser {
                 let entry_index = self.alphabetical_order.borrow()[entry_index as usize];
                 self.current_entry_index = Some(entry_index);
                 self.update_on_patch_change();
-                return MouseAction::LoadPatch(Rc::clone(
-                    &self.entries.borrow()[entry_index],
-                ));
+                return MouseAction::LoadPatch(Rc::clone(&self.entries.borrow()[entry_index]));
             }
         }
         MouseAction::None
@@ -213,6 +244,8 @@ impl PatchBrowser {
         self.name_box.draw(g);
         self.save_button.draw(g);
         self.new_button.draw(g);
+        self.copy_button.draw(g);
+        self.paste_button.draw(g);
 
         const CG: f32 = PatchBrowser::CG;
         let y = CG + GP;

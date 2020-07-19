@@ -106,6 +106,42 @@ impl Instance {
             gui::action::InstanceAction::SimpleCallback(callback) => {
                 (callback)();
             }
+            gui::action::InstanceAction::CopyPatchToClipboard => {
+                if let Some(e) = self.engine.as_mut() {
+                    use clipboard::ClipboardProvider;
+                    let patch_data = e.serialize_current_patch();
+                    let mut clipboard: clipboard::ClipboardContext =
+                        clipboard::ClipboardProvider::new().unwrap();
+                    clipboard.set_contents(patch_data).unwrap();
+                    if let Some(gui) = &mut self.gui {
+                        gui.display_success("Patch data copied to clipboard!".to_owned());
+                    }
+                }
+            }
+            gui::action::InstanceAction::PastePatchFromClipboard(callback) => {
+                if let Some(e) = self.engine.as_mut() {
+                    use clipboard::ClipboardProvider;
+                    let mut clipboard: clipboard::ClipboardContext =
+                        clipboard::ClipboardProvider::new().unwrap();
+                    let data = clipboard.get_contents().unwrap();
+                    let err = match e.new_patch_from_clipboard(&mut self.registry, data.as_bytes())
+                    {
+                        Ok(patch) => {
+                            callback(patch);
+                            None
+                        }
+                        Err(err) => Some(err),
+                    };
+                    if let Some(gui) = &mut self.gui {
+                        if let Some(err) = err {
+                            gui.display_error(err);
+                        } else {
+                            gui.display_success("Patch data loaded from clipboard!".to_owned());
+                        }
+                        gui.on_patch_change(&self.registry);
+                    }
+                }
+            }
         }
     }
 
@@ -125,18 +161,17 @@ impl Instance {
         }
     }
 
-    pub fn serialize_patch(&self) -> Vec<u8> {
+    pub fn serialize_patch(&self) -> String {
         self.engine
             .as_ref()
             .map(|e| e.serialize_current_patch())
             .unwrap_or_default()
     }
 
-    pub fn deserialize_patch(&mut self, serialized: Vec<u8>) {
-        let mut reader = std::io::Cursor::new(serialized);
+    pub fn deserialize_patch(&mut self, serialized: &[u8]) {
         let patch = match registry::save_data::Patch::load_readable(
             "External Preset".to_owned(),
-            &mut reader,
+            serialized,
             &self.registry,
         ) {
             Ok(patch) => patch,
@@ -356,7 +391,10 @@ pub unsafe extern "C" fn ABSerializePatch(
     data_out: *mut *mut u8,
     size_out: *mut u32,
 ) {
-    let data = (*instance).serialize_patch().into_boxed_slice();
+    let data = (*instance)
+        .serialize_patch()
+        .into_bytes()
+        .into_boxed_slice();
     *size_out = data.len() as u32;
     *data_out = Box::leak(data).as_mut_ptr();
 }
@@ -376,7 +414,7 @@ pub unsafe extern "C" fn ABDeserializePatch(
 ) {
     let data = std::slice::from_raw_parts(data_in, size_in as usize);
     let data = Vec::from(data);
-    (*instance).deserialize_patch(data);
+    (*instance).deserialize_patch(&data[..]);
 }
 
 #[no_mangle]

@@ -19,6 +19,8 @@ pub enum InstanceAction {
     NewPatch(Box<dyn Fn(&Rcrc<Patch>)>),
     LoadPatch(Rcrc<Patch>),
     SimpleCallback(Box<dyn Fn()>),
+    CopyPatchToClipboard,
+    PastePatchFromClipboard(Box<dyn Fn(&Rcrc<Patch>)>),
 }
 
 // Describes an action the GUI object should perform. Prevents passing a bunch of arguments to
@@ -85,6 +87,8 @@ pub enum MouseAction {
     FocusTextField(Rcrc<TextField>),
     Scaled(Box<MouseAction>, Rcrc<f32>),
     SimpleCallback(Box<dyn Fn()>),
+    CopyPatchToClipboard,
+    PastePatchFromClipboard(Box<dyn Fn(&Rcrc<Patch>)>),
 }
 
 fn maybe_snap_value(value: f32, range: (f32, f32), mods: &MouseMods) -> f32 {
@@ -578,6 +582,14 @@ impl MouseAction {
             }
             Self::SimpleCallback(callback) => {
                 return Some(GuiAction::Elevate(InstanceAction::SimpleCallback(callback)));
+            }
+            Self::CopyPatchToClipboard => {
+                return Some(GuiAction::Elevate(InstanceAction::CopyPatchToClipboard))
+            }
+            Self::PastePatchFromClipboard(callback) => {
+                return Some(GuiAction::Elevate(InstanceAction::PastePatchFromClipboard(
+                    callback,
+                )))
             }
             _ => (),
         }
