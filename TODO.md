@@ -11,6 +11,7 @@
 - Loading the current state while having bad libraries causes a message "patch 
   data is corrupt". It only shows the correct error after resetting the current
   patch.
+- Copy error reports to clipboard
 
 # Things with missing dependencies
 - Variable range for pitch wheel
