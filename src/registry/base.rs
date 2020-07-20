@@ -21,6 +21,138 @@ pub struct Registry {
     library_path: PathBuf,
 }
 
+pub struct LibraryInfo {
+    pretty_name: String,
+    description: String,
+    version: u16,
+}
+
+struct PreloadedLibrary {
+    internal_name: String,
+    content: Box<dyn LibraryContentProvider>,
+    info: LibraryInfo,
+}
+
+trait LibraryContentProvider {
+    fn get_num_files(&self) -> usize;
+    fn get_file_name(&mut self, index: usize) -> String;
+    fn get_full_path(&mut self, index: usize) -> Option<PathBuf>;
+    fn read_file_contents(&mut self, index: usize) -> Result<Vec<u8>, String>;
+}
+
+// Allows loading a library from a plain directory.
+struct DirectoryLibraryContentProvider {
+    root_path: PathBuf,
+    file_paths: Vec<PathBuf>,
+}
+
+impl DirectoryLibraryContentProvider {
+    fn new(root_path: PathBuf) -> Result<Self, String> {
+        let mut file_paths = Vec::new();
+        let mut unvisited_paths = vec![PathBuf::new()];
+        while let Some(visiting) = unvisited_paths.pop() {
+            let reader_path = root_path.join(&visiting);
+            let reader = fs::read_dir(&reader_path).map_err(|err| {
+                format!(
+                    "ERROR: Failed to list files in {}, caused by:\nERROR: {}",
+                    reader_path.to_string_lossy(),
+                    err
+                )
+            })?;
+            for entry in reader {
+                let entry = if let Ok(entry) = entry {
+                    entry
+                } else {
+                    continue;
+                };
+                let path = entry.path();
+                let local_path = visiting.join(entry.file_name());
+                if path.is_dir() {
+                    unvisited_paths.push(local_path);
+                } else {
+                    file_paths.push(local_path);
+                }
+            }
+        }
+        Ok(Self {
+            root_path,
+            file_paths,
+        })
+    }
+}
+
+impl LibraryContentProvider for DirectoryLibraryContentProvider {
+    fn get_num_files(&self) -> usize {
+        self.file_paths.len()
+    }
+
+    fn get_file_name(&mut self, index: usize) -> String {
+        self.file_paths[index].to_string_lossy().into()
+    }
+
+    fn get_full_path(&mut self, index: usize) -> Option<PathBuf> {
+        Some(self.root_path.join(&self.file_paths[index]))
+    }
+
+    fn read_file_contents(&mut self, index: usize) -> Result<Vec<u8>, String> {
+        fs::read(self.root_path.join(&self.file_paths[index]))
+            .map_err(|err| format!("ERROR: {}", err))
+    }
+}
+
+// Allows loading a library from a zip file.
+struct ZippedLibraryContentProvider<R: Read + Seek> {
+    archive: zip::ZipArchive<R>,
+    non_directory_files: Vec<usize>,
+}
+
+impl<R: Read + Seek> ZippedLibraryContentProvider<R> {
+    fn new(reader: R) -> Result<Self, String> {
+        let mut archive = zip::ZipArchive::new(reader).map_err(|e| format!("ERROR: {}", e))?;
+        let non_directory_files = (0..archive.len())
+            .filter(|element| !archive.by_index(*element).unwrap().name().ends_with("/"))
+            .collect();
+        Ok(Self {
+            archive,
+            non_directory_files,
+        })
+    }
+}
+
+impl<R: Read + Seek> LibraryContentProvider for ZippedLibraryContentProvider<R> {
+    fn get_num_files(&self) -> usize {
+        self.non_directory_files.len()
+    }
+
+    fn get_file_name(&mut self, index: usize) -> String {
+        self.archive
+            .by_index(self.non_directory_files[index])
+            .unwrap()
+            .name()
+            .to_owned()
+    }
+
+    fn get_full_path(&mut self, _index: usize) -> Option<PathBuf> {
+        None
+    }
+
+    fn read_file_contents(&mut self, index: usize) -> Result<Vec<u8>, String> {
+        let mut file = self
+            .archive
+            .by_index(self.non_directory_files[index])
+            .unwrap();
+        let mut buffer = Vec::with_capacity(file.size() as usize);
+        file.read_to_end(&mut buffer).map_err(|err| {
+            format!(
+                "ERROR: Failed to read zipped file {}, caused by:\nERROR: {}",
+                file.name(),
+                err
+            )
+        })?;
+        Ok(buffer)
+    }
+}
+
 impl Registry {
     fn load_module_resource(
         &mut self,
@@ -141,6 +273,8 @@ impl Registry {
             self.unloaded_patches.push((full_name, full_path, buffer));
         } else if file_name.ends_with(".md") {
             // Ignore, probably just readme / license type stuff.
+        } else if file_name == "library_info.yaml" {
+            // Handled in library preload phase.
         } else {
             return Err(format!(
                 "ERROR: Not sure what to do with the file {}.",
@@ -150,52 +284,38 @@ impl Registry {
         Ok(())
     }
 
+    fn load_library(
+        &mut self,
+        lib_name: &str,
+        file_provider: &mut impl LibraryContentProvider,
+    ) -> Result<(), String> {
+        // Load icons before other data.
+        for index in 0..file_provider.get_num_files() {
+            let file_name = file_provider.get_file_name(index);
+            if file_name.ends_with(".icon.svg") {
+                let full_path = file_provider.get_full_path(index);
+                let contents = file_provider.read_file_contents(index)?;
+                self.load_resource(lib_name, &file_name, full_path, contents)?;
+            }
+        }
+        for index in 0..file_provider.get_num_files() {
+            let file_name = file_provider.get_file_name(index);
+            if !file_name.ends_with(".icon.svg") {
+                let full_path = file_provider.get_full_path(index);
+                let contents = file_provider.read_file_contents(index)?;
+                self.load_resource(lib_name, &file_name, full_path, contents)?;
+            }
+        }
+        Ok(())
+    }
+
     fn load_zipped_library(
         &mut self,
         lib_name: &str,
         lib_reader: impl Read + Seek,
     ) -> Result<(), String> {
-        let mut reader = zip::ZipArchive::new(lib_reader).map_err(|e| format!("ERROR: {}", e))?;
-        // Modules can refer to icons, so load all the icons before all the modules.
-        for index in 0..reader.len() {
-            let mut file = reader.by_index(index).unwrap();
-            let name = format!("{}:{}", lib_name, file.name());
-            if name.ends_with("/") {
-                // We don't do anything special with directories.
-                continue;
-            }
-            let mut buffer = Vec::with_capacity(file.size() as usize);
-            file.read_to_end(&mut buffer).map_err(|e| {
-                format!(
-                    "ERROR: Failed to read resource {}, caused by:\nERROR: {}",
-                    name, e
-                )
-            })?;
-            // Only load icons right now, wait until later to load anything else.
-            if name.ends_with(".icon.svg") {
-                self.load_resource(lib_name, file.name(), None, buffer)?;
-            }
-        }
-        // Now load the modules and other files.
-        for index in 0..reader.len() {
-            let mut file = reader.by_index(index).unwrap();
-            let name = format!("{}:{}", lib_name, file.name());
-            if name.ends_with("/") {
-                // We don't do anything special with directories.
-                continue;
-            }
-            let mut buffer = Vec::with_capacity(file.size() as usize);
-            file.read_to_end(&mut buffer).map_err(|e| {
-                format!(
-                    "ERROR: Failed to read resource {}, caused by:\nERROR: {}",
-                    name, e
-                )
-            })?;
-            if !name.ends_with(".icon.svg") {
-                self.load_resource(lib_name, file.name(), None, buffer)?;
-            }
-        }
-        Ok(())
+        let mut provider = ZippedLibraryContentProvider::new(lib_reader)?;
+        self.load_library(lib_name, &mut provider)
     }
 
     fn load_library_from_file(&mut self, path: &Path) -> Result<(), String> {
@@ -224,79 +344,110 @@ impl Registry {
 
     fn load_library_from_folder(&mut self, path: &Path) -> Result<(), String> {
         assert!(path.is_dir());
-        let mut file_paths = Vec::new();
-        let mut unvisited_paths = vec![PathBuf::new()];
-        while let Some(visiting) = unvisited_paths.pop() {
-            let reader = fs::read_dir(path.join(&visiting)).map_err(|err| {
-                format!(
-                    "ERROR: Failed to load a library from {}, caused by:\n{}",
-                    path.to_string_lossy(),
-                    err
-                )
-            })?;
-            for entry in reader {
-                let entry = if let Ok(entry) = entry {
-                    entry
-                } else {
-                    continue;
-                };
-                let path = entry.path();
-                let local_path = visiting.join(entry.file_name());
-                if path.is_dir() {
-                    unvisited_paths.push(local_path);
-                } else {
-                    file_paths.push(local_path);
-                }
+        let mut provider = DirectoryLibraryContentProvider::new(path.into())?;
+        let lib_name: String = path
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .into();
+        self.load_library(&lib_name, &mut provider)
+    }
+
+    fn load_library_new(&mut self, mut library: PreloadedLibrary) -> Result<(), String> {
+        // Load icons before other data.
+        for index in 0..library.content.get_num_files() {
+            let file_name = library.content.get_file_name(index);
+            if file_name.ends_with(".icon.svg") {
+                let full_path = library.content.get_full_path(index);
+                let contents = library.content.read_file_contents(index)?;
+                self.load_resource(&library.internal_name, &file_name, full_path, contents)?;
             }
         }
-        let lib_name = path.file_name().unwrap_or_default().to_string_lossy();
-        fn read_file(lib_name: &str, full_path: &Path) -> Result<Vec<u8>, String> {
-            fs::read(&full_path).map_err(|err| {
-                format!(
-                    concat!(
-                        "ERROR: Failed to load library {}, caused by:\n",
-                        "ERROR: Failed to read from file {}, caused by:\n",
-                        "{}"
-                    ),
-                    lib_name,
-                    full_path.to_string_lossy(),
-                    err
-                )
-            })
-        }
-        // Load only icons.
-        for file_path in &file_paths {
-            if file_path.ends_with(".icon.svg") {
-                let full_path = path.join(&file_path);
-                let buffer = read_file(&lib_name, &full_path)?;
-                self.load_resource(
-                    &lib_name,
-                    &file_path.to_string_lossy(),
-                    Some(full_path),
-                    buffer,
-                )?;
-            }
-        }
-        // Load other files.
-        for file_path in file_paths {
-            if !file_path.ends_with(".icon.svg") {
-                let full_path = path.join(&file_path);
-                let buffer = read_file(&lib_name, &full_path)?;
-                self.load_resource(
-                    &lib_name,
-                    &file_path.to_string_lossy(),
-                    Some(full_path),
-                    buffer,
-                )?;
+        for index in 0..library.content.get_num_files() {
+            let file_name = library.content.get_file_name(index);
+            if !file_name.ends_with(".icon.svg") {
+                let full_path = library.content.get_full_path(index);
+                let contents = library.content.read_file_contents(index)?;
+                self.load_resource(&library.internal_name, &file_name, full_path, contents)?;
             }
         }
         Ok(())
     }
 
+    fn parse_library_info(name: &str, buffer: Vec<u8>) -> Result<LibraryInfo, String> {
+        let buffer_as_text = String::from_utf8(buffer).map_err(|e| {
+            format!(
+                "ERROR: Not a valid UTF-8 text document, caused by:\nERROR: {}",
+                e
+            )
+        })?;
+        let yaml = yaml::parse_yaml(&buffer_as_text, name)?;
+        let pretty_name = yaml.unique_child("pretty_name")?.value.clone();
+        let description = yaml.unique_child("description")?.value.clone();
+        let version = yaml.unique_child("version")?.i32()?;
+        if version < 0 || version > 0xFFFF {
+            return Err(format!(
+                "ERROR: The version number {} is invalid, it must be between 0 and {}.",
+                version, 0xFFFF
+            ));
+        }
+        let version = version as u16;
+        Ok(LibraryInfo {
+            pretty_name,
+            description,
+            version,
+        })
+    }
+
+    fn preload_library(
+        lib_name: String,
+        mut content: Box<dyn LibraryContentProvider>,
+    ) -> Result<PreloadedLibrary, String> {
+        for index in 0..content.get_num_files() {
+            if &content.get_file_name(index) == "library_info.yaml" {
+                let lib_info_name = format!("{}:{}", lib_name, "library_info.yaml");
+                let buffer = content.read_file_contents(index).map_err(|err| {
+                    format!(
+                        "ERROR: Failed to read file {}, caused by:\n{}",
+                        &lib_info_name, err
+                    )
+                })?;
+                let lib_info = Self::parse_library_info(&lib_info_name, buffer).map_err(|err| {
+                    format!(
+                        "ERROR: Failed to parse {}, caused by:\n{}",
+                        &lib_info_name, err
+                    )
+                })?;
+                return Ok(PreloadedLibrary {
+                    internal_name: lib_name,
+                    info: lib_info,
+                    content,
+                });
+            }
+        }
+        Err(format!(
+            "ERROR: Library does not have a library_info.yaml file"
+        ))
+    }
+
     fn initialize(&mut self) -> Result<(), String> {
-        let factory_library = std::include_bytes!(concat!(env!("OUT_DIR"), "/factory.ablib"));
-        let reader = std::io::Cursor::new(factory_library as &[u8]);
-        self.load_zipped_library("factory", reader)
+        let factory_library = {
+            let raw = std::include_bytes!(concat!(env!("OUT_DIR"), "/factory.ablib"));
+            let reader = std::io::Cursor::new(raw as &[u8]);
+            let content = ZippedLibraryContentProvider::new(reader).map_err(|err| {
+                format!(
+                    "ERROR: Failed to open factory library, caused by:\n{}",
+                    err
+                )
+            })?;
+            Self::preload_library("factory".to_owned(), Box::new(content)).map_err(|err| {
+                format!(
+                    "ERROR: Failed to preload factory library, caused by:\n{}",
+                    err
+                )
+            })?
+        };
+        self.load_library_new(factory_library)
             .map_err(|e| format!("ERROR: Failed to load factory library, caused by:\n{}", e))?;
 
         let user_library_path = self.library_path.join("user");

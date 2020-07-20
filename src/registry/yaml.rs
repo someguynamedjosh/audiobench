@@ -31,7 +31,7 @@ impl YamlNode {
     }
 
     pub fn f32(&self) -> Result<f32, String> {
-        self.value.parse().map_err(|_| {
+        self.value.trim().parse().map_err(|_| {
             format!(
                 "ERROR: The value of {} is not a valid decimal number",
                 self.full_name
@@ -40,7 +40,7 @@ impl YamlNode {
     }
 
     pub fn i32(&self) -> Result<i32, String> {
-        self.value.parse().map_err(|_| {
+        self.value.trim().parse().map_err(|_| {
             format!(
                 "ERROR: The value of {} is not a valid integer",
                 self.full_name
