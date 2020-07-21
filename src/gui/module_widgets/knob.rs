@@ -1,4 +1,4 @@
-use super::ModuleWidget;
+use super::{ModuleWidget, PopupMenu};
 use crate::engine::parts as ep;
 use crate::gui::action::{DropTarget, MouseAction};
 use crate::gui::constants::*;
@@ -220,16 +220,18 @@ impl KnobEditor {
             tooltip,
         }
     }
+}
 
-    pub(in crate::gui) fn get_pos(&self) -> (f32, f32) {
+impl PopupMenu for KnobEditor {
+    fn get_pos(&self) -> (f32, f32) {
         self.pos
     }
 
-    pub(in crate::gui) fn get_bounds(&self) -> (f32, f32) {
+    fn get_bounds(&self) -> (f32, f32) {
         self.size
     }
 
-    pub(in crate::gui) fn respond_to_mouse_press(
+    fn respond_to_mouse_press(
         &self,
         local_pos: (f32, f32),
         mods: &MouseMods,
@@ -314,7 +316,7 @@ impl KnobEditor {
         MouseAction::None
     }
 
-    pub(in crate::gui) fn get_tooltip_at(&self, local_pos: (f32, f32)) -> Option<Tooltip> {
+    fn get_tooltip_at(&self, local_pos: (f32, f32)) -> Option<Tooltip> {
         // Yes, the last 0 is intentional. The center of the knob is not vertically centered.
         let (cx, cy) = (
             local_pos.0 - self.size.0 / 2.0,
@@ -370,7 +372,7 @@ impl KnobEditor {
         None
     }
 
-    pub(in crate::gui) fn draw(&self, g: &mut GrahpicsWrapper) {
+    fn draw(&self, g: &mut GrahpicsWrapper) {
         g.push_state();
 
         g.apply_offset(self.pos.0, self.pos.1);

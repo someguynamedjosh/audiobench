@@ -20,6 +20,7 @@ yaml_widget_boilerplate::make_widget_outline_enum![
     DurationBox,
     EnvelopeGraph,
     HertzBox,
+    HSlider,
     IntBox,
     Knob,
     OptionBox,

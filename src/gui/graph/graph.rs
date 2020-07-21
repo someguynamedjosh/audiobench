@@ -4,7 +4,7 @@ use crate::registry::Registry;
 use crate::gui::action::{DropTarget, GuiAction, MouseAction};
 use crate::gui::constants::*;
 use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
-use crate::gui::module_widgets::{self, KnobEditor, ModuleWidget};
+use crate::gui::module_widgets::{self, ModuleWidget, PopupMenu};
 use crate::gui::{Gui, InteractionHint, MouseMods, Tooltip};
 use crate::util::*;
 use std::f32::consts::PI;
@@ -17,7 +17,7 @@ pub struct ModuleGraph {
     graph: Rcrc<ep::ModuleGraph>,
     modules: Vec<Module>,
     // Box because eventually this is going to be dyn.
-    detail_menu_widget: Option<Box<KnobEditor>>,
+    detail_menu_widget: Option<Box<dyn PopupMenu>>,
 }
 
 impl ModuleGraph {
@@ -232,7 +232,7 @@ impl ModuleGraph {
         g.pop_state();
     }
 
-    pub fn open_menu(&mut self, menu: Box<KnobEditor>) {
+    pub fn open_menu(&mut self, menu: Box<dyn PopupMenu>) {
         self.detail_menu_widget = Some(menu);
     }
 }

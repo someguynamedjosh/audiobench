@@ -27,7 +27,7 @@ pub enum InstanceAction {
 // MouseAction functions for each action that needs to modify something in the GUI.
 pub enum GuiAction {
     Sequence(Vec<GuiAction>),
-    OpenMenu(Box<module_widgets::KnobEditor>),
+    OpenMenu(Box<dyn module_widgets::PopupMenu>),
     SwitchScreen(GuiScreen),
     AddModule(ep::Module),
     RemoveModule(Rcrc<ep::Module>),
@@ -75,7 +75,7 @@ pub enum MouseAction {
     PanOffset(Rcrc<(f32, f32)>),
     ConnectInput(Rcrc<ep::Module>, usize),
     ConnectOutput(Rcrc<ep::Module>, usize),
-    OpenMenu(Box<module_widgets::KnobEditor>),
+    OpenMenu(Box<dyn module_widgets::PopupMenu>),
     SwitchScreen(GuiScreen),
     AddModule(ep::Module),
     RemoveModule(Rcrc<ep::Module>),

@@ -30,3 +30,16 @@ pub trait ModuleWidget {
     }
     fn add_wires(&self, wire_tracker: &mut WireTracker) {}
 }
+
+pub trait PopupMenu {
+    fn get_pos(&self) -> (f32, f32);
+    fn get_bounds(&self) -> (f32, f32);
+    fn draw(&self, g: &mut GrahpicsWrapper);
+
+    fn respond_to_mouse_press(&self, local_pos: (f32, f32), mods: &MouseMods) -> MouseAction {
+        MouseAction::None
+    }
+    fn get_tooltip_at(&self, local_pos: (f32, f32)) -> Option<Tooltip> {
+        None
+    }
+}
