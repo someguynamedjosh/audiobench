@@ -1,3 +1,8 @@
+use const_env::from_env;
+
+#[from_env("CARGO_PKG_VERSION_MINOR")]
+pub const ENGINE_VERSION: u16 = 0xFFFF;
+
 use num::Float;
 
 pub trait FloatUtil: Sized + Copy {
@@ -106,6 +111,12 @@ impl<Item> IterMapCollect<Item> for Vec<Item> {
 }
 
 impl<Item> IterMapCollect<Item> for &[Item] {
+    fn imc<OutItem>(&self, fun: impl FnMut(&Item) -> OutItem) -> Vec<OutItem> {
+        self.iter().map(fun).collect()
+    }
+}
+
+impl<Item> IterMapCollect<Item> for std::collections::HashSet<Item> {
     fn imc<OutItem>(&self, fun: impl FnMut(&Item) -> OutItem) -> Vec<OutItem> {
         self.iter().map(fun).collect()
     }

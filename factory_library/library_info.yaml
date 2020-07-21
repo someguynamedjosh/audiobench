@@ -1,3 +1,4 @@
 pretty_name: Factory
 description: All the default modules and patches that come with Audiobench.
-version: 0
+version: $ENGINE_VERSION
+min_engine_version: $ENGINE_VERSION

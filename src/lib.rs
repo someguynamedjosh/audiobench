@@ -82,7 +82,9 @@ impl Instance {
                 self.engine.as_mut().map(|e| e.rename_current_patch(name));
             }
             gui::action::InstanceAction::SavePatch => {
-                self.engine.as_mut().map(|e| e.save_current_patch());
+                if let Some(engine) = self.engine.as_mut() {
+                    engine.save_current_patch(&self.registry);
+                }
                 self.gui
                     .as_mut()
                     .map(|g| g.display_success("Saved successfully!".to_owned()));
@@ -109,7 +111,7 @@ impl Instance {
             gui::action::InstanceAction::CopyPatchToClipboard => {
                 if let Some(e) = self.engine.as_mut() {
                     use clipboard::ClipboardProvider;
-                    let patch_data = e.serialize_current_patch();
+                    let patch_data = e.serialize_current_patch(&self.registry);
                     let mut clipboard: clipboard::ClipboardContext =
                         clipboard::ClipboardProvider::new().unwrap();
                     clipboard.set_contents(patch_data).unwrap();
@@ -164,7 +166,7 @@ impl Instance {
     pub fn serialize_patch(&self) -> String {
         self.engine
             .as_ref()
-            .map(|e| e.serialize_current_patch())
+            .map(|e| e.serialize_current_patch(&self.registry))
             .unwrap_or_default()
     }
 

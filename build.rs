@@ -1,4 +1,5 @@
 use std::fs;
+use std::io::{Read, Write};
 use std::path::Path;
 
 fn main() {
@@ -21,7 +22,18 @@ fn main() {
                 .start_file_from_path(&zip_key, options.clone())
                 .unwrap();
             let mut f = fs::File::open(path).unwrap();
-            std::io::copy(&mut f, &mut zip_writer).unwrap();
+            if zip_key == Path::new("library_info.yaml") {
+                let engine_version: i32 = std::env::var("CARGO_PKG_VERSION_MINOR")
+                    .unwrap()
+                    .parse()
+                    .unwrap();
+                let mut file_contents = String::new();
+                f.read_to_string(&mut file_contents).unwrap();
+                file_contents = file_contents.replace("$ENGINE_VERSION", &format!("{}", engine_version));
+                zip_writer.write_all(file_contents.as_bytes()).unwrap();
+            } else {
+                std::io::copy(&mut f, &mut zip_writer).unwrap();
+            }
         } else if zip_key.as_os_str().len() > 0 {
             zip_writer
                 .add_directory_from_path(&zip_key, options.clone())

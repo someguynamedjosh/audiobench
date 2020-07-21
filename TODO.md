@@ -1,5 +1,4 @@
 # Things with no dependencies
-- Version checks for libraries against engine version
 - Version checks so that new presets don't get loaded with old libraries
 - More visual feedback for typing widget
 - Clicking on the ends of channels with more than one channel picks the wrong channel
@@ -12,6 +11,8 @@
   data is corrupt". It only shows the correct error after resetting the current
   patch.
 - Copy error reports to clipboard
+- Convert all indexes[] in save_data.rs to checked get() calls
+- Don't select a patch when clicking on it if loading it caused an error
 
 # Things with missing dependencies
 - Variable range for pitch wheel
@@ -38,7 +39,8 @@
 - Add and/or/xor to nodespeak
 - Optional variable smoothing for MIDI controls
 - Line artifact when rendering default inputs
-- Better integration with other VST library preset methods.
+- Better integration with other VST library preset methods
+- Dependency checks between libraries
 
 # Code organization stuff
 - Use more TupleUtil functions
@@ -64,5 +66,3 @@
 - patchs should store tags, just a list of strings
 - Builtin modules can use the same save syntax as other modules, using one or more complex controls to
   store their extra data.
-- Some kind of library identification file with information like the minimum version of audiobench you
-  need to use the library

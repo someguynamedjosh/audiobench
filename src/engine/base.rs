@@ -134,16 +134,16 @@ impl Engine {
         patch_ref.write().unwrap();
     }
 
-    pub fn save_current_patch(&mut self) {
+    pub fn save_current_patch(&mut self, registry: &Registry) {
         assert!(self.utd.current_patch_save_data.borrow().is_writable());
         let mut patch_ref = self.utd.current_patch_save_data.borrow_mut();
-        patch_ref.save_note_graph(&*self.utd.module_graph.borrow());
+        patch_ref.save_note_graph(&*self.utd.module_graph.borrow(), registry);
         patch_ref.write().unwrap();
     }
 
-    pub fn serialize_current_patch(&self) -> String {
+    pub fn serialize_current_patch(&self, registry: &Registry) -> String {
         let mut patch_ref = self.utd.current_patch_save_data.borrow_mut();
-        patch_ref.save_note_graph(&*self.utd.module_graph.borrow());
+        patch_ref.save_note_graph(&*self.utd.module_graph.borrow(), registry);
         patch_ref.serialize()
     }
 
@@ -151,7 +151,7 @@ impl Engine {
         let new_patch = Rc::clone(registry.create_new_user_patch());
         let mut new_patch_ref = new_patch.borrow_mut();
         new_patch_ref.set_name("New Patch".to_owned());
-        new_patch_ref.save_note_graph(&*self.utd.module_graph.borrow());
+        new_patch_ref.save_note_graph(&*self.utd.module_graph.borrow(), registry);
         new_patch_ref.write().unwrap();
         drop(new_patch_ref);
         // Don't reload anything because we are just copying the current patch data.

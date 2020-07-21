@@ -665,7 +665,7 @@ impl SavedModule {
         compose_u2(small_coords, small_resource)
     }
 
-    fn serialize(&self, buffer: &mut Vec<u8>, mode_u2: u8, ordered_lib_names: &[String]) {
+    fn serialize(&self, buffer: &mut Vec<u8>, mode_u2: u8, additional_libs: &[(String, u16)]) {
         let (small_coords, small_resource) = decompose_u2(mode_u2);
         if small_coords {
             ser_i16(buffer, self.pos.0 as i16);
@@ -680,9 +680,9 @@ impl SavedModule {
             let lib_id = if self.lib_name == "factory" {
                 0
             } else {
-                ordered_lib_names
+                additional_libs
                     .iter()
-                    .position(|i| i == &self.lib_name)
+                    .position(|i| &i.0 == &self.lib_name)
                     .unwrap()
                     + 1
             };
@@ -695,7 +695,7 @@ impl SavedModule {
     fn deserialize(
         slice: &mut &[u8],
         mode_u2: u8,
-        ordered_lib_names: &[String],
+        additional_libs: &[(String, u16)], // Name and version number.
     ) -> Result<Self, ()> {
         let (small_coords, small_resource) = decompose_u2(mode_u2);
         let (x, y) = if small_coords {
@@ -711,7 +711,11 @@ impl SavedModule {
         let lib_name = if lib_index == 0 {
             "factory".to_owned()
         } else {
-            ordered_lib_names[lib_index as usize - 1].clone()
+            additional_libs
+                .get(lib_index as usize - 1)
+                .ok_or(())?
+                .0
+                .clone()
         };
         Ok(Self {
             lib_name,
@@ -727,16 +731,21 @@ impl SavedModule {
 #[derive(Debug, Clone)]
 struct SavedModuleGraph {
     modules: Vec<SavedModule>,
+    factory_lib_version: u16,
+    additional_libs: Vec<(String, u16)>,
 }
 
 impl SavedModuleGraph {
     fn blank() -> Self {
         Self {
             modules: Default::default(),
+            // Engine version and factory lib version are always identical.
+            factory_lib_version: ENGINE_VERSION,
+            additional_libs: Vec::new(),
         }
     }
 
-    fn save(graph: &ep::ModuleGraph) -> Self {
+    fn save(graph: &ep::ModuleGraph, registry: &Registry) -> Self {
         let mut module_indexes: HashMap<*const RefCell<ep::Module>, usize> = HashMap::new();
         for (index, module) in graph.borrow_modules().iter().enumerate() {
             module_indexes.insert(&*module.as_ref(), index);
@@ -745,36 +754,75 @@ impl SavedModuleGraph {
         let modules = graph
             .borrow_modules()
             .imc(|module| SavedModule::save(&*module.borrow(), &module_indexes));
-        Self { modules }
+        let mut library_names = HashSet::new();
+        for module in &modules {
+            library_names.insert(module.lib_name.clone());
+        }
+        // The factory library is stored more compactly as it is always assumed to be present.
+        library_names.remove("factory");
+        let additional_libs = library_names.imc(|name| {
+            let version = registry
+                .borrow_library_info(name)
+                .expect("Currently running patch uses an unloaded library?")
+                .version;
+            (name.to_owned(), version)
+        });
+        Self {
+            modules,
+            factory_lib_version: ENGINE_VERSION,
+            additional_libs,
+        }
     }
 
-    fn restore(&self, graph: &mut ep::ModuleGraph, registry: &Registry) -> Result<(), ()> {
+    fn restore(&self, graph: &mut ep::ModuleGraph, registry: &Registry) -> Result<(), String> {
+        if self.factory_lib_version > ENGINE_VERSION {
+            return Err(format!(
+                "ERROR: this patch requires Audiobench v{} or newer, you are currently running v{}.",
+                self.factory_lib_version, ENGINE_VERSION
+            ));
+        }
+        for (lib_name, lib_version) in &self.additional_libs {
+            if let Some(lib_info) = registry.borrow_library_info(lib_name) {
+                if lib_info.version < *lib_version {
+                    return Err(format!(
+                        concat!(
+                            "ERROR: this patch requires {} v{} or newer, you currently have ",
+                            "installed v{}"
+                        ),
+                        lib_name, *lib_version, lib_info.version
+                    ));
+                }
+            } else {
+                return Err(format!(
+                    "ERROR: this patch requires a library you do not have: {} v{} or newer",
+                    lib_name, *lib_version
+                ));
+            }
+        }
         let modules: Vec<_> = self
             .modules
             .iter()
             .map(|m| m.restore(registry).map(|m| rcrc(m)))
-            .collect::<Result<_, _>>()?;
+            .collect::<Result<_, _>>()
+            .map_err(|_| format!("ERROR: Patch data is corrupt."))?;
         for index in 0..self.modules.len() {
             let module = Rc::clone(&modules[index]);
-            self.modules[index].restore_connections(&mut *module.borrow_mut(), &modules[..])?;
+            self.modules[index]
+                .restore_connections(&mut *module.borrow_mut(), &modules[..])
+                .map_err(|_| format!("ERROR: Patch data is corrupt."))?;
         }
         graph.set_modules(modules);
         Ok(())
     }
 
     fn serialize(&self, buffer: &mut Vec<u8>) {
-        let mut lib_names: HashSet<_> = self
-            .modules
-            .iter()
-            .map(|module| module.lib_name.clone())
-            .collect();
-        lib_names.remove("factory"); // Factory is always lib #0.
-        let ordered_lib_names: Vec<_> = lib_names.into_iter().collect();
         // FE not FF because it doesn't include factory.
-        assert!(ordered_lib_names.len() < 0xFE);
-        ser_u8(buffer, ordered_lib_names.len() as u8);
-        for name in &ordered_lib_names {
-            ser_str(buffer, name);
+        assert!(self.additional_libs.len() < 0xFE);
+        ser_u8(buffer, self.additional_libs.len() as u8);
+        ser_u16(buffer, ENGINE_VERSION);
+        for (lib_name, lib_version) in &self.additional_libs {
+            ser_str(buffer, lib_name);
+            ser_u16(buffer, *lib_version);
         }
         // The biggest indexes (for connections) are 12 bits long.
         assert!(self.modules.len() <= 0xFFF);
@@ -782,7 +830,7 @@ impl SavedModuleGraph {
         let mod_modes: Vec<_> = self.modules.imc(|module| module.get_ser_mode_u2());
         ser_u2_slice(buffer, &mod_modes[..]);
         for index in 0..self.modules.len() {
-            self.modules[index].serialize(buffer, mod_modes[index], &ordered_lib_names);
+            self.modules[index].serialize(buffer, mod_modes[index], &self.additional_libs[..]);
         }
 
         let mut input_modes = Vec::new();
@@ -861,17 +909,47 @@ impl SavedModuleGraph {
         }
     }
 
-    fn deserialize(slice: &mut &[u8], registry: &Registry) -> Result<Self, ()> {
+    fn deserialize(slice: &mut &[u8], format_version: u8, registry: &Registry) -> Result<Self, ()> {
         let num_libs = des_u8(slice)?;
-        let mut ordered_lib_names = Vec::new();
+        // After version 1, the version number of the factory library is included in the patch.
+        let factory_lib_version = if format_version >= 1 {
+            des_u16(slice)?
+        } else {
+            // Before format version 1, the factory library was always at version 0.
+            0
+        };
+        // If dependencies_ok is false, we will skip loading the rest of the data in the patch. When
+        // restore() is called, a friendly error will be returned with the cause of the problem.
+        let mut dependencies_ok = factory_lib_version <= ENGINE_VERSION;
+        let mut additional_libs = Vec::new();
         for _ in 0..num_libs {
-            ordered_lib_names.push(des_str(slice)?);
+            // No presets exist before version 1 that used additional libraries.
+            assert!(format_version >= 1);
+            let lib_requirement = (des_str(slice)?, des_u16(slice)?);
+            if let Some(lib_info) = registry.borrow_library_info(&lib_requirement.0) {
+                if lib_requirement.1 > lib_info.version {
+                    dependencies_ok = false;
+                }
+            } else {
+                dependencies_ok = false;
+            }
+            additional_libs.push(lib_requirement);
+        }
+        if !dependencies_ok {
+            // This patch will refuse to restore due to missing dependencies. We return Ok() because
+            // this method should only return Err() if the patch data is *corrupt*. A dependency
+            // error should be reported in a more friendly manner (during restore().)
+            return Ok(Self {
+                modules: Vec::new(),
+                factory_lib_version,
+                additional_libs,
+            })
         }
         let num_modules = des_u16(slice)? as usize;
         let mod_modes = des_u2_slice(slice, num_modules)?;
         let mut modules: Vec<_> = mod_modes
             .iter()
-            .map(|mode| SavedModule::deserialize(slice, *mode, &ordered_lib_names))
+            .map(|mode| SavedModule::deserialize(slice, *mode, &additional_libs))
             .collect::<Result<_, _>>()?;
 
         let (mut num_inputs, mut num_controls, mut num_ccontrols) = (0, 0, 0);
@@ -959,7 +1037,11 @@ impl SavedModuleGraph {
             }
         }
 
-        Ok(Self { modules })
+        Ok(Self {
+            modules,
+            factory_lib_version,
+            additional_libs,
+        })
     }
 }
 
@@ -977,6 +1059,8 @@ pub struct Patch {
 }
 
 impl Patch {
+    const FORMAT_VERSION: u8 = 1;
+
     pub fn writable(save_path: PathBuf) -> Self {
         Self {
             name: "Unnamed".to_owned(),
@@ -1023,8 +1107,8 @@ impl Patch {
         &self.name
     }
 
-    pub fn save_note_graph(&mut self, graph: &ep::ModuleGraph) {
-        self.note_graph = SavedModuleGraph::save(graph);
+    pub fn save_note_graph(&mut self, graph: &ep::ModuleGraph, registry: &Registry) {
+        self.note_graph = SavedModuleGraph::save(graph, registry);
     }
 
     pub fn restore_note_graph(
@@ -1032,9 +1116,7 @@ impl Patch {
         graph: &mut ep::ModuleGraph,
         registry: &Registry,
     ) -> Result<(), String> {
-        self.note_graph
-            .restore(graph, registry)
-            .map_err(|_| "ERROR: Patch data is corrupt".to_owned())
+        self.note_graph.restore(graph, registry)
     }
 
     pub fn write(&self) -> io::Result<()> {
@@ -1046,14 +1128,14 @@ impl Patch {
         let file = std::fs::File::create(path)?;
         let mut writer = std::io::BufWriter::new(file);
         let contents = self.serialize();
-        writer.write_all(contents.as_bytes());
+        writer.write_all(contents.as_bytes())?;
         Ok(())
     }
 
     pub fn serialize(&self) -> String {
         let mut buffer = Vec::new();
         // Format version number.
-        ser_u8(&mut buffer, 0);
+        ser_u8(&mut buffer, Self::FORMAT_VERSION);
         ser_str(&mut buffer, &self.name);
         self.note_graph.serialize(&mut buffer);
         base64::encode_config(&buffer, base64::URL_SAFE_NO_PAD)
@@ -1068,11 +1150,12 @@ impl Patch {
         let everything = base64::decode_config(data, base64::URL_SAFE_NO_PAD).map_err(err_map)?;
         let mut ptr = &everything[..];
         let err_map = |_| "ERROR: Patch data is corrupt".to_owned();
-        if des_u8(&mut ptr).map_err(err_map)? > 0 {
+        let format_version = des_u8(&mut ptr).map_err(err_map)?;
+        if format_version > Self::FORMAT_VERSION {
             return Err("ERROR: patch was created in a newer version of Audiobench".to_owned());
         }
         self.name = des_str(&mut ptr).map_err(err_map)?;
-        self.note_graph = SavedModuleGraph::deserialize(&mut ptr, registry)
+        self.note_graph = SavedModuleGraph::deserialize(&mut ptr, format_version, registry)
             .map_err(|_| "ERROR: Patch data is corrupt".to_owned())?;
         Ok(())
     }

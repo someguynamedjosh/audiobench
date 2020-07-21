@@ -14,13 +14,18 @@ pub struct Registry {
     modules: Vec<Module>,
     modules_by_resource_id: HashMap<String, usize>,
     modules_by_serialized_id: HashMap<(String, usize), usize>,
+
     scripts: HashMap<String, String>,
+
     icon_indexes: HashMap<String, usize>,
     icons: Vec<Vec<u8>>,
+
     unloaded_patches: Vec<(String, Option<PathBuf>, Vec<u8>)>,
     patches: Vec<Rcrc<Patch>>,
     patch_paths: HashMap<String, usize>,
+
     library_path: PathBuf,
+    library_info: HashMap<String, LibraryInfo>,
 }
 
 impl Registry {
@@ -154,7 +159,7 @@ impl Registry {
         Ok(())
     }
 
-    fn load_library(&mut self, mut library: PreloadedLibrary) -> Result<(), String> {
+    fn load_library(&mut self, mut library: PreloadedLibrary) -> Result<LibraryInfo, String> {
         // Load icons before other data.
         for index in 0..library.content.get_num_files() {
             let file_name = library.content.get_file_name(index);
@@ -172,7 +177,7 @@ impl Registry {
                 self.load_resource(&library.internal_name, &file_name, full_path, contents)?;
             }
         }
-        Ok(())
+        Ok(library.info)
     }
 
     fn create_and_update_user_library(&self) -> Result<(), String> {
@@ -184,10 +189,10 @@ impl Registry {
                 err
             )
         })?;
-        let library_info = include_bytes!("user_library_info.yaml");
+        let library_info = include_str!("user_library_info.yaml");
         fs::write(
             user_library_path.join("library_info.yaml"),
-            &library_info[..],
+            &library_info.replace("$ENGINE_VERSION", &format!("{}", ENGINE_VERSION)),
         )
         .map_err(|err| {
             format!(
@@ -241,13 +246,14 @@ impl Registry {
                         err
                     )
                 })?;
-            let lib_name_for_error = library.internal_name.clone();
-            self.load_library(library).map_err(|err| {
+            let internal_name = library.internal_name.clone();
+            let info = self.load_library(library).map_err(|err| {
                 format!(
                     "ERROR: Failed to load library {}, caused by:\n{}",
-                    lib_name_for_error, err
+                    internal_name, err
                 )
             })?;
+            self.library_info.insert(internal_name, info);
         }
 
         // We wait to load patches in case patches depend on libraries that aren't loaded yet when
@@ -278,6 +284,7 @@ impl Registry {
             patches: Vec::new(),
             patch_paths: HashMap::new(),
             library_path,
+            library_info: HashMap::new(),
         };
         let result = registry.initialize();
 
@@ -332,5 +339,9 @@ impl Registry {
 
     pub fn borrow_patches(&self) -> &Vec<Rcrc<Patch>> {
         &self.patches
+    }
+
+    pub fn borrow_library_info(&self, name: &str) -> Option<&LibraryInfo> {
+        self.library_info.get(name)
     }
 }
