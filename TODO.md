@@ -1,5 +1,4 @@
 # Things with no dependencies
-- Mixer module
 - Noise module
 - Scrollbar for patch list
 - Comb filter
@@ -10,6 +9,7 @@
 - Convert all indexes[] in save_data.rs to checked get() calls
 - Don't select a patch when clicking on it if loading it caused an error
 - Tab to view installed libraries and available updates (and the current engine version)
+- Clean up warnings
 
 # Things with missing dependencies
 - Variable range for pitch wheel
@@ -40,6 +40,7 @@
 - Dependency checks between libraries
 - Hint that enter can be pressed in typing widget
 - Different cursors on hover
+- Crossfade module
 
 # Code organization stuff
 - Use more TupleUtil functions
