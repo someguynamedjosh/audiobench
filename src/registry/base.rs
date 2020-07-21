@@ -28,6 +28,10 @@ pub struct Registry {
     library_info: HashMap<String, LibraryInfo>,
 }
 
+enum DelayedError {
+    DuplicateSaveId(usize),
+}
+
 impl Registry {
     fn load_module_resource(
         &mut self,
@@ -35,7 +39,7 @@ impl Registry {
         lib_name: String,
         module_id: String,
         buffer: Vec<u8>,
-    ) -> Result<(), String> {
+    ) -> Result<Option<DelayedError>, String> {
         let buffer_as_text = String::from_utf8(buffer).map_err(|e| {
             format!(
                 "ERROR: The file {} is not a valid UTF-8 text document, caused by:\nERROR: {}",
@@ -62,24 +66,13 @@ impl Registry {
         drop(template_ref);
         self.modules.push(module);
         self.modules_by_resource_id.insert(resource_id, index);
-        if self.modules_by_serialized_id.contains_key(&ser_id) {
-            let mut save_ids = HashSet::new();
-            for (this_lib_name, save_id) in self.modules_by_serialized_id.keys() {
-                if this_lib_name == &lib_name {
-                    save_ids.insert(*save_id);
-                }
-            }
-            let mut next_available_id = 0;
-            while save_ids.contains(&next_available_id) {
-                next_available_id += 1;
-            }
-            return Err(format!(
-                "ERROR: Multiple modules have {} as their save id. The lowest available ID is {}.",
-                ser_id.1, next_available_id
-            ));
-        }
+        let delayed_error = if self.modules_by_serialized_id.contains_key(&ser_id) {
+            Some(DelayedError::DuplicateSaveId(ser_id.1))
+        } else {
+            None
+        };
         self.modules_by_serialized_id.insert(ser_id, index);
-        Ok(())
+        Ok(delayed_error)
     }
 
     fn load_script_resource(&mut self, name: &str, buffer: Vec<u8>) -> Result<(), String> {
@@ -127,7 +120,7 @@ impl Registry {
         file_name: &str,
         full_path: Option<PathBuf>,
         buffer: Vec<u8>,
-    ) -> Result<(), String> {
+    ) -> Result<Option<DelayedError>, String> {
         let full_name = format!("{}:{}", lib_name, file_name);
         if file_name.ends_with(".icon.svg") {
             let file_name = Self::strip_path_and_extension(file_name, ".icon.svg");
@@ -136,12 +129,12 @@ impl Registry {
             self.icons.push(buffer);
         } else if file_name.ends_with(".module.yaml") {
             let module_id = Self::strip_path_and_extension(file_name, ".module.yaml");
-            self.load_module_resource(
+            return self.load_module_resource(
                 &full_name,
                 lib_name.to_owned(),
                 module_id.to_owned(),
                 buffer,
-            )?;
+            );
         } else if file_name.ends_with(".ns") {
             self.load_script_resource(&full_name, buffer)?;
         } else if file_name.ends_with(".abpatch") {
@@ -156,7 +149,7 @@ impl Registry {
                 full_name
             ));
         }
-        Ok(())
+        Ok(None)
     }
 
     fn load_library(&mut self, mut library: PreloadedLibrary) -> Result<LibraryInfo, String> {
@@ -166,16 +159,43 @@ impl Registry {
             if file_name.ends_with(".icon.svg") {
                 let full_path = library.content.get_full_path(index);
                 let contents = library.content.read_file_contents(index)?;
-                self.load_resource(&library.internal_name, &file_name, full_path, contents)?;
+                let delayed_error =
+                    self.load_resource(&library.internal_name, &file_name, full_path, contents)?;
+                assert!(
+                    delayed_error.is_none(),
+                    "Icons should not cause delayed errors."
+                );
             }
         }
+        let mut delayed_error = None;
         for index in 0..library.content.get_num_files() {
             let file_name = library.content.get_file_name(index);
             if !file_name.ends_with(".icon.svg") {
                 let full_path = library.content.get_full_path(index);
                 let contents = library.content.read_file_contents(index)?;
-                self.load_resource(&library.internal_name, &file_name, full_path, contents)?;
+                delayed_error = delayed_error.or(self.load_resource(
+                    &library.internal_name,
+                    &file_name,
+                    full_path,
+                    contents,
+                )?);
             }
+        }
+        if let Some(DelayedError::DuplicateSaveId(dupl_id)) = delayed_error {
+            let mut save_ids = HashSet::new();
+            for (this_lib_name, save_id) in self.modules_by_serialized_id.keys() {
+                if this_lib_name == &library.internal_name {
+                    save_ids.insert(*save_id);
+                }
+            }
+            let mut next_available_id = 0;
+            while save_ids.contains(&next_available_id) {
+                next_available_id += 1;
+            }
+            return Err(format!(
+                "ERROR: Multiple modules have {} as their save id. The lowest available ID is {}.",
+                dupl_id, next_available_id
+            ));
         }
         Ok(library.info)
     }
