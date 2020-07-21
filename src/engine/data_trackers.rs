@@ -143,6 +143,14 @@ pub(super) struct InputPacker {
 // global_midi_controls: [128]FLOAT
 // global_aux_data: [starting_aux_data.len()]FLOAT
 impl InputPacker {
+    // If the pitch wheel is within the deadzone, it will read as zero instead of its actual value.
+    // I added this because my pitch wheel is utter crap.
+    const PITCH_WHEEL_DEADZONE: f32 = 0.1;
+    // The extra division makes it so the ends of the pitch wheel still reach the specified value
+    // considering the deadzone.
+        // Range: +- perfect fifth, todo: make adjustable
+    const PITCH_WHEEL_RANGE: f32 = (7.0 / 12.0) / (1.0 - Self::PITCH_WHEEL_DEADZONE);
+
     pub(super) fn new(format: DataFormat) -> Self {
         let mut result = Self {
             packed_data: Vec::new(),
@@ -197,8 +205,21 @@ impl InputPacker {
         host_data: &HostData,
         update_feedback: bool,
     ) {
-        // Range: +- perfect fifth, todo: make adjustable
-        let pitch_offset: f32 = 2.0f32.powf(host_data.pitch_wheel_value * (7.0 / 12.0));
+        // Pitch wheel value goes from -1.0 to 1.0. At the extreme ends, pitch should be offset by
+        // a nice ratio. In the middle, there should be a deadzone where nothing happens. There
+        // should be no sudden transition when leaving the deadzone. This math makes all these
+        // conditions true.
+        let pitch_offset: f32 = if host_data.pitch_wheel_value.abs() <= Self::PITCH_WHEEL_DEADZONE {
+            1.0
+        } else {
+            // Make sure to offset so there is no sudden transition.
+            let wheel_offset = if host_data.pitch_wheel_value > 0.0 {
+                Self::PITCH_WHEEL_DEADZONE
+            } else {
+                -Self::PITCH_WHEEL_DEADZONE
+            };
+            2.0f32.powf((host_data.pitch_wheel_value - wheel_offset) * Self::PITCH_WHEEL_RANGE)
+        };
         self.packed_data[0] = note_data.pitch * pitch_offset;
         self.packed_data[1] = note_data.velocity;
         self.packed_data[2] = if note_data.start_trigger {

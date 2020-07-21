@@ -1,5 +1,4 @@
 # Things with no dependencies
-- Pitch wheel deadzone
 - Mixer module
 - Noise module
 - Scrollbar for patch list
