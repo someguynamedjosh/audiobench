@@ -1,5 +1,4 @@
 # Things with no dependencies
-- Clicking on the ends of channels with more than one channel picks the wrong channel
 - Pitch wheel deadzone
 - Mixer module
 - Noise module
@@ -11,6 +10,7 @@
 - Copy error reports to clipboard
 - Convert all indexes[] in save_data.rs to checked get() calls
 - Don't select a patch when clicking on it if loading it caused an error
+- Tab to view installed libraries and available updates (and the current engine version)
 
 # Things with missing dependencies
 - Variable range for pitch wheel

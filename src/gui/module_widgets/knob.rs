@@ -299,6 +299,8 @@ impl KnobEditor {
                 if lane >= auto_lanes {
                     return MouseAction::None;
                 }
+                // Lanes are shown in reverse order.
+                let lane = auto_lanes - lane - 1;
                 let lane_range = control.automation[lane].range;
                 let ends_flipped = lane_range.0 > lane_range.1;
                 // xor
