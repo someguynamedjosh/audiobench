@@ -1,6 +1,4 @@
 # Things with no dependencies
-- Version checks so that new presets don't get loaded with old libraries
-- More visual feedback for typing widget
 - Clicking on the ends of channels with more than one channel picks the wrong channel
 - Pitch wheel deadzone
 - Mixer module
@@ -41,6 +39,8 @@
 - Line artifact when rendering default inputs
 - Better integration with other VST library preset methods
 - Dependency checks between libraries
+- Hint that enter can be pressed in typing widget
+- Different cursors on hover
 
 # Code organization stuff
 - Use more TupleUtil functions

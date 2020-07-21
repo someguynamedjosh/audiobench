@@ -35,6 +35,7 @@ pub struct TextBox {
     pub pos: (f32, f32),
     pub size: (f32, f32),
     pub field: Rcrc<TextField>,
+    blink_timer: std::time::Instant,
 }
 
 impl TextBox {
@@ -48,6 +49,7 @@ impl TextBox {
             pos,
             size,
             field: rcrc(TextField::new(start_value, defocus_action)),
+            blink_timer: std::time::Instant::now(),
         }
     }
 
@@ -56,6 +58,7 @@ impl TextBox {
         mouse_pos: (f32, f32),
         mods: &MouseMods,
     ) -> MouseAction {
+        self.blink_timer = std::time::Instant::now();
         MouseAction::FocusTextField(Rc::clone(&self.field))
     }
 
@@ -73,7 +76,12 @@ impl TextBox {
         const H: HAlign = HAlign::Left;
         const V: VAlign = VAlign::Center;
         let w = self.size.0 - GP * 2.0;
-        g.write_text(FONT_SIZE, GP, 0.0, w, self.size.1, H, V, 1, text);
+        let text = if focused && self.blink_timer.elapsed().as_millis() % 800 < 400 {
+            format!("{}|", text)
+        } else {
+            format!("{}", text)
+        };
+        g.write_text(FONT_SIZE, GP, 0.0, w, self.size.1, H, V, 1, &text);
 
         g.pop_state();
     }
