@@ -416,9 +416,9 @@ dependencies = [
 
 [[package]]
 name = "nodespeak"
-version = "0.1.19"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2dd9fd64d6f318713ce5540d05f654c2de7f2a053c5067c15444d0f9819719b9"
+checksum = "08130d474e64213990738df8569c05c4ce814d5450cf78a14bba469b0b03916e"
 dependencies = [
  "colored",
  "libc",

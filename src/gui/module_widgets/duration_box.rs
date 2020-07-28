@@ -54,7 +54,7 @@ impl DurationBox {
         Ok(vec![(
             outline.control_index,
             if let Ok(child) = yaml.unique_child("default") {
-                child.value.clone()
+                child.value.trim().to_owned()
             } else {
                 "1.00".to_owned()
             },

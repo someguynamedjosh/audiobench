@@ -10,6 +10,10 @@
 - Don't select a patch when clicking on it if loading it caused an error
 - Tab to view installed libraries and available updates (and the current engine version)
 - Clean up warnings
+- If a timing_selector is specified after a duration_box, the timing_selector complains it cannot 
+  find the complex control for type_control.
+- Delete button for user patches
+- Check for updates over internet.
 
 # Things with missing dependencies
 - Variable range for pitch wheel

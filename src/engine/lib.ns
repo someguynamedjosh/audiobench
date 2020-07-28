@@ -58,3 +58,21 @@ macro GetTiming(SOURCE, TYPE):(timing) {
         timing = global_song_beats;
     }
 }
+
+static lib_random_seed {
+    // Chosen by fair dice roll, guaranteed to be random.
+    INT lib_random_seed = 0x6b60c4e2;
+}
+
+// Based on https://en.wikipedia.org/wiki/Xorshift which is why it's called craprand.
+// Basically I don't want to implement the features required to make a nicer random number
+// generator. This one is fine for audio stuff.
+macro CrapRand():(value) {
+    // This line makes different notes have different "seeds" so they don't sound the same.
+    // This might also break the period of the generator but I don't care.
+    lib_random_seed = lib_random_seed + Ftoi(global_pitch + 60.0 * global_song_time[0?]);
+    lib_random_seed = lib_random_seed bxor lib_random_seed << 13;
+    lib_random_seed = lib_random_seed bxor lib_random_seed >> 17;
+    lib_random_seed = lib_random_seed bxor lib_random_seed << 5;
+    FLOAT value = Itof(lib_random_seed) / Itof(0xFFFF_FFFF) * 2.0;
+}

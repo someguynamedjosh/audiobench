@@ -1,0 +1,71 @@
+save_id: 18
+inputs:
+outputs:
+  audio:
+    type: audio
+    label: Noise
+    tooltip: Noise output
+controls:
+  amplitude:
+    min: 0
+    max: 1
+    default: 1
+  delay_mul:
+    min: 0
+    max: 1
+    default: 1
+complex_controls:
+  TIME_SOURCE:
+  TIME_TYPE:
+  MAX_DELAY:
+  SMOOTH_MODE:
+gui:
+  label: Noise
+  category: Synthesis
+  tooltip: Generates a random sequence of values with control over the time between generated values
+  width: 8
+  height: 4
+  widgets:
+    knob:
+      x: 2
+      y: 0
+      control: amplitude
+      label: Amplitude
+      tooltip: How loud/strong the output should be
+    option_box:
+      x: 0
+      y: 0
+      w: 2
+      h: 4
+      control: SMOOTH_MODE
+      label: Mode
+      tooltip: Whether to transition smoothly or abruptly to the next value in the sequence
+      default: 1
+      options:
+        Sharp:
+        Smooth:
+    knob:
+      x: 2
+      y: 2
+      control: delay_mul
+      label: Delay Mul.
+      tooltip: Controls the amount of time between each value, ranging from 0 to Max Delay
+    waveform_graph:
+      x: 4
+      y: 0
+      w: 4
+      h: 2
+      feedback_name: graph_feedback
+    timing_selector:
+      x: 4
+      y: 2
+      source_control: TIME_SOURCE
+      type_control: TIME_TYPE
+    duration_box:
+      x: 6
+      y: 2
+      control: MAX_DELAY
+      type_control: TIME_TYPE
+      label: Max Delay
+      tooltip: The maximum amount of time between two values in the sequence
+      default: 0.000
