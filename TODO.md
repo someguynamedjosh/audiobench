@@ -1,5 +1,4 @@
 # Things with no dependencies
-- Convert all indexes[] in save_data.rs to checked get() calls
 - Don't select a patch when clicking on it if loading it caused an error
 - Tab to view installed libraries and available updates (and the current engine version)
 - Clean up warnings
@@ -7,8 +6,10 @@
   find the complex control for type_control.
 - Delete button for user patches, also move save to left hand side so it's harder to mix up with the
   new patch button.
-- Check for updates over internet.
-- Straighten out color names.
+- Check for updates over internet
+- Straighten out color names
+- Make Nodespeak errors use squiggles instead of colors
+- Add type bounds for AUTO variables
 
 # Things with missing dependencies
 - Variable range for pitch wheel
@@ -43,6 +44,7 @@
 - Scroll wheel hint
 - Say specifically which library unwritable patches come from, not just \[factory\].
 - Comb filter
+- Fuzz testing to ensure save_data deserialization always exits gracefully on corrupt data
 
 # Code organization stuff
 - Use more TupleUtil functions

@@ -1000,7 +1000,8 @@ impl SavedModuleGraph {
         let mut data_index = 0;
         for (index, mode) in control_modes.iter().cloned().enumerate() {
             if mode == 3 {
-                let (control, lanes) = SavedControl::deserialize_mode3_u4(u4_data[data_index]);
+                let (control, lanes) =
+                    SavedControl::deserialize_mode3_u4(*u4_data.get(data_index).ok_or(())?);
                 num_lanes += lanes;
                 controls[index] = Some((control, lanes));
                 data_index += 1;
@@ -1021,20 +1022,26 @@ impl SavedModuleGraph {
         for module in &mut modules {
             let (i, c, cc) = module.get_requirements(registry)?;
             for _ in 0..i {
-                module.input_connections.push(inputs[ip].clone().unwrap());
+                module
+                    .input_connections
+                    .push(inputs.get(ip).ok_or(())?.clone().unwrap());
                 ip += 1;
             }
             for _ in 0..c {
-                let (mut control, num_lanes) = controls[cp].clone().unwrap();
+                let (mut control, num_lanes) = controls.get(cp).ok_or(())?.clone().unwrap();
                 cp += 1;
                 for _ in 0..num_lanes {
-                    control.automation_lanes.push(lanes[lp].clone());
+                    control
+                        .automation_lanes
+                        .push(lanes.get(lp).ok_or(())?.clone());
                     lp += 1;
                 }
                 module.controls.push(control);
             }
             for _ in 0..cc {
-                module.complex_controls.push(complex_controls[ccp].clone());
+                module
+                    .complex_controls
+                    .push(complex_controls.get(ccp).ok_or(())?.clone());
                 ccp += 1;
             }
         }
