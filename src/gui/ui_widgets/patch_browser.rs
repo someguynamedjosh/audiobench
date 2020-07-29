@@ -1,4 +1,4 @@
-use super::{IconButton, TextBox};
+use super::{IconButton, TextBox, TextField};
 use crate::gui::action::{GuiAction, MouseAction};
 use crate::gui::constants::*;
 use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
@@ -11,13 +11,13 @@ pub struct PatchBrowser {
     pos: (f32, f32),
     size: (f32, f32),
     name_box: TextBox,
-    save_button: IconButton,
+    save_button: Rcrc<IconButton>,
     new_button: IconButton,
     copy_button: IconButton,
     paste_button: IconButton,
     entries: Rcrc<Vec<Rcrc<Patch>>>,
     alphabetical_order: Rcrc<Vec<usize>>,
-    current_entry_index: Option<usize>,
+    current_entry_index: Rcrc<Option<usize>>,
     num_visible_entries: usize,
     scroll_offset: usize,
 }
@@ -64,6 +64,8 @@ impl PatchBrowser {
         } else {
             save_button.enabled = false;
         }
+        let save_button = rcrc(save_button);
+        let current_entry_index = rcrc(current_entry_index);
 
         let alphabetical_order = rcrc((0..entries.len()).collect());
         let entries = rcrc(entries);
@@ -99,7 +101,7 @@ impl PatchBrowser {
             alphabetical_order,
             current_entry_index,
             num_visible_entries,
-            scroll_offset: 3,
+            scroll_offset: 0,
         }
     }
 
@@ -117,15 +119,20 @@ impl PatchBrowser {
         Self::sort(&self.entries, &self.alphabetical_order);
     }
 
-    fn update_on_patch_change(&mut self) {
-        let entries_ref = self.entries.borrow();
-        if let Some(index) = self.current_entry_index {
+    fn update_on_patch_change(
+        entries: &Rcrc<Vec<Rcrc<Patch>>>,
+        current_entry_index: &Rcrc<Option<usize>>,
+        name_box_field: &Rcrc<TextField>,
+        save_button: &Rcrc<IconButton>,
+    ) {
+        let entries_ref = entries.borrow();
+        if let Some(index) = *current_entry_index.borrow() {
             let entry_ref = entries_ref[index].borrow();
-            self.name_box.field.borrow_mut().text = entry_ref.borrow_name().to_owned();
-            self.save_button.enabled = entry_ref.is_writable();
+            name_box_field.borrow_mut().text = entry_ref.borrow_name().to_owned();
+            save_button.borrow_mut().enabled = entry_ref.is_writable();
         } else {
-            self.name_box.field.borrow_mut().text = "External Preset".to_owned();
-            self.save_button.enabled = false;
+            name_box_field.borrow_mut().text = "External Preset".to_owned();
+            save_button.borrow_mut().enabled = false;
         }
     }
 
@@ -134,7 +141,7 @@ impl PatchBrowser {
         {
             let mouse_pos = mouse_pos.sub(self.name_box.pos);
             if mouse_pos.inside(self.name_box.size) {
-                return Some(if self.save_button.enabled {
+                return Some(if self.save_button.borrow().enabled {
                     Tooltip {
                         text: "Edit the name of the current patch".to_owned(),
                         interaction: InteractionHint::LeftClick.into(),
@@ -148,7 +155,7 @@ impl PatchBrowser {
                 });
             }
         }
-        if self.save_button.mouse_in_bounds(mouse_pos) {
+        if self.save_button.borrow().mouse_in_bounds(mouse_pos) {
             return Some(Tooltip {
                 text: "Save the current patch".to_owned(),
                 interaction: InteractionHint::LeftClick.into(),
@@ -191,34 +198,39 @@ impl PatchBrowser {
     ) -> MouseAction {
         let mouse_pos = mouse_pos.sub(self.pos);
         // Only enabled if we can modify the current patch.
-        if self.save_button.enabled {
+        if self.save_button.borrow().enabled {
             let mouse_pos = mouse_pos.sub(self.name_box.pos);
             if mouse_pos.inside(self.name_box.size) {
                 return self.name_box.respond_to_mouse_press(mouse_pos, mods);
             }
         }
-        if self.save_button.mouse_in_bounds(mouse_pos) {
+        if self.save_button.borrow().mouse_in_bounds(mouse_pos) {
             self.sort_self();
             return MouseAction::SavePatch;
         }
-        let new_patch_callback: Box<dyn Fn(&Rcrc<Patch>)> = {
+        let new_patch_callback: Box<dyn FnMut(&Rcrc<Patch>)> = {
             let entries = Rc::clone(&self.entries);
+            let next_entry_index = self.entries.borrow().len();
+            let current_entry_index = Rcrc::clone(&self.current_entry_index);
             let alphabetical_order = Rc::clone(&self.alphabetical_order);
             let name_field = Rc::clone(&self.name_box.field);
+            let save_button = Rcrc::clone(&self.save_button);
             Box::new(move |new_patch| {
                 alphabetical_order.borrow_mut().push(entries.borrow().len());
                 entries.borrow_mut().push(Rc::clone(new_patch));
-                name_field.borrow_mut().text = new_patch.borrow().borrow_name().to_owned();
                 Self::sort(&entries, &alphabetical_order);
+                *current_entry_index.borrow_mut() = Some(next_entry_index);
+                Self::update_on_patch_change(
+                    &entries,
+                    &current_entry_index,
+                    &name_field,
+                    &save_button,
+                );
             })
         };
         if self.new_button.mouse_in_bounds(mouse_pos) {
-            self.current_entry_index = Some(self.entries.borrow().len());
-            self.save_button.enabled = true;
             return MouseAction::NewPatch(new_patch_callback);
         } else if self.paste_button.mouse_in_bounds(mouse_pos) {
-            self.current_entry_index = Some(self.entries.borrow().len());
-            self.save_button.enabled = true;
             return MouseAction::PastePatchFromClipboard(new_patch_callback);
         }
         if self.copy_button.mouse_in_bounds(mouse_pos) {
@@ -232,9 +244,22 @@ impl PatchBrowser {
             if entry_index >= 0.0 && entry_index < self.entries.borrow().len() as f32 {
                 let entry_index =
                     self.alphabetical_order.borrow()[entry_index as usize + self.scroll_offset];
-                self.current_entry_index = Some(entry_index);
-                self.update_on_patch_change();
-                return MouseAction::LoadPatch(Rc::clone(&self.entries.borrow()[entry_index]));
+                let patch = Rc::clone(&self.entries.borrow()[entry_index]);
+
+                let entries = Rcrc::clone(&self.entries);
+                let current_entry_index = Rcrc::clone(&self.current_entry_index);
+                let name_box_field = Rcrc::clone(&self.name_box.field);
+                let save_button = Rcrc::clone(&self.save_button);
+                let callback = move || {
+                    *current_entry_index.borrow_mut() = Some(entry_index);
+                    Self::update_on_patch_change(
+                        &entries,
+                        &current_entry_index,
+                        &name_box_field,
+                        &save_button,
+                    );
+                };
+                return MouseAction::LoadPatch(patch, Box::new(callback));
             }
         }
         MouseAction::None
@@ -269,7 +294,7 @@ impl PatchBrowser {
         g.set_color(&COLOR_SURFACE);
         g.fill_rect(0.0, 0.0, self.size.0, self.size.1);
         self.name_box.draw(g);
-        self.save_button.draw(g);
+        self.save_button.borrow().draw(g);
         self.new_button.draw(g);
         self.copy_button.draw(g);
         self.paste_button.draw(g);
@@ -288,7 +313,7 @@ impl PatchBrowser {
             const HEIGHT: f32 = PatchBrowser::ENTRY_HEIGHT;
             let x = GP;
             let y = y + HEIGHT * (index - offset) as f32;
-            if Some(self.alphabetical_order.borrow()[index]) == self.current_entry_index {
+            if Some(self.alphabetical_order.borrow()[index]) == *self.current_entry_index.borrow() {
                 g.set_color(&COLOR_IO_AREA);
                 g.fill_rounded_rect(x, y, hw, HEIGHT, CORNER_SIZE);
                 g.set_color(&COLOR_TEXT);

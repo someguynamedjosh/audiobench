@@ -16,11 +16,11 @@ pub enum InstanceAction {
     /// Changes the name of the current patch. Asserts if the current patch is not writable.
     RenamePatch(String),
     SavePatch,
-    NewPatch(Box<dyn Fn(&Rcrc<Patch>)>),
-    LoadPatch(Rcrc<Patch>),
-    SimpleCallback(Box<dyn Fn()>),
+    NewPatch(Box<dyn FnMut(&Rcrc<Patch>)>),
+    LoadPatch(Rcrc<Patch>, Box<dyn FnMut()>),
+    SimpleCallback(Box<dyn FnMut()>),
     CopyPatchToClipboard,
-    PastePatchFromClipboard(Box<dyn Fn(&Rcrc<Patch>)>),
+    PastePatchFromClipboard(Box<dyn FnMut(&Rcrc<Patch>)>),
 }
 
 // Describes an action the GUI object should perform. Prevents passing a bunch of arguments to
@@ -82,13 +82,13 @@ pub enum MouseAction {
     RemoveLane(Rcrc<ep::Control>, usize),
     RenamePatch(String),
     SavePatch,
-    NewPatch(Box<dyn Fn(&Rcrc<Patch>)>),
-    LoadPatch(Rcrc<Patch>),
+    NewPatch(Box<dyn FnMut(&Rcrc<Patch>)>),
+    LoadPatch(Rcrc<Patch>, Box<dyn FnMut()>),
     FocusTextField(Rcrc<TextField>),
     Scaled(Box<MouseAction>, Rcrc<f32>),
-    SimpleCallback(Box<dyn Fn()>),
+    SimpleCallback(Box<dyn FnMut()>),
     CopyPatchToClipboard,
-    PastePatchFromClipboard(Box<dyn Fn(&Rcrc<Patch>)>),
+    PastePatchFromClipboard(Box<dyn FnMut(&Rcrc<Patch>)>),
 }
 
 fn maybe_snap_value(value: f32, range: (f32, f32), mods: &MouseMods) -> f32 {
@@ -538,8 +538,8 @@ impl MouseAction {
             Self::NewPatch(callback) => {
                 return Some(GuiAction::Elevate(InstanceAction::NewPatch(callback)))
             }
-            Self::LoadPatch(patch) => {
-                return Some(GuiAction::Elevate(InstanceAction::LoadPatch(patch)))
+            Self::LoadPatch(patch, callback) => {
+                return Some(GuiAction::Elevate(InstanceAction::LoadPatch(patch, callback)))
             }
             Self::RemoveLane(control, lane) => {
                 control.borrow_mut().automation.remove(lane);

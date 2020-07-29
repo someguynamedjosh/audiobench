@@ -122,14 +122,17 @@ impl Instance {
                     .as_mut()
                     .map(|g| g.display_success("Saved successfully!".to_owned()));
             }
-            gui::action::InstanceAction::NewPatch(callback) => {
+            gui::action::InstanceAction::NewPatch(mut callback) => {
                 if let Some(e) = self.engine.as_mut() {
                     callback(e.new_patch(&mut self.registry));
                 }
             }
-            gui::action::InstanceAction::LoadPatch(patch) => {
+            gui::action::InstanceAction::LoadPatch(patch, mut callback) => {
                 if let Some(e) = self.engine.as_mut() {
                     let res = e.load_patch(&self.registry, patch);
+                    if res.is_ok() {
+                        callback();
+                    }
                     if let Some(gui) = &mut self.gui {
                         if let Err(err) = res {
                             gui.display_error(err);
@@ -138,7 +141,7 @@ impl Instance {
                     }
                 }
             }
-            gui::action::InstanceAction::SimpleCallback(callback) => {
+            gui::action::InstanceAction::SimpleCallback(mut callback) => {
                 (callback)();
             }
             gui::action::InstanceAction::CopyPatchToClipboard => {
@@ -153,7 +156,7 @@ impl Instance {
                     }
                 }
             }
-            gui::action::InstanceAction::PastePatchFromClipboard(callback) => {
+            gui::action::InstanceAction::PastePatchFromClipboard(mut callback) => {
                 if let Some(e) = self.engine.as_mut() {
                     use clipboard::ClipboardProvider;
                     let mut clipboard: clipboard::ClipboardContext =
