@@ -1,9 +1,4 @@
 # Things with no dependencies
-- Comb filter
-- Loading the current state while having bad libraries causes a message "patch 
-  data is corrupt". It only shows the correct error after resetting the current
-  patch.
-- Copy error reports to clipboard
 - Convert all indexes[] in save_data.rs to checked get() calls
 - Don't select a patch when clicking on it if loading it caused an error
 - Tab to view installed libraries and available updates (and the current engine version)
@@ -47,6 +42,7 @@
 - Crossfade module
 - Scroll wheel hint
 - Say specifically which library unwritable patches come from, not just \[factory\].
+- Comb filter
 
 # Code organization stuff
 - Use more TupleUtil functions

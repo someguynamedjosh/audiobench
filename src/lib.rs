@@ -16,22 +16,33 @@ pub struct Instance {
     silence: Vec<f32>,
 }
 
+fn copy_to_clipboard(text: String) {
+    use clipboard::ClipboardProvider;
+    let mut clipboard: clipboard::ClipboardContext = clipboard::ClipboardProvider::new().unwrap();
+    clipboard.set_contents(text).unwrap();
+}
+
 impl Instance {
     fn new() -> Self {
         let mut critical_error = None;
 
         let (mut registry, registry_load_result) = registry::Registry::new();
         if let Err(err) = registry_load_result {
+            copy_to_clipboard(err.clone());
             critical_error = Some(format!(
-                "Encountered a critical error while loading your libraries:\n{}",
+                "The following error report has been copied to your clipboard:\n\n{}",
                 err
             ));
         }
         let engine = if critical_error.is_none() {
             match engine::Engine::new(&mut registry) {
                 Ok(engine) => Some(engine),
-                Err(problem) => {
-                    critical_error = Some(problem);
+                Err(err) => {
+                    copy_to_clipboard(err.clone());
+                    critical_error = Some(format!(
+                        "The following error report has been copied to your clipboard:\n\n{}",
+                        err
+                    ));
                     None
                 }
             }
@@ -52,6 +63,28 @@ impl Instance {
 }
 
 impl Instance {
+    fn set_critical_error(&mut self, error: String) {
+        if self.critical_error.is_some() {
+            return;
+        }
+        copy_to_clipboard(error.clone());
+        self.critical_error = Some(format!(
+            "The following error report has been copied to your clipboard:\n\n{}",
+            error
+        ));
+    }
+
+    fn set_structure_error(&mut self, error: String) {
+        if self.critical_error.is_some() || self.structure_error.is_some() {
+            return;
+        }
+        copy_to_clipboard(error.clone());
+        self.structure_error = Some(format!(
+            "The following error report has been copied to your clipboard:\n\n{}",
+            error
+        ));
+    }
+
     fn perform_action(&mut self, action: gui::action::InstanceAction) {
         match action {
             gui::action::InstanceAction::Sequence(actions) => {
@@ -69,7 +102,7 @@ impl Instance {
                         if let Some(gui) = &mut self.gui {
                             gui.display_error(err.clone());
                         }
-                        self.structure_error = Some(err);
+                        self.set_structure_error(err);
                     } else {
                         if let Some(gui) = &mut self.gui {
                             gui.clear_status();
@@ -178,14 +211,20 @@ impl Instance {
         ) {
             Ok(patch) => patch,
             Err(message) => {
-                self.critical_error = Some(message);
+                self.set_critical_error(format!(
+                    "ERROR: Failed to load the patch you were working on, caused by:\n{}",
+                    message
+                ));
                 return;
             }
         };
         let patch = util::rcrc(patch);
         if let Some(engine) = &mut self.engine {
             if let Err(message) = engine.load_patch(&self.registry, patch) {
-                self.critical_error = Some(message);
+                self.set_critical_error(format!(
+                    "ERROR: Failed to load the patch you were working on, caused by:\n{}",
+                    message
+                ));
             }
         }
         if let Some(gui) = &mut self.gui {
@@ -254,12 +293,12 @@ impl Instance {
             g.write_console_text(640.0, 480.0, err);
         // If there is no critical error, then the engine initialized successfully.
         } else if let Some(err) = self.engine.as_ref().unwrap().clone_critical_error() {
-            // This way we don't have to copy it in the future.
-            self.critical_error = Some(err.clone());
             g.set_color(&(0, 0, 0));
             g.fill_rect(0.0, 0.0, 640.0, 480.0);
             g.set_color(&(255, 255, 255));
             g.write_console_text(640.0, 480.0, &err);
+            // This way we don't have to copy it in the future.
+            self.set_critical_error(err.clone());
         } else {
             // If the engine has new feedback data (from audio being played) then copy it over before
             // we render the UI so it will show up in the UI.

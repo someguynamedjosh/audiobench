@@ -804,12 +804,14 @@ impl SavedModuleGraph {
             .iter()
             .map(|m| m.restore(registry).map(|m| rcrc(m)))
             .collect::<Result<_, _>>()
-            .map_err(|_| format!("ERROR: Patch data is corrupt."))?;
+            .map_err(|_| format!("ERROR: Patch data is corrupt (failed to restore modules.)"))?;
         for index in 0..self.modules.len() {
             let module = Rc::clone(&modules[index]);
             self.modules[index]
                 .restore_connections(&mut *module.borrow_mut(), &modules[..])
-                .map_err(|_| format!("ERROR: Patch data is corrupt."))?;
+                .map_err(|_| {
+                    format!("ERROR: Patch data is corrupt (failed to restore connections.)")
+                })?;
         }
         graph.set_modules(modules);
         Ok(())
@@ -943,7 +945,7 @@ impl SavedModuleGraph {
                 modules: Vec::new(),
                 factory_lib_version,
                 additional_libs,
-            })
+            });
         }
         let num_modules = des_u16(slice)? as usize;
         let mod_modes = des_u2_slice(slice, num_modules)?;
@@ -1146,15 +1148,16 @@ impl Patch {
         data: &[u8],
         registry: &Registry,
     ) -> Result<(), String> {
-        let err_map = |_| "ERROR: Patch data is corrupt".to_owned();
-        let everything = base64::decode_config(data, base64::URL_SAFE_NO_PAD).map_err(err_map)?;
+        let everything = base64::decode_config(data, base64::URL_SAFE_NO_PAD)
+            .map_err(|_| "ERROR: Patch data is corrupt (invalid base64 data.)")?;
         let mut ptr = &everything[..];
-        let err_map = |_| "ERROR: Patch data is corrupt".to_owned();
-        let format_version = des_u8(&mut ptr).map_err(err_map)?;
+        let format_version = des_u8(&mut ptr)
+            .map_err(|_| "ERROR: Patch data is corrupt (does not contain format version.)")?;
         if format_version > Self::FORMAT_VERSION {
             return Err("ERROR: patch was created in a newer version of Audiobench".to_owned());
         }
-        self.name = des_str(&mut ptr).map_err(err_map)?;
+        self.name = des_str(&mut ptr)
+            .map_err(|_| "ERROR: Patch data is corrupt (does not contain patch name.)")?;
         self.note_graph = SavedModuleGraph::deserialize(&mut ptr, format_version, registry)
             .map_err(|_| "ERROR: Patch data is corrupt".to_owned())?;
         Ok(())
