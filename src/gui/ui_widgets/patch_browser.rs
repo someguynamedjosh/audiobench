@@ -1,5 +1,5 @@
 use super::{IconButton, TextBox};
-use crate::gui::action::MouseAction;
+use crate::gui::action::{GuiAction, MouseAction};
 use crate::gui::constants::*;
 use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
 use crate::gui::{InteractionHint, MouseMods, Tooltip};
@@ -18,9 +18,15 @@ pub struct PatchBrowser {
     entries: Rcrc<Vec<Rcrc<Patch>>>,
     alphabetical_order: Rcrc<Vec<usize>>,
     current_entry_index: Option<usize>,
+    num_visible_entries: usize,
+    scroll_offset: usize,
 }
 
 impl PatchBrowser {
+    // A slightly larger grid size.
+    const CG: f32 = grid(1) + GRID_P;
+    const ENTRY_HEIGHT: f32 = Self::CG;
+
     pub fn create(
         current_patch: &Rcrc<Patch>,
         registry: &Registry,
@@ -76,6 +82,10 @@ impl PatchBrowser {
                 ])
             }),
         );
+        // Extra +GRID_P because the padding under the last patch in the list shouldn't be
+        // rendered.
+        let patch_list_height = size.1 - GRID_P * 3.0 - name_box.size.1 + GRID_P;
+        let num_visible_entries = (patch_list_height / Self::ENTRY_HEIGHT) as usize;
 
         Self {
             pos,
@@ -88,6 +98,8 @@ impl PatchBrowser {
             entries,
             alphabetical_order,
             current_entry_index,
+            num_visible_entries,
+            scroll_offset: 3,
         }
     }
 
@@ -218,7 +230,8 @@ impl PatchBrowser {
             let entry_index =
                 (mouse_pos.1 - self.name_box.size.1 - GRID_P) / PatchBrowser::ENTRY_HEIGHT;
             if entry_index >= 0.0 && entry_index < self.entries.borrow().len() as f32 {
-                let entry_index = self.alphabetical_order.borrow()[entry_index as usize];
+                let entry_index =
+                    self.alphabetical_order.borrow()[entry_index as usize + self.scroll_offset];
                 self.current_entry_index = Some(entry_index);
                 self.update_on_patch_change();
                 return MouseAction::LoadPatch(Rc::clone(&self.entries.borrow()[entry_index]));
@@ -227,9 +240,23 @@ impl PatchBrowser {
         MouseAction::None
     }
 
-    // A slightly larger grid size.
-    const CG: f32 = grid(1) + GRID_P;
-    const ENTRY_HEIGHT: f32 = Self::CG;
+    pub fn on_scroll(&mut self, mouse_pos: (f32, f32), delta: f32) -> Option<GuiAction> {
+        let hw = (self.size.0 - GRID_P * 3.0) / 2.0;
+        if mouse_pos.0 <= hw && mouse_pos.1 > self.name_box.size.1 + GRID_P {
+            if delta > 0.0 {
+                if self.scroll_offset > 0 {
+                    self.scroll_offset -= 1;
+                }
+            } else {
+                if self.scroll_offset + self.num_visible_entries
+                    < self.alphabetical_order.borrow().len()
+                {
+                    self.scroll_offset += 1;
+                }
+            }
+        }
+        None
+    }
 
     pub fn draw(&self, g: &mut GrahpicsWrapper) {
         g.push_state();
@@ -250,13 +277,17 @@ impl PatchBrowser {
         const CG: f32 = PatchBrowser::CG;
         let y = CG + GP;
         g.set_color(&COLOR_BG);
-        g.fill_rounded_rect(GP, y, hw, self.size.1 - y - GP, CORNER_SIZE);
+        let panel_height = self.size.1 - y - GP;
+        g.fill_rounded_rect(GP, y, hw, panel_height, CORNER_SIZE);
         g.set_color(&COLOR_TEXT);
-        for index in 0..self.alphabetical_order.borrow().len() {
+        let offset = self.scroll_offset;
+        let num_entries = self.alphabetical_order.borrow().len();
+        let range = offset..(offset + self.num_visible_entries).min(num_entries);
+        for index in range {
             let entry = &self.entries.borrow()[self.alphabetical_order.borrow()[index]];
             const HEIGHT: f32 = PatchBrowser::ENTRY_HEIGHT;
             let x = GP;
-            let y = y + HEIGHT * index as f32;
+            let y = y + HEIGHT * (index - offset) as f32;
             if Some(self.alphabetical_order.borrow()[index]) == self.current_entry_index {
                 g.set_color(&COLOR_IO_AREA);
                 g.fill_rounded_rect(x, y, hw, HEIGHT, CORNER_SIZE);
@@ -267,13 +298,31 @@ impl PatchBrowser {
             const V: VAlign = VAlign::Center;
             let name = entry.borrow_name();
             g.write_text(FONT_SIZE, x + GP, y, hw - GP * 2.0, HEIGHT, H, V, 1, name);
+            let width = if num_entries > self.num_visible_entries {
+                hw - GP * 3.0 // Make room for scrollbar.
+            } else {
+                hw - GP * 2.0
+            };
             if !entry.is_writable() {
                 const H: HAlign = HAlign::Right;
                 g.set_alpha(0.5);
                 let t = "[Factory]";
-                g.write_text(FONT_SIZE, x + GP, y, hw - GP * 2.0, HEIGHT, H, V, 1, t);
+                g.write_text(FONT_SIZE, x + GP, y, width, HEIGHT, H, V, 1, t);
                 g.set_alpha(1.0);
             }
+        }
+
+        if num_entries > self.num_visible_entries {
+            let visible_percent = self.num_visible_entries as f32 / num_entries as f32;
+            let offset_percent = offset as f32 / num_entries as f32;
+            g.set_color(&COLOR_IO_AREA);
+            g.fill_rounded_rect(
+                GP + hw - CORNER_SIZE,
+                y + panel_height * offset_percent,
+                CORNER_SIZE,
+                panel_height * visible_percent,
+                CORNER_SIZE,
+            );
         }
 
         g.pop_state();

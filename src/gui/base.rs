@@ -304,6 +304,12 @@ impl Gui {
                 .on_scroll(delta)
                 .map(|a| self.perform_action(registry, a))
                 .flatten();
+        } else if let GuiScreen::PatchBrowser = self.current_screen {
+            return self
+                .patch_browser
+                .on_scroll(self.mouse_pos, delta)
+                .map(|a| self.perform_action(registry, a))
+                .flatten();
         }
         None
     }

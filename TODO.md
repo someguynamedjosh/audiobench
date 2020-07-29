@@ -1,6 +1,4 @@
 # Things with no dependencies
-- Noise module
-- Scrollbar for patch list
 - Comb filter
 - Loading the current state while having bad libraries causes a message "patch 
   data is corrupt". It only shows the correct error after resetting the current
@@ -12,8 +10,10 @@
 - Clean up warnings
 - If a timing_selector is specified after a duration_box, the timing_selector complains it cannot 
   find the complex control for type_control.
-- Delete button for user patches
+- Delete button for user patches, also move save to left hand side so it's harder to mix up with the
+  new patch button.
 - Check for updates over internet.
+- Straighten out color names.
 
 # Things with missing dependencies
 - Variable range for pitch wheel
@@ -45,6 +45,8 @@
 - Hint that enter can be pressed in typing widget
 - Different cursors on hover
 - Crossfade module
+- Scroll wheel hint
+- Say specifically which library unwritable patches come from, not just \[factory\].
 
 # Code organization stuff
 - Use more TupleUtil functions
