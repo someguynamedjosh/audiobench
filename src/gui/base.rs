@@ -65,6 +65,7 @@ pub struct MouseMods {
 
 #[derive(Eq, PartialEq, Clone, Copy)]
 pub enum GuiScreen {
+    LibraryBrowser,
     PatchBrowser,
     NoteGraph,
     ModuleBrowser,
@@ -72,11 +73,17 @@ pub enum GuiScreen {
 
 impl GuiScreen {
     fn all() -> Vec<GuiScreen> {
-        vec![Self::PatchBrowser, Self::NoteGraph, Self::ModuleBrowser]
+        vec![
+            Self::LibraryBrowser,
+            Self::PatchBrowser,
+            Self::NoteGraph,
+            Self::ModuleBrowser,
+        ]
     }
 
     pub fn get_icon_name(&self) -> &'static str {
         match self {
+            Self::LibraryBrowser => "factory:library",
             Self::PatchBrowser => "factory:patch_browser",
             Self::NoteGraph => "factory:note",
             Self::ModuleBrowser => "factory:add",
@@ -85,9 +92,12 @@ impl GuiScreen {
 
     pub fn get_tooltip_text(&self) -> &'static str {
         match self {
-            Self::PatchBrowser => "Patch browser: save and load patches",
-            Self::NoteGraph => "Note graph: Edit the module graph used to synthesize notes",
-            Self::ModuleBrowser => "Module browser: Add new modules to the current graph",
+            Self::LibraryBrowser => {
+                "Info / Library Browser: View current Audiobench version and installed libraries"
+            }
+            Self::PatchBrowser => "Patch Browser: Save and load patches",
+            Self::NoteGraph => "Note Graph: Edit the module graph used to synthesize notes",
+            Self::ModuleBrowser => "Module Browser: Add new modules to the current graph",
         }
     }
 }
@@ -96,6 +106,7 @@ pub struct Gui {
     size: (f32, f32),
     current_screen: GuiScreen,
     menu_bar: gui::ui_widgets::MenuBar,
+    library_browser: gui::ui_widgets::LibraryBrowser,
     patch_browser: gui::ui_widgets::PatchBrowser,
     graph: gui::graph::ModuleGraph,
     module_browser: gui::ui_widgets::ModuleBrowser,
@@ -119,6 +130,8 @@ impl Gui {
         let y = gui::ui_widgets::MenuBar::HEIGHT;
         let screen_size = (size.0, size.1 - y);
 
+        let library_browser =
+            gui::ui_widgets::LibraryBrowser::create(registry, (0.0, y), screen_size);
         let patch_browser =
             gui::ui_widgets::PatchBrowser::create(current_patch, registry, (0.0, y), screen_size);
         let mut graph = gui::graph::ModuleGraph::create(registry, graph_ref, screen_size);
@@ -130,6 +143,7 @@ impl Gui {
             size,
             current_screen: GuiScreen::NoteGraph,
             menu_bar: gui::ui_widgets::MenuBar::create(registry, GuiScreen::all()),
+            library_browser,
             patch_browser,
             graph,
             module_browser,
@@ -158,6 +172,7 @@ impl Gui {
 
     pub fn draw(&self, g: &mut GrahpicsWrapper) {
         match self.current_screen {
+            GuiScreen::LibraryBrowser => self.library_browser.draw(g),
             GuiScreen::PatchBrowser => self.patch_browser.draw(g),
             GuiScreen::NoteGraph => self.graph.draw(g, self),
             GuiScreen::ModuleBrowser => self.module_browser.draw(g),
@@ -186,6 +201,7 @@ impl Gui {
             self.mouse_action = self.menu_bar.respond_to_mouse_press(pos, mods);
         } else {
             self.mouse_action = match self.current_screen {
+                GuiScreen::LibraryBrowser => MouseAction::None,
                 GuiScreen::PatchBrowser => self.patch_browser.respond_to_mouse_press(pos, mods),
                 GuiScreen::NoteGraph => self.graph.respond_to_mouse_press(pos, mods),
                 GuiScreen::ModuleBrowser => self.module_browser.respond_to_mouse_press(pos, mods),
@@ -233,6 +249,7 @@ impl Gui {
         }
         if new_tooltip.is_none() {
             new_tooltip = match self.current_screen {
+                GuiScreen::LibraryBrowser => None,
                 GuiScreen::PatchBrowser => self.patch_browser.get_tooltip_at(new_pos),
                 GuiScreen::NoteGraph => self.graph.get_tooltip_at(new_pos),
                 GuiScreen::ModuleBrowser => self.module_browser.get_tooltip_at(new_pos),
@@ -308,6 +325,12 @@ impl Gui {
             return self
                 .patch_browser
                 .on_scroll(self.mouse_pos, delta)
+                .map(|a| self.perform_action(registry, a))
+                .flatten();
+        } else if let GuiScreen::LibraryBrowser = self.current_screen {
+            return self
+                .library_browser
+                .on_scroll(delta)
                 .map(|a| self.perform_action(registry, a))
                 .flatten();
         }

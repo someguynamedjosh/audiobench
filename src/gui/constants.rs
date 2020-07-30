@@ -38,8 +38,9 @@ pub const KNOB_MENU_KNOB_IR: f32 = 40.0;
 pub const KNOB_MENU_LANE_GAP: f32 = 2.0;
 
 pub const CORNER_SIZE: f32 = 4.0;
-pub const FONT_SIZE: f32 = 13.0;
+pub const FONT_SIZE: f32 = 12.0;
 pub const BIG_FONT_SIZE: f32 = 14.0;
+pub const TITLE_FONT_SIZE: f32 = grid(1);
 
 pub const MODULE_SHADOW_RADIUS: f32 = 25.0;
 pub const POPUP_SHADOW_RADIUS: f32 = 40.0;

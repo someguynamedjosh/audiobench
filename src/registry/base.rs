@@ -239,8 +239,11 @@ impl Registry {
                 },
             )?
         };
-        self.load_library(factory_library)
+        let factory_lib_info = self
+            .load_library(factory_library)
             .map_err(|e| format!("ERROR: Failed to load factory library, caused by:\n{}", e))?;
+        self.library_info
+            .insert("factory".to_owned(), factory_lib_info);
 
         self.create_and_update_user_library()?;
 
@@ -363,5 +366,9 @@ impl Registry {
 
     pub fn borrow_library_info(&self, name: &str) -> Option<&LibraryInfo> {
         self.library_info.get(name)
+    }
+
+    pub fn borrow_library_infos(&self) -> impl Iterator<Item = &LibraryInfo> {
+        self.library_info.values()
     }
 }
