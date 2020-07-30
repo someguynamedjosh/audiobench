@@ -15,6 +15,7 @@ pub struct PatchBrowser {
     new_button: IconButton,
     copy_button: IconButton,
     paste_button: IconButton,
+    delete_icon: usize,
     entries: Rcrc<Vec<Rcrc<Patch>>>,
     alphabetical_order: Rcrc<Vec<usize>>,
     current_entry_index: Rcrc<Option<usize>>,
@@ -43,7 +44,7 @@ impl PatchBrowser {
         let patch_name = current_patch.borrow().borrow_name().to_owned();
         let save_icon = registry.lookup_icon("factory:save").unwrap();
         let mut save_button =
-            IconButton::create((GRID_P + hw - CG * 4.0 - GRID_P * 3.0, 0.0), CG, save_icon);
+            IconButton::create((GRID_P, 0.0), CG, save_icon);
         let new_icon = registry.lookup_icon("factory:add").unwrap();
         let new_button =
             IconButton::create((GRID_P + hw - CG * 3.0 - GRID_P * 2.0, 0.0), CG, new_icon);
@@ -73,7 +74,7 @@ impl PatchBrowser {
 
         let (entries2, order2) = (Rc::clone(&entries), Rc::clone(&alphabetical_order));
         let name_box = TextBox::create(
-            (GRID_P, 0.0),
+            (GRID_P + CG + GRID_P, 0.0),
             (namew, CG),
             patch_name,
             Box::new(move |text| {
@@ -97,6 +98,7 @@ impl PatchBrowser {
             new_button,
             copy_button,
             paste_button,
+            delete_icon: registry.lookup_icon("factory:delete").unwrap(),
             entries,
             alphabetical_order,
             current_entry_index,
@@ -115,25 +117,14 @@ impl PatchBrowser {
         });
     }
 
-    fn sort_self(&mut self) {
-        Self::sort(&self.entries, &self.alphabetical_order);
-    }
-
     fn update_on_patch_change(
-        entries: &Rcrc<Vec<Rcrc<Patch>>>,
-        current_entry_index: &Rcrc<Option<usize>>,
+        new_patch: &Rcrc<Patch>,
         name_box_field: &Rcrc<TextField>,
         save_button: &Rcrc<IconButton>,
     ) {
-        let entries_ref = entries.borrow();
-        if let Some(index) = *current_entry_index.borrow() {
-            let entry_ref = entries_ref[index].borrow();
-            name_box_field.borrow_mut().text = entry_ref.borrow_name().to_owned();
-            save_button.borrow_mut().enabled = entry_ref.is_writable();
-        } else {
-            name_box_field.borrow_mut().text = "External Preset".to_owned();
-            save_button.borrow_mut().enabled = false;
-        }
+        let new_patch_ref = new_patch.borrow();
+        name_box_field.borrow_mut().text = new_patch_ref.borrow_name().to_owned();
+        save_button.borrow_mut().enabled = new_patch_ref.is_writable();
     }
 
     pub fn get_tooltip_at(&self, mouse_pos: (f32, f32)) -> Option<Tooltip> {
@@ -184,7 +175,7 @@ impl PatchBrowser {
         let hw = (self.size.0 - GRID_P * 3.0) / 2.0;
         if mouse_pos.0 <= hw && mouse_pos.1 > self.name_box.size.1 + GRID_P {
             return Some(Tooltip {
-                text: "Click a patch to load it".to_owned(),
+                text: "Click a patch to load it or click the trash icon to delete it".to_owned(),
                 interaction: InteractionHint::LeftClick | InteractionHint::Scroll,
             });
         }
@@ -204,10 +195,7 @@ impl PatchBrowser {
                 return self.name_box.respond_to_mouse_press(mouse_pos, mods);
             }
         }
-        if self.save_button.borrow().mouse_in_bounds(mouse_pos) {
-            self.sort_self();
-            return MouseAction::SavePatch;
-        }
+
         let new_patch_callback: Box<dyn FnMut(&Rcrc<Patch>)> = {
             let entries = Rc::clone(&self.entries);
             let next_entry_index = self.entries.borrow().len();
@@ -216,50 +204,87 @@ impl PatchBrowser {
             let name_field = Rc::clone(&self.name_box.field);
             let save_button = Rcrc::clone(&self.save_button);
             Box::new(move |new_patch| {
-                alphabetical_order.borrow_mut().push(entries.borrow().len());
-                entries.borrow_mut().push(Rc::clone(new_patch));
-                Self::sort(&entries, &alphabetical_order);
-                *current_entry_index.borrow_mut() = Some(next_entry_index);
-                Self::update_on_patch_change(
-                    &entries,
-                    &current_entry_index,
-                    &name_field,
-                    &save_button,
-                );
+                if new_patch.borrow().exists_on_disk() {
+                    alphabetical_order.borrow_mut().push(entries.borrow().len());
+                    entries.borrow_mut().push(Rc::clone(new_patch));
+                    Self::sort(&entries, &alphabetical_order);
+                    *current_entry_index.borrow_mut() = Some(next_entry_index);
+                } else {
+                    *current_entry_index.borrow_mut() = None;
+                }
+                Self::update_on_patch_change(&new_patch, &name_field, &save_button);
             })
         };
+
+        if self.save_button.borrow().mouse_in_bounds(mouse_pos) {
+            let mut patch_already_existed_on_disk = false;
+            if let Some(index) = *self.current_entry_index.borrow() {
+                patch_already_existed_on_disk =
+                    self.entries.borrow()[index].borrow().exists_on_disk();
+            }
+            return MouseAction::SavePatch(if patch_already_existed_on_disk {
+                Box::new(|_patch| {})
+            } else {
+                new_patch_callback
+            });
+        }
         if self.new_button.mouse_in_bounds(mouse_pos) {
             return MouseAction::NewPatch(new_patch_callback);
-        } else if self.paste_button.mouse_in_bounds(mouse_pos) {
+        }
+        if self.paste_button.mouse_in_bounds(mouse_pos) {
             return MouseAction::PastePatchFromClipboard(new_patch_callback);
         }
         if self.copy_button.mouse_in_bounds(mouse_pos) {
             return MouseAction::CopyPatchToClipboard;
         }
+
         // How large each half of the GUI takes.
         let hw = (self.size.0 - GRID_P * 3.0) / 2.0;
         if mouse_pos.0 <= hw && mouse_pos.1 > self.name_box.size.1 + GRID_P {
             let entry_index =
                 (mouse_pos.1 - self.name_box.size.1 - GRID_P) / PatchBrowser::ENTRY_HEIGHT;
             if entry_index >= 0.0 && entry_index < self.entries.borrow().len() as f32 {
-                let entry_index =
-                    self.alphabetical_order.borrow()[entry_index as usize + self.scroll_offset];
+                let order_index = entry_index as usize + self.scroll_offset;
+                let entry_index = self.alphabetical_order.borrow()[order_index];
                 let patch = Rc::clone(&self.entries.borrow()[entry_index]);
-
-                let entries = Rcrc::clone(&self.entries);
-                let current_entry_index = Rcrc::clone(&self.current_entry_index);
-                let name_box_field = Rcrc::clone(&self.name_box.field);
-                let save_button = Rcrc::clone(&self.save_button);
-                let callback = move || {
-                    *current_entry_index.borrow_mut() = Some(entry_index);
-                    Self::update_on_patch_change(
-                        &entries,
-                        &current_entry_index,
-                        &name_box_field,
-                        &save_button,
-                    );
-                };
-                return MouseAction::LoadPatch(patch, Box::new(callback));
+                // Delete the patch. The threshold is deliberately shorter than the actual area the
+                // icon technically occupies to hopefully make misclicks less likely.
+                if mouse_pos.0 > hw - grid(1) && patch.borrow().is_writable() {
+                    let mut entries_ref = self.entries.borrow_mut();
+                    let res = entries_ref[entry_index].borrow_mut().delete_from_disk();
+                    if let Err(err) = res {
+                        eprintln!("TODO: Nice error, failed to delete patch: {}", err);
+                    } else {
+                        entries_ref.remove(entry_index);
+                        let mut order_ref = self.alphabetical_order.borrow_mut();
+                        order_ref.remove(order_index);
+                        for index in &mut *order_ref {
+                            if *index > entry_index {
+                                *index -= 1;
+                            }
+                        }
+                        let mut current_entry_ref = self.current_entry_index.borrow_mut();
+                        if let Some(current_index) = *current_entry_ref {
+                            if current_index == entry_index {
+                                *current_entry_ref = None;
+                            } else if current_index > entry_index {
+                                // entry_index cannot be smaller than zero.
+                                debug_assert!(current_index > 0);
+                                *current_entry_ref = Some(current_index - 1);
+                            }
+                        }
+                    }
+                } else {
+                    let patch2 = Rc::clone(&patch);
+                    let current_entry_index = Rcrc::clone(&self.current_entry_index);
+                    let name_box_field = Rcrc::clone(&self.name_box.field);
+                    let save_button = Rcrc::clone(&self.save_button);
+                    let callback = move || {
+                        *current_entry_index.borrow_mut() = Some(entry_index);
+                        Self::update_on_patch_change(&patch2, &name_box_field, &save_button);
+                    };
+                    return MouseAction::LoadPatch(patch, Box::new(callback));
+                }
             }
         }
         MouseAction::None
@@ -309,7 +334,8 @@ impl PatchBrowser {
         let num_entries = self.alphabetical_order.borrow().len();
         let range = offset..(offset + self.num_visible_entries).min(num_entries);
         for index in range {
-            let entry = &self.entries.borrow()[self.alphabetical_order.borrow()[index]];
+            let entry_index = self.alphabetical_order.borrow()[index];
+            let entry = &self.entries.borrow()[entry_index];
             const HEIGHT: f32 = PatchBrowser::ENTRY_HEIGHT;
             let x = GP;
             let y = y + HEIGHT * (index - offset) as f32;
@@ -322,13 +348,23 @@ impl PatchBrowser {
             const H: HAlign = HAlign::Left;
             const V: VAlign = VAlign::Center;
             let name = entry.borrow_name();
-            g.write_text(FONT_SIZE, x + GP, y, hw - GP * 2.0, HEIGHT, H, V, 1, name);
             let width = if num_entries > self.num_visible_entries {
                 hw - GP * 3.0 // Make room for scrollbar.
             } else {
                 hw - GP * 2.0
             };
-            if !entry.is_writable() {
+            g.write_text(FONT_SIZE, x + GP, y, width, HEIGHT, H, V, 1, name);
+            if entry.is_writable() {
+                const ICON_SIZE: f32 = grid(1);
+                const ICON_PADDING: f32 = (HEIGHT - ICON_SIZE) / 2.0;
+                g.draw_white_icon(
+                    self.delete_icon,
+                    // Don't ask me why it just works
+                    x + width - ICON_SIZE * 0.5,
+                    y + ICON_PADDING,
+                    ICON_SIZE,
+                );
+            } else {
                 const H: HAlign = HAlign::Right;
                 g.set_alpha(0.5);
                 let t = "[Factory]";

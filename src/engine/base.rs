@@ -141,6 +141,10 @@ impl Engine {
         patch_ref.write().unwrap();
     }
 
+    pub fn borrow_current_patch(&self) -> &Rcrc<Patch> {
+        &self.utd.current_patch_save_data
+    }
+
     pub fn serialize_current_patch(&self, registry: &Registry) -> String {
         let mut patch_ref = self.utd.current_patch_save_data.borrow_mut();
         patch_ref.save_note_graph(&*self.utd.module_graph.borrow(), registry);
@@ -169,7 +173,6 @@ impl Engine {
         new_patch_ref.load_from_serialized_data(clipboard_data, registry)?;
         let name = format!("{} (pasted)", new_patch_ref.borrow_name());
         new_patch_ref.set_name(name);
-        new_patch_ref.write().unwrap();
         drop(new_patch_ref);
         self.load_patch(registry, Rc::clone(&new_patch))?;
         Ok(&self.utd.current_patch_save_data)
@@ -183,10 +186,6 @@ impl Engine {
             .restore_note_graph(&mut *self.utd.module_graph.borrow_mut(), registry)?;
         self.recompile()?;
         Ok(())
-    }
-
-    pub fn borrow_current_patch(&self) -> &Rcrc<Patch> {
-        &self.utd.current_patch_save_data
     }
 
     pub fn borrow_module_graph_ref(&self) -> &Rcrc<ModuleGraph> {

@@ -1065,16 +1065,18 @@ pub struct Patch {
     source: PatchSource,
     name: String,
     note_graph: SavedModuleGraph,
+    exists_on_disk: bool,
 }
 
 impl Patch {
     const FORMAT_VERSION: u8 = 1;
 
-    pub fn writable(save_path: PathBuf) -> Self {
+    pub fn new(save_path: PathBuf) -> Self {
         Self {
             name: "Unnamed".to_owned(),
             note_graph: SavedModuleGraph::blank(),
             source: PatchSource::Writable(save_path),
+            exists_on_disk: false,
         }
     }
 
@@ -1083,6 +1085,7 @@ impl Patch {
             name: Default::default(),
             note_graph: SavedModuleGraph::blank(),
             source,
+            exists_on_disk: true,
         };
         patch.load_from_serialized_data(data, registry)?;
         Ok(patch)
@@ -1108,6 +1111,12 @@ impl Patch {
         }
     }
 
+    /// Returns true if the patch has been saved at all. In other words, returns true if the synth
+    /// can be closed and reopened without losing the patch.
+    pub fn exists_on_disk(&self) -> bool {
+        self.exists_on_disk
+    }
+
     pub fn set_name(&mut self, name: String) {
         self.name = name;
     }
@@ -1128,16 +1137,30 @@ impl Patch {
         self.note_graph.restore(graph, registry)
     }
 
-    pub fn write(&self) -> io::Result<()> {
+    pub fn write(&mut self) -> io::Result<()> {
         let path = if let PatchSource::Writable(path) = &self.source {
             path
         } else {
             panic!("Cannot write a non-writable patch!");
         };
         let file = std::fs::File::create(path)?;
+        self.exists_on_disk = true;
         let mut writer = std::io::BufWriter::new(file);
         let contents = self.serialize();
         writer.write_all(contents.as_bytes())?;
+        Ok(())
+    }
+
+    pub fn delete_from_disk(&mut self) -> io::Result<()> {
+        let path = if let PatchSource::Writable(path) = &self.source {
+            path
+        } else {
+            panic!("Cannot delete a non-writable patch!");
+        };
+        if self.exists_on_disk {
+            std::fs::remove_file(path)?;
+            self.exists_on_disk = false;
+        }
         Ok(())
     }
 

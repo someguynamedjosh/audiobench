@@ -344,7 +344,7 @@ impl Registry {
         let filename = format!("{:016X}.abpatch", rand::thread_rng().next_u64());
         self.patch_paths
             .insert(format!("user:{}", filename), self.patches.len());
-        let patch = Patch::writable(self.library_path.join("user").join(filename));
+        let patch = Patch::new(self.library_path.join("user").join(filename));
         let prc = rcrc(patch);
         self.patches.push(prc);
         self.patches.last().unwrap()

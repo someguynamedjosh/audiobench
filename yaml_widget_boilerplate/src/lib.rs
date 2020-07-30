@@ -378,13 +378,11 @@ pub fn make_widget_outline(args: TokenStream) -> TokenStream {
                             )
                         })
                 };
-                println!("{:#?}", complex_controls);
                 let find_complex_control_index = |name: &str| {
                     complex_controls
                         .iter()
                         .position(|item| &item.borrow().code_name == name)
                         .ok_or_else(|| {
-                            println!("Error here");
                             format!(
                                 "ERROR: Invalid widget {}, caused by:\nERROR: No complex control named {}.",
                                 &yaml.full_name, name

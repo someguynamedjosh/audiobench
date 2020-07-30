@@ -1,6 +1,4 @@
 # Things with no dependencies
-- Delete button for user patches, also move save to left hand side so it's harder to mix up with the
-  new patch button.
 - Check for updates over internet with new feature highlights
 - Straighten out color names
 - Make Nodespeak errors use squiggles instead of colors

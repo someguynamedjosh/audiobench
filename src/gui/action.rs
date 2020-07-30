@@ -15,7 +15,7 @@ pub enum InstanceAction {
     ReloadAuxData,
     /// Changes the name of the current patch. Asserts if the current patch is not writable.
     RenamePatch(String),
-    SavePatch,
+    SavePatch(Box<dyn FnMut(&Rcrc<Patch>)>),
     NewPatch(Box<dyn FnMut(&Rcrc<Patch>)>),
     LoadPatch(Rcrc<Patch>, Box<dyn FnMut()>),
     SimpleCallback(Box<dyn FnMut()>),
@@ -81,7 +81,7 @@ pub enum MouseAction {
     RemoveModule(Rcrc<ep::Module>),
     RemoveLane(Rcrc<ep::Control>, usize),
     RenamePatch(String),
-    SavePatch,
+    SavePatch(Box<dyn FnMut(&Rcrc<Patch>)>),
     NewPatch(Box<dyn FnMut(&Rcrc<Patch>)>),
     LoadPatch(Rcrc<Patch>, Box<dyn FnMut()>),
     FocusTextField(Rcrc<TextField>),
@@ -534,7 +534,9 @@ impl MouseAction {
             Self::RenamePatch(name) => {
                 return Some(GuiAction::Elevate(InstanceAction::RenamePatch(name)))
             }
-            Self::SavePatch => return Some(GuiAction::Elevate(InstanceAction::SavePatch)),
+            Self::SavePatch(callback) => {
+                return Some(GuiAction::Elevate(InstanceAction::SavePatch(callback)))
+            }
             Self::NewPatch(callback) => {
                 return Some(GuiAction::Elevate(InstanceAction::NewPatch(callback)))
             }

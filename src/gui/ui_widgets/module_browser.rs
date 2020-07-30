@@ -157,6 +157,9 @@ impl ModuleBrowser {
 
     fn get_entry_at(&self, mouse_pos: (f32, f32)) -> Option<&ModuleBrowserEntry> {
         let mouse_pos = (mouse_pos.0 - self.pos.0, mouse_pos.1 - self.pos.1);
+        if mouse_pos.0 < 0.0 || mouse_pos.1 < 0.0 {
+            return None;
+        }
         let clicked_index = (mouse_pos.0 / (ModuleBrowserEntry::WIDTH + GRID_P)) as usize
             * self.vertical_stacking
             + (mouse_pos.1 / (ModuleBrowserEntry::HEIGHT + GRID_P)) as usize;

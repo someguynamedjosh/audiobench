@@ -114,9 +114,10 @@ impl Instance {
             gui::action::InstanceAction::RenamePatch(name) => {
                 self.engine.as_mut().map(|e| e.rename_current_patch(name));
             }
-            gui::action::InstanceAction::SavePatch => {
+            gui::action::InstanceAction::SavePatch(mut callback) => {
                 if let Some(engine) = self.engine.as_mut() {
                     engine.save_current_patch(&self.registry);
+                    callback(engine.borrow_current_patch());
                 }
                 self.gui
                     .as_mut()
@@ -174,7 +175,7 @@ impl Instance {
                         if let Some(err) = err {
                             gui.display_error(err);
                         } else {
-                            gui.display_success("Patch data loaded from clipboard!".to_owned());
+                            gui.display_success("Patch data loaded from clipboard! (Click the save button if you want to keep it)".to_owned());
                         }
                         gui.on_patch_change(&self.registry);
                     }
