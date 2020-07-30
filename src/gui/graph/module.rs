@@ -389,7 +389,7 @@ impl Module {
         // TODO: Tooltip text?
         Some(Tooltip {
             text: "".to_owned(),
-            interaction: InteractionHint::LeftClickAndDrag.into(),
+            interaction: InteractionHint::LeftClickAndDrag | InteractionHint::RightClick,
         })
     }
 

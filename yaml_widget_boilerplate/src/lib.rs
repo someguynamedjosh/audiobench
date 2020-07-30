@@ -76,7 +76,7 @@ impl ConstructorItem {
                 let name_name = format_ident!("{}_name", self.name);
                 let index_name = format_ident!("{}_index", self.name);
                 quote! {
-                    let #name_name = &yaml.unique_child(stringify!(#name))?.value;
+                    let #name_name = yaml.unique_child(stringify!(#name))?.value.trim();
                     let #index_name = find_control_index(#name_name)?;
                 }
             }
@@ -85,7 +85,7 @@ impl ConstructorItem {
                 let name_name = format_ident!("{}_name", self.name);
                 let index_name = format_ident!("{}_index", self.name);
                 quote! {
-                    let #name_name = &yaml.unique_child(stringify!(#name))?.value;
+                    let #name_name = yaml.unique_child(stringify!(#name))?.value.trim();
                     let #index_name = find_complex_control_index(#name_name)?;
                 }
             }
@@ -110,7 +110,7 @@ impl ConstructorItem {
             ConstructorItemType::String => {
                 let name = self.name.clone();
                 quote! {
-                    let #name = yaml.unique_child(stringify!(#name))?.value.clone();
+                    let #name = yaml.unique_child(stringify!(#name))?.value.trim().to_owned();
                 }
             }
             ConstructorItemType::StringList => {
@@ -314,7 +314,7 @@ pub fn make_widget_outline(args: TokenStream) -> TokenStream {
         .collect();
     if let Some(FeedbackDescription::Custom { .. }) = &feedback_description {
         field_from_yaml_code.push(quote! {
-            let feedback_name = yaml.unique_child("feedback_name")?.value.clone();
+            let feedback_name = yaml.unique_child("feedback_name")?.value.trim().to_owned();
         });
     }
     let outline_fields: Vec<_> = outline_fields
@@ -378,11 +378,13 @@ pub fn make_widget_outline(args: TokenStream) -> TokenStream {
                             )
                         })
                 };
+                println!("{:#?}", complex_controls);
                 let find_complex_control_index = |name: &str| {
                     complex_controls
                         .iter()
                         .position(|item| &item.borrow().code_name == name)
                         .ok_or_else(|| {
+                            println!("Error here");
                             format!(
                                 "ERROR: Invalid widget {}, caused by:\nERROR: No complex control named {}.",
                                 &yaml.full_name, name

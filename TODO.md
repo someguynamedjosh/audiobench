@@ -1,6 +1,4 @@
 # Things with no dependencies
-- If a timing_selector is specified after a duration_box, the timing_selector complains it cannot 
-  find the complex control for type_control.
 - Delete button for user patches, also move save to left hand side so it's harder to mix up with the
   new patch button.
 - Check for updates over internet with new feature highlights
