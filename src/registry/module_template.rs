@@ -1,6 +1,6 @@
-use crate::gui::module_widgets::{WidgetOutline};
 use super::yaml::YamlNode;
 use crate::engine::parts as ep;
+use crate::gui::module_widgets::WidgetOutline;
 use crate::util::*;
 use std::collections::{HashMap, HashSet};
 

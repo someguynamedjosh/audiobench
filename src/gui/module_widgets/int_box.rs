@@ -61,8 +61,8 @@ impl<T: IntBoxImpl> ModuleWidget for T {
     fn respond_to_mouse_press(
         &self,
         local_pos: (f32, f32),
-        mods: &MouseMods,
-        parent_pos: (f32, f32),
+        _mods: &MouseMods,
+        _parent_pos: (f32, f32),
     ) -> MouseAction {
         let click_delta = if local_pos.1 > IntBoxBase::HEIGHT / 2.0 {
             -1
@@ -78,7 +78,7 @@ impl<T: IntBoxImpl> ModuleWidget for T {
         }
     }
 
-    fn get_tooltip_at(&self, local_pos: (f32, f32)) -> Option<Tooltip> {
+    fn get_tooltip_at(&self, _local_pos: (f32, f32)) -> Option<Tooltip> {
         Some(Tooltip {
             text: self.get_base().tooltip.clone(),
             interaction: InteractionHint::LeftClick
@@ -90,9 +90,9 @@ impl<T: IntBoxImpl> ModuleWidget for T {
     fn draw(
         &self,
         g: &mut GrahpicsWrapper,
-        highlight: bool,
-        parent_pos: (f32, f32),
-        feedback_data: &[f32],
+        _highlight: bool,
+        _parent_pos: (f32, f32),
+        _feedback_data: &[f32],
     ) {
         let base = self.get_base();
         g.push_state();

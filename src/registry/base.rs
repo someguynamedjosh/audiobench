@@ -318,12 +318,6 @@ impl Registry {
         &self.modules
     }
 
-    pub fn borrow_module_by_resource_id(&self, id: &str) -> Option<&Module> {
-        self.modules_by_resource_id
-            .get(id)
-            .map(|idx| &self.modules[*idx])
-    }
-
     pub fn borrow_module_by_serialized_id(&self, id: &(String, usize)) -> Option<&Module> {
         self.modules_by_serialized_id
             .get(id)

@@ -1,9 +1,9 @@
 use crate::engine::parts as ep;
-use crate::registry::Registry;
 use crate::gui::action::MouseAction;
 use crate::gui::constants::*;
 use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
 use crate::gui::{InteractionHint, MouseMods, Tooltip};
+use crate::registry::Registry;
 use crate::util::*;
 use std::collections::HashSet;
 
@@ -97,7 +97,6 @@ enum SortMethod {
 
 pub struct ModuleBrowser {
     pos: (f32, f32),
-    size: (f32, f32),
     vertical_stacking: usize,
     entries: Vec<ModuleBrowserEntry>,
     alphabetical_list: Vec<VisualEntry>,
@@ -141,7 +140,6 @@ impl ModuleBrowser {
 
         Self {
             pos,
-            size,
             vertical_stacking,
             entries,
             alphabetical_list,
@@ -189,7 +187,7 @@ impl ModuleBrowser {
     pub fn respond_to_mouse_press(
         &mut self,
         mouse_pos: (f32, f32),
-        mods: &MouseMods,
+        _mods: &MouseMods,
     ) -> MouseAction {
         if let Some(entry) = self.get_entry_at(mouse_pos) {
             MouseAction::AddModule(entry.prototype.clone())

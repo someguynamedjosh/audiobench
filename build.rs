@@ -5,7 +5,7 @@ use std::path::Path;
 fn main() {
     // Can't use env! because it isn't defined when the build script is first compiled.
     let output_path = Path::new(&std::env::var("OUT_DIR").unwrap()).join("factory.ablib");
-    let mut output_file = fs::File::create(output_path).unwrap();
+    let output_file = fs::File::create(output_path).unwrap();
     let mut zip_writer = zip::ZipWriter::new(output_file);
     let options =
         zip::write::FileOptions::default().compression_method(zip::CompressionMethod::Deflated);
@@ -29,7 +29,8 @@ fn main() {
                     .unwrap();
                 let mut file_contents = String::new();
                 f.read_to_string(&mut file_contents).unwrap();
-                file_contents = file_contents.replace("$ENGINE_VERSION", &format!("{}", engine_version));
+                file_contents =
+                    file_contents.replace("$ENGINE_VERSION", &format!("{}", engine_version));
                 zip_writer.write_all(file_contents.as_bytes()).unwrap();
             } else {
                 std::io::copy(&mut f, &mut zip_writer).unwrap();

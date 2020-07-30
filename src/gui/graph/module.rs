@@ -1,10 +1,10 @@
 use super::WireTracker;
 use crate::engine::parts as ep;
-use crate::gui::action::{DropTarget, GuiAction, MouseAction};
+use crate::gui::action::{DropTarget, MouseAction};
 use crate::gui::constants::*;
 use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
-use crate::gui::module_widgets::{self, KnobEditor, ModuleWidget, WidgetOutline};
-use crate::gui::{Gui, InteractionHint, MouseMods, Tooltip};
+use crate::gui::module_widgets::ModuleWidget;
+use crate::gui::{InteractionHint, MouseMods, Tooltip};
 use crate::registry::Registry;
 use crate::util::*;
 use std::f32::consts::PI;

@@ -16,19 +16,19 @@ pub trait ModuleWidget {
 
     fn respond_to_mouse_press(
         &self,
-        local_pos: (f32, f32),
-        mods: &MouseMods,
-        parent_pos: (f32, f32),
+        _local_pos: (f32, f32),
+        _mods: &MouseMods,
+        _parent_pos: (f32, f32),
     ) -> MouseAction {
         MouseAction::None
     }
-    fn get_drop_target_at(&self, local_pos: (f32, f32)) -> DropTarget {
+    fn get_drop_target_at(&self, _local_pos: (f32, f32)) -> DropTarget {
         DropTarget::None
     }
-    fn get_tooltip_at(&self, local_pos: (f32, f32)) -> Option<Tooltip> {
+    fn get_tooltip_at(&self, _local_pos: (f32, f32)) -> Option<Tooltip> {
         None
     }
-    fn add_wires(&self, wire_tracker: &mut WireTracker) {}
+    fn add_wires(&self, _wire_tracker: &mut WireTracker) {}
 }
 
 pub trait PopupMenu {
@@ -36,10 +36,10 @@ pub trait PopupMenu {
     fn get_bounds(&self) -> (f32, f32);
     fn draw(&self, g: &mut GrahpicsWrapper);
 
-    fn respond_to_mouse_press(&self, local_pos: (f32, f32), mods: &MouseMods) -> MouseAction {
+    fn respond_to_mouse_press(&self, _local_pos: (f32, f32), _mods: &MouseMods) -> MouseAction {
         MouseAction::None
     }
-    fn get_tooltip_at(&self, local_pos: (f32, f32)) -> Option<Tooltip> {
+    fn get_tooltip_at(&self, _local_pos: (f32, f32)) -> Option<Tooltip> {
         None
     }
 }

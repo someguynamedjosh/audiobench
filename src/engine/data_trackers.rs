@@ -148,7 +148,7 @@ impl InputPacker {
     const PITCH_WHEEL_DEADZONE: f32 = 0.1;
     // The extra division makes it so the ends of the pitch wheel still reach the specified value
     // considering the deadzone.
-        // Range: +- perfect fifth, todo: make adjustable
+    // Range: +- perfect fifth, todo: make adjustable
     const PITCH_WHEEL_RANGE: f32 = (7.0 / 12.0) / (1.0 - Self::PITCH_WHEEL_DEADZONE);
 
     pub(super) fn new(format: DataFormat) -> Self {

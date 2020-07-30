@@ -57,7 +57,7 @@ impl ModuleWidget for Knob {
 
     fn respond_to_mouse_press(
         &self,
-        local_pos: (f32, f32),
+        _local_pos: (f32, f32),
         mods: &MouseMods,
         parent_pos: (f32, f32),
     ) -> MouseAction {
@@ -78,11 +78,11 @@ impl ModuleWidget for Knob {
         }
     }
 
-    fn get_drop_target_at(&self, local_pos: (f32, f32)) -> DropTarget {
+    fn get_drop_target_at(&self, _local_pos: (f32, f32)) -> DropTarget {
         DropTarget::Control(Rc::clone(&self.control))
     }
 
-    fn get_tooltip_at(&self, local_pos: (f32, f32)) -> Option<Tooltip> {
+    fn get_tooltip_at(&self, _local_pos: (f32, f32)) -> Option<Tooltip> {
         Some(Tooltip {
             text: self.tooltip.clone(),
             interaction: InteractionHint::LeftClickAndDrag
@@ -106,7 +106,7 @@ impl ModuleWidget for Knob {
         &self,
         g: &mut GrahpicsWrapper,
         highlight: bool,
-        parent_pos: (f32, f32),
+        _parent_pos: (f32, f32),
         feedback_data: &[f32],
     ) {
         g.push_state();
@@ -231,11 +231,7 @@ impl PopupMenu for KnobEditor {
         self.size
     }
 
-    fn respond_to_mouse_press(
-        &self,
-        local_pos: (f32, f32),
-        mods: &MouseMods,
-    ) -> MouseAction {
+    fn respond_to_mouse_press(&self, local_pos: (f32, f32), mods: &MouseMods) -> MouseAction {
         // Yes, the last 0 is intentional. The center of the knob is not vertically centered.
         let (cx, cy) = (
             local_pos.0 - self.size.0 / 2.0,

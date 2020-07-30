@@ -95,8 +95,8 @@ impl ModuleWidget for TimingSelector {
     fn respond_to_mouse_press(
         &self,
         local_pos: (f32, f32),
-        mods: &MouseMods,
-        parent_pos: (f32, f32),
+        _mods: &MouseMods,
+        _parent_pos: (f32, f32),
     ) -> MouseAction {
         if local_pos.0 < grid(2) / 2.0 {
             MouseAction::SetComplexControl(
@@ -135,9 +135,9 @@ impl ModuleWidget for TimingSelector {
     fn draw(
         &self,
         g: &mut GrahpicsWrapper,
-        highlight: bool,
-        parent_pos: (f32, f32),
-        feedback_data: &[f32],
+        _highlight: bool,
+        _parent_pos: (f32, f32),
+        _feedback_data: &[f32],
     ) {
         g.push_state();
         g.apply_offset(self.pos.0, self.pos.1);

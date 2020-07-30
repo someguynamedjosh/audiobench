@@ -1,9 +1,6 @@
-use super::{IconButton, TextBox, TextField};
-use crate::gui::action::{GuiAction, MouseAction};
+use crate::gui::action::GuiAction;
 use crate::gui::constants::*;
 use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
-use crate::gui::{InteractionHint, MouseMods, Tooltip};
-use crate::registry::save_data::Patch;
 use crate::registry::Registry;
 use crate::util::*;
 

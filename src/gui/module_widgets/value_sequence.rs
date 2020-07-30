@@ -3,7 +3,7 @@ use super::{IntBoxBase, IntBoxImpl};
 use crate::engine::parts as ep;
 use crate::gui::action::MouseAction;
 use crate::gui::constants::*;
-use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
+use crate::gui::graphics::GrahpicsWrapper;
 use crate::gui::{InteractionHint, MouseMods, Tooltip};
 use crate::registry::yaml::YamlNode;
 use crate::registry::Registry;
@@ -66,8 +66,8 @@ impl ModuleWidget for ValueSequence {
     fn respond_to_mouse_press(
         &self,
         local_pos: (f32, f32),
-        mods: &MouseMods,
-        parent_pos: (f32, f32),
+        _mods: &MouseMods,
+        _parent_pos: (f32, f32),
     ) -> MouseAction {
         let num_steps = parse_sequence_length(&self.sequence_control);
         let step_width = self.width / num_steps as f32;
@@ -87,7 +87,7 @@ impl ModuleWidget for ValueSequence {
         }
     }
 
-    fn get_tooltip_at(&self, local_pos: (f32, f32)) -> Option<Tooltip> {
+    fn get_tooltip_at(&self, _local_pos: (f32, f32)) -> Option<Tooltip> {
         Some(Tooltip {
             text: self.tooltip.clone(),
             interaction: InteractionHint::LeftClickAndDrag.into(),
@@ -97,8 +97,8 @@ impl ModuleWidget for ValueSequence {
     fn draw(
         &self,
         g: &mut GrahpicsWrapper,
-        highlight: bool,
-        parent_pos: (f32, f32),
+        _highlight: bool,
+        _parent_pos: (f32, f32),
         feedback_data: &[f32],
     ) {
         assert_eq!(feedback_data.len(), 2);
@@ -205,7 +205,7 @@ impl ValueSequenceLength {
 
     fn get_defaults(
         outline: &GeneratedValueSequenceLengthOutline,
-        yaml: &YamlNode,
+        _yaml: &YamlNode,
     ) -> Result<Vec<(usize, String)>, String> {
         let p = format_value(1.0);
         let n = format_value(-1.0);

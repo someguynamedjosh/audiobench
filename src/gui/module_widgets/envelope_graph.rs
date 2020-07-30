@@ -37,8 +37,8 @@ impl ModuleWidget for EnvelopeGraph {
     fn draw(
         &self,
         g: &mut GrahpicsWrapper,
-        highlight: bool,
-        parent_pos: (f32, f32),
+        _highlight: bool,
+        _parent_pos: (f32, f32),
         feedback_data: &[f32],
     ) {
         g.push_state();

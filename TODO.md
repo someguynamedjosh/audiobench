@@ -1,5 +1,4 @@
 # Things with no dependencies
-- Clean up warnings
 - If a timing_selector is specified after a duration_box, the timing_selector complains it cannot 
   find the complex control for type_control.
 - Delete button for user patches, also move save to left hand side so it's harder to mix up with the
@@ -7,6 +6,7 @@
 - Check for updates over internet with new feature highlights
 - Straighten out color names
 - Make Nodespeak errors use squiggles instead of colors
+- Better way to pass extra data to module widget draw() functions
 
 # Things with missing dependencies
 - Variable range for pitch wheel

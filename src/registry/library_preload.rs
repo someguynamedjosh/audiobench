@@ -143,7 +143,10 @@ impl<R: Read + Seek> LibraryContentProvider for ZippedLibraryContentProvider<R> 
 }
 
 fn parse_library_info(name: &str, buffer: Vec<u8>) -> Result<LibraryInfo, String> {
-    assert!(ENGINE_VERSION < 0xFFFF, "ERROR: Engine version not provided during compilation.");
+    assert!(
+        ENGINE_VERSION < 0xFFFF,
+        "ERROR: Engine version not provided during compilation."
+    );
     let buffer_as_text = String::from_utf8(buffer).map_err(|e| {
         format!(
             "ERROR: Not a valid UTF-8 text document, caused by:\nERROR: {}",

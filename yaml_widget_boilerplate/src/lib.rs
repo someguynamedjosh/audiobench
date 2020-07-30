@@ -4,7 +4,7 @@ use proc_macro2::TokenStream as TokenStream2;
 use quote::{format_ident, quote};
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
-use syn::{braced, parenthesized, Expr, Ident, Token, Type};
+use syn::{parenthesized, Expr, Ident, Token};
 
 #[derive(PartialEq)]
 enum ConstructorItemType {
@@ -455,7 +455,6 @@ pub fn make_widget_outline_enum(args: TokenStream) -> TokenStream {
     let instantiate_body: Vec<_> = class_names
         .iter()
         .map(|name| {
-            let outline_struct_name = format_ident!("Generated{}Outline", name);
             quote! {
                 Self::#name(outline) => Box::new(
                     outline.instantiate(registry, controls, complex_controls)

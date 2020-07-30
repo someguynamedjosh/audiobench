@@ -65,7 +65,7 @@ impl MenuBar {
         self.status = None;
     }
 
-    pub fn respond_to_mouse_press(&self, mouse_pos: (f32, f32), mods: &MouseMods) -> MouseAction {
+    pub fn respond_to_mouse_press(&self, mouse_pos: (f32, f32), _mods: &MouseMods) -> MouseAction {
         if !mouse_pos.inside((99999.0, Self::HEIGHT)) {
             return MouseAction::None;
         }

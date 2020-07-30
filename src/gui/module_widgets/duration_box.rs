@@ -73,7 +73,7 @@ impl ModuleWidget for DurationBox {
         &self,
         local_pos: (f32, f32),
         mods: &MouseMods,
-        parent_pos: (f32, f32),
+        _parent_pos: (f32, f32),
     ) -> MouseAction {
         let val = &self.ccontrol.borrow().value;
         if val.contains('/') {
@@ -117,7 +117,7 @@ impl ModuleWidget for DurationBox {
         }
     }
 
-    fn get_tooltip_at(&self, local_pos: (f32, f32)) -> Option<Tooltip> {
+    fn get_tooltip_at(&self, _local_pos: (f32, f32)) -> Option<Tooltip> {
         Some(Tooltip {
             text: self.tooltip.clone(),
             interaction: InteractionHint::LeftClickAndDrag | InteractionHint::RightClick,
@@ -127,9 +127,9 @@ impl ModuleWidget for DurationBox {
     fn draw(
         &self,
         g: &mut GrahpicsWrapper,
-        highlight: bool,
-        parent_pos: (f32, f32),
-        feedback_data: &[f32],
+        _highlight: bool,
+        _parent_pos: (f32, f32),
+        _feedback_data: &[f32],
     ) {
         g.push_state();
         g.apply_offset(self.pos.0, self.pos.1);

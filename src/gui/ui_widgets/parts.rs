@@ -55,8 +55,8 @@ impl TextBox {
 
     pub fn respond_to_mouse_press(
         &mut self,
-        mouse_pos: (f32, f32),
-        mods: &MouseMods,
+        _mouse_pos: (f32, f32),
+        _mods: &MouseMods,
     ) -> MouseAction {
         self.blink_timer = std::time::Instant::now();
         MouseAction::FocusTextField(Rc::clone(&self.field))

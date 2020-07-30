@@ -2,12 +2,11 @@ use super::Module;
 use crate::engine::parts as ep;
 use crate::gui::action::{DropTarget, GuiAction, MouseAction};
 use crate::gui::constants::*;
-use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
-use crate::gui::module_widgets::{self, ModuleWidget, PopupMenu};
+use crate::gui::graphics::GrahpicsWrapper;
+use crate::gui::module_widgets::PopupMenu;
 use crate::gui::{Gui, InteractionHint, MouseMods, Tooltip};
 use crate::registry::Registry;
 use crate::util::*;
-use std::f32::consts::PI;
 
 pub struct ModuleGraph {
     pub pos: (f32, f32),

@@ -539,7 +539,9 @@ impl MouseAction {
                 return Some(GuiAction::Elevate(InstanceAction::NewPatch(callback)))
             }
             Self::LoadPatch(patch, callback) => {
-                return Some(GuiAction::Elevate(InstanceAction::LoadPatch(patch, callback)))
+                return Some(GuiAction::Elevate(InstanceAction::LoadPatch(
+                    patch, callback,
+                )))
             }
             Self::RemoveLane(control, lane) => {
                 control.borrow_mut().automation.remove(lane);

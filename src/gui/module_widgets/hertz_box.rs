@@ -5,13 +5,11 @@ use crate::gui::constants::*;
 use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
 use crate::gui::{InteractionHint, MouseMods, Tooltip};
 use crate::registry::yaml::YamlNode;
-use crate::registry::Registry;
 use crate::util::*;
 
 yaml_widget_boilerplate::make_widget_outline! {
     widget_struct: HertzBox,
     constructor: create(
-        registry: RegistryRef,
         pos: GridPos,
         control: ComplexControlRef,
         range: FloatRange,
@@ -34,7 +32,6 @@ impl HertzBox {
     const WIDTH: f32 = grid(3);
     const HEIGHT: f32 = grid(2) - FONT_SIZE - GRID_P / 2.0;
     pub fn create(
-        registry: &Registry,
         pos: (f32, f32),
         ccontrol: Rcrc<ep::ComplexControl>,
         range: (f32, f32),
@@ -74,15 +71,10 @@ impl ModuleWidget for HertzBox {
     }
     fn respond_to_mouse_press(
         &self,
-        local_pos: (f32, f32),
-        mods: &MouseMods,
-        parent_pos: (f32, f32),
+        _local_pos: (f32, f32),
+        _mods: &MouseMods,
+        _parent_pos: (f32, f32),
     ) -> MouseAction {
-        let click_delta = if local_pos.1 > HertzBox::HEIGHT / 2.0 {
-            -1
-        } else {
-            1
-        };
         MouseAction::ManipulateHertzControl {
             cref: Rc::clone(&self.ccontrol),
             min: self.range.0,
@@ -91,7 +83,7 @@ impl ModuleWidget for HertzBox {
         }
     }
 
-    fn get_tooltip_at(&self, local_pos: (f32, f32)) -> Option<Tooltip> {
+    fn get_tooltip_at(&self, _local_pos: (f32, f32)) -> Option<Tooltip> {
         Some(Tooltip {
             text: self.tooltip.clone(),
             interaction: InteractionHint::LeftClickAndDrag | InteractionHint::DoubleClick,
@@ -101,9 +93,9 @@ impl ModuleWidget for HertzBox {
     fn draw(
         &self,
         g: &mut GrahpicsWrapper,
-        highlight: bool,
-        parent_pos: (f32, f32),
-        feedback_data: &[f32],
+        _highlight: bool,
+        _parent_pos: (f32, f32),
+        _feedback_data: &[f32],
     ) {
         g.push_state();
         g.apply_offset(self.pos.0, self.pos.1);

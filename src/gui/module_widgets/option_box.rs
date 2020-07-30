@@ -1,10 +1,10 @@
 use super::ModuleWidget;
-use crate::registry::yaml::YamlNode;
 use crate::engine::parts as ep;
-use crate::gui::action::{MouseAction};
+use crate::gui::action::MouseAction;
 use crate::gui::constants::*;
 use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
 use crate::gui::{InteractionHint, MouseMods, Tooltip};
+use crate::registry::yaml::YamlNode;
 use crate::util::*;
 
 yaml_widget_boilerplate::make_widget_outline! {
@@ -76,8 +76,8 @@ impl ModuleWidget for OptionBox {
     fn respond_to_mouse_press(
         &self,
         local_pos: (f32, f32),
-        mods: &MouseMods,
-        parent_pos: (f32, f32),
+        _mods: &MouseMods,
+        _parent_pos: (f32, f32),
     ) -> MouseAction {
         let height_per_option =
             (self.size.1 - FONT_SIZE - GRID_P / 2.0) / self.options.len() as f32;
@@ -92,7 +92,7 @@ impl ModuleWidget for OptionBox {
         }
     }
 
-    fn get_tooltip_at(&self, local_pos: (f32, f32)) -> Option<Tooltip> {
+    fn get_tooltip_at(&self, _local_pos: (f32, f32)) -> Option<Tooltip> {
         Some(Tooltip {
             text: self.tooltip.clone(),
             interaction: InteractionHint::LeftClick | InteractionHint::DoubleClick,
@@ -102,9 +102,9 @@ impl ModuleWidget for OptionBox {
     fn draw(
         &self,
         g: &mut GrahpicsWrapper,
-        highlight: bool,
-        parent_pos: (f32, f32),
-        feedback_data: &[f32],
+        _highlight: bool,
+        _parent_pos: (f32, f32),
+        _feedback_data: &[f32],
     ) {
         g.push_state();
         g.apply_offset(self.pos.0, self.pos.1);

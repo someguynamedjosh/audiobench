@@ -10,8 +10,7 @@ pub const fn grid(num_spaces: i32) -> f32 {
     (GRID_1 * num_spaces + GRID_P_INT * (num_spaces - 1)) as f32
 }
 
-/// Like grid, but returns the amount of space used including extra outside padding. Use  
-/// alongside the fatcoord function.
+/// Like grid, but returns the amount of space used including extra outside padding.
 pub const fn fatgrid(num_spaces: i32) -> f32 {
     (GRID_1 * num_spaces + GRID_P_INT * (num_spaces + 1)) as f32
 }
@@ -20,10 +19,6 @@ pub const fn fatgrid(num_spaces: i32) -> f32 {
 /// GRID_P and 1 would return GRID_1 + GRID_P * 2.
 pub const fn coord(index: i32) -> f32 {
     (GRID_1 * index + GRID_P_INT * (index + 1)) as f32
-}
-/// Like coord, but allows space for extra padding. Use alongside the fatgrid function.
-pub const fn fatcoord(index: i32) -> f32 {
-    (GRID_1 * index + GRID_P_INT * index) as f32
 }
 
 pub const KNOB_OUTSIDE_SPACE: f32 = 1.0;
@@ -65,7 +60,7 @@ const fn hex_color(hex: u32) -> (u8, u8, u8) {
     )
 }
 
-pub const COLOR_DEBUG: (u8, u8, u8) = hex_color(0xFF00FF);
+// pub const COLOR_DEBUG: (u8, u8, u8) = hex_color(0xFF00FF);
 pub const COLOR_BG: (u8, u8, u8) = hex_color(0x121520);
 pub const COLOR_SURFACE: (u8, u8, u8) = hex_color(0x48525F);
 pub const COLOR_IO_AREA: (u8, u8, u8) = hex_color(0x2F434F);
@@ -73,6 +68,6 @@ pub const COLOR_ERROR: (u8, u8, u8) = hex_color(0xFF0022);
 pub const COLOR_SUCCESS: (u8, u8, u8) = hex_color(0x038c23);
 pub const COLOR_KNOB: (u8, u8, u8) = hex_color(0xFF0022);
 pub const COLOR_AUTOMATION: (u8, u8, u8) = hex_color(0xC7D5E8);
-pub const COLOR_AUTOMATION_FOCUSED: (u8, u8, u8) = hex_color(0x54bdff);
+// pub const COLOR_AUTOMATION_FOCUSED: (u8, u8, u8) = hex_color(0x54bdff);
 pub const COLOR_TEXT: (u8, u8, u8) = (0xFF, 0xFF, 0xFF);
 pub const COLOR_MUTED_TEXT: (u8, u8, u8) = (0x77, 0x77, 0x77);
