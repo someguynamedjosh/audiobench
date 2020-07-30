@@ -14,6 +14,7 @@ use std::time::{Duration, Instant};
 pub enum InteractionHint {
     LeftClick = 0x1,
     RightClick = 0x2,
+    Scroll = 0x40,
     LeftClickAndDrag = 0x4,
     DoubleClick = 0x8,
     Alt = 0x10,

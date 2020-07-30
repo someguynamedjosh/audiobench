@@ -1,5 +1,4 @@
 # Things with no dependencies
-- Make the interaction hints less ugly and cluttery.
 - Clean up warnings
 - If a timing_selector is specified after a duration_box, the timing_selector complains it cannot 
   find the complex control for type_control.
@@ -39,7 +38,6 @@
 - Hint that enter can be pressed in typing widget
 - Different cursors on hover
 - Crossfade module
-- Scroll wheel hint
 - Say specifically which library unwritable patches come from, not just \[factory\].
 - Comb filter
 - Fuzz testing to ensure save_data deserialization always exits gracefully on corrupt data

@@ -1,8 +1,8 @@
-use crate::registry::Registry;
 use crate::gui::action::MouseAction;
 use crate::gui::constants::*;
 use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
 use crate::gui::{GuiScreen, InteractionHint, MouseMods, Status, Tooltip};
+use crate::registry::Registry;
 use crate::util::*;
 
 pub struct MenuBar {
@@ -10,8 +10,8 @@ pub struct MenuBar {
     screen_icons: Vec<usize>,
     lclick: usize,
     rclick: usize,
+    scroll: usize,
     drag: usize,
-    and: usize,
     alt: usize,
     shift: usize,
     tooltip: Tooltip,
@@ -31,8 +31,8 @@ impl MenuBar {
             screen_icons,
             lclick: registry.lookup_icon("factory:left_click").unwrap(),
             rclick: registry.lookup_icon("factory:right_click").unwrap(),
+            scroll: registry.lookup_icon("factory:scroll").unwrap(),
             drag: registry.lookup_icon("factory:move").unwrap(),
-            and: registry.lookup_icon("factory:add").unwrap(),
             alt: registry.lookup_icon("factory:alt").unwrap(),
             shift: registry.lookup_icon("factory:shift").unwrap(),
             tooltip: Default::default(),
@@ -77,6 +77,42 @@ impl MenuBar {
         }
     }
 
+    fn draw_hint(
+        &self,
+        hint: InteractionHint,
+        g: &mut GrahpicsWrapper,
+        rx: f32,
+        y: f32,
+        icons: &[usize],
+    ) -> f32 {
+        const HINT_HEIGHT: f32 = grid(1) - 2.0;
+        const ICON_PAD: f32 = 1.0;
+        const ICON_SIZE: f32 = HINT_HEIGHT - ICON_PAD * 2.0;
+        fn hint_width(num_icons: f32) -> f32 {
+            (ICON_SIZE + ICON_PAD) * num_icons + ICON_PAD
+        }
+
+        let active = self.tooltip.interaction.contains(hint) && !self.status.is_some();
+
+        let w = hint_width(icons.len() as f32);
+        if active {
+            let x = rx - GRID_P - w;
+            g.set_color(&COLOR_TEXT);
+            g.fill_rounded_rect(x, y, w, HINT_HEIGHT, CORNER_SIZE);
+            for (index, icon) in icons.iter().enumerate() {
+                g.draw_icon(
+                    *icon,
+                    x + ICON_PAD + (ICON_PAD + ICON_SIZE) * index as f32,
+                    y + ICON_PAD,
+                    ICON_SIZE,
+                );
+            }
+            x
+        } else {
+            rx
+        }
+    }
+
     pub fn draw(&self, width: f32, current_screen: GuiScreen, g: &mut GrahpicsWrapper) {
         let current_screen_index = self
             .screens
@@ -102,102 +138,14 @@ impl MenuBar {
             CS,
         );
 
-        const HINT_HEIGHT: f32 = grid(1) - 2.0;
-        const ICON_PAD: f32 = 1.0;
-        const ICON_SIZE: f32 = HINT_HEIGHT - ICON_PAD * 2.0;
-        const HINT_AREA_WIDTH: f32 = ICON_SIZE * 5.0 + GP * 4.0 + ICON_PAD * 7.0;
-        let status = self.status.is_some();
-        {
-            g.set_color(&COLOR_SURFACE);
-            g.fill_rounded_rect(
-                width - HINT_AREA_WIDTH,
-                0.0,
-                HINT_AREA_WIDTH,
-                HINT_HEIGHT * 2.0 + GP * 3.0,
-                CS,
-            );
-
-            const Y1: f32 = GP;
-            const Y2: f32 = Y1 + HINT_HEIGHT + GP;
-            fn hint_width(num_icons: f32) -> f32 {
-                (ICON_SIZE + ICON_PAD) * num_icons + ICON_PAD
-            }
-            fn draw_hint(
-                active: bool,
-                g: &mut GrahpicsWrapper,
-                rx: f32,
-                y: f32,
-                icons: &[usize],
-            ) -> f32 {
-                let w = hint_width(icons.len() as f32);
-                let x = rx - GP - w;
-                if active {
-                    g.set_color(&COLOR_TEXT);
-                } else {
-                    g.set_color(&COLOR_BG);
-                }
-                g.fill_rounded_rect(x, y, w, HINT_HEIGHT, CS);
-                if active {
-                    for (index, icon) in icons.iter().enumerate() {
-                        g.draw_icon(
-                            *icon,
-                            x + ICON_PAD + (ICON_PAD + ICON_SIZE) * index as f32,
-                            y + ICON_PAD,
-                            ICON_SIZE,
-                        );
-                    }
-                }
-                x
-            }
-
-            g.set_color(&COLOR_BG);
-            let active = self
-                .tooltip
-                .interaction
-                .contains(InteractionHint::Shift)
-                && !status;
-            let x = draw_hint(active, g, width, Y1, &[self.shift]);
-            let active = self
-                .tooltip
-                .interaction
-                .contains(InteractionHint::LeftClickAndDrag)
-                && !status;
-            let x = draw_hint(active, g, x, Y1, &[self.lclick, self.and, self.drag]);
-            let active = self
-                .tooltip
-                .interaction
-                .contains(InteractionHint::LeftClick)
-                || status;
-            draw_hint(active, g, x, Y1, &[self.lclick]);
-
-            let active = self
-                .tooltip
-                .interaction
-                .contains(InteractionHint::Alt)
-                && !status;
-            let x = draw_hint(active, g, width, Y2, &[self.alt]);
-            let active = self
-                .tooltip
-                .interaction
-                .contains(InteractionHint::DoubleClick)
-                && !status;
-            let x = draw_hint(active, g, x, Y2, &[self.lclick, self.and, self.lclick]);
-            let active = self
-                .tooltip
-                .interaction
-                .contains(InteractionHint::RightClick)
-                && !status;
-            draw_hint(active, g, x, Y2, &[self.rclick]);
-        }
-
         let tooltip_x = coord(self.screens.len() as i32) + GP;
-        let tooltip_width = width - HINT_AREA_WIDTH - tooltip_x;
+        let tooltip_width = width - tooltip_x;
         if let Some(status) = self.status.as_ref() {
             g.set_color(&status.color);
         } else {
             g.set_color(&COLOR_BG);
         }
-        g.fill_rounded_rect(tooltip_x, coord(0), tooltip_width, ITEM_HEIGHT, CS);
+        g.fill_rounded_rect(tooltip_x, coord(0), tooltip_width + CS, ITEM_HEIGHT, CS);
         let text_x = tooltip_x + GP;
         let text_width = tooltip_width - GP * 2.0;
         g.set_color(&COLOR_TEXT);
@@ -217,6 +165,25 @@ impl MenuBar {
             1,
             text,
         );
+
+        g.set_color(&COLOR_BG);
+        let mut x = width + GP2;
+        let hints = [
+            (InteractionHint::Alt, vec![self.alt]),
+            (InteractionHint::Shift, vec![self.shift]),
+            (
+                InteractionHint::LeftClickAndDrag,
+                vec![self.lclick, self.drag],
+            ),
+            (InteractionHint::DoubleClick, vec![self.lclick, self.lclick]),
+            (InteractionHint::Scroll, vec![self.scroll]),
+            (InteractionHint::RightClick, vec![self.rclick]),
+            (InteractionHint::LeftClick, vec![self.lclick]),
+        ];
+        for (hint, icons) in &hints {
+            // No idea why the extra +0.5 is necessary.
+            x = self.draw_hint(*hint, g, x, GP * 1.5 + 0.5, icons);
+        }
 
         for (index, icon) in self.screen_icons.iter().enumerate() {
             let index = index as i32;

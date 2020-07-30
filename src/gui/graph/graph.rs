@@ -1,11 +1,11 @@
 use super::Module;
 use crate::engine::parts as ep;
-use crate::registry::Registry;
 use crate::gui::action::{DropTarget, GuiAction, MouseAction};
 use crate::gui::constants::*;
 use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
 use crate::gui::module_widgets::{self, ModuleWidget, PopupMenu};
 use crate::gui::{Gui, InteractionHint, MouseMods, Tooltip};
+use crate::registry::Registry;
 use crate::util::*;
 use std::f32::consts::PI;
 
@@ -181,7 +181,10 @@ impl ModuleGraph {
                 return Some(tooltip);
             }
         }
-        None
+        Some(Tooltip {
+            text: "".to_owned(),
+            interaction: InteractionHint::Scroll.into(),
+        })
     }
 
     pub fn draw(&self, g: &mut GrahpicsWrapper, gui_state: &Gui) {

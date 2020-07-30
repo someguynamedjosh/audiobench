@@ -185,7 +185,7 @@ impl PatchBrowser {
         if mouse_pos.0 <= hw && mouse_pos.1 > self.name_box.size.1 + GRID_P {
             return Some(Tooltip {
                 text: "Click a patch to load it".to_owned(),
-                interaction: InteractionHint::LeftClick.into(),
+                interaction: InteractionHint::LeftClick | InteractionHint::Scroll,
             });
         }
         None
