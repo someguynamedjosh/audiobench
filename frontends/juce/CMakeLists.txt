@@ -114,6 +114,7 @@ if(WIN32)
         # AudioPluginData           # If we'd created a binary data target, we'd link to it here
         juce::juce_audio_utils
         "$ENV{RUST_OUTPUT_DIR}/audiobench.lib"
+        Crypt32
         ws2_32
         userenv
     )
