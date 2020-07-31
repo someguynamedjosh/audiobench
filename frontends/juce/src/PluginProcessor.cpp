@@ -224,7 +224,7 @@ AudioProcessorEditor* AudiobenchAudioProcessor::createEditor()
 void AudiobenchAudioProcessor::getStateInformation (MemoryBlock& destData)
 {
     char *dataPtr;
-    uint dataLen;
+    uint32_t dataLen;
     ABSerializePatch(ab, &dataPtr, &dataLen);
     destData.append((void*) dataPtr, dataLen);
     ABCleanupSerializedData(dataPtr, dataLen);

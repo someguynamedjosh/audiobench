@@ -3,9 +3,11 @@
 - Make Nodespeak errors use squiggles instead of colors
 - Better way to pass extra data to module widget draw() functions
 - Make website look nice
+- Make window resizable
 
 # Things with missing dependencies
 - Variable range for pitch wheel
+- Optional variable smoothing for MIDI controls
 
 # Low-priority things without dependencies
 - Output silent audio while recompiling instead of hanging the thread
@@ -18,15 +20,10 @@
   - alphabetical sort vs category sort
   - require certain inputs / outputs
   - scrollbar too maybe
-- Make window resizable
-- Nicer error when a patch requires newer modules (not just "patch is corrupt")
 - Higher precision for MIDI controls
 - Optional smoothing for MIDI controls
-- Reorganize engine modules and their contents
 - Things for making waveforms using harmonics of other waveforms
 - Update tooltip when clicking on timing control
-- Add and/or/xor to nodespeak
-- Optional variable smoothing for MIDI controls
 - Line artifact when rendering default inputs
 - Better integration with other VST library preset methods
 - Dependency checks between libraries
@@ -36,7 +33,6 @@
 - Say specifically which library unwritable patches come from, not just \[factory\].
 - Comb filter
 - Fuzz testing to ensure save_data deserialization always exits gracefully on corrupt data
-- Scrolling on library info page
 - Add type bounds for AUTO variables
 
 # Code organization stuff
@@ -58,7 +54,3 @@
 - Library browser
 
 # Forward compatibility things
-- patchs should have spots for multiple graphs
-- patchs should store tags, just a list of strings
-- Builtin modules can use the same save syntax as other modules, using one or more complex controls to
-  store their extra data.
