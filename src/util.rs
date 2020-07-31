@@ -9,6 +9,10 @@ pub const ENGINE_INFO: &'static str = concat!(
     "General Public License, Version 3. Source code is available at ",
     "https://gitlab.com/Code_Cube/audio-bench."
 );
+#[cfg(debug_assertions)]
+pub const ENGINE_UPDATE_URL: &'static str = "http://localhost:8000/latest.json";
+#[cfg(not(debug_assertions))]
+pub const ENGINE_UPDATE_URL: &'static str = "https://bit.ly/audiobench-engine-update-check";
 
 use num::Float;
 

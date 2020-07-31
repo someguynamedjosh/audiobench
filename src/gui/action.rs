@@ -33,6 +33,7 @@ pub enum GuiAction {
     RemoveModule(Rcrc<ep::Module>),
     FocusTextField(Rcrc<TextField>),
     Elevate(InstanceAction),
+    OpenWebpage(String),
 }
 
 // TODO: Organize this?
@@ -89,6 +90,7 @@ pub enum MouseAction {
     SimpleCallback(Box<dyn FnMut()>),
     CopyPatchToClipboard,
     PastePatchFromClipboard(Box<dyn FnMut(&Rcrc<Patch>)>),
+    OpenWebpage(String),
 }
 
 fn maybe_snap_value(value: f32, range: (f32, f32), mods: &MouseMods) -> f32 {
@@ -595,6 +597,7 @@ impl MouseAction {
                     callback,
                 )))
             }
+            Self::OpenWebpage(url) => return Some(GuiAction::OpenWebpage(url)),
             _ => (),
         }
         None

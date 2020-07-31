@@ -309,8 +309,8 @@ impl Instance {
             self.engine.as_mut().unwrap().display_new_feedback_data();
             g.set_color(&gui::constants::COLOR_BG);
             g.clear();
-            if let Some(gui) = &self.gui {
-                gui.draw(&mut g);
+            if let Some(gui) = &mut self.gui {
+                gui.draw(&mut g, &mut self.registry);
             } else {
                 panic!("draw_ui called before GUI was created!");
             }

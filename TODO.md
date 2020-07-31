@@ -1,8 +1,8 @@
 # Things with no dependencies
-- Check for updates over internet with new feature highlights
 - Straighten out color names
 - Make Nodespeak errors use squiggles instead of colors
 - Better way to pass extra data to module widget draw() functions
+- Make website look nice
 
 # Things with missing dependencies
 - Variable range for pitch wheel
@@ -23,7 +23,6 @@
 - Higher precision for MIDI controls
 - Optional smoothing for MIDI controls
 - Reorganize engine modules and their contents
-- Make website look nice
 - Things for making waveforms using harmonics of other waveforms
 - Update tooltip when clicking on timing control
 - Add and/or/xor to nodespeak

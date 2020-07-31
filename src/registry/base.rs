@@ -1,5 +1,6 @@
 use super::library_preload::{self, PreloadedLibrary, ZippedLibraryContentProvider};
 use super::save_data::Patch;
+use super::update_check::{self, UpdateInfo};
 use super::yaml;
 use crate::engine::parts::Module;
 use crate::util::*;
@@ -7,6 +8,7 @@ use rand::RngCore;
 use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::PathBuf;
+use std::sync::mpsc::{self, Receiver, TryRecvError};
 
 pub use super::library_preload::LibraryInfo;
 
@@ -26,6 +28,8 @@ pub struct Registry {
 
     library_path: PathBuf,
     library_info: HashMap<String, LibraryInfo>,
+    checked_updates: HashMap<String, Option<UpdateInfo>>,
+    update_check_stream: Receiver<(String, Option<UpdateInfo>)>,
 }
 
 enum DelayedError {
@@ -296,6 +300,10 @@ impl Registry {
             document_dir.join("Audiobench")
         };
 
+        let (sender, receiver) = mpsc::channel();
+        let update_urls = vec![ENGINE_UPDATE_URL.to_owned()];
+        update_check::spawn_update_checker(update_urls, sender);
+
         let mut registry = Self {
             modules: Vec::new(),
             modules_by_resource_id: HashMap::new(),
@@ -308,6 +316,8 @@ impl Registry {
             patch_paths: HashMap::new(),
             library_path,
             library_info: HashMap::new(),
+            checked_updates: HashMap::new(),
+            update_check_stream: receiver,
         };
         let result = registry.initialize();
 
@@ -364,5 +374,32 @@ impl Registry {
 
     pub fn borrow_library_infos(&self) -> impl Iterator<Item = &LibraryInfo> {
         self.library_info.values()
+    }
+
+    // Returns true if the update checker is still running.
+    pub fn poll_update_checker(&mut self) -> bool {
+        loop {
+            let res = self.update_check_stream.try_recv();
+            match res {
+                Ok((url, result)) => {
+                    self.checked_updates.insert(url, result);
+                }
+                Err(TryRecvError::Disconnected) => return false,
+                Err(TryRecvError::Empty) => return true,
+            }
+        }
+    }
+
+    pub fn borrow_update_info(&self, url: &str) -> Option<&Option<UpdateInfo>> {
+        self.checked_updates.get(url)
+    }
+
+    pub fn any_updates_available(&self) -> bool {
+        if let Some(Some(info)) = self.checked_updates.get(ENGINE_UPDATE_URL) {
+            if info.version > ENGINE_VERSION {
+                return true;
+            }
+        }
+        false
     }
 }

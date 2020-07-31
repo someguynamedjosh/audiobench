@@ -131,6 +131,8 @@ else()
         "$ENV{RUST_OUTPUT_DIR}/libaudiobench.a"
         z
         curses
+        ssl
+        crypto
         ${XCB_LIBRARIES}
     )
 endif()

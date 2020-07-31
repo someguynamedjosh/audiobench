@@ -94,7 +94,7 @@ impl GuiScreen {
     pub fn get_tooltip_text(&self) -> &'static str {
         match self {
             Self::LibraryBrowser => {
-                "Info / Library Browser: View current Audiobench version and installed libraries"
+                "Info/Library Browser: View current Audiobench version and installed libraries"
             }
             Self::PatchBrowser => "Patch Browser: Save and load patches",
             Self::NoteGraph => "Note Graph: Edit the module graph used to synthesize notes",
@@ -119,6 +119,7 @@ pub struct Gui {
     dragged: bool,
     last_click: Instant,
     focused_text_field: Option<Rcrc<gui::ui_widgets::TextField>>,
+    update_check_complete: bool,
 }
 
 impl Gui {
@@ -156,6 +157,7 @@ impl Gui {
             dragged: false,
             last_click: Instant::now() - Duration::from_secs(100),
             focused_text_field: None,
+            update_check_complete: false,
         }
     }
 
@@ -171,9 +173,21 @@ impl Gui {
         self.menu_bar.clear_status();
     }
 
-    pub fn draw(&self, g: &mut GrahpicsWrapper) {
+    pub fn draw(&mut self, g: &mut GrahpicsWrapper, registry: &mut Registry) {
+        if !self.update_check_complete {
+            // Returns false when update checker is complete.
+            if !registry.poll_update_checker() {
+                self.update_check_complete = true;
+                if registry.any_updates_available() {
+                    self.display_success(
+                        "Updates are available! Go to the Info/Libraries tab to view them"
+                            .to_owned(),
+                    );
+                }
+            }
+        }
         match self.current_screen {
-            GuiScreen::LibraryBrowser => self.library_browser.draw(g),
+            GuiScreen::LibraryBrowser => self.library_browser.draw(g, &*registry),
             GuiScreen::PatchBrowser => self.patch_browser.draw(g),
             GuiScreen::NoteGraph => self.graph.draw(g, self),
             GuiScreen::ModuleBrowser => self.module_browser.draw(g),
@@ -202,7 +216,7 @@ impl Gui {
             self.mouse_action = self.menu_bar.respond_to_mouse_press(pos, mods);
         } else {
             self.mouse_action = match self.current_screen {
-                GuiScreen::LibraryBrowser => MouseAction::None,
+                GuiScreen::LibraryBrowser => self.library_browser.respond_to_mouse_press(pos, mods),
                 GuiScreen::PatchBrowser => self.patch_browser.respond_to_mouse_press(pos, mods),
                 GuiScreen::NoteGraph => self.graph.respond_to_mouse_press(pos, mods),
                 GuiScreen::ModuleBrowser => self.module_browser.respond_to_mouse_press(pos, mods),
@@ -250,7 +264,7 @@ impl Gui {
         }
         if new_tooltip.is_none() {
             new_tooltip = match self.current_screen {
-                GuiScreen::LibraryBrowser => None,
+                GuiScreen::LibraryBrowser => self.library_browser.get_tooltip_at(new_pos),
                 GuiScreen::PatchBrowser => self.patch_browser.get_tooltip_at(new_pos),
                 GuiScreen::NoteGraph => self.graph.get_tooltip_at(new_pos),
                 GuiScreen::ModuleBrowser => self.module_browser.get_tooltip_at(new_pos),
@@ -290,6 +304,15 @@ impl Gui {
                 self.focused_text_field = Some(field);
             }
             GuiAction::Elevate(action) => return Some(action),
+            GuiAction::OpenWebpage(url) => {
+                if let Err(err) = webbrowser::open(&url) {
+                    self.display_error(format!("Failed to open webpage, see console for details."));
+                    eprintln!(
+                        "WARNING: Failed to open web browser, caused by:\nERROR: {}",
+                        err
+                    );
+                }
+            }
         }
         None
     }
