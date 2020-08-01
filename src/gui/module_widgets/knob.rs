@@ -12,7 +12,7 @@ yaml_widget_boilerplate::make_widget_outline! {
     widget_struct: Knob,
     constructor: create(
         pos: GridPos,
-        control: ControlRef,
+        control: AutoconRef,
         label: String,
         tooltip: String,
     ),
@@ -22,7 +22,7 @@ yaml_widget_boilerplate::make_widget_outline! {
 #[derive(Clone)]
 pub struct Knob {
     tooltip: String,
-    control: Rcrc<ep::Control>,
+    control: Rcrc<ep::Autocon>,
     // This allows the knob to share feedback data with the right-click menu when it it open.
     value: Rcrc<f32>,
     pos: (f32, f32),
@@ -32,7 +32,7 @@ pub struct Knob {
 impl Knob {
     pub fn create(
         pos: (f32, f32),
-        control: Rcrc<ep::Control>,
+        control: Rcrc<ep::Autocon>,
         label: String,
         tooltip: String,
     ) -> Knob {
@@ -79,7 +79,7 @@ impl ModuleWidget for Knob {
     }
 
     fn get_drop_target_at(&self, _local_pos: (f32, f32)) -> DropTarget {
-        DropTarget::Control(Rc::clone(&self.control))
+        DropTarget::Autocon(Rc::clone(&self.control))
     }
 
     fn get_tooltip_at(&self, _local_pos: (f32, f32)) -> Option<Tooltip> {
@@ -191,7 +191,7 @@ impl ModuleWidget for Knob {
 
 #[derive(Clone)]
 pub struct KnobEditor {
-    control: Rcrc<ep::Control>,
+    control: Rcrc<ep::Autocon>,
     value: Rcrc<f32>,
     pos: (f32, f32),
     size: (f32, f32),
@@ -201,7 +201,7 @@ pub struct KnobEditor {
 
 impl KnobEditor {
     fn create(
-        control: Rcrc<ep::Control>,
+        control: Rcrc<ep::Autocon>,
         value: Rcrc<f32>,
         center_pos: (f32, f32),
         label: String,

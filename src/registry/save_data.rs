@@ -321,7 +321,7 @@ struct SavedControl {
 
 impl SavedControl {
     fn save(
-        control: &ep::Control,
+        control: &ep::Autocon,
         module_indexes: &HashMap<*const RefCell<ep::Module>, usize>,
     ) -> Self {
         let range = control.range;
@@ -342,7 +342,7 @@ impl SavedControl {
         }
     }
 
-    fn restore(&self, on: &mut ep::Control, modules: &[Rcrc<ep::Module>]) {
+    fn restore(&self, on: &mut ep::Autocon, modules: &[Rcrc<ep::Module>]) {
         if let Some(value) = self.value {
             let value = unpack_value(value, on.range);
             on.value = value;

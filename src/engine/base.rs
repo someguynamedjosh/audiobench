@@ -1,6 +1,6 @@
 use super::codegen::{self, CodeGenResult};
 use super::data_trackers::{
-    AudiobenchCompiler, AudiobenchProgram, AuxDataCollector, DataFormat, FeedbackDisplayer,
+    AudiobenchCompiler, AudiobenchProgram, AutoconDynDataCollector, DataFormat, FeedbackDisplayer,
     HostData, HostFormat, InputPacker, NoteTracker, OutputUnpacker,
 };
 use super::parts::ModuleGraph;
@@ -15,7 +15,7 @@ const FEEDBACK_UPDATE_INTERVAL: Duration = Duration::from_millis(50);
 
 struct UiThreadData {
     module_graph: Rcrc<ModuleGraph>,
-    aux_data_collector: AuxDataCollector,
+    autocon_dyn_data_collector: AutoconDynDataCollector,
     feedback_displayer: FeedbackDisplayer,
     current_patch_save_data: Rcrc<Patch>,
 }
@@ -73,7 +73,7 @@ impl Engine {
             })?;
         let CodeGenResult {
             code,
-            aux_data_collector,
+            autocon_dyn_data_collector,
             feedback_displayer,
             data_format,
         } = codegen::generate_code(&module_graph, &host_format).map_err(|_| {
@@ -85,7 +85,7 @@ impl Engine {
         })?;
         let utd = UiThreadData {
             module_graph: rcrc(module_graph),
-            aux_data_collector,
+            autocon_dyn_data_collector,
             feedback_displayer,
             current_patch_save_data: default_patch,
         };
@@ -204,17 +204,17 @@ impl Engine {
             .map_err(|_| format!("The note graph cannot contain feedback loops"))?;
         drop(module_graph_ref);
         ctd.new_source = Some((new_gen.code, new_gen.data_format.clone()));
-        ctd.new_aux_input = Some(new_gen.aux_data_collector.collect_data());
+        ctd.new_aux_input = Some(new_gen.autocon_dyn_data_collector.collect_data());
         ctd.new_feedback_data = None;
-        self.utd.aux_data_collector = new_gen.aux_data_collector;
+        self.utd.autocon_dyn_data_collector = new_gen.autocon_dyn_data_collector;
         self.utd.feedback_displayer = new_gen.feedback_displayer;
         Ok(())
     }
 
-    pub fn reload_aux_data(&mut self) {
+    pub fn reload_autocon_dyn_data(&mut self) {
         let mut ctd = self.ctd_mux.lock().unwrap();
 
-        ctd.new_aux_input = Some(self.utd.aux_data_collector.collect_data());
+        ctd.new_aux_input = Some(self.utd.autocon_dyn_data_collector.collect_data());
     }
 
     /// Feedback data is generated on the audio thread. This method uses a mutex to retrieve that
@@ -313,8 +313,8 @@ impl Engine {
                 }
             }
         }
-        if let Some(new_aux_data) = ctd.new_aux_input.take() {
-            self.atd.input.set_aux_data(&new_aux_data[..]);
+        if let Some(new_autocon_dyn_data) = ctd.new_aux_input.take() {
+            self.atd.input.set_autocon_dyn_data(&new_autocon_dyn_data[..]);
         }
         let audio_buf_len = ctd.host_format.buffer_len * 2;
         if self.atd.audio_buffer.len() != audio_buf_len {

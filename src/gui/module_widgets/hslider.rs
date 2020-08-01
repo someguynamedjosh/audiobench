@@ -12,7 +12,7 @@ yaml_widget_boilerplate::make_widget_outline! {
     constructor: create(
         pos: GridPos,
         size: GridSize,
-        control: ControlRef,
+        control: AutoconRef,
         label: String,
         tooltip: String,
     ),
@@ -23,7 +23,7 @@ yaml_widget_boilerplate::make_widget_outline! {
 pub struct HSlider {
     pos: (f32, f32),
     width: f32,
-    control: Rcrc<ep::Control>,
+    control: Rcrc<ep::Autocon>,
     // This allows the slider to share feedback data with the right-click menu when it it open.
     value: Rcrc<f32>,
     label: String,
@@ -34,7 +34,7 @@ impl HSlider {
     pub fn create(
         pos: (f32, f32),
         size: (f32, f32),
-        control: Rcrc<ep::Control>,
+        control: Rcrc<ep::Autocon>,
         label: String,
         tooltip: String,
     ) -> HSlider {
@@ -83,7 +83,7 @@ impl ModuleWidget for HSlider {
     }
 
     fn get_drop_target_at(&self, _local_pos: (f32, f32)) -> DropTarget {
-        DropTarget::Control(Rc::clone(&self.control))
+        DropTarget::Autocon(Rc::clone(&self.control))
     }
 
     fn get_tooltip_at(&self, _local_pos: (f32, f32)) -> Option<Tooltip> {
@@ -179,7 +179,7 @@ impl ModuleWidget for HSlider {
 
 #[derive(Clone)]
 pub struct HSliderEditor {
-    control: Rcrc<ep::Control>,
+    control: Rcrc<ep::Autocon>,
     value: Rcrc<f32>,
     pos: (f32, f32),
     size: (f32, f32),
@@ -189,7 +189,7 @@ pub struct HSliderEditor {
 
 impl HSliderEditor {
     fn create(
-        control: Rcrc<ep::Control>,
+        control: Rcrc<ep::Autocon>,
         value: Rcrc<f32>,
         // Bottom left position.
         center_pos: (f32, f32),

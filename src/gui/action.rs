@@ -12,7 +12,7 @@ pub enum InstanceAction {
     /// Indicates the structure of the graph has changed and it should be reloaded.
     ReloadStructure,
     /// Indicates a value has changed, so the aux input data should be recollected.
-    ReloadAuxData,
+    ReloadAutoconDynData,
     /// Changes the name of the current patch. Asserts if the current patch is not writable.
     RenamePatch(String),
     SavePatch(Box<dyn FnMut(&Rcrc<Patch>)>),
@@ -40,10 +40,10 @@ pub enum GuiAction {
 pub enum MouseAction {
     None,
     Sequence(Vec<MouseAction>),
-    ManipulateControl(Rcrc<ep::Control>, f32),
-    ManipulateLane(Rcrc<ep::Control>, usize),
-    ManipulateLaneStart(Rcrc<ep::Control>, usize, f32),
-    ManipulateLaneEnd(Rcrc<ep::Control>, usize, f32),
+    ManipulateControl(Rcrc<ep::Autocon>, f32),
+    ManipulateLane(Rcrc<ep::Autocon>, usize),
+    ManipulateLaneStart(Rcrc<ep::Autocon>, usize, f32),
+    ManipulateLaneEnd(Rcrc<ep::Autocon>, usize, f32),
     ManipulateIntBox {
         callback: Box<dyn Fn(i32)>,
         min: i32,
@@ -80,7 +80,7 @@ pub enum MouseAction {
     SwitchScreen(GuiScreen),
     AddModule(ep::Module),
     RemoveModule(Rcrc<ep::Module>),
-    RemoveLane(Rcrc<ep::Control>, usize),
+    RemoveLane(Rcrc<ep::Autocon>, usize),
     RenamePatch(String),
     SavePatch(Box<dyn FnMut(&Rcrc<Patch>)>),
     NewPatch(Box<dyn FnMut(&Rcrc<Patch>)>),
@@ -160,7 +160,7 @@ impl MouseAction {
                     lane.range.1 = (lane.range.1 + delta).clam(range.0, range.1);
                 }
                 return (
-                    Some(GuiAction::Elevate(InstanceAction::ReloadAuxData)),
+                    Some(GuiAction::Elevate(InstanceAction::ReloadAutoconDynData)),
                     Some(Tooltip {
                         text: format!(
                             "{}{}",
@@ -195,7 +195,7 @@ impl MouseAction {
                     control_ref.suffix,
                 );
                 return (
-                    Some(GuiAction::Elevate(InstanceAction::ReloadAuxData)),
+                    Some(GuiAction::Elevate(InstanceAction::ReloadAutoconDynData)),
                     Some(Tooltip {
                         text: tttext,
                         interaction: InteractionHint::LeftClickAndDrag.into(),
@@ -224,7 +224,7 @@ impl MouseAction {
                     control_ref.suffix,
                 );
                 return (
-                    Some(GuiAction::Elevate(InstanceAction::ReloadAuxData)),
+                    Some(GuiAction::Elevate(InstanceAction::ReloadAutoconDynData)),
                     Some(Tooltip {
                         text: tttext,
                         interaction: InteractionHint::LeftClickAndDrag
@@ -255,7 +255,7 @@ impl MouseAction {
                     control_ref.suffix,
                 );
                 return (
-                    Some(GuiAction::Elevate(InstanceAction::ReloadAuxData)),
+                    Some(GuiAction::Elevate(InstanceAction::ReloadAutoconDynData)),
                     Some(Tooltip {
                         text: tttext,
                         interaction: InteractionHint::LeftClickAndDrag
@@ -483,7 +483,7 @@ impl MouseAction {
                     if in_type == out_type {
                         in_ref.inputs[in_index] = ep::InputConnection::Wire(out_module, out_index);
                     }
-                } else if let DropTarget::Control(control) = target {
+                } else if let DropTarget::Autocon(control) = target {
                     if out_type == ep::JackType::Audio {
                         let mut control_ref = control.borrow_mut();
                         let range = control_ref.range;
@@ -616,22 +616,22 @@ impl MouseAction {
             Self::ManipulateControl(control, ..) => {
                 let mut cref = control.borrow_mut();
                 cref.value = cref.default;
-                return Some(GuiAction::Elevate(InstanceAction::ReloadAuxData));
+                return Some(GuiAction::Elevate(InstanceAction::ReloadAutoconDynData));
             }
             Self::ManipulateLane(control, lane) => {
                 let mut cref = control.borrow_mut();
                 cref.automation[lane].range = cref.range;
-                return Some(GuiAction::Elevate(InstanceAction::ReloadAuxData));
+                return Some(GuiAction::Elevate(InstanceAction::ReloadAutoconDynData));
             }
             Self::ManipulateLaneStart(control, lane, ..) => {
                 let mut cref = control.borrow_mut();
                 cref.automation[lane].range.0 = cref.range.0;
-                return Some(GuiAction::Elevate(InstanceAction::ReloadAuxData));
+                return Some(GuiAction::Elevate(InstanceAction::ReloadAutoconDynData));
             }
             Self::ManipulateLaneEnd(control, lane, ..) => {
                 let mut cref = control.borrow_mut();
                 cref.automation[lane].range.1 = cref.range.1;
-                return Some(GuiAction::Elevate(InstanceAction::ReloadAuxData));
+                return Some(GuiAction::Elevate(InstanceAction::ReloadAutoconDynData));
             }
             Self::SetComplexControl(control, ..) => {
                 let mut control_ref = control.borrow_mut();
@@ -657,7 +657,7 @@ impl MouseAction {
 #[derive(Clone)]
 pub enum DropTarget {
     None,
-    Control(Rcrc<ep::Control>),
+    Autocon(Rcrc<ep::Autocon>),
     Input(Rcrc<ep::Module>, usize),
     Output(Rcrc<ep::Module>, usize),
 }

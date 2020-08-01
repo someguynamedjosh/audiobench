@@ -4,7 +4,7 @@ use crate::gui::module_widgets::WidgetOutline;
 use crate::util::*;
 use std::collections::{HashMap, HashSet};
 
-fn create_control_from_yaml(yaml: &YamlNode) -> Result<Rcrc<ep::Control>, String> {
+fn create_control_from_yaml(yaml: &YamlNode) -> Result<Rcrc<ep::Autocon>, String> {
     let min = yaml.unique_child("min")?.f32()?;
     let max = yaml.unique_child("max")?.f32()?;
     let default = yaml.unique_child("default")?.f32()?;
@@ -13,7 +13,7 @@ fn create_control_from_yaml(yaml: &YamlNode) -> Result<Rcrc<ep::Control>, String
     } else {
         "".to_owned()
     };
-    Ok(rcrc(ep::Control::create(
+    Ok(rcrc(ep::Autocon::create(
         yaml.name.clone(),
         min,
         max,

@@ -92,8 +92,8 @@ impl Instance {
                     self.perform_action(action);
                 }
             }
-            gui::action::InstanceAction::ReloadAuxData => {
-                self.engine.as_mut().map(|e| e.reload_aux_data());
+            gui::action::InstanceAction::ReloadAutoconDynData => {
+                self.engine.as_mut().map(|e| e.reload_autocon_dyn_data());
             }
             gui::action::InstanceAction::ReloadStructure => {
                 if let Some(e) = self.engine.as_mut() {

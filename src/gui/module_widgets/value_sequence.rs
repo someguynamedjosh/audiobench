@@ -15,7 +15,7 @@ yaml_widget_boilerplate::make_widget_outline! {
         pos: GridPos,
         size: GridSize,
         sequence_control: ComplexControlRef,
-        ramping_control: ControlRef,
+        ramping_control: AutoconRef,
         tooltip: String,
     ),
     // Feedback for playhead and ramping amount.
@@ -26,7 +26,7 @@ yaml_widget_boilerplate::make_widget_outline! {
 pub struct ValueSequence {
     tooltip: String,
     sequence_control: Rcrc<ep::ComplexControl>,
-    ramping_control: Rcrc<ep::Control>,
+    ramping_control: Rcrc<ep::Autocon>,
     pos: (f32, f32),
     width: f32,
 }
@@ -41,7 +41,7 @@ impl ValueSequence {
         pos: (f32, f32),
         size: (f32, f32),
         sequence_control: Rcrc<ep::ComplexControl>,
-        ramping_control: Rcrc<ep::Control>,
+        ramping_control: Rcrc<ep::Autocon>,
         tooltip: String,
     ) -> ValueSequence {
         ValueSequence {

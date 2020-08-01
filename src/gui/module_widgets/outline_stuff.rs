@@ -2,7 +2,7 @@ use super::*;
 
 pub enum FeedbackDataRequirement {
     None,
-    Control { control_index: usize },
+    Autocon { control_index: usize },
     Custom { code_name: String, size: usize },
 }
 
@@ -10,7 +10,7 @@ impl FeedbackDataRequirement {
     pub fn size(&self) -> usize {
         match self {
             Self::None => 0,
-            Self::Control { .. } => 1,
+            Self::Autocon { .. } => 1,
             Self::Custom { size, .. } => *size,
         }
     }

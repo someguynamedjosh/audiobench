@@ -1,4 +1,4 @@
-use super::parts::{Control, Module};
+use super::parts::{Autocon, Module};
 use crate::registry::Registry;
 use crate::util::*;
 use array_macro::array;
@@ -13,13 +13,13 @@ const SILENT_CUTOFF: f32 = 1e-5;
 
 // This packages changes made by the user to knobs and automation into a format that can be read
 // by the nodespeak parameter, so that trivial changes don't necessitate a recompile.
-pub(super) struct AuxDataCollector {
-    ordered_controls: Vec<Rcrc<Control>>,
+pub(super) struct AutoconDynDataCollector {
+    ordered_controls: Vec<Rcrc<Autocon>>,
     data_length: usize,
 }
 
-impl AuxDataCollector {
-    pub(super) fn new(ordered_controls: Vec<Rcrc<Control>>, data_length: usize) -> Self {
+impl AutoconDynDataCollector {
+    pub(super) fn new(ordered_controls: Vec<Rcrc<Autocon>>, data_length: usize) -> Self {
         Self {
             ordered_controls,
             data_length,
@@ -121,14 +121,14 @@ pub(super) struct HostFormat {
 pub(super) struct DataFormat {
     pub(super) sample_rate: usize,
     pub(super) buffer_len: usize,
-    pub(super) aux_data_len: usize,
+    pub(super) autocon_dyn_data_len: usize,
     pub(super) feedback_data_len: usize,
 }
 
 pub(super) struct InputPacker {
     packed_data: Vec<f32>,
     fixed_inputs_len: usize,
-    aux_data_len: usize,
+    autocon_dyn_data_len: usize,
     format: DataFormat,
 }
 
@@ -141,7 +141,7 @@ pub(super) struct InputPacker {
 // global_song_time: [BL]FLOAT
 // global_song_beats: [BL]FLOAT
 // global_midi_controls: [128]FLOAT
-// global_aux_data: [starting_aux_data.len()]FLOAT
+// global_autocon_dyn_data: [starting_autocon_dyn_data.len()]FLOAT
 impl InputPacker {
     // If the pitch wheel is within the deadzone, it will read as zero instead of its actual value.
     // I added this because my pitch wheel is utter crap.
@@ -155,7 +155,7 @@ impl InputPacker {
         let mut result = Self {
             packed_data: Vec::new(),
             fixed_inputs_len: 0,
-            aux_data_len: 0,
+            autocon_dyn_data_len: 0,
             format: format.clone(),
         };
         result.set_data_format(format);
@@ -173,9 +173,9 @@ impl InputPacker {
 
     pub(super) fn set_data_format(&mut self, format: DataFormat) {
         self.fixed_inputs_len = 5 + 4 * format.buffer_len + 128;
-        self.aux_data_len = format.aux_data_len;
+        self.autocon_dyn_data_len = format.autocon_dyn_data_len;
         self.packed_data
-            .resize(self.fixed_inputs_len + self.aux_data_len, 0.0);
+            .resize(self.fixed_inputs_len + self.autocon_dyn_data_len, 0.0);
         self.format = format;
     }
 
@@ -239,8 +239,8 @@ impl InputPacker {
         );
     }
 
-    pub(super) fn set_aux_data(&mut self, new_data: &[f32]) {
-        assert!(new_data.len() == self.format.aux_data_len);
+    pub(super) fn set_autocon_dyn_data(&mut self, new_data: &[f32]) {
+        assert!(new_data.len() == self.format.autocon_dyn_data_len);
         (&mut self.packed_data[self.fixed_inputs_len..]).copy_from_slice(new_data);
     }
 

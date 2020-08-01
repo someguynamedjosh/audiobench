@@ -11,7 +11,7 @@ enum ConstructorItemType {
     RegistryRef,
     GridPos,
     GridSize,
-    ControlRef,
+    AutoconRef,
     ComplexControlRef,
     IntRange,
     FloatRange,
@@ -28,7 +28,7 @@ impl ConstructorItem {
     pub fn get_outline_fields(&self) -> Vec<(Ident, TokenStream2)> {
         match self.typ {
             ConstructorItemType::RegistryRef => vec![],
-            ConstructorItemType::ControlRef => {
+            ConstructorItemType::AutoconRef => {
                 vec![(format_ident!("{}_index", self.name), quote! {usize})]
             }
             ConstructorItemType::ComplexControlRef => {
@@ -71,7 +71,7 @@ impl ConstructorItem {
                     );
                 }
             }
-            ConstructorItemType::ControlRef => {
+            ConstructorItemType::AutoconRef => {
                 let name = self.name.clone();
                 let name_name = format_ident!("{}_name", self.name);
                 let index_name = format_ident!("{}_index", self.name);
@@ -148,7 +148,7 @@ impl ConstructorItem {
                 let name = self.name.clone();
                 quote! { self.#name.clone() }
             }
-            ConstructorItemType::ControlRef => {
+            ConstructorItemType::AutoconRef => {
                 let name = format_ident!("{}_index", self.name);
                 quote! { ::std::rc::Rc::clone(&controls[self.#name]) }
             }
@@ -169,7 +169,7 @@ impl Parse for ConstructorItem {
             "RegistryRef" => ConstructorItemType::RegistryRef,
             "GridPos" => ConstructorItemType::GridPos,
             "GridSize" => ConstructorItemType::GridSize,
-            "ControlRef" => ConstructorItemType::ControlRef,
+            "AutoconRef" => ConstructorItemType::AutoconRef,
             "ComplexControlRef" => ConstructorItemType::ComplexControlRef,
             "IntRange" => ConstructorItemType::IntRange,
             "FloatRange" => ConstructorItemType::FloatRange,
@@ -200,7 +200,7 @@ impl Parse for ConstructorDescription {
 }
 
 enum FeedbackDescription {
-    Control,
+    Autocon,
     Custom { size: Expr },
 }
 
@@ -208,7 +208,7 @@ impl Parse for FeedbackDescription {
     fn parse(input: ParseStream) -> syn::parse::Result<Self> {
         let typ: Ident = input.parse()?;
         Ok(match &typ.to_string()[..] {
-            "control" => Self::Control,
+            "control" => Self::Autocon,
             "custom" => {
                 let size_stream;
                 parenthesized!(size_stream in input);
@@ -272,11 +272,11 @@ pub fn make_widget_outline(args: TokenStream) -> TokenStream {
 
     let feedback_requirement_code = match &feedback_description {
         None => quote! { crate::gui::module_widgets::FeedbackDataRequirement::None },
-        Some(FeedbackDescription::Control) => {
+        Some(FeedbackDescription::Autocon) => {
             let control_name = constructor_description
                 .args
                 .iter()
-                .find(|item| item.typ == ConstructorItemType::ControlRef)
+                .find(|item| item.typ == ConstructorItemType::AutoconRef)
                 .expect(
                     "feedback is set to control, but the constructor takes no control references!",
                 )
@@ -284,7 +284,7 @@ pub fn make_widget_outline(args: TokenStream) -> TokenStream {
                 .clone();
             let control_name = format_ident!("{}_index", control_name);
             quote! {
-                crate::gui::module_widgets::FeedbackDataRequirement::Control {
+                crate::gui::module_widgets::FeedbackDataRequirement::Autocon {
                     control_index: self.#control_name,
                 }
             }
@@ -364,7 +364,7 @@ pub fn make_widget_outline(args: TokenStream) -> TokenStream {
 
             pub fn from_yaml(
                 yaml: &crate::registry::yaml::YamlNode,
-                controls: & ::std::vec::Vec<::std::rc::Rc<::std::cell::RefCell<crate::engine::parts::Control>>>,
+                controls: & ::std::vec::Vec<::std::rc::Rc<::std::cell::RefCell<crate::engine::parts::Autocon>>>,
                 complex_controls: &mut ::std::vec::Vec<::std::rc::Rc<::std::cell::RefCell<crate::engine::parts::ComplexControl>>>,
             ) -> ::std::result::Result<#outline_name, ::std::string::String> {
                 let find_control_index = |name: &str| {
@@ -402,7 +402,7 @@ pub fn make_widget_outline(args: TokenStream) -> TokenStream {
             pub fn instantiate(
                 &self,
                 registry: &crate::registry::Registry,
-                controls: & ::std::vec::Vec<::std::rc::Rc<::std::cell::RefCell<crate::engine::parts::Control>>>,
+                controls: & ::std::vec::Vec<::std::rc::Rc<::std::cell::RefCell<crate::engine::parts::Autocon>>>,
                 complex_controls: & ::std::vec::Vec<::std::rc::Rc<::std::cell::RefCell<crate::engine::parts::ComplexControl>>>,
             ) -> #widget_struct_name {
                 #widget_struct_name::#constructor_name(#(#constructor_arg_values),*)
@@ -478,7 +478,7 @@ pub fn make_widget_outline_enum(args: TokenStream) -> TokenStream {
 
             pub fn from_yaml(
                 yaml: &crate::registry::yaml::YamlNode,
-                controls: & ::std::vec::Vec<::std::rc::Rc<::std::cell::RefCell<crate::engine::parts::Control>>>,
+                controls: & ::std::vec::Vec<::std::rc::Rc<::std::cell::RefCell<crate::engine::parts::Autocon>>>,
                 complex_controls: &mut ::std::vec::Vec<::std::rc::Rc<::std::cell::RefCell<crate::engine::parts::ComplexControl>>>,
             ) -> ::std::result::Result<Self, ::std::string::String> {
                 Ok(match &yaml.name[..] {
@@ -495,7 +495,7 @@ pub fn make_widget_outline_enum(args: TokenStream) -> TokenStream {
             pub fn instantiate(
                 &self,
                 registry: &crate::registry::Registry,
-                controls: & ::std::vec::Vec<::std::rc::Rc<::std::cell::RefCell<crate::engine::parts::Control>>>,
+                controls: & ::std::vec::Vec<::std::rc::Rc<::std::cell::RefCell<crate::engine::parts::Autocon>>>,
                 complex_controls: & ::std::vec::Vec<::std::rc::Rc<::std::cell::RefCell<crate::engine::parts::ComplexControl>>>,
             ) -> (::std::boxed::Box<dyn crate::gui::module_widgets::ModuleWidget>, usize) {
                 (
