@@ -109,12 +109,27 @@ target_compile_definitions(
 # here too. This is a standard CMake command.
 
 if(WIN32)
+    # Statically link visual c++ runtime so it doesn't inexplicably crash if the user
+    # hasn't installed msvcrt on their system.
+    set_property(TARGET Audiobench PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded")
+    # And of course those changes don't propogate to the other targets because that would be too 
+    # easy. Don't worry, I've already made the necessary blood sacrifices to the daemons of 
+    # hard-coding and code duplication.
+    set_property(TARGET Audiobench_Standalone PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded")
+    set_property(TARGET Audiobench_VST3 PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded")
+    # And yet something still tries to drag in the dynamically-linked library.
+    set_property(TARGET Audiobench PROPERTY LINK_FLAGS "/NODEFAULTLIB:MSVCRT")
+    set_property(TARGET Audiobench_Standalone PROPERTY LINK_FLAGS "/NODEFAULTLIB:MSVCRT")
+    set_property(TARGET Audiobench_VST3 PROPERTY LINK_FLAGS "/NODEFAULTLIB:MSVCRT")
+
     target_link_libraries(
         Audiobench PRIVATE
         # AudioPluginData           # If we'd created a binary data target, we'd link to it here
         juce::juce_audio_utils
         "$ENV{RUST_OUTPUT_DIR}/audiobench.lib"
         Crypt32
+        Ncrypt
+        Secur32
         ws2_32
         userenv
     )
