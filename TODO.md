@@ -1,27 +1,16 @@
 # Things with no dependencies
-- Statically link visual c++ runtime
-- Investigate reducing windows build times
-- Inverted lanes
-- "never" trigger default
-- pitch bend & mod wheel
-- alphabetize patch list
-- check all the corner cases of the new save format
-- flush out NaN errors in envelope
-- Fix rendering of controls that have a zero point outside of their range
-- More default waveforms (ramp up/down, sin)
-- More snapping points when dragging knobs
-- Global timing and tempo
-- Get rid of JUCE logo
+- Straighten out color names
+- Make Nodespeak errors use squiggles instead of colors
+- Better way to pass extra data to module widget draw() functions
+- Make website look nice
+- Make window resizable
 
 # Things with missing dependencies
-- Beat sequencer
-- Pitch sequencer
+- Variable range for pitch wheel
+- Optional variable smoothing for MIDI controls
 
 # Low-priority things without dependencies
-- Int boxes are a pain to use because double-click.
 - Output silent audio while recompiling instead of hanging the thread
-- Get a better icon for waveforms
-- Better nothing icon
 - Highlight connections when hovering over things like outputs and automation
   lanes to see more easily what's connected to what
 - Play a pretend note when moving knobs so you can see its effect without playing your own note.
@@ -31,12 +20,23 @@
   - alphabetical sort vs category sort
   - require certain inputs / outputs
   - scrollbar too maybe
-- Make window resizable
-- Nicer error when a patch requires newer modules (not just "patch is corrupt")
+- Higher precision for MIDI controls
+- Optional smoothing for MIDI controls
+- Things for making waveforms using harmonics of other waveforms
+- Update tooltip when clicking on timing control
+- Line artifact when rendering default inputs
+- Better integration with other VST library preset methods
+- Dependency checks between libraries
+- Hint that enter can be pressed in typing widget
+- Different cursors on hover
+- Crossfade module
+- Say specifically which library unwritable patches come from, not just \[factory\].
+- Comb filter
+- Fuzz testing to ensure save_data deserialization always exits gracefully on corrupt data
+- Add type bounds for AUTO variables
 
 # Code organization stuff
 - Use more TupleUtil functions
-- ModuleLibrary -> ModuleCatalog
 - Control -> Parameter?
 - Parameter -> AutoParam, ComplexParam?
 - use fewer i32s, replace with usizes when it would be helpful.
@@ -51,12 +51,6 @@
   - Auto stack / chain modules
   - Option module
 - Undo / redo tree
-- Library catalog
+- Library browser
 
 # Forward compatibility things
-- patchs should have spots for multiple graphs
-- patchs should store tags, just a list of strings
-- Builtin modules can use the same save syntax as other modules, using one or more complex controls to
-  store their extra data.
-- Some kind of library identification file with information like the minimum version of audiobench you
-  need to use the library

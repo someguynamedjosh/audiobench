@@ -1,5 +1,0 @@
-FLOAT time = 0.0;
-FLOAT pitch = global_pitch;
-FLOAT velocity = global_velocity;
-AUTO note_start = global_start_trigger;
-AUTO note_release = global_release_trigger;

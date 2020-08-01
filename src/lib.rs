@@ -1,5 +1,6 @@
 mod engine;
 mod gui;
+mod registry;
 mod util;
 
 use gui::graphics::{GrahpicsWrapper, GraphicsFunctions};
@@ -7,7 +8,7 @@ use gui::{Gui, MouseMods};
 
 pub struct Instance {
     engine: Option<engine::Engine>,
-    registry: engine::registry::Registry,
+    registry: registry::Registry,
     graphics_fns: GraphicsFunctions,
     gui: Option<Gui>,
     critical_error: Option<String>,
@@ -15,22 +16,33 @@ pub struct Instance {
     silence: Vec<f32>,
 }
 
+fn copy_to_clipboard(text: String) {
+    use clipboard::ClipboardProvider;
+    let mut clipboard: clipboard::ClipboardContext = clipboard::ClipboardProvider::new().unwrap();
+    clipboard.set_contents(text).unwrap();
+}
+
 impl Instance {
     fn new() -> Self {
         let mut critical_error = None;
 
-        let (mut registry, registry_load_result) = engine::registry::Registry::new();
+        let (mut registry, registry_load_result) = registry::Registry::new();
         if let Err(err) = registry_load_result {
+            copy_to_clipboard(err.clone());
             critical_error = Some(format!(
-                "Encountered a critical error while loading your libraries:\n{}",
+                "The following error report has been copied to your clipboard:\n\n{}",
                 err
             ));
         }
         let engine = if critical_error.is_none() {
             match engine::Engine::new(&mut registry) {
                 Ok(engine) => Some(engine),
-                Err(problem) => {
-                    critical_error = Some(problem);
+                Err(err) => {
+                    copy_to_clipboard(err.clone());
+                    critical_error = Some(format!(
+                        "The following error report has been copied to your clipboard:\n\n{}",
+                        err
+                    ));
                     None
                 }
             }
@@ -51,50 +63,122 @@ impl Instance {
 }
 
 impl Instance {
+    fn set_critical_error(&mut self, error: String) {
+        if self.critical_error.is_some() {
+            return;
+        }
+        copy_to_clipboard(error.clone());
+        self.critical_error = Some(format!(
+            "The following error report has been copied to your clipboard:\n\n{}",
+            error
+        ));
+    }
+
+    fn set_structure_error(&mut self, error: String) {
+        if self.critical_error.is_some() || self.structure_error.is_some() {
+            return;
+        }
+        copy_to_clipboard(error.clone());
+        self.structure_error = Some(format!(
+            "The following error report has been copied to your clipboard:\n\n{}",
+            error
+        ));
+    }
+
     fn perform_action(&mut self, action: gui::action::InstanceAction) {
         match action {
-            gui::action::InstanceAction::ReloadAuxData => {
-                if self.structure_error.is_none() {
-                    self.engine.as_mut().unwrap().reload_values();
+            gui::action::InstanceAction::Sequence(actions) => {
+                for action in actions {
+                    self.perform_action(action);
                 }
             }
+            gui::action::InstanceAction::ReloadAuxData => {
+                self.engine.as_mut().map(|e| e.reload_aux_data());
+            }
             gui::action::InstanceAction::ReloadStructure => {
-                let res = self.engine.as_mut().unwrap().reload_structure();
-                if let Err(err) = res {
-                    if let Some(gui) = &mut self.gui {
-                        gui.display_error(err.clone());
+                if let Some(e) = self.engine.as_mut() {
+                    let res = e.recompile();
+                    if let Err(err) = res {
+                        if let Some(gui) = &mut self.gui {
+                            gui.display_error(err.clone());
+                        }
+                        self.set_structure_error(err);
+                    } else {
+                        if let Some(gui) = &mut self.gui {
+                            gui.clear_status();
+                        }
+                        self.structure_error = None;
                     }
-                    self.structure_error = Some(err);
-                } else {
-                    if let Some(gui) = &mut self.gui {
-                        gui.clear_status();
-                    }
-                    self.structure_error = None;
                 }
             }
             gui::action::InstanceAction::RenamePatch(name) => {
-                self.engine.as_mut().unwrap().rename_current_patch(name);
+                self.engine.as_mut().map(|e| e.rename_current_patch(name));
             }
-            gui::action::InstanceAction::SavePatch => {
-                self.engine.as_mut().unwrap().save_current_patch();
-                if let Some(gui) = &mut self.gui {
-                    gui.display_success("Saved successfully!".to_owned());
+            gui::action::InstanceAction::SavePatch(mut callback) => {
+                if let Some(engine) = self.engine.as_mut() {
+                    engine.save_current_patch(&self.registry);
+                    callback(engine.borrow_current_patch());
+                }
+                self.gui
+                    .as_mut()
+                    .map(|g| g.display_success("Saved successfully!".to_owned()));
+            }
+            gui::action::InstanceAction::NewPatch(mut callback) => {
+                if let Some(e) = self.engine.as_mut() {
+                    callback(e.new_patch(&mut self.registry));
                 }
             }
-            gui::action::InstanceAction::NewPatch(callback) => {
-                callback(self.engine.as_mut().unwrap().new_patch(&mut self.registry));
-            }
-            gui::action::InstanceAction::LoadPatch(patch) => {
-                let res = self
-                    .engine
-                    .as_mut()
-                    .unwrap()
-                    .load_patch(&self.registry, patch);
-                if let Some(gui) = &mut self.gui {
-                    if let Err(err) = res {
-                        gui.display_error(err);
+            gui::action::InstanceAction::LoadPatch(patch, mut callback) => {
+                if let Some(e) = self.engine.as_mut() {
+                    let res = e.load_patch(&self.registry, patch);
+                    if res.is_ok() {
+                        callback();
                     }
-                    gui.on_patch_change(&self.registry);
+                    if let Some(gui) = &mut self.gui {
+                        if let Err(err) = res {
+                            gui.display_error(err);
+                        }
+                        gui.on_patch_change(&self.registry);
+                    }
+                }
+            }
+            gui::action::InstanceAction::SimpleCallback(mut callback) => {
+                (callback)();
+            }
+            gui::action::InstanceAction::CopyPatchToClipboard => {
+                if let Some(e) = self.engine.as_mut() {
+                    use clipboard::ClipboardProvider;
+                    let patch_data = e.serialize_current_patch(&self.registry);
+                    let mut clipboard: clipboard::ClipboardContext =
+                        clipboard::ClipboardProvider::new().unwrap();
+                    clipboard.set_contents(patch_data).unwrap();
+                    if let Some(gui) = &mut self.gui {
+                        gui.display_success("Patch data copied to clipboard!".to_owned());
+                    }
+                }
+            }
+            gui::action::InstanceAction::PastePatchFromClipboard(mut callback) => {
+                if let Some(e) = self.engine.as_mut() {
+                    use clipboard::ClipboardProvider;
+                    let mut clipboard: clipboard::ClipboardContext =
+                        clipboard::ClipboardProvider::new().unwrap();
+                    let data = clipboard.get_contents().unwrap();
+                    let err = match e.new_patch_from_clipboard(&mut self.registry, data.as_bytes())
+                    {
+                        Ok(patch) => {
+                            callback(patch);
+                            None
+                        }
+                        Err(err) => Some(err),
+                    };
+                    if let Some(gui) = &mut self.gui {
+                        if let Some(err) = err {
+                            gui.display_error(err);
+                        } else {
+                            gui.display_success("Patch data loaded from clipboard! (Click the save button if you want to keep it)".to_owned());
+                        }
+                        gui.on_patch_change(&self.registry);
+                    }
                 }
             }
         }
@@ -108,20 +192,76 @@ impl Instance {
         self.registry.borrow_icon_data(icon_index)
     }
 
-    pub fn set_buffer_length_and_sample_rate(&mut self, buffer_length: i32, sample_rate: i32) {
+    pub fn set_host_format(&mut self, buffer_length: usize, sample_rate: usize) {
         if let Some(engine) = self.engine.as_mut() {
-            engine.set_buffer_length_and_sample_rate(buffer_length, sample_rate)
+            engine.set_host_format(buffer_length, sample_rate)
         } else {
             self.silence.resize(buffer_length as usize * 2, 0.0);
         }
     }
 
-    pub fn note_on(&mut self, index: i32, velocity: f32) {
-        self.engine.as_mut().map(|e| e.note_on(index, velocity));
+    pub fn serialize_patch(&self) -> String {
+        self.engine
+            .as_ref()
+            .map(|e| e.serialize_current_patch(&self.registry))
+            .unwrap_or_default()
     }
 
-    pub fn note_off(&mut self, index: i32) {
-        self.engine.as_mut().map(|e| e.note_off(index));
+    pub fn deserialize_patch(&mut self, serialized: &[u8]) {
+        let patch = match registry::save_data::Patch::load_readable(
+            "External Preset".to_owned(),
+            serialized,
+            &self.registry,
+        ) {
+            Ok(patch) => patch,
+            Err(message) => {
+                self.set_critical_error(format!(
+                    "ERROR: Failed to load the patch you were working on, caused by:\n{}",
+                    message
+                ));
+                return;
+            }
+        };
+        let patch = util::rcrc(patch);
+        if let Some(engine) = &mut self.engine {
+            if let Err(message) = engine.load_patch(&self.registry, patch) {
+                self.set_critical_error(format!(
+                    "ERROR: Failed to load the patch you were working on, caused by:\n{}",
+                    message
+                ));
+            }
+        }
+        if let Some(gui) = &mut self.gui {
+            gui.on_patch_change(&self.registry);
+        }
+    }
+
+    pub fn start_note(&mut self, index: usize, velocity: f32) {
+        self.engine.as_mut().map(|e| e.start_note(index, velocity));
+    }
+
+    pub fn release_note(&mut self, index: usize) {
+        self.engine.as_mut().map(|e| e.release_note(index));
+    }
+
+    pub fn set_pitch_wheel(&mut self, value: f32) {
+        self.engine.as_mut().map(|e| e.set_pitch_wheel(value));
+    }
+
+    pub fn set_control(&mut self, index: usize, value: f32) {
+        self.engine.as_mut().map(|e| e.set_control(index, value));
+    }
+
+    pub fn set_bpm(&mut self, bpm: f32) {
+        self.engine.as_mut().map(|e| e.set_bpm(bpm));
+    }
+
+    pub fn set_song_time(&mut self, time: f32) {
+        self.engine.as_mut().map(|e| e.set_song_time(time));
+    }
+
+    pub fn set_song_beats(&mut self, beats: f32) {
+        self.engine.as_mut().map(|e| e.set_song_beats(beats));
     }
 
     pub fn render_audio(&mut self) -> &[f32] {
@@ -157,20 +297,20 @@ impl Instance {
             g.write_console_text(640.0, 480.0, err);
         // If there is no critical error, then the engine initialized successfully.
         } else if let Some(err) = self.engine.as_ref().unwrap().clone_critical_error() {
-            // This way we don't have to copy it in the future.
-            self.critical_error = Some(err.clone());
             g.set_color(&(0, 0, 0));
             g.fill_rect(0.0, 0.0, 640.0, 480.0);
             g.set_color(&(255, 255, 255));
             g.write_console_text(640.0, 480.0, &err);
+            // This way we don't have to copy it in the future.
+            self.set_critical_error(err.clone());
         } else {
             // If the engine has new feedback data (from audio being played) then copy it over before
             // we render the UI so it will show up in the UI.
             self.engine.as_mut().unwrap().display_new_feedback_data();
             g.set_color(&gui::constants::COLOR_BG);
             g.clear();
-            if let Some(gui) = &self.gui {
-                gui.draw(&mut g);
+            if let Some(gui) = &mut self.gui {
+                gui.draw(&mut g, &mut self.registry);
             } else {
                 panic!("draw_ui called before GUI was created!");
             }
@@ -282,22 +422,79 @@ pub unsafe extern "C" fn ABGetIconData(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ABSetBufferLengthAndSampleRate(
+pub unsafe extern "C" fn ABSetHostFormat(
     instance: *mut Instance,
     buffer_length: i32,
     sample_rate: i32,
 ) {
-    (*instance).set_buffer_length_and_sample_rate(buffer_length, sample_rate)
+    (*instance).set_host_format(buffer_length as usize, sample_rate as usize)
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ABNoteOn(instance: *mut Instance, index: i32, velocity: f32) {
-    (*instance).note_on(index, velocity)
+pub unsafe extern "C" fn ABSerializePatch(
+    instance: *mut Instance,
+    data_out: *mut *mut u8,
+    size_out: *mut u32,
+) {
+    let data = (*instance)
+        .serialize_patch()
+        .into_bytes()
+        .into_boxed_slice();
+    *size_out = data.len() as u32;
+    *data_out = Box::leak(data).as_mut_ptr();
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ABNoteOff(instance: *mut Instance, index: i32) {
-    (*instance).note_off(index)
+pub unsafe extern "C" fn ABCleanupSerializedData(data: *mut u8, size: u32) {
+    let slice = std::slice::from_raw_parts_mut(data, size as usize);
+    let boxed = Box::from_raw(slice);
+    drop(boxed);
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ABDeserializePatch(
+    instance: *mut Instance,
+    data_in: *mut u8,
+    size_in: u32,
+) {
+    let data = std::slice::from_raw_parts(data_in, size_in as usize);
+    let data = Vec::from(data);
+    (*instance).deserialize_patch(&data[..]);
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ABStartNote(instance: *mut Instance, index: i32, velocity: f32) {
+    (*instance).start_note(index as usize, velocity)
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ABReleaseNote(instance: *mut Instance, index: i32) {
+    (*instance).release_note(index as usize)
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ABPitchWheel(instance: *mut Instance, value: f32) {
+    (*instance).set_pitch_wheel(value)
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ABControl(instance: *mut Instance, index: i32, value: f32) {
+    (*instance).set_control(index as usize, value)
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ABBpm(instance: *mut Instance, bpm: f32) {
+    (*instance).set_bpm(bpm)
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ABSongTime(instance: *mut Instance, time: f32) {
+    (*instance).set_song_time(time)
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ABSongBeats(instance: *mut Instance, beats: f32) {
+    (*instance).set_song_beats(beats)
 }
 
 #[no_mangle]

@@ -1,3 +1,19 @@
+use const_env::from_env;
+
+#[from_env("CARGO_PKG_VERSION_MINOR")]
+pub const ENGINE_VERSION: u16 = 0xFFFF;
+pub const ENGINE_INFO: &'static str = concat!(
+    "Audiobench is free and open source software. You are free to do anything you want with it, ",
+    "including selling any audio, patches, or modules you make with or for it. If you make ",
+    "modifications to the source code you must make those changes freely available under the GNU ",
+    "General Public License, Version 3. Source code is available at ",
+    "https://gitlab.com/Code_Cube/audio-bench."
+);
+#[cfg(debug_assertions)]
+pub const ENGINE_UPDATE_URL: &'static str = "http://localhost:8000/latest.json";
+#[cfg(not(debug_assertions))]
+pub const ENGINE_UPDATE_URL: &'static str = "https://bit.ly/audiobench-engine-update-check";
+
 use num::Float;
 
 pub trait FloatUtil: Sized + Copy {
@@ -108,5 +124,32 @@ impl<Item> IterMapCollect<Item> for Vec<Item> {
 impl<Item> IterMapCollect<Item> for &[Item] {
     fn imc<OutItem>(&self, fun: impl FnMut(&Item) -> OutItem) -> Vec<OutItem> {
         self.iter().map(fun).collect()
+    }
+}
+
+impl<Item> IterMapCollect<Item> for std::collections::HashSet<Item> {
+    fn imc<OutItem>(&self, fun: impl FnMut(&Item) -> OutItem) -> Vec<OutItem> {
+        self.iter().map(fun).collect()
+    }
+}
+
+pub trait RawDataSource {
+    fn as_raw(&self) -> &[u8];
+    fn as_raw_mut(&mut self) -> &mut [u8];
+}
+
+impl<T: Sized> RawDataSource for Vec<T> {
+    fn as_raw(&self) -> &[u8] {
+        unsafe {
+            let out_len = self.len() * std::mem::size_of::<T>();
+            std::slice::from_raw_parts(self.as_ptr() as *const u8, out_len)
+        }
+    }
+
+    fn as_raw_mut(&mut self) -> &mut [u8] {
+        unsafe {
+            let out_len = self.len() * std::mem::size_of::<T>();
+            std::slice::from_raw_parts_mut(self.as_mut_ptr() as *mut u8, out_len)
+        }
     }
 }

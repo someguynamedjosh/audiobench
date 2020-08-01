@@ -25,9 +25,17 @@ extern "C" {
     void ABDestroyInstance(ABInstanceRef);
     int ABGetNumIcons(ABInstanceRef);
     void ABGetIconData(ABInstanceRef, int iconIndex, void **dataBufferPtr, int *sizePtr);
-    float *ABSetBufferLengthAndSampleRate(ABInstanceRef, int, int);
-    void ABNoteOn(ABInstanceRef, int, float);
-    void ABNoteOff(ABInstanceRef, int);
+    float *ABSetHostFormat(ABInstanceRef, int, int);
+    void ABSerializePatch(ABInstanceRef, char**, uint32_t*);
+    void ABCleanupSerializedData(char*, uint32_t);
+    void ABDeserializePatch(ABInstanceRef, char*, uint32_t);
+    void ABStartNote(ABInstanceRef, int, float);
+    void ABReleaseNote(ABInstanceRef, int);
+    void ABPitchWheel(ABInstanceRef, float);
+    void ABBpm(ABInstanceRef, float);
+    void ABSongTime(ABInstanceRef, float);
+    void ABSongBeats(ABInstanceRef, float);
+    void ABControl(ABInstanceRef, int, float);
     float *ABRenderAudio(ABInstanceRef);
     void ABSetGraphicsFunctions(ABInstanceRef, ABGraphicsFunctions);
 

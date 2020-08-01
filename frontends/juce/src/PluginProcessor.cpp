@@ -101,7 +101,7 @@ void AudiobenchAudioProcessor::prepareToPlay (double sampleRate, int samplesPerB
 {
     // Use this method as the place to do any pre-playback
     // initialisation that you need..
-    ABSetBufferLengthAndSampleRate(ab, samplesPerBlock, (int) sampleRate);
+    ABSetHostFormat(ab, samplesPerBlock, (int) sampleRate);
 }
 
 void AudiobenchAudioProcessor::releaseResources()
@@ -145,13 +145,19 @@ void AudiobenchAudioProcessor::processBlock (AudioBuffer<float>& buffer, MidiBuf
     for (auto meta : midiMessages) {
         auto message = meta.getMessage();
         if (message.isNoteOn()) {
-            ABNoteOn(ab, message.getNoteNumber(), message.getFloatVelocity());
+            ABStartNote(ab, message.getNoteNumber(), message.getFloatVelocity());
+        } else if (message.isPitchWheel()) {
+            float value = (message.getPitchWheelValue() - 0x2000 + 0.5f) / (0x2000 - 0.5f);
+            ABPitchWheel(ab, value);
+        } else if (message.isController()) {
+            float value = (message.getControllerValue() - 0x40 + 0.5f) / (0x40 - 0.5f);
+            ABControl(ab, message.getControllerNumber(), value);
         }
     }
     for (auto meta : midiMessages) {
         auto message = meta.getMessage();
         if (message.isNoteOff()) {
-            ABNoteOff(ab, message.getNoteNumber());
+            ABReleaseNote(ab, message.getNoteNumber());
         }
     }
     // MIDI seems to do weird things, this may be helpful in the future.
@@ -164,6 +170,14 @@ void AudiobenchAudioProcessor::processBlock (AudioBuffer<float>& buffer, MidiBuf
     //         std::cout << "On " << message.getNoteNumber() << std::endl;
     //     } else if (message.isNoteOff()) {
     //         std::cout << "Off " << message.getNoteNumber() << std::endl;
+    //     } else if (message.isPitchWheel()) {
+    //         std::cout << "Pitch " << message.getPitchWheelValue() << std::endl;
+    //     } else if (message.isChannelPressure()) {
+    //         std::cout << "Pressure " 
+    //             << message.getChannel() << " " << message.getChannelPressureValue() << std::endl;
+    //     } else if (message.isController()) {
+    //         std::cout << "Controller " 
+    //             << message.getControllerNumber() << " " << message.getControllerValue() << std::endl;
     //     } else {
     //         std::cout << "Weird message" << std::endl;
     //     }
@@ -209,15 +223,16 @@ AudioProcessorEditor* AudiobenchAudioProcessor::createEditor()
 //==============================================================================
 void AudiobenchAudioProcessor::getStateInformation (MemoryBlock& destData)
 {
-    // You should use this method to store your parameters in the memory block.
-    // You could do that either as raw data, or use the XML or ValueTree classes
-    // as intermediaries to make it easy to save and load complex data.
+    char *dataPtr;
+    uint32_t dataLen;
+    ABSerializePatch(ab, &dataPtr, &dataLen);
+    destData.append((void*) dataPtr, dataLen);
+    ABCleanupSerializedData(dataPtr, dataLen);
 }
 
 void AudiobenchAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
 {
-    // You should use this method to restore your parameters from this memory block,
-    // whose contents will have been created by the getStateInformation() call.
+    ABDeserializePatch(ab, (char*) data, sizeInBytes);
 }
 
 //==============================================================================

@@ -1,0 +1,54 @@
+save_id: 1
+inputs:
+  reset:
+    type: trigger
+    label: Reset
+    tooltip: When triggered, moves back to the start of the sequence
+    default: 2
+    icon: factory:reset
+outputs:
+  out_trigger:
+    type: trigger
+    label: Output
+    tooltip: Triggered at times specified in the sequence
+controls:
+complex_controls:
+  SEQUENCE:
+  TIME_SOURCE:
+  TIME_TYPE:
+  STEP_TIME:
+gui: 
+  label: Trigger Sequence
+  category: Control
+  tooltip: Outputs a customizable repeating pattern of triggers
+  width: 8
+  height: 3
+  widgets:
+    trigger_sequence:
+      x: 0
+      y: 0
+      w: 8
+      h: 1
+      sequence_control: SEQUENCE
+      tooltip: Click a segment to toggle whether or not a trigger is fired at that time
+      feedback_name: playhead_feedback
+    timing_selector:
+      x: 0
+      y: 1
+      source_control: TIME_SOURCE
+      type_control: TIME_TYPE
+      default_beats_type:
+    duration_box:
+      x: 2
+      y: 1
+      control: STEP_TIME
+      type_control: TIME_TYPE
+      default: 1.0/4.0
+      label: Step Time
+      tooltip: How long one step of the sequence takes
+    trigger_sequence_length:
+      x: 6
+      y: 1
+      sequence_control: SEQUENCE
+      label: Num. Steps
+      tooltip: The number of steps the sequence plays before repeating

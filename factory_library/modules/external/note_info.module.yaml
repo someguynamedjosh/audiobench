@@ -1,0 +1,30 @@
+save_id: 4
+inputs:
+outputs:
+  pitch:
+    type: pitch
+    label: Pitch
+    tooltip: The pitch of the current note
+  velocity:
+    type: audio
+    label: Velocity
+    icon: factory:note_down
+    tooltip: The velocity of the current note, often indicates how loud the note should be
+  note_start:
+    type: trigger
+    label: Note Start
+    icon: factory:note_down
+    tooltip: Trigger which fires when the note first starts
+  note_release:
+    type: trigger
+    label: Note Release
+    icon: factory:note_up
+    tooltip: Trigger which fires when the note stops being held down
+controls:
+gui: 
+  label: Note Info 
+  category: External
+  tooltip: Information about the note that is currently being played
+  width: 2
+  height: 4
+  widgets:

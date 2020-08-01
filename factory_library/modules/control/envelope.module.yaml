@@ -1,0 +1,77 @@
+save_id: 14
+inputs:
+  reset_trigger:
+    type: trigger 
+    icon: factory:reset
+    label: Reset Trigger
+    tooltip: Trigger to reset the envelope to the beginning
+  release_trigger:
+    type: trigger 
+    icon: factory:note_up
+    label: Release Trigger
+    default: 1
+    tooltip: Trigger to switch to the release section of the envelope
+outputs:
+  signal:
+    type: audio
+    label: Signal
+    tooltip: The current value of the envelope
+controls:
+  sustain:
+    min: 0
+    max: 1
+    default: 1.0
+complex_controls:
+  TIME_SOURCE:
+  TIME_TYPE:
+  ATTACK_TIME:
+  DECAY_TIME:
+  RELEASE_TIME:
+gui: 
+  label: Envelope
+  category: Control
+  tooltip: A basic ADSR envelope, useful for making parameters fade in and out.
+  width: 8
+  height: 4
+  widgets:
+    knob:
+      x: 0
+      y: 0
+      control: sustain
+      label: Sustain
+      tooltip: What value the envelope should hold while waiting for the release trigger
+    timing_selector:
+      x: 0
+      y: 2
+      source_control: TIME_SOURCE
+      type_control: TIME_TYPE
+    duration_box:
+      x: 2
+      y: 2
+      control: ATTACK_TIME
+      type_control: TIME_TYPE
+      default: 0.005
+      label: Attack
+      tooltip: How long the envelope takes to rise to full volume
+    duration_box:
+      x: 4
+      y: 2
+      control: DECAY_TIME
+      default: 0.200
+      type_control: TIME_TYPE
+      label: Decay
+      tooltip: How long the envelope takes to fall back down to the sustain value after the attack ends
+    duration_box:
+      x: 6
+      y: 2
+      control: RELEASE_TIME
+      default: 0.300
+      type_control: TIME_TYPE
+      label: Release
+      tooltip: How long the envelope takes to fade out after receiving the release trigger
+    envelope_graph:
+      x: 2
+      y: 0
+      w: 6
+      h: 2
+      feedback_name: graph_feedback

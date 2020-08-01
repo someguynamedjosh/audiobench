@@ -1,44 +1,51 @@
 use crate::engine::parts as ep;
-use crate::engine::save_data::Patch;
 use crate::gui::constants::*;
 use crate::gui::module_widgets;
-use crate::gui::other_widgets::TextField;
+use crate::gui::ui_widgets::TextField;
 use crate::gui::{GuiScreen, InteractionHint, MouseMods, Tooltip};
+use crate::registry::save_data::Patch;
 use crate::util::*;
 
 // Describes an action that should be performed on an instance level.
 pub enum InstanceAction {
+    Sequence(Vec<InstanceAction>),
     /// Indicates the structure of the graph has changed and it should be reloaded.
     ReloadStructure,
     /// Indicates a value has changed, so the aux input data should be recollected.
     ReloadAuxData,
     /// Changes the name of the current patch. Asserts if the current patch is not writable.
     RenamePatch(String),
-    SavePatch,
-    NewPatch(Box<dyn Fn(&Rcrc<Patch>)>),
-    LoadPatch(Rcrc<Patch>),
+    SavePatch(Box<dyn FnMut(&Rcrc<Patch>)>),
+    NewPatch(Box<dyn FnMut(&Rcrc<Patch>)>),
+    LoadPatch(Rcrc<Patch>, Box<dyn FnMut()>),
+    SimpleCallback(Box<dyn FnMut()>),
+    CopyPatchToClipboard,
+    PastePatchFromClipboard(Box<dyn FnMut(&Rcrc<Patch>)>),
 }
 
 // Describes an action the GUI object should perform. Prevents passing a bunch of arguments to
 // MouseAction functions for each action that needs to modify something in the GUI.
 pub enum GuiAction {
-    OpenMenu(Box<module_widgets::KnobEditor>),
+    Sequence(Vec<GuiAction>),
+    OpenMenu(Box<dyn module_widgets::PopupMenu>),
     SwitchScreen(GuiScreen),
     AddModule(ep::Module),
     RemoveModule(Rcrc<ep::Module>),
     FocusTextField(Rcrc<TextField>),
     Elevate(InstanceAction),
+    OpenWebpage(String),
 }
 
 // TODO: Organize this?
 pub enum MouseAction {
     None,
+    Sequence(Vec<MouseAction>),
     ManipulateControl(Rcrc<ep::Control>, f32),
     ManipulateLane(Rcrc<ep::Control>, usize),
     ManipulateLaneStart(Rcrc<ep::Control>, usize, f32),
     ManipulateLaneEnd(Rcrc<ep::Control>, usize, f32),
-    ManipulateIntControl {
-        cref: Rcrc<ep::ComplexControl>,
+    ManipulateIntBox {
+        callback: Box<dyn Fn(i32)>,
         min: i32,
         max: i32,
         click_delta: i32,
@@ -52,22 +59,49 @@ pub enum MouseAction {
         max: f32,
         precise_value: f32,
     },
+    ManipulateDurationControl {
+        cref: Rcrc<ep::ComplexControl>,
+        precise_value: f32,
+        denominator: bool,
+    },
+    ManipulateSequencedValue {
+        cref: Rcrc<ep::ComplexControl>,
+        value_start: usize,
+        value_end: usize,
+        float_value: f32,
+        value_formatter: fn(f32) -> String,
+    },
     SetComplexControl(Rcrc<ep::ComplexControl>, String),
     MoveModule(Rcrc<ep::Module>, (f32, f32)),
     PanOffset(Rcrc<(f32, f32)>),
     ConnectInput(Rcrc<ep::Module>, usize),
     ConnectOutput(Rcrc<ep::Module>, usize),
-    OpenMenu(Box<module_widgets::KnobEditor>),
+    OpenMenu(Box<dyn module_widgets::PopupMenu>),
     SwitchScreen(GuiScreen),
     AddModule(ep::Module),
     RemoveModule(Rcrc<ep::Module>),
     RemoveLane(Rcrc<ep::Control>, usize),
     RenamePatch(String),
-    SavePatch,
-    NewPatch(Box<dyn Fn(&Rcrc<Patch>)>),
-    LoadPatch(Rcrc<Patch>),
+    SavePatch(Box<dyn FnMut(&Rcrc<Patch>)>),
+    NewPatch(Box<dyn FnMut(&Rcrc<Patch>)>),
+    LoadPatch(Rcrc<Patch>, Box<dyn FnMut()>),
     FocusTextField(Rcrc<TextField>),
     Scaled(Box<MouseAction>, Rcrc<f32>),
+    SimpleCallback(Box<dyn FnMut()>),
+    CopyPatchToClipboard,
+    PastePatchFromClipboard(Box<dyn FnMut(&Rcrc<Patch>)>),
+    OpenWebpage(String),
+}
+
+fn maybe_snap_value(value: f32, range: (f32, f32), mods: &MouseMods) -> f32 {
+    let steps = if mods.precise { 72.0 } else { 12.0 };
+    if mods.shift {
+        let r08 = value.from_range_to_range(range.0, range.1, 0.0, steps + 0.8);
+        let snapped = (r08 - 0.4).round();
+        snapped.from_range_to_range(0.0, steps, range.0, range.1)
+    } else {
+        value
+    }
 }
 
 impl MouseAction {
@@ -102,6 +136,11 @@ impl MouseAction {
         mods: &MouseMods,
     ) -> (Option<GuiAction>, Option<Tooltip>) {
         match self {
+            Self::Sequence(actions) => {
+                for action in actions {
+                    action.on_drag(delta, mods);
+                }
+            }
             Self::ManipulateControl(control, tracking) => {
                 let delta = delta.0 - delta.1;
                 // How many pixels the user must drag across to cover the entire range of the knob.
@@ -115,13 +154,7 @@ impl MouseAction {
                 let range = control_ref.range;
                 let delta = delta * (range.1 - range.0) as f32;
                 *tracking = (*tracking + delta).clam(range.0, range.1);
-                if mods.shift {
-                    let r08 = tracking.from_range_to_range(range.0, range.1, 0.0, 8.8);
-                    let snapped = (r08 - 0.4).round();
-                    control_ref.value = snapped.from_range_to_range(0.0, 8.0, range.0, range.1);
-                } else {
-                    control_ref.value = *tracking;
-                }
+                control_ref.value = maybe_snap_value(*tracking, range, mods);
                 for lane in &mut control_ref.automation {
                     lane.range.0 = (lane.range.0 + delta).clam(range.0, range.1);
                     lane.range.1 = (lane.range.1 + delta).clam(range.0, range.1);
@@ -134,7 +167,9 @@ impl MouseAction {
                             format_decimal(control_ref.value, 4),
                             control_ref.suffix
                         ),
-                        interaction: InteractionHint::LeftClickAndDrag.into(),
+                        interaction: InteractionHint::LeftClickAndDrag
+                            | InteractionHint::Alt
+                            | InteractionHint::Shift,
                     }),
                 );
             }
@@ -181,13 +216,7 @@ impl MouseAction {
                 let delta = delta * (range.1 - range.0) as f32;
                 let lane = &mut control_ref.automation[*lane_index];
                 *tracking = (*tracking + delta).clam(range.0, range.1);
-                if mods.shift {
-                    let r08 = tracking.from_range_to_range(range.0, range.1, 0.0, 8.8);
-                    let snapped = (r08 - 0.4).round();
-                    lane.range.0 = snapped.from_range_to_range(0.0, 8.0, range.0, range.1);
-                } else {
-                    lane.range.0 = *tracking;
-                }
+                lane.range.0 = maybe_snap_value(*tracking, range, mods);
                 let tttext = format!(
                     "{0}{2} to {1}{2}",
                     format_decimal(lane.range.0, 4),
@@ -198,7 +227,9 @@ impl MouseAction {
                     Some(GuiAction::Elevate(InstanceAction::ReloadAuxData)),
                     Some(Tooltip {
                         text: tttext,
-                        interaction: InteractionHint::LeftClickAndDrag.into(),
+                        interaction: InteractionHint::LeftClickAndDrag
+                            | InteractionHint::Alt
+                            | InteractionHint::Shift,
                     }),
                 );
             }
@@ -216,13 +247,7 @@ impl MouseAction {
                 let delta = delta * (range.1 - range.0) as f32;
                 let lane = &mut control_ref.automation[*lane_index];
                 *tracking = (*tracking + delta).clam(range.0, range.1);
-                if mods.shift {
-                    let r08 = tracking.from_range_to_range(range.0, range.1, 0.0, 8.8);
-                    let snapped = (r08 - 0.4).round();
-                    lane.range.1 = snapped.from_range_to_range(0.0, 8.0, range.0, range.1);
-                } else {
-                    lane.range.1 = *tracking;
-                }
+                lane.range.1 = maybe_snap_value(*tracking, range, mods);
                 let tttext = format!(
                     "{0}{2} to {1}{2}",
                     format_decimal(lane.range.0, 4),
@@ -233,12 +258,14 @@ impl MouseAction {
                     Some(GuiAction::Elevate(InstanceAction::ReloadAuxData)),
                     Some(Tooltip {
                         text: tttext,
-                        interaction: InteractionHint::LeftClickAndDrag.into(),
+                        interaction: InteractionHint::LeftClickAndDrag
+                            | InteractionHint::Alt
+                            | InteractionHint::Shift,
                     }),
                 );
             }
-            Self::ManipulateIntControl {
-                cref,
+            Self::ManipulateIntBox {
+                callback,
                 min,
                 max,
                 float_value,
@@ -254,10 +281,7 @@ impl MouseAction {
                 *float_value += delta;
                 *float_value = float_value.min(*max as f32);
                 *float_value = float_value.max(*min as f32);
-                let str_value = format!("{}", *float_value as i32);
-                if str_value != cref.borrow().value {
-                    cref.borrow_mut().value = str_value;
-                }
+                callback(*float_value as i32);
             }
             Self::ManipulateHertzControl {
                 cref,
@@ -292,6 +316,106 @@ impl MouseAction {
                     cref.borrow_mut().value = str_value;
                 }
             }
+            Self::ManipulateDurationControl {
+                cref,
+                precise_value,
+                denominator,
+            } => {
+                // If we are editing a fraction...
+                if cref.borrow().value.contains("/") {
+                    // How many pixels the user must drag across to change the value by 1.
+                    const DRAG_PIXELS: f32 = 12.0;
+                    let delta = delta.0 - delta.1;
+                    let mut delta = delta as f32 / DRAG_PIXELS;
+                    if mods.precise {
+                        delta *= 0.2;
+                    }
+                    *precise_value += delta;
+                    *precise_value = precise_value.min(98.0);
+                    *precise_value = precise_value.max(1.0);
+                    let str_value = cref.borrow().value.clone();
+                    let slash_pos = str_value.find('/').unwrap();
+                    let mut num = (str_value[..slash_pos]).parse::<f32>().unwrap() as i32;
+                    let mut den = (str_value[slash_pos + 1..]).parse::<f32>().unwrap() as i32;
+                    if *denominator {
+                        den = *precise_value as i32;
+                    } else {
+                        num = *precise_value as i32;
+                    }
+                    let str_value = format!("{}.0/{}.0", num, den);
+                    if str_value != cref.borrow().value {
+                        cref.borrow_mut().value = str_value;
+                    }
+                } else {
+                    // How many pixels the user must drag across to double the value
+                    const PIXELS_PER_OCTAVE: f32 = 40.0;
+                    let delta = delta.0 - delta.1;
+                    let mut delta = delta as f32 / PIXELS_PER_OCTAVE;
+                    if mods.precise {
+                        delta *= 0.2;
+                    }
+                    let multiplier = (2.0f32).powf(delta);
+                    *precise_value *= multiplier;
+                    *precise_value = precise_value.min(99.8);
+                    *precise_value = precise_value.max(0.0003);
+                    let decimals = if *precise_value < 0.999 {
+                        3
+                    } else if *precise_value < 9.99 {
+                        2
+                    } else if *precise_value < 99.9 {
+                        1
+                    } else {
+                        0
+                    };
+                    let str_value = format!("{:.1$}", *precise_value, decimals);
+                    if str_value != cref.borrow().value {
+                        cref.borrow_mut().value = str_value;
+                    }
+                }
+                return (
+                    None,
+                    Some(Tooltip {
+                        text: "".to_owned(),
+                        interaction: InteractionHint::LeftClickAndDrag | InteractionHint::Alt,
+                    }),
+                );
+            }
+            Self::ManipulateSequencedValue {
+                cref,
+                value_start,
+                value_end,
+                float_value,
+                value_formatter,
+            } => {
+                let delta = delta.0 - delta.1;
+                // How many pixels the user must drag across to cover half the slider range.
+                const DRAG_PIXELS: f32 = 100.0;
+                let mut delta = delta as f32 / DRAG_PIXELS;
+                if mods.precise {
+                    delta *= 0.2;
+                }
+                *float_value += delta;
+                *float_value = float_value.max(-1.0).min(1.0);
+                let set_value = maybe_snap_value(*float_value, (-1.0, 1.0), mods);
+                let formatted = value_formatter(set_value);
+                let mut borrowed = cref.borrow_mut();
+                let new_value = format!(
+                    "{}{}{}",
+                    &borrowed.value[..*value_start],
+                    formatted,
+                    &borrowed.value[*value_end..]
+                );
+                borrowed.value = new_value;
+                return (
+                    None,
+                    Some(Tooltip {
+                        text: format!("{:.3}", set_value),
+                        interaction: InteractionHint::LeftClickAndDrag
+                            | InteractionHint::Shift
+                            | InteractionHint::Alt,
+                    }),
+                );
+            }
             Self::MoveModule(module, tracking) => {
                 *tracking = tracking.add(delta);
                 let mut module_ref = module.borrow_mut();
@@ -301,6 +425,13 @@ impl MouseAction {
                 } else {
                     module_ref.pos = *tracking;
                 }
+                return (
+                    None,
+                    Some(Tooltip {
+                        text: "".to_owned(),
+                        interaction: InteractionHint::LeftClickAndDrag | InteractionHint::Shift,
+                    }),
+                );
             }
             Self::PanOffset(offset) => {
                 let mut offset_ref = offset.borrow_mut();
@@ -318,6 +449,14 @@ impl MouseAction {
 
     pub(in crate::gui) fn on_drop(self, target: DropTarget) -> Option<GuiAction> {
         match self {
+            Self::Sequence(actions) => {
+                return Some(GuiAction::Sequence(
+                    actions
+                        .into_iter()
+                        .filter_map(|action| action.on_drop(target.clone()))
+                        .collect(),
+                ));
+            }
             Self::ConnectInput(in_module, in_index) => {
                 let mut in_ref = in_module.borrow_mut();
                 let template_ref = in_ref.template.borrow();
@@ -329,8 +468,10 @@ impl MouseAction {
                     if in_type == out_type {
                         in_ref.inputs[in_index] = ep::InputConnection::Wire(out_module, out_index);
                     }
-                } else {
-                    in_ref.inputs[in_index] = ep::InputConnection::Default(0);
+                // Only change to a default if it used to be connected.
+                } else if let ep::InputConnection::Wire(..) = &in_ref.inputs[in_index] {
+                    let default = in_ref.template.borrow().default_inputs[in_index];
+                    in_ref.inputs[in_index] = ep::InputConnection::Default(default);
                 }
                 return Some(GuiAction::Elevate(InstanceAction::ReloadStructure));
             }
@@ -354,14 +495,23 @@ impl MouseAction {
                 }
                 return Some(GuiAction::Elevate(InstanceAction::ReloadStructure));
             }
-            Self::ManipulateIntControl { .. } => {
+            Self::ManipulateIntBox { .. } => {
                 return Some(GuiAction::Elevate(InstanceAction::ReloadStructure))
             }
             Self::ManipulateHertzControl { .. } => {
                 return Some(GuiAction::Elevate(InstanceAction::ReloadStructure))
             }
+            Self::ManipulateDurationControl { .. } => {
+                return Some(GuiAction::Elevate(InstanceAction::ReloadStructure))
+            }
+            Self::ManipulateSequencedValue { .. } => {
+                return Some(GuiAction::Elevate(InstanceAction::ReloadStructure))
+            }
             Self::Scaled(base, ..) => {
                 return base.on_drop(target);
+            }
+            Self::SimpleCallback(callback) => {
+                return Some(GuiAction::Elevate(InstanceAction::SimpleCallback(callback)));
             }
             _ => (),
         }
@@ -370,6 +520,14 @@ impl MouseAction {
 
     pub(in crate::gui) fn on_click(self) -> Option<GuiAction> {
         match self {
+            Self::Sequence(actions) => {
+                return Some(GuiAction::Sequence(
+                    actions
+                        .into_iter()
+                        .filter_map(|action| action.on_click())
+                        .collect(),
+                ));
+            }
             Self::OpenMenu(menu) => return Some(GuiAction::OpenMenu(menu)),
             Self::SwitchScreen(screen_index) => return Some(GuiAction::SwitchScreen(screen_index)),
             Self::AddModule(module) => return Some(GuiAction::AddModule(module)),
@@ -378,12 +536,16 @@ impl MouseAction {
             Self::RenamePatch(name) => {
                 return Some(GuiAction::Elevate(InstanceAction::RenamePatch(name)))
             }
-            Self::SavePatch => return Some(GuiAction::Elevate(InstanceAction::SavePatch)),
+            Self::SavePatch(callback) => {
+                return Some(GuiAction::Elevate(InstanceAction::SavePatch(callback)))
+            }
             Self::NewPatch(callback) => {
                 return Some(GuiAction::Elevate(InstanceAction::NewPatch(callback)))
             }
-            Self::LoadPatch(patch) => {
-                return Some(GuiAction::Elevate(InstanceAction::LoadPatch(patch)))
+            Self::LoadPatch(patch, callback) => {
+                return Some(GuiAction::Elevate(InstanceAction::LoadPatch(
+                    patch, callback,
+                )))
             }
             Self::RemoveLane(control, lane) => {
                 control.borrow_mut().automation.remove(lane);
@@ -400,8 +562,8 @@ impl MouseAction {
                 }
                 return Some(GuiAction::Elevate(InstanceAction::ReloadStructure));
             }
-            Self::ManipulateIntControl {
-                cref,
+            Self::ManipulateIntBox {
+                callback,
                 min,
                 max,
                 click_delta,
@@ -410,10 +572,7 @@ impl MouseAction {
                 float_value += click_delta as f32;
                 float_value = float_value.min(max as f32);
                 float_value = float_value.max(min as f32);
-                let str_value = format!("{}", float_value as i32);
-                if str_value != cref.borrow().value {
-                    cref.borrow_mut().value = str_value;
-                }
+                callback(float_value as i32);
                 return Some(GuiAction::Elevate(InstanceAction::ReloadStructure));
             }
             Self::SetComplexControl(control, value) => {
@@ -427,6 +586,18 @@ impl MouseAction {
             Self::Scaled(base, ..) => {
                 return base.on_click();
             }
+            Self::SimpleCallback(callback) => {
+                return Some(GuiAction::Elevate(InstanceAction::SimpleCallback(callback)));
+            }
+            Self::CopyPatchToClipboard => {
+                return Some(GuiAction::Elevate(InstanceAction::CopyPatchToClipboard))
+            }
+            Self::PastePatchFromClipboard(callback) => {
+                return Some(GuiAction::Elevate(InstanceAction::PastePatchFromClipboard(
+                    callback,
+                )))
+            }
+            Self::OpenWebpage(url) => return Some(GuiAction::OpenWebpage(url)),
             _ => (),
         }
         None
@@ -434,6 +605,14 @@ impl MouseAction {
 
     pub(in crate::gui) fn on_double_click(self) -> Option<GuiAction> {
         match self {
+            Self::Sequence(actions) => {
+                return Some(GuiAction::Sequence(
+                    actions
+                        .into_iter()
+                        .filter_map(|action| action.on_double_click())
+                        .collect(),
+                ));
+            }
             Self::ManipulateControl(control, ..) => {
                 let mut cref = control.borrow_mut();
                 cref.value = cref.default;
@@ -454,11 +633,6 @@ impl MouseAction {
                 cref.automation[lane].range.1 = cref.range.1;
                 return Some(GuiAction::Elevate(InstanceAction::ReloadAuxData));
             }
-            Self::ManipulateIntControl { cref, .. } | Self::ManipulateHertzControl { cref, .. } => {
-                let mut cref = cref.borrow_mut();
-                cref.value = cref.default.clone();
-                return Some(GuiAction::Elevate(InstanceAction::ReloadStructure));
-            }
             Self::SetComplexControl(control, ..) => {
                 let mut control_ref = control.borrow_mut();
                 let value = control_ref.default.clone();
@@ -471,12 +645,16 @@ impl MouseAction {
             Self::Scaled(base, ..) => {
                 return base.on_double_click();
             }
+            Self::SimpleCallback(callback) => {
+                return Some(GuiAction::Elevate(InstanceAction::SimpleCallback(callback)));
+            }
             _ => return self.on_click(),
         }
         None
     }
 }
 
+#[derive(Clone)]
 pub enum DropTarget {
     None,
     Control(Rcrc<ep::Control>),

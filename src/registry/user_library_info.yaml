@@ -1,0 +1,4 @@
+pretty_name: User
+description: This is where all your custom presets are stored.
+version: 1
+min_engine_version: $ENGINE_VERSION

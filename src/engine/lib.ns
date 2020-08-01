@@ -1,15 +1,78 @@
-[BUFFER_LENGTH]BOOL global_release_trigger = FALSE;
+DATA_TYPE TRIGGER = [BUFFER_LENGTH]BOOL;
+
+TRIGGER global_release_trigger = FALSE;
 if global_note_status == 1.0 { global_release_trigger[0] = TRUE; }
-[BUFFER_LENGTH]BOOL global_start_trigger = FALSE;
+TRIGGER global_start_trigger = FALSE;
 if global_note_status == 2.0 { global_start_trigger[0] = TRUE; }
 BOOL global_update_feedback_data = global_should_update == 1.0;
-macro FlatWaveform(buffer_pos, phase):(value) { FLOAT value = 0.0; }
+
+macro FlatWaveform(buffer_pos, phase):(value) { AUTO value = 0.0; }
+macro RampUpWaveform(buffer_pos, phase):(value) { AUTO value = phase * 2.0 - 1.0; }
+macro RampDownWaveform(buffer_pos, phase):(value) { AUTO value = 1.0 - phase * 2.0; }
+macro SineWaveform(buffer_pos, phase):(value) { AUTO value = Sin(phase * TAU); }
 
 macro DisplayWaveform(UpdateFn, Waveform) {
-    [60]FLOAT feedback;
-    for i = 0 to 60 no_unroll {
-        FLOAT fphase = Itof(i) / 59.0;
+    [44]FLOAT feedback;
+    for i = 0 to 42 no_unroll {
+        FLOAT fphase = Itof(i) / 42.0;
         feedback[i] = Waveform(0, fphase)[0?];
     }
+    feedback[42] = -1.0;
+    feedback[43] = -1.0;
     UpdateFn(feedback);
+}
+
+macro DisplayWaveformWithCursor(UpdateFn, Waveform, cursor_phase) {
+    [44]FLOAT feedback;
+    for i = 0 to 42 no_unroll {
+        FLOAT fphase = Itof(i) / 42.0;
+        feedback[i] = Waveform(0, fphase)[0?];
+    }
+    feedback[42] = cursor_phase;
+    feedback[43] = Waveform(0, cursor_phase)[0?];
+    UpdateFn(feedback);
+}
+
+macro DisplayTriggerSequencePlayhead(UpdateFn, position) {
+    assert position:TYPE == FLOAT;
+    UpdateFn([position]);
+}
+
+macro DisplayValueSequenceData(UpdateFn, playhead_position, ramping_amount) {
+    assert playhead_position:TYPE == FLOAT;
+    assert ramping_amount:TYPE == FLOAT;
+    UpdateFn([playhead_position, ramping_amount]);
+}
+
+macro GetTiming(SOURCE, TYPE):(timing) {
+    assert SOURCE:TYPE == BOOL;
+    assert TYPE:TYPE == BOOL;
+    AUTO timing;
+    if !SOURCE and !TYPE {
+        timing = global_note_time;
+    } else if SOURCE and !TYPE {
+        timing = global_song_time;
+    } else if !SOURCE and TYPE {
+        timing = global_note_beats;
+    } else if SOURCE and TYPE {
+        timing = global_song_beats;
+    }
+}
+
+static lib_random_seed {
+    // Chosen by fair dice roll, guaranteed to be random.
+    INT lib_random_seed = 0x6b60c4e2;
+}
+
+// Based on https://en.wikipedia.org/wiki/Xorshift which is why it's called craprand.
+// Basically I don't want to implement the features required to make a nicer random number
+// generator. This one is fine for audio stuff.
+macro CrapRand():(value) {
+    // This line makes different notes have different "seeds" so they don't sound the same.
+    // This might also break the period of the generator but I don't care.
+    lib_random_seed = lib_random_seed + Ftoi(global_pitch + 60.0 * global_song_time[0?]);
+    lib_random_seed = lib_random_seed bxor lib_random_seed << 13;
+    lib_random_seed = lib_random_seed bxor lib_random_seed >> 17;
+    lib_random_seed = lib_random_seed bxor lib_random_seed << 5;
+    FLOAT value = Itof(lib_random_seed) / Itof(0xFFFF_FFFF) * 2.0;
 }

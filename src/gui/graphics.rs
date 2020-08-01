@@ -200,7 +200,17 @@ impl<'a> GrahpicsWrapper<'a> {
     }
 
     pub fn write_label(&mut self, x: f32, y: f32, w: f32, text: &str) {
-        self.write_text(FONT_SIZE, x, y, w, 30.0, HAlign::Center, VAlign::Top, 2, text)
+        self.write_text(
+            FONT_SIZE,
+            x,
+            y,
+            w,
+            30.0,
+            HAlign::Center,
+            VAlign::Top,
+            2,
+            text,
+        )
     }
 
     pub fn write_text(

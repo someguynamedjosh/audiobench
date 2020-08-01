@@ -12,7 +12,6 @@ crate-type = ["staticlib"]
 # fiddling. We also can't catch the panics before they reach the C++ portion because our code
 # involves RefCell and some other nasty things that don't work with catch_unwind
 [profile.dev]
-panic = "abort"
 
 [profile.release]
 panic = "abort"
@@ -20,12 +19,19 @@ panic = "abort"
 [dependencies]
 array-macro = "1.0"
 base64 = "0.12"
+clipboard = "0.5"
+const_env = "0.1"
 directories = "2.0"
 enumflags2 = "0.6"
-nodespeak = "0.1"
+nodespeak = "0.2"
 num = "0.2"
 rand = "0.7"
+reqwest = { version = "0.10", features = ["blocking", "rustls-tls"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
 single_value_channel = "1.2"
+webbrowser = "0.5"
+yaml_widget_boilerplate = { path = "yaml_widget_boilerplate" }
 zip = "0.5"
 
 [build-dependencies]

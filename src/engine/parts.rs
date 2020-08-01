@@ -1,4 +1,4 @@
-use crate::gui::module_widgets::WidgetOutline;
+use crate::registry::module_template::ModuleTemplate;
 use crate::util::*;
 use std::collections::{HashMap, HashSet};
 
@@ -57,7 +57,6 @@ pub enum InputConnection {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum JackType {
-    Time,
     Pitch,
     Waveform,
     Audio,
@@ -80,7 +79,6 @@ pub struct DefaultInput {
 impl JackType {
     pub fn from_str(input: &str) -> Result<Self, ()> {
         match input {
-            "time" => Ok(Self::Time),
             "pitch" => Ok(Self::Pitch),
             "waveform" => Ok(Self::Waveform),
             "audio" => Ok(Self::Audio),
@@ -91,47 +89,63 @@ impl JackType {
 
     pub fn icon_name(&self) -> &'static str {
         match self {
-            Self::Time => "base:time",
-            Self::Pitch => "base:pitch",
-            Self::Waveform => "base:waveform",
-            Self::Audio => "base:audio",
-            Self::Trigger => "base:trigger",
+            Self::Pitch => "factory:pitch",
+            Self::Waveform => "factory:waveform",
+            Self::Audio => "factory:audio",
+            Self::Trigger => "factory:trigger",
         }
     }
 
     fn default_option_descriptions(&self) -> &'static [DefaultInputDescription] {
         match self {
-            Self::Time => &[DefaultInputDescription {
-                name: "Note Time",
-                code: "global_note_time",
-                icon: "base:note",
-            }],
             Self::Pitch => &[DefaultInputDescription {
                 name: "Note Pitch",
                 code: "global_pitch",
-                icon: "base:note",
+                icon: "factory:note",
             }],
-            Self::Waveform => &[DefaultInputDescription {
-                name: "Silence",
-                code: "FlatWaveform",
-                // TODO: Better icon.
-                icon: "base:nothing",
-            }],
+            Self::Waveform => &[
+                DefaultInputDescription {
+                    name: "Silence",
+                    code: "FlatWaveform",
+                    // TODO: Better icon.
+                    icon: "factory:nothing",
+                },
+                DefaultInputDescription {
+                    name: "Ramp Up",
+                    code: "RampUpWaveform",
+                    icon: "factory:ramp_up",
+                },
+                DefaultInputDescription {
+                    name: "Ramp Down",
+                    code: "RampDownWaveform",
+                    icon: "factory:ramp_down",
+                },
+                DefaultInputDescription {
+                    name: "Sine Wave",
+                    code: "SineWaveform",
+                    icon: "factory:sine_wave",
+                },
+            ],
             Self::Audio => &[DefaultInputDescription {
                 name: "Silence",
                 code: "0.0",
-                icon: "base:nothing",
+                icon: "factory:nothing",
             }],
             Self::Trigger => &[
                 DefaultInputDescription {
                     name: "Note Start",
                     code: "global_start_trigger",
-                    icon: "base:note_down",
+                    icon: "factory:note_down",
                 },
                 DefaultInputDescription {
                     name: "Note Release",
                     code: "global_release_trigger",
-                    icon: "base:note_up",
+                    icon: "factory:note_up",
+                },
+                DefaultInputDescription {
+                    name: "Never",
+                    code: "FALSE",
+                    icon: "factory:nothing",
                 },
             ],
         }
@@ -143,7 +157,7 @@ impl JackType {
             .map(|desc| DefaultInput {
                 name: desc.name,
                 code: desc.code,
-                // The base library should have all the listed icons.
+                // The factory library should have all the listed icons.
                 icon: *icon_indexes.get(desc.icon).unwrap(),
             })
             .collect()
@@ -325,10 +339,6 @@ impl ModuleGraph {
         self.modules.remove(index);
     }
 
-    pub fn adopt_module(&mut self, module: Module) {
-        self.modules.push(rcrc(module));
-    }
-
     pub fn borrow_modules(&self) -> &[Rcrc<Module>] {
         &self.modules[..]
     }
@@ -391,23 +401,4 @@ impl ModuleGraph {
             Err(())
         }
     }
-}
-
-#[derive(Debug)]
-pub struct ModuleTemplate {
-    pub lib_name: String,
-    pub resource_name: String,
-    pub code_resource: String,
-    pub template_id: usize,
-
-    pub label: String,
-    pub category: String,
-    pub tooltip: String,
-    pub size: (i32, i32),
-    pub widget_outlines: Vec<WidgetOutline>,
-    pub feedback_data_len: usize,
-
-    pub inputs: Vec<IOJack>,
-    pub default_inputs: Vec<usize>,
-    pub outputs: Vec<IOJack>,
 }

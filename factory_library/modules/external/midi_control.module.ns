@@ -1,0 +1,14 @@
+static old_value {
+    FLOAT old_value = 0.0;
+}
+
+FLOAT new_value = global_midi_controls[CONTROL_INDEX];
+// if global_note_start_trigger[0] {
+//     old_value = new_value;
+// }
+[BUFFER_LENGTH]FLOAT value;
+for i = 0 to BUFFER_LENGTH no_unroll {
+    FLOAT factor = Itof(i) / Itof(BUFFER_LENGTH);
+    value[i] = new_value * factor + old_value * (1.0 - factor);
+}
+old_value = new_value;

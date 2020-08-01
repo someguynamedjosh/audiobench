@@ -1,10 +1,10 @@
 use crate::engine::parts as ep;
-use crate::engine::registry::Registry;
-use crate::engine::save_data::Patch;
+use crate::gui;
 use crate::gui::action::{GuiAction, InstanceAction, MouseAction};
 use crate::gui::constants::*;
 use crate::gui::graphics::GrahpicsWrapper;
-use crate::gui::{audio_widgets, other_widgets};
+use crate::registry::save_data::Patch;
+use crate::registry::Registry;
 use crate::util::*;
 use enumflags2::BitFlags;
 use std::time::{Duration, Instant};
@@ -14,8 +14,11 @@ use std::time::{Duration, Instant};
 pub enum InteractionHint {
     LeftClick = 0x1,
     RightClick = 0x2,
+    Scroll = 0x40,
     LeftClickAndDrag = 0x4,
     DoubleClick = 0x8,
+    Alt = 0x10,
+    Shift = 0x20,
 }
 
 #[derive(Clone)]
@@ -63,6 +66,7 @@ pub struct MouseMods {
 
 #[derive(Eq, PartialEq, Clone, Copy)]
 pub enum GuiScreen {
+    LibraryBrowser,
     PatchBrowser,
     NoteGraph,
     ModuleBrowser,
@@ -70,22 +74,31 @@ pub enum GuiScreen {
 
 impl GuiScreen {
     fn all() -> Vec<GuiScreen> {
-        vec![Self::PatchBrowser, Self::NoteGraph, Self::ModuleBrowser]
+        vec![
+            Self::LibraryBrowser,
+            Self::PatchBrowser,
+            Self::NoteGraph,
+            Self::ModuleBrowser,
+        ]
     }
 
     pub fn get_icon_name(&self) -> &'static str {
         match self {
-            Self::PatchBrowser => "base:patch_browser",
-            Self::NoteGraph => "base:note",
-            Self::ModuleBrowser => "base:add",
+            Self::LibraryBrowser => "factory:library",
+            Self::PatchBrowser => "factory:patch_browser",
+            Self::NoteGraph => "factory:note",
+            Self::ModuleBrowser => "factory:add",
         }
     }
 
     pub fn get_tooltip_text(&self) -> &'static str {
         match self {
-            Self::PatchBrowser => "Patch browser: save and load patches",
-            Self::NoteGraph => "Note graph: Edit the module graph used to synthesize notes",
-            Self::ModuleBrowser => "Module browser: Add new modules to the current graph",
+            Self::LibraryBrowser => {
+                "Info/Library Browser: View current Audiobench version and installed libraries"
+            }
+            Self::PatchBrowser => "Patch Browser: Save and load patches",
+            Self::NoteGraph => "Note Graph: Edit the module graph used to synthesize notes",
+            Self::ModuleBrowser => "Module Browser: Add new modules to the current graph",
         }
     }
 }
@@ -93,10 +106,11 @@ impl GuiScreen {
 pub struct Gui {
     size: (f32, f32),
     current_screen: GuiScreen,
-    menu_bar: other_widgets::MenuBar,
-    patch_browser: other_widgets::PatchBrowser,
-    graph: audio_widgets::ModuleGraph,
-    module_browser: other_widgets::ModuleBrowser,
+    menu_bar: gui::ui_widgets::MenuBar,
+    library_browser: gui::ui_widgets::LibraryBrowser,
+    patch_browser: gui::ui_widgets::PatchBrowser,
+    graph: gui::graph::ModuleGraph,
+    module_browser: gui::ui_widgets::ModuleBrowser,
 
     mouse_action: MouseAction,
     click_position: (f32, f32),
@@ -104,7 +118,8 @@ pub struct Gui {
     mouse_down: bool,
     dragged: bool,
     last_click: Instant,
-    focused_text_field: Option<Rcrc<other_widgets::TextField>>,
+    focused_text_field: Option<Rcrc<gui::ui_widgets::TextField>>,
+    update_check_complete: bool,
 }
 
 impl Gui {
@@ -114,20 +129,23 @@ impl Gui {
         graph_ref: Rcrc<ep::ModuleGraph>,
     ) -> Self {
         let size = (640.0, 480.0);
-        let y = other_widgets::MenuBar::HEIGHT;
+        let y = gui::ui_widgets::MenuBar::HEIGHT;
         let screen_size = (size.0, size.1 - y);
 
+        let library_browser =
+            gui::ui_widgets::LibraryBrowser::create(registry, (0.0, y), screen_size);
         let patch_browser =
-            other_widgets::PatchBrowser::create(current_patch, registry, (0.0, y), screen_size);
-        let mut graph = audio_widgets::ModuleGraph::create(registry, graph_ref, screen_size);
+            gui::ui_widgets::PatchBrowser::create(current_patch, registry, (0.0, y), screen_size);
+        let mut graph = gui::graph::ModuleGraph::create(registry, graph_ref, screen_size);
         graph.pos.1 = y;
         let module_browser =
-            other_widgets::ModuleBrowser::create(registry, (0.0, y), (size.0, size.1 - y));
+            gui::ui_widgets::ModuleBrowser::create(registry, (0.0, y), (size.0, size.1 - y));
 
         Self {
             size,
             current_screen: GuiScreen::NoteGraph,
-            menu_bar: other_widgets::MenuBar::create(registry, GuiScreen::all()),
+            menu_bar: gui::ui_widgets::MenuBar::create(registry, GuiScreen::all()),
+            library_browser,
             patch_browser,
             graph,
             module_browser,
@@ -139,6 +157,7 @@ impl Gui {
             dragged: false,
             last_click: Instant::now() - Duration::from_secs(100),
             focused_text_field: None,
+            update_check_complete: false,
         }
     }
 
@@ -154,8 +173,21 @@ impl Gui {
         self.menu_bar.clear_status();
     }
 
-    pub fn draw(&self, g: &mut GrahpicsWrapper) {
+    pub fn draw(&mut self, g: &mut GrahpicsWrapper, registry: &mut Registry) {
+        if !self.update_check_complete {
+            // Returns false when update checker is complete.
+            if !registry.poll_update_checker() {
+                self.update_check_complete = true;
+                if registry.any_updates_available() {
+                    self.display_success(
+                        "Updates are available! Go to the Info/Libraries tab to view them"
+                            .to_owned(),
+                    );
+                }
+            }
+        }
         match self.current_screen {
+            GuiScreen::LibraryBrowser => self.library_browser.draw(g, &*registry),
             GuiScreen::PatchBrowser => self.patch_browser.draw(g),
             GuiScreen::NoteGraph => self.graph.draw(g, self),
             GuiScreen::ModuleBrowser => self.module_browser.draw(g),
@@ -180,10 +212,11 @@ impl Gui {
                 ret = self.perform_action(registry, action);
             }
         };
-        if pos.1 <= other_widgets::MenuBar::HEIGHT {
+        if pos.1 <= gui::ui_widgets::MenuBar::HEIGHT {
             self.mouse_action = self.menu_bar.respond_to_mouse_press(pos, mods);
         } else {
             self.mouse_action = match self.current_screen {
+                GuiScreen::LibraryBrowser => self.library_browser.respond_to_mouse_press(pos, mods),
                 GuiScreen::PatchBrowser => self.patch_browser.respond_to_mouse_press(pos, mods),
                 GuiScreen::NoteGraph => self.graph.respond_to_mouse_press(pos, mods),
                 GuiScreen::ModuleBrowser => self.module_browser.respond_to_mouse_press(pos, mods),
@@ -231,6 +264,7 @@ impl Gui {
         }
         if new_tooltip.is_none() {
             new_tooltip = match self.current_screen {
+                GuiScreen::LibraryBrowser => self.library_browser.get_tooltip_at(new_pos),
                 GuiScreen::PatchBrowser => self.patch_browser.get_tooltip_at(new_pos),
                 GuiScreen::NoteGraph => self.graph.get_tooltip_at(new_pos),
                 GuiScreen::ModuleBrowser => self.module_browser.get_tooltip_at(new_pos),
@@ -246,6 +280,14 @@ impl Gui {
 
     fn perform_action(&mut self, registry: &Registry, action: GuiAction) -> Option<InstanceAction> {
         match action {
+            GuiAction::Sequence(actions) => {
+                return Some(InstanceAction::Sequence(
+                    actions
+                        .into_iter()
+                        .filter_map(|action| self.perform_action(registry, action))
+                        .collect(),
+                ));
+            }
             GuiAction::OpenMenu(menu) => self.graph.open_menu(menu),
             GuiAction::SwitchScreen(new_index) => self.current_screen = new_index,
             GuiAction::AddModule(module) => {
@@ -262,6 +304,15 @@ impl Gui {
                 self.focused_text_field = Some(field);
             }
             GuiAction::Elevate(action) => return Some(action),
+            GuiAction::OpenWebpage(url) => {
+                if let Err(err) = webbrowser::open(&url) {
+                    self.display_error(format!("Failed to open webpage, see console for details."));
+                    eprintln!(
+                        "WARNING: Failed to open web browser, caused by:\nERROR: {}",
+                        err
+                    );
+                }
+            }
         }
         None
     }
@@ -291,6 +342,18 @@ impl Gui {
         if let GuiScreen::NoteGraph = self.current_screen {
             return self
                 .graph
+                .on_scroll(delta)
+                .map(|a| self.perform_action(registry, a))
+                .flatten();
+        } else if let GuiScreen::PatchBrowser = self.current_screen {
+            return self
+                .patch_browser
+                .on_scroll(self.mouse_pos, delta)
+                .map(|a| self.perform_action(registry, a))
+                .flatten();
+        } else if let GuiScreen::LibraryBrowser = self.current_screen {
+            return self
+                .library_browser
                 .on_scroll(delta)
                 .map(|a| self.perform_action(registry, a))
                 .flatten();

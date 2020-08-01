@@ -1,0 +1,65 @@
+save_id: 15
+inputs:
+  reset:
+    type: trigger
+    label: Reset
+    tooltip: When triggered, moves back to the start of the sequence
+    default: 2
+    icon: factory:reset
+outputs:
+  out_value:
+    type: audio 
+    label: Output
+    tooltip: The current value in the sequence
+controls:
+  ramping:
+    min: 0
+    max: 1
+    default: 0
+complex_controls:
+  SEQUENCE:
+  TIME_SOURCE:
+  TIME_TYPE:
+  STEP_TIME:
+gui: 
+  label: Value Sequence
+  category: Control
+  tooltip: Outputs a customizable repeating pattern of values
+  width: 8
+  height: 4
+  widgets:
+    value_sequence:
+      x: 0
+      y: 0
+      w: 8
+      h: 1
+      sequence_control: SEQUENCE
+      ramping_control: ramping
+      tooltip: Drag a segment to change the value at that point in time
+      feedback_name: playhead_feedback
+    timing_selector:
+      x: 0
+      y: 2
+      source_control: TIME_SOURCE
+      type_control: TIME_TYPE
+      default_beats_type:
+    duration_box:
+      x: 2
+      y: 2
+      control: STEP_TIME
+      type_control: TIME_TYPE
+      default: 1.0/4.0
+      label: Step Time
+      tooltip: How long one step of the sequence takes
+    knob:
+      x: 4
+      y: 2
+      control: ramping
+      label: Ramping
+      tooltip: How smooth the transition between values should be
+    value_sequence_length:
+      x: 6
+      y: 2
+      sequence_control: SEQUENCE
+      label: Num. Steps
+      tooltip: The number of steps the sequence plays before repeating

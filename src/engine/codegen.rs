@@ -1,79 +1,19 @@
+use super::data_trackers::{AuxDataCollector, DataFormat, FeedbackDisplayer, HostFormat};
 use crate::engine::parts::*;
 use crate::gui::module_widgets::FeedbackDataRequirement;
 use crate::util::*;
 
-pub struct CodegenResult {
-    pub code: String,
-    pub aux_data_collector: AuxDataCollector,
-    pub feedback_displayer: FeedbackDisplayer,
+pub(super) struct CodeGenResult {
+    pub(super) code: String,
+    pub(super) aux_data_collector: AuxDataCollector,
+    pub(super) feedback_displayer: FeedbackDisplayer,
+    pub(super) data_format: DataFormat,
 }
 
-// This packages changes made by the user to knobs and automation into a format that can be read
-// by the nodespeak parameter, so that trivial changes don't necessitate a recompile.
-pub struct AuxDataCollector {
-    ordered_controls: Vec<Rcrc<Control>>,
-    data_length: usize,
-}
-
-impl AuxDataCollector {
-    pub fn collect_data(&self) -> Vec<f32> {
-        let mut data = Vec::with_capacity(self.data_length);
-        for control in &self.ordered_controls {
-            let control_ref = control.borrow();
-            if control_ref.automation.len() == 0 {
-                data.push(control_ref.value);
-            } else {
-                let num_lanes = control_ref.automation.len();
-                let multiplier = 1.0 / num_lanes as f32;
-                for lane in &control_ref.automation {
-                    // algebraic simplification of remapping value [-1, 1] -> [0, 1] -> [min, max]
-                    let a = (lane.range.1 - lane.range.0) / 2.0;
-                    let b = a + lane.range.0;
-                    data.push(a * multiplier);
-                    data.push(b * multiplier);
-                }
-            }
-        }
-        debug_assert!(data.len() == self.data_length);
-        data
-    }
-
-    pub fn get_data_length(&self) -> usize {
-        self.data_length
-    }
-}
-
-pub struct FeedbackDisplayer {
-    ordered_modules: Vec<Rcrc<Module>>,
-    data_length: usize,
-}
-
-impl FeedbackDisplayer {
-    pub fn display_feedback(&mut self, feedback_data: &[f32]) {
-        assert!(feedback_data.len() == self.data_length);
-        let mut data_pos = 0;
-        for module in &self.ordered_modules {
-            let module_ref = module.borrow_mut();
-            let module_data_length = module_ref.template.borrow().feedback_data_len;
-            if let Some(data_ptr) = &module_ref.feedback_data {
-                let slice = &feedback_data[data_pos..data_pos + module_data_length];
-                data_ptr.borrow_mut().clone_from_slice(slice);
-            }
-            data_pos += module_data_length;
-        }
-        debug_assert!(data_pos == self.data_length);
-    }
-
-    pub fn get_data_length(&self) -> usize {
-        self.data_length
-    }
-}
-
-pub fn generate_code(
+pub(super) fn generate_code(
     for_graph: &ModuleGraph,
-    buffer_length: i32,
-    sample_rate: i32,
-) -> Result<CodegenResult, ()> {
+    host_format: &HostFormat,
+) -> Result<CodeGenResult, ()> {
     let execution_order = for_graph.compute_execution_order()?;
     let generator = CodeGenerator {
         graph: for_graph,
@@ -82,7 +22,7 @@ pub fn generate_code(
         aux_data_control_order: Vec::new(),
         feedback_data_len: 0,
     };
-    Ok(generator.generate_code(buffer_length, sample_rate))
+    Ok(generator.generate_code(host_format))
 }
 
 struct CodeGenerator<'a> {
@@ -91,16 +31,6 @@ struct CodeGenerator<'a> {
     current_aux_data_item: usize,
     aux_data_control_order: Vec<Rcrc<Control>>,
     feedback_data_len: usize,
-}
-
-fn format_decimal(value: f32) -> String {
-    let digits = 8i32;
-    let digits = match value {
-        v if v <= 0.0 => digits,
-        _ => digits - (value.abs().log10().min(digits as f32 - 1.0) as i32),
-    };
-    let digits = digits as usize;
-    format!("{:.*}", digits, value)
 }
 
 fn snake_case_to_pascal_case(snake_case: &str) -> String {
@@ -242,13 +172,16 @@ impl<'a> CodeGenerator<'a> {
         code.push_str("}\n\n");
     }
 
-    fn generate_code(mut self, buffer_length: i32, sample_rate: i32) -> CodegenResult {
+    fn generate_code(mut self, host_format: &HostFormat) -> CodeGenResult {
         let mut header = "".to_owned();
+        let buffer_length = host_format.buffer_len;
+        let sample_rate = host_format.sample_rate;
         header.push_str(&format!("INT BUFFER_LENGTH = {};\n", buffer_length,));
         header.push_str(&format!("FLOAT SAMPLE_RATE = {}.0;\n", sample_rate,));
         header.push_str(concat!(
-            "input FLOAT global_pitch, global_velocity, global_note_status, global_should_update;\n",
-            "input [BUFFER_LENGTH][1]FLOAT global_note_time;\n",
+            "input FLOAT global_pitch, global_velocity, global_note_status, global_should_update, global_bpm;\n",
+            "input [BUFFER_LENGTH]FLOAT global_note_time, global_note_beats, global_song_time, global_song_beats;\n",
+            "input [128]FLOAT global_midi_controls;\n",
             "output [BUFFER_LENGTH][2]FLOAT global_audio_out;\n",
         ));
 
@@ -307,19 +240,22 @@ impl<'a> CodeGenerator<'a> {
             feedback_data_len,
             ..
         } = self;
-        let aux_data_collector = AuxDataCollector {
-            ordered_controls: aux_data_control_order,
-            data_length: current_aux_data_item,
+        let data_format = DataFormat {
+            buffer_len: buffer_length,
+            sample_rate,
+            aux_data_len: current_aux_data_item,
+            feedback_data_len,
         };
-        let feedback_displayer = FeedbackDisplayer {
-            ordered_modules,
-            data_length: feedback_data_len,
-        };
+        let aux_data_collector =
+            AuxDataCollector::new(aux_data_control_order, data_format.aux_data_len);
+        let feedback_displayer =
+            FeedbackDisplayer::new(ordered_modules, data_format.feedback_data_len);
 
-        CodegenResult {
+        CodeGenResult {
             code: format!("{}\n{}", header, code),
             aux_data_collector,
             feedback_displayer,
+            data_format,
         }
     }
 }

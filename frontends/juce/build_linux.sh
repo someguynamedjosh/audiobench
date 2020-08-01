@@ -4,12 +4,14 @@
 set -e
 
 echo "This script will:"
-echo "1. Build Audiobench"
-echo "2. Build the JUCE frontend for Audiobench"
+echo "1. Remove JUCE splash screen (Audiobench is GPLv3)"
+echo "2. Build Audiobench"
+echo "3. Build the JUCE frontend for Audiobench"
 echo "Run with argument 'run' to execute the standalone version for testing."
 echo "Run with argument 'clean' to delete old build files before building."
 echo "Run with argument 'release' to build optimized release binaries."
 echo ""
+
 
 FRONTEND_ROOT=$(pwd)
 export PROJECT_ROOT="$(readlink -f "$FRONTEND_ROOT/../..")"
@@ -20,6 +22,8 @@ else
 fi
 SEPERATOR="========================================"
 
+echo "Removing JUCE splash..."
+python remove_splash.py
 echo ""
 echo $SEPERATOR
 echo "Building Audiobench..."
@@ -45,7 +49,7 @@ fi
 mkdir -p artifacts
 mkdir -p _build
 cd _build
-cmake ..
+cmake -Wno-dev ..
 cd ..
 if [ "$1" == "release" ]; then
     cmake --build _build --config Release

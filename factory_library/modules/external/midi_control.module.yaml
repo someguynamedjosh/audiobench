@@ -1,0 +1,26 @@
+save_id: 13
+inputs:
+outputs:
+  value:
+    type: audio
+    label: Value
+    tooltip: The value of the selected MIDI control
+controls:
+complex_controls:
+  CONTROL_INDEX:
+gui:
+  label: MIDI Control
+  category: External
+  tooltip: Accesses the value of a specific MIDI control (defaults to the mod wheel)
+  width: 2
+  height: 2
+  widgets:
+    int_box:
+      x: 0
+      y: 0
+      control: CONTROL_INDEX
+      label: Control
+      tooltip: The number of the control to use
+      min: 0
+      max: 127
+      default: 1
