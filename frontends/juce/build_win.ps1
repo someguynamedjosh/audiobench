@@ -29,7 +29,7 @@ $Env:PROJECT_ROOT = Resolve-Path "../.."
 $Env:PROJECT_ROOT = $Env:PROJECT_ROOT -replace "\\", "/"
 $Env:RUST_OUTPUT_DIR = "$Env:PROJECT_ROOT/target/release"
 cd _build
-cmake -DJUCE_DIR="$Env:JUCE_DIR" -G"Visual Studio 16 2019" -A x64 -Thost=x64 ..
+cmake -G"Visual Studio 16 2019" -A x64 -Thost=x64 ..
 cd ..
 cmake --build _build --config Release
 

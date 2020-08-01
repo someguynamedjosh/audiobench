@@ -3,6 +3,12 @@
 
 cmake_minimum_required(VERSION 3.15)
 
+# Statically link c++ runtime because installing it is a pain
+if (WIN32)
+    cmake_policy(SET CMP0091 NEW)
+    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded")
+endif()
+
 # The top-level CMakeLists.txt file for a project must contain a literal, direct call to the
 # `project()` command. `project()` sets up some helpful variables that describe source/binary
 # directories, and the current project version. This is a standard CMake command.
@@ -14,15 +20,7 @@ project(AUDIO_PLUGIN_EXAMPLE VERSION 0.0.1)
 # included JUCE directly in your source tree (perhaps as a submodule), you'll need to tell CMake to
 # include that subdirectory as part of the build.
 
-# For whatever reason, gitlab's runners can't handle just doing add_subdirectory. It complains about
-# out of memory errors despite the fact that the same technique works fine on a fresh VM with half
-# the RAM. Sourcing everything from another directory should fix it. Of course it's not the right
-# way to do it but I'm done with trying to find the right way. The errors make no sense anymore.
-if (WIN32)
-    find_package(JUCE CONFIG REQUIRED)
-else()
-    add_subdirectory(juce_git)
-endif()
+add_subdirectory(juce_git)
 
 # If you are building a VST2 or AAX plugin, CMake needs to be told where to find these SDKs on your
 # system. This setup should be done before calling `juce_add_plugin`.
