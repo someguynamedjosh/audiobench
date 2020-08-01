@@ -9,7 +9,7 @@ pub struct AutomationLane {
 }
 
 #[derive(Clone, Debug)]
-pub struct Control {
+pub struct Autocon {
     pub code_name: String,
     pub range: (f32, f32),
     pub default: f32,
@@ -18,7 +18,7 @@ pub struct Control {
     pub suffix: String,
 }
 
-impl Control {
+impl Autocon {
     pub fn create(code_name: String, min: f32, max: f32, default: f32, suffix: String) -> Self {
         Self {
             code_name,
@@ -232,7 +232,7 @@ impl IOJack {
 #[derive(Debug)]
 pub struct Module {
     pub template: Rcrc<ModuleTemplate>,
-    pub controls: Vec<Rcrc<Control>>,
+    pub controls: Vec<Rcrc<Autocon>>,
     pub complex_controls: Vec<Rcrc<ComplexControl>>,
     pub pos: (f32, f32),
     pub inputs: Vec<InputConnection>,
@@ -261,7 +261,7 @@ impl Clone for Module {
 impl Module {
     pub fn create(
         template: Rcrc<ModuleTemplate>,
-        controls: Vec<Rcrc<Control>>,
+        controls: Vec<Rcrc<Autocon>>,
         complex_controls: Vec<Rcrc<ComplexControl>>,
         default_inputs: Vec<usize>,
     ) -> Self {

@@ -1,11 +1,11 @@
-use super::data_trackers::{AuxDataCollector, DataFormat, FeedbackDisplayer, HostFormat};
+use super::data_trackers::{AutoconDynDataCollector, DataFormat, FeedbackDisplayer, HostFormat};
 use crate::engine::parts::*;
 use crate::gui::module_widgets::FeedbackDataRequirement;
 use crate::util::*;
 
 pub(super) struct CodeGenResult {
     pub(super) code: String,
-    pub(super) aux_data_collector: AuxDataCollector,
+    pub(super) autocon_dyn_data_collector: AutoconDynDataCollector,
     pub(super) feedback_displayer: FeedbackDisplayer,
     pub(super) data_format: DataFormat,
 }
@@ -18,8 +18,8 @@ pub(super) fn generate_code(
     let generator = CodeGenerator {
         graph: for_graph,
         execution_order,
-        current_aux_data_item: 0,
-        aux_data_control_order: Vec::new(),
+        current_autocon_dyn_data_item: 0,
+        autocon_dyn_data_control_order: Vec::new(),
         feedback_data_len: 0,
     };
     Ok(generator.generate_code(host_format))
@@ -28,8 +28,8 @@ pub(super) fn generate_code(
 struct CodeGenerator<'a> {
     graph: &'a ModuleGraph,
     execution_order: Vec<usize>,
-    current_aux_data_item: usize,
-    aux_data_control_order: Vec<Rcrc<Control>>,
+    current_autocon_dyn_data_item: usize,
+    autocon_dyn_data_control_order: Vec<Rcrc<Autocon>>,
     feedback_data_len: usize,
 }
 
@@ -51,8 +51,8 @@ fn snake_case_to_pascal_case(snake_case: &str) -> String {
 
 impl<'a> CodeGenerator<'a> {
     fn next_aux_value(&mut self) -> String {
-        self.current_aux_data_item += 1;
-        format!("global_aux_data[{}]", self.current_aux_data_item - 1)
+        self.current_autocon_dyn_data_item += 1;
+        format!("global_autocon_dyn_data[{}]", self.current_autocon_dyn_data_item - 1)
     }
 
     fn generate_code_for_lane(&mut self, lane: &AutomationLane) -> String {
@@ -62,7 +62,7 @@ impl<'a> CodeGenerator<'a> {
             .unwrap_or(3999999);
         // The two values in the aux data are computed based on the min and max of the automation
         // channel such that mulitplying by the first and adding the second will generate the
-        // appropriate transformation. See AuxDataCollector::collect_data for more.
+        // appropriate transformation. See AutoconDynDataCollector::collect_data for more.
         format!(
             "module_{}_output_{} * {} + {}",
             mod_index,
@@ -72,8 +72,8 @@ impl<'a> CodeGenerator<'a> {
         )
     }
 
-    fn generate_code_for_control(&mut self, control: &Rcrc<Control>) -> String {
-        self.aux_data_control_order.push(Rc::clone(control));
+    fn generate_code_for_control(&mut self, control: &Rcrc<Autocon>) -> String {
+        self.autocon_dyn_data_control_order.push(Rc::clone(control));
         let control_ref = control.borrow();
         if control_ref.automation.len() == 0 {
             self.next_aux_value()
@@ -127,7 +127,7 @@ impl<'a> CodeGenerator<'a> {
         for wo in &template_ref.widget_outlines {
             match wo.get_feedback_data_requirement() {
                 FeedbackDataRequirement::None => (),
-                FeedbackDataRequirement::Control { control_index } => {
+                FeedbackDataRequirement::Autocon { control_index } => {
                     control_feedback_code.push_str(&format!(
                         "        global_feedback_data[{}] = {}[0?][0?];\n",
                         self.feedback_data_len,
@@ -222,10 +222,10 @@ impl<'a> CodeGenerator<'a> {
             code.push_str(");\n\n");
         }
 
-        if self.current_aux_data_item > 0 {
+        if self.current_autocon_dyn_data_item > 0 {
             header.push_str(&format!(
-                "input [{}]FLOAT global_aux_data;\n",
-                self.current_aux_data_item
+                "input [{}]FLOAT global_autocon_dyn_data;\n",
+                self.current_autocon_dyn_data_item
             ));
         }
         if self.feedback_data_len > 0 {
@@ -235,25 +235,25 @@ impl<'a> CodeGenerator<'a> {
             ));
         }
         let Self {
-            aux_data_control_order,
-            current_aux_data_item,
+            autocon_dyn_data_control_order,
+            current_autocon_dyn_data_item,
             feedback_data_len,
             ..
         } = self;
         let data_format = DataFormat {
             buffer_len: buffer_length,
             sample_rate,
-            aux_data_len: current_aux_data_item,
+            autocon_dyn_data_len: current_autocon_dyn_data_item,
             feedback_data_len,
         };
-        let aux_data_collector =
-            AuxDataCollector::new(aux_data_control_order, data_format.aux_data_len);
+        let autocon_dyn_data_collector =
+            AutoconDynDataCollector::new(autocon_dyn_data_control_order, data_format.autocon_dyn_data_len);
         let feedback_displayer =
             FeedbackDisplayer::new(ordered_modules, data_format.feedback_data_len);
 
         CodeGenResult {
             code: format!("{}\n{}", header, code),
-            aux_data_collector,
+            autocon_dyn_data_collector,
             feedback_displayer,
             data_format,
         }
