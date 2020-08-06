@@ -1,4 +1,5 @@
-use super::data_trackers::{AutoconDynDataCollector, DataFormat, FeedbackDisplayer, HostFormat};
+use super::data_routing::{AutoconDynDataCollector, FeedbackDisplayer};
+use super::data_transfer::{DataFormat, HostFormat};
 use crate::engine::parts::*;
 use crate::gui::module_widgets::FeedbackDataRequirement;
 use crate::util::*;
@@ -52,7 +53,10 @@ fn snake_case_to_pascal_case(snake_case: &str) -> String {
 impl<'a> CodeGenerator<'a> {
     fn next_aux_value(&mut self) -> String {
         self.current_autocon_dyn_data_item += 1;
-        format!("global_autocon_dyn_data[{}]", self.current_autocon_dyn_data_item - 1)
+        format!(
+            "global_autocon_dyn_data[{}]",
+            self.current_autocon_dyn_data_item - 1
+        )
     }
 
     fn generate_code_for_lane(&mut self, lane: &AutomationLane) -> String {
@@ -241,13 +245,18 @@ impl<'a> CodeGenerator<'a> {
             ..
         } = self;
         let data_format = DataFormat {
-            buffer_len: buffer_length,
-            sample_rate,
+            host_format: HostFormat {
+                buffer_len: buffer_length,
+                sample_rate,
+            },
             autocon_dyn_data_len: current_autocon_dyn_data_item,
+            staticon_dyn_data_types: vec![],
             feedback_data_len,
         };
-        let autocon_dyn_data_collector =
-            AutoconDynDataCollector::new(autocon_dyn_data_control_order, data_format.autocon_dyn_data_len);
+        let autocon_dyn_data_collector = AutoconDynDataCollector::new(
+            autocon_dyn_data_control_order,
+            data_format.autocon_dyn_data_len,
+        );
         let feedback_displayer =
             FeedbackDisplayer::new(ordered_modules, data_format.feedback_data_len);
 
