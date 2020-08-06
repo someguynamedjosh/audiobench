@@ -1,9 +1,8 @@
 use super::codegen::{self, CodeGenResult};
-use super::data_trackers::{
-    AudiobenchCompiler, AudiobenchProgram, AutoconDynDataCollector, DataFormat, FeedbackDisplayer,
-    HostData, HostFormat, InputPacker, NoteTracker, OutputUnpacker,
-};
+use super::data_routing::{AutoconDynDataCollector, FeedbackDisplayer};
+use super::data_transfer::{DataFormat, HostData, HostFormat, InputPacker, OutputUnpacker};
 use super::parts::ModuleGraph;
+use super::program_wrapper::{AudiobenchCompiler, AudiobenchProgram, NoteTracker};
 use crate::registry::{save_data::Patch, Registry};
 use crate::util::*;
 use std::sync::Mutex;
@@ -107,7 +106,7 @@ impl Engine {
             input: InputPacker::new(data_format.clone()),
             output: OutputUnpacker::new(data_format.clone()),
             host_data: HostData::new(),
-            audio_buffer: vec![0.0; data_format.buffer_len * 2],
+            audio_buffer: vec![0.0; data_format.host_format.buffer_len * 2],
             last_feedback_data_update: Instant::now(),
         };
 
@@ -314,7 +313,9 @@ impl Engine {
             }
         }
         if let Some(new_autocon_dyn_data) = ctd.new_aux_input.take() {
-            self.atd.input.set_autocon_dyn_data(&new_autocon_dyn_data[..]);
+            self.atd
+                .input
+                .set_autocon_dyn_data(&new_autocon_dyn_data[..]);
         }
         let audio_buf_len = ctd.host_format.buffer_len * 2;
         if self.atd.audio_buffer.len() != audio_buf_len {
