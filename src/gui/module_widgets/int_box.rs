@@ -75,6 +75,7 @@ impl<T: IntBoxImpl> ModuleWidget for T {
             max: self.get_base().range.1,
             click_delta,
             float_value: self.get_current_value() as f32,
+            code_reload_requested: false,
         }
     }
 
