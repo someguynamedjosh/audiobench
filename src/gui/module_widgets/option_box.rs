@@ -13,8 +13,7 @@ yaml_widget_boilerplate::make_widget_outline! {
     constructor: create(
         pos: GridPos,
         size: GridSize,
-        control: ControlledSelectionRef,
-        options: StringList,
+        control: ControlledOptionChoiceRef,
         label: String,
         tooltip: String,
     ),
@@ -24,8 +23,7 @@ yaml_widget_boilerplate::make_widget_outline! {
 pub struct OptionBox {
     pos: (f32, f32),
     size: (f32, f32),
-    control: Rcrc<staticons::ControlledSelection>,
-    options: Vec<String>,
+    control: Rcrc<staticons::ControlledOptionChoice>,
     label: String,
     tooltip: String,
 }
@@ -34,8 +32,7 @@ impl OptionBox {
     pub fn create(
         pos: (f32, f32),
         size: (f32, f32),
-        control: Rcrc<staticons::ControlledSelection>,
-        options: Vec<String>,
+        control: Rcrc<staticons::ControlledOptionChoice>,
         label: String,
         tooltip: String,
     ) -> OptionBox {
@@ -44,7 +41,6 @@ impl OptionBox {
             control,
             pos,
             size,
-            options,
             label,
         }
     }
@@ -65,16 +61,16 @@ impl ModuleWidget for OptionBox {
         _mods: &MouseMods,
         _parent_pos: (f32, f32),
     ) -> MouseAction {
-        let height_per_option =
-            (self.size.1 - FONT_SIZE - GRID_P / 2.0) / self.options.len() as f32;
+        let num_options = self.control.borrow().get_options().len();
+        let height_per_option = (self.size.1 - FONT_SIZE - GRID_P / 2.0) / num_options as f32;
         let option = (local_pos.1 / height_per_option) as usize;
-        if option < self.options.len() {
-            MouseAction::SetComplexControl(Rc::clone(&self.ccontrol), format!("{}", option))
+        if option < num_options {
+            let cref = Rc::clone(&self.control);
+            MouseAction::MutateStaticon(Box::new(move || {
+                cref.borrow_mut().set_selected_option(option)
+            }))
         } else {
-            // Still return a set control thing so that if we double-click, we still know to reset
-            // the control and not just do nothing.
-            let value = self.ccontrol.borrow().value.clone();
-            MouseAction::SetComplexControl(Rc::clone(&self.ccontrol), format!("{}", value))
+            MouseAction::None
         }
     }
 
@@ -97,13 +93,13 @@ impl ModuleWidget for OptionBox {
 
         const CS: f32 = CORNER_SIZE;
         g.set_color(&COLOR_BG);
+        let num_options = self.control.borrow().get_options().len();
         // Don't ask why GP / 2 and not just GP, it just looks better and I don't know why.
-        let height_per_option =
-            (self.size.1 - FONT_SIZE - GRID_P / 2.0) / self.options.len() as f32;
-        let h = height_per_option * self.options.len() as f32;
+        let height_per_option = (self.size.1 - FONT_SIZE - GRID_P / 2.0) / num_options as f32;
+        let h = height_per_option * num_options as f32;
         g.fill_rounded_rect(0.0, 0.0, self.size.0, h, CS);
-        let current_option: usize = self.ccontrol.borrow().value.parse().unwrap_or(0);
-        for (index, option) in self.options.iter().enumerate() {
+        let current_option = self.control.borrow().get_selected_option();
+        for (index, option) in self.control.borrow().get_options().iter().enumerate() {
             let y = index as f32 * height_per_option;
             if index == current_option {
                 g.set_color(&COLOR_IO_AREA);

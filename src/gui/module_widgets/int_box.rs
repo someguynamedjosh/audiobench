@@ -150,10 +150,8 @@ impl IntBox {
         label: String,
         tooltip: String,
     ) -> IntBox {
-        IntBox {
-            base: IntBoxBase::create(tooltip, registry, pos, control.borrow().get_range(), label),
-            control,
-        }
+        let base = IntBoxBase::create(tooltip, registry, pos, control.borrow().get_range(), label);
+        IntBox { base, control }
     }
 }
 

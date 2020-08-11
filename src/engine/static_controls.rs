@@ -115,7 +115,7 @@ impl ControlledInt {
         self.value
     }
 
-    pub fn set_value(&self, value: i32) -> StaticonUpdateRequest {
+    pub fn set_value(&mut self, value: i32) -> StaticonUpdateRequest {
         assert!(value >= self.range.0);
         assert!(value <= self.range.1);
         self.value = value;
@@ -347,7 +347,7 @@ impl ControlledTriggerSequence {
         StaticonUpdateRequest::UpdateCode
     }
 
-    pub fn get_trigger(&mut self, index: usize) -> bool {
+    pub fn get_trigger(&self, index: usize) -> bool {
         assert!(index < self.get_len());
         self.sequence[index]
     }
@@ -400,7 +400,7 @@ impl ControlledValueSequence {
         StaticonUpdateRequest::UpdateCode
     }
 
-    pub fn get_value(&mut self, index: usize) -> f32 {
+    pub fn get_value(&self, index: usize) -> f32 {
         assert!(index < self.get_len());
         self.sequence[index]
     }
@@ -428,6 +428,61 @@ impl ControlledData for ControlledValueSequence {
     fn package_dyn_data(&self) -> IODataPtr { IODataPtr::FloatArray(&self.sequence[..]) }
 }
 
+#[derive(Clone, Debug)]
+pub struct ControlledOptionChoice {
+    require_static_only: bool,
+    options: Vec<String>,
+    selected_option: usize,
+}
+
+impl ControlledOptionChoice {
+    fn from_yaml(yaml: &YamlNode) -> Result<Self, String> {
+        let mut options = Vec::new();
+        for child in &yaml.unique_child("options")?.children {
+            options.push(child.name.clone());
+        }
+        if options.len() < 2 {
+            return Err(format!(
+                "ERROR: There must be at least 2 options, but only {} were specified.",
+                options.len()
+            ));
+        }
+        let default = if let Ok(child) = yaml.unique_child("default") {
+            child.parse_ranged(Some(0), Some(options.len() - 1))?
+        } else {
+            0
+        };
+        Ok(Self {
+            require_static_only: require_static_only_boilerplate!(yaml),
+            options,
+            selected_option: default,
+        })
+    }
+
+    pub fn get_options(&self) -> &[String] {
+        &self.options[..]
+    }
+
+    pub fn get_selected_option(&self) -> usize {
+        self.selected_option
+    }
+
+    pub fn set_selected_option(&mut self, selected_option: usize) -> StaticonUpdateRequest {
+        assert!(selected_option < self.options.len());
+        self.selected_option = selected_option;
+        StaticonUpdateRequest::dyn_update_if_allowed(self)
+    }
+}
+
+#[rustfmt::skip] 
+impl ControlledData for ControlledOptionChoice {
+    fn is_static_only(&self) -> bool { self.require_static_only }
+    fn get_data_type(&self) -> String { "INT".to_owned() }
+    fn get_io_type(&self) -> IOType { IOType::Int }
+    fn generate_static_code(&self) -> String { self.selected_option.to_string() }
+    fn package_dyn_data(&self) -> IODataPtr { IODataPtr::Int(self.selected_option as _) }
+}
+
 #[derive(Debug)]
 pub enum ArbitraryStaticonData {
     Int(Rcrc<ControlledInt>),
@@ -435,18 +490,29 @@ pub enum ArbitraryStaticonData {
     TimingMode(Rcrc<ControlledTimingMode>),
     TriggerSequence(Rcrc<ControlledTriggerSequence>),
     ValueSequence(Rcrc<ControlledValueSequence>),
+    OptionChoice(Rcrc<ControlledOptionChoice>),
 }
 
 impl ArbitraryStaticonData {
     fn make_dyn_ptr(&self) -> Rcrc<dyn ControlledData> {
         match self {
             Self::Int(ptr) => Rc::clone(ptr) as _,
+            Self::Duration(ptr) => Rc::clone(ptr) as _,
+            Self::TimingMode(ptr) => Rc::clone(ptr) as _,
+            Self::TriggerSequence(ptr) => Rc::clone(ptr) as _,
+            Self::ValueSequence(ptr) => Rc::clone(ptr) as _,
+            Self::OptionChoice(ptr) => Rc::clone(ptr) as _,
         }
     }
 
     fn deep_clone(&self) -> Self {
         match self {
             Self::Int(ptr) => Self::Int(rcrc((*ptr.borrow()).clone())),
+            Self::Duration(ptr) => Self::Duration(rcrc((*ptr.borrow()).clone())),
+            Self::TimingMode(ptr) => Self::TimingMode(rcrc((*ptr.borrow()).clone())),
+            Self::TriggerSequence(ptr) => Self::TriggerSequence(rcrc((*ptr.borrow()).clone())),
+            Self::ValueSequence(ptr) => Self::ValueSequence(rcrc((*ptr.borrow()).clone())),
+            Self::OptionChoice(ptr) => Self::OptionChoice(rcrc((*ptr.borrow()).clone())),
         }
     }
 }
