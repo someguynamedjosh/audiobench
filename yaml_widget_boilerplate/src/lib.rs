@@ -55,10 +55,10 @@ impl ConstructorItem {
                 let name = self.name.clone();
                 quote! {
                     let #name = (
-                        crate::gui::constants::coord(yaml.unique_child("x")?.i32()?)
+                        crate::gui::constants::coord(yaml.unique_child("x")?.parse()?)
                             + crate::gui::constants::JACK_SIZE
                             + crate::gui::constants::MODULE_IO_WIDTH,
-                        crate::gui::constants::coord(yaml.unique_child("y")?.i32()?),
+                        crate::gui::constants::coord(yaml.unique_child("y")?.parse()?),
                     );
                 }
             }
@@ -66,8 +66,8 @@ impl ConstructorItem {
                 let name = self.name.clone();
                 quote! {
                     let #name = (
-                        crate::gui::constants::grid(yaml.unique_child("w")?.i32()?),
-                        crate::gui::constants::grid(yaml.unique_child("h")?.i32()?),
+                        crate::gui::constants::grid(yaml.unique_child("w")?.parse()?),
+                        crate::gui::constants::grid(yaml.unique_child("h")?.parse()?),
                     );
                 }
             }
@@ -93,8 +93,8 @@ impl ConstructorItem {
                 let name = self.name.clone();
                 quote! {
                     let #name = (
-                        yaml.unique_child("min")?.i32()?,
-                        yaml.unique_child("max")?.i32()?,
+                        yaml.unique_child("min")?.parse()?,
+                        yaml.unique_child("max")?.parse()?,
                     );
                 }
             }
@@ -102,8 +102,8 @@ impl ConstructorItem {
                 let name = self.name.clone();
                 quote! {
                     let #name = (
-                        yaml.unique_child("min")?.f32()?,
-                        yaml.unique_child("max")?.f32()?,
+                        yaml.unique_child("min")?.parse()?,
+                        yaml.unique_child("max")?.parse()?,
                     );
                 }
             }

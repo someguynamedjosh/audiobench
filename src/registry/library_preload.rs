@@ -156,21 +156,12 @@ fn parse_library_info(name: &str, buffer: Vec<u8>) -> Result<LibraryInfo, String
     let yaml = yaml::parse_yaml(&buffer_as_text, name)?;
     let pretty_name = yaml.unique_child("pretty_name")?.value.clone();
     let description = yaml.unique_child("description")?.value.clone();
-    let version = yaml.unique_child("version")?.i32()?;
-    if version < 0 || version > 0xFFFF {
-        return Err(format!(
-            "ERROR: The version number {} is invalid, it must be between 0 and {}.",
-            version, 0xFFFF
-        ));
-    }
-    let version = version as u16;
-    let min_engine_version = yaml.unique_child("min_engine_version")?.i32()?;
-    if min_engine_version < 0 || min_engine_version > 0xFFFF {
-        return Err(format!(
-            "ERROR: The minimum engine version {} is invalid, it must be between 0 and {}.",
-            min_engine_version, 0xFFFF
-        ));
-    }
+    let version = yaml
+        .unique_child("version")?
+        .parse_ranged(Some(0), Some(0xFFFF))?;
+    let min_engine_version = yaml
+        .unique_child("min_engine_version")?
+        .parse_ranged(Some(0), Some(0xFFFF))?;
     if min_engine_version > ENGINE_VERSION as i32 {
         return Err(format!(
             concat!(
