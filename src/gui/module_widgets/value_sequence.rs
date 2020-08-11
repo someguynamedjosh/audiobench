@@ -70,19 +70,14 @@ impl ModuleWidget for ValueSequence {
         _mods: &MouseMods,
         _parent_pos: (f32, f32),
     ) -> MouseAction {
-        let num_steps = parse_sequence_length(&self.sequence_control);
+        let borrowed = self.sequence_control.borrow();
+        let num_steps = borrowed.get_len();
         let step_width = self.width / num_steps as f32;
         let clicked_step = (local_pos.0 / step_width) as usize;
-        let value_start = clicked_step * ValueSequence::VALUE_LENGTH + 1;
-        let value_end = value_start + ValueSequence::VALUE_LENGTH;
-        let float_value: f32 = (&self.sequence_control.borrow().value[value_start..value_end - 1])
-            .trim()
-            .parse()
-            .unwrap();
+        let float_value = borrowed.get_value(clicked_step);
         MouseAction::ManipulateSequencedValue {
             cref: Rc::clone(&self.sequence_control),
-            value_start,
-            value_end,
+            step_index: clicked_step,
             float_value,
             value_formatter: format_value,
         }
@@ -112,14 +107,13 @@ impl ModuleWidget for ValueSequence {
         g.set_color(&COLOR_BG);
         g.fill_rounded_rect(0.0, HEAD, self.width, H - HEAD, CS);
 
-        let num_steps = parse_sequence_length(&self.sequence_control);
-        let step_width = self.width / num_steps as f32;
         let borrowed = self.sequence_control.borrow();
+        let num_steps = borrowed.get_len();
+        let step_width = self.width / num_steps as f32;
         let ramping = feedback_data[1];
-        let mut current_value = &borrowed.value[1..];
         const VALUE_LEN: usize = ValueSequence::VALUE_LENGTH;
         const MIDPOINT: f32 = HEAD + (H - HEAD) * 0.5;
-        let first_value: f32 = (&current_value[..VALUE_LEN - 1]).trim().parse().unwrap();
+        let first_value = borrowed.get_value(0);
         let mut value = first_value;
         for step_index in 0..num_steps {
             let x = step_index as f32 * step_width;
@@ -134,9 +128,8 @@ impl ModuleWidget for ValueSequence {
             g.fill_rect(x, MIDPOINT.min(y), step_width, (MIDPOINT - y).abs());
             g.set_alpha(1.0);
             g.stroke_line(x, y, x + step_width * (1.0 - ramping), y, 2.0);
-            current_value = &current_value[VALUE_LEN..];
             let next_value = if step_index < num_steps - 1 {
-                (&current_value[..VALUE_LEN - 1]).trim().parse().unwrap()
+                borrowed.get_value(step_index + 1)
             } else {
                 first_value
             };
@@ -163,10 +156,6 @@ impl ModuleWidget for ValueSequence {
 
         g.pop_state();
     }
-}
-
-fn parse_sequence_length(control: &Rcrc<staticons::ControlledValueSequence>) -> usize {
-    (control.borrow().value.len() - 2) / ValueSequence::VALUE_LENGTH
 }
 
 fn format_value(value: f32) -> String {
@@ -210,29 +199,14 @@ impl IntBoxImpl for ValueSequenceLength {
     }
 
     fn get_current_value(&self) -> i32 {
-        parse_sequence_length(&self.sequence_control) as i32
+        self.sequence_control.borrow().get_len() as _
     }
 
-    fn make_callback(&self) -> Box<dyn Fn(i32)> {
+    fn make_callback(&self) -> Box<dyn FnMut(i32) -> staticons::StaticonUpdateRequest> {
         let sequence_control = Rc::clone(&self.sequence_control);
         Box::new(move |new_length| {
             assert!(new_length >= 1);
-            let new_length = new_length as usize;
-            let current_length = parse_sequence_length(&sequence_control);
-            let mut borrowed = sequence_control.borrow_mut();
-            let current_value = &borrowed.value;
-            const VALUE_LEN: usize = ValueSequence::VALUE_LENGTH;
-            if new_length < current_length {
-                let new_value = format!("{}]", &current_value[..1 + VALUE_LEN * new_length]);
-                borrowed.value = new_value;
-            } else if new_length > current_length {
-                let mut new_value = String::from(&current_value[..current_value.len() - 1]);
-                for _ in current_length..new_length {
-                    new_value.push_str(&format_value(0.0));
-                }
-                new_value.push_str("]");
-                borrowed.value = new_value;
-            }
+            sequence_control.borrow_mut().set_len(new_length as usize)
         })
     }
 }

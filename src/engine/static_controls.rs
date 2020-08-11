@@ -335,6 +335,28 @@ impl ControlledTriggerSequence {
             sequence: vec![true, false, false, false],
         })
     }
+
+    pub fn get_len(&self) -> usize {
+        self.sequence.len()
+    }
+
+    pub fn set_len(&mut self, len: usize) -> StaticonUpdateRequest {
+        self.sequence.resize(len, false);
+        // Changing the length changes the data type of the information dynamically passed in for
+        // this control, so the code has to be updated.
+        StaticonUpdateRequest::UpdateCode
+    }
+
+    pub fn get_trigger(&mut self, index: usize) -> bool {
+        assert!(index < self.get_len());
+        self.sequence[index]
+    }
+
+    pub fn toggle_trigger(&mut self, index: usize) -> StaticonUpdateRequest {
+        assert!(index < self.get_len());
+        self.sequence[index] = !self.sequence[index];
+        StaticonUpdateRequest::dyn_update_if_allowed(self)
+    }
 }
 
 #[rustfmt::skip] 
@@ -365,6 +387,28 @@ impl ControlledValueSequence {
             require_static_only: require_static_only_boilerplate!(yaml),
             sequence: vec![1.0, -1.0, -1.0, -1.0],
         })
+    }
+
+    pub fn get_len(&self) -> usize {
+        self.sequence.len()
+    }
+
+    pub fn set_len(&mut self, len: usize) -> StaticonUpdateRequest {
+        self.sequence.resize(len, -1.0);
+        // Changing the length changes the data type of the information dynamically passed in for
+        // this control, so the code has to be updated.
+        StaticonUpdateRequest::UpdateCode
+    }
+
+    pub fn get_value(&mut self, index: usize) -> f32 {
+        assert!(index < self.get_len());
+        self.sequence[index]
+    }
+
+    pub fn set_value(&mut self, index: usize, value: f32) -> StaticonUpdateRequest {
+        assert!(index < self.get_len());
+        self.sequence[index] = value;
+        StaticonUpdateRequest::dyn_update_if_allowed(self)
     }
 }
 

@@ -72,8 +72,7 @@ pub enum MouseAction {
     },
     ManipulateSequencedValue {
         cref: Rcrc<staticons::ControlledValueSequence>,
-        value_start: usize,
-        value_end: usize,
+        step_index: usize,
         float_value: f32,
         value_formatter: fn(f32) -> String,
     },
@@ -317,8 +316,7 @@ impl MouseAction {
             }
             Self::ManipulateSequencedValue {
                 cref,
-                value_start,
-                value_end,
+                step_index,
                 float_value,
                 value_formatter,
             } => {
