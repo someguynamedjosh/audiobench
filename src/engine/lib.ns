@@ -44,9 +44,20 @@ macro DisplayValueSequenceData(UpdateFn, playhead_position, ramping_amount) {
     UpdateFn([playhead_position, ramping_amount]);
 }
 
-macro GetTiming(SOURCE, TYPE):(timing) {
-    assert SOURCE:TYPE == BOOL;
-    assert TYPE:TYPE == BOOL;
+macro TimingModeUsesSongTime(mode):(flag) {
+    assert mode:TYPE == INT;
+    BOOL flag = mode band 0b1 == 0b1;
+}
+
+macro TimingModeIsBeatSynchronized(mode):(flag) {
+    assert mode:TYPE == INT;
+    BOOL flag = mode band 0b10 == 0b10;
+}
+
+macro GetTiming(MODE):(timing) {
+    assert MODE:TYPE == INT;
+    BOOL SOURCE = MODE band 0b1 == 0b1;
+    BOOL TYPE = MODE band 0b10 == 0b10;
     AUTO timing;
     if !SOURCE and !TYPE {
         timing = global_note_time;
