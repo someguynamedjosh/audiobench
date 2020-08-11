@@ -33,9 +33,6 @@ pub struct TriggerSequence {
 impl TriggerSequence {
     const HEIGHT: f32 = grid(1);
     const HEADER_SPACE: f32 = CORNER_SIZE * 2.0;
-    // These should both be the same length.
-    const TRIGGER_VALUE: &'static str = "TRUE ,";
-    const NO_TRIGGER_VALUE: &'static str = "FALSE,";
     const STEP_GAP: f32 = CORNER_SIZE / 2.0;
 
     pub fn create(
@@ -68,26 +65,13 @@ impl ModuleWidget for TriggerSequence {
         _mods: &MouseMods,
         _parent_pos: (f32, f32),
     ) -> MouseAction {
-        let num_steps = parse_sequence_length(&self.sequence_control);
+        let num_steps = self.sequence_control.borrow().get_len();
         let step_width = (self.width + TriggerSequence::STEP_GAP) / num_steps as f32;
         let clicked_step = (local_pos.0 / step_width) as usize;
-        const VALUE_LEN: usize = TriggerSequence::TRIGGER_VALUE.len();
-        let value_start = clicked_step * VALUE_LEN + 1;
-        let borrowed = self.sequence_control.borrow();
-        let new_value = if &borrowed.value[value_start..value_start + VALUE_LEN]
-            == TriggerSequence::TRIGGER_VALUE
-        {
-            TriggerSequence::NO_TRIGGER_VALUE
-        } else {
-            TriggerSequence::TRIGGER_VALUE
-        };
-        let full_value = format!(
-            "{}{}{}",
-            &borrowed.value[..value_start],
-            new_value,
-            &borrowed.value[value_start + VALUE_LEN..]
-        );
-        MouseAction::SetComplexControl(Rc::clone(&self.sequence_control), full_value)
+        let cref = Rc::clone(&self.sequence_control);
+        MouseAction::MutateStaticon(Box::new(move || {
+            cref.borrow_mut().toggle_trigger(clicked_step)
+        }))
     }
 
     fn get_tooltip_at(&self, _local_pos: (f32, f32)) -> Option<Tooltip> {
@@ -113,23 +97,17 @@ impl ModuleWidget for TriggerSequence {
         const SG: f32 = TriggerSequence::STEP_GAP;
         g.set_color(&COLOR_BG);
 
-        let num_steps = parse_sequence_length(&self.sequence_control);
-        let step_width = (self.width + SG) / num_steps as f32;
         let borrowed = self.sequence_control.borrow();
-        let mut current_value = &borrowed.value[1..];
-        debug_assert!(
-            TriggerSequence::TRIGGER_VALUE.len() == TriggerSequence::NO_TRIGGER_VALUE.len()
-        );
-        const VALUE_LEN: usize = TriggerSequence::TRIGGER_VALUE.len();
+        let num_steps = borrowed.get_len();
+        let step_width = (self.width + SG) / num_steps as f32;
         for step_index in 0..num_steps {
             let x = step_index as f32 * step_width;
-            if &current_value[..VALUE_LEN] == TriggerSequence::TRIGGER_VALUE {
+            if borrowed.get_trigger(step_index) {
                 g.set_color(&COLOR_KNOB);
             } else {
                 g.set_color(&COLOR_BG);
             }
             g.fill_rounded_rect(x, HEAD, step_width - SG, H - HEAD, CS);
-            current_value = &current_value[VALUE_LEN..];
         }
 
         g.set_color(&COLOR_TEXT);
@@ -144,11 +122,6 @@ impl ModuleWidget for TriggerSequence {
 
         g.pop_state();
     }
-}
-
-fn parse_sequence_length(control: &Rcrc<ep::ComplexControl>) -> usize {
-    debug_assert!(TriggerSequence::TRIGGER_VALUE.len() == TriggerSequence::NO_TRIGGER_VALUE.len());
-    (control.borrow().value.len() - 2) / TriggerSequence::TRIGGER_VALUE.len()
 }
 
 yaml_widget_boilerplate::make_widget_outline! {
@@ -188,29 +161,14 @@ impl IntBoxImpl for TriggerSequenceLength {
     }
 
     fn get_current_value(&self) -> i32 {
-        parse_sequence_length(&self.sequence_control) as i32
+        self.sequence_control.borrow().get_len() as _
     }
 
-    fn make_callback(&self) -> Box<dyn Fn(i32)> {
+    fn make_callback(&self) -> Box<dyn FnMut(i32) -> staticons::StaticonUpdateRequest> {
         let sequence_control = Rc::clone(&self.sequence_control);
         Box::new(move |new_length| {
             assert!(new_length >= 1);
-            let new_length = new_length as usize;
-            let current_length = parse_sequence_length(&sequence_control);
-            let mut borrowed = sequence_control.borrow_mut();
-            let current_value = &borrowed.value;
-            const VALUE_LEN: usize = TriggerSequence::TRIGGER_VALUE.len();
-            if new_length < current_length {
-                let new_value = format!("{}]", &current_value[..1 + VALUE_LEN * new_length]);
-                borrowed.value = new_value;
-            } else if new_length > current_length {
-                let mut new_value = String::from(&current_value[..current_value.len() - 1]);
-                for _ in current_length..new_length {
-                    new_value.push_str(TriggerSequence::NO_TRIGGER_VALUE);
-                }
-                new_value.push_str("]");
-                borrowed.value = new_value;
-            }
+            sequence_control.borrow_mut().set_len(new_length as usize)
         })
     }
 }
