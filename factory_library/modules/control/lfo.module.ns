@@ -12,7 +12,7 @@ macro ApplyStrength(sample, buffer_pos):(adjusted) {
     }
 }
 
-AUTO timing = GetTiming(TIME_SOURCE, TIME_TYPE);
+AUTO timing = GetTiming(TIMING_MODE);
 assert timing:TYPE == [BUFFER_LENGTH]FLOAT;
 for i = 0 to BUFFER_LENGTH no_unroll {
     AUTO sample = Waveform(i, (timing[i] / CYCLE_TIME + offset[i?] + 1.0) % 1.0);

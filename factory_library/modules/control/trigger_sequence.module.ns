@@ -7,7 +7,7 @@ static base_time, last_step {
 
 INT NUM_STEPS = (SEQUENCE:DIMS)[0];
 assert SEQUENCE:TYPE == [NUM_STEPS]BOOL;
-AUTO timing = GetTiming(TIME_SOURCE, TIME_TYPE);
+AUTO timing = GetTiming(TIMING_MODE);
 assert timing:TYPE == [BUFFER_LENGTH]FLOAT;
 
 if global_update_feedback_data {

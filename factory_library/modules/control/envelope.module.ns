@@ -6,7 +6,7 @@ static start, releasing, last_value {
     FLOAT last_value = 0.0;
 }
 
-AUTO timing = GetTiming(TIME_SOURCE, TIME_TYPE);
+AUTO timing = GetTiming(TIMING_MODE);
 assert timing:TYPE == [BUFFER_LENGTH]FLOAT;
 for i = 0 to BUFFER_LENGTH no_unroll {
     if !releasing {
@@ -55,7 +55,7 @@ if global_update_feedback_data {
         now_time = ATTACK_TIME + DECAY_TIME;
     }
     FLOAT multiplier = 1.0;
-    if TIME_TYPE { // If times are measured in beats...
+    if TimingModeIsBeatSynchronized(TIMING_MODE) {
         multiplier = 60.0 / global_bpm;
     }
     SetGraphFeedback([
