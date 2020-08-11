@@ -33,7 +33,7 @@ pub(super) fn create_module_prototype_from_yaml(
 ) -> Result<ep::Module, String> {
     let mut controls = Vec::new();
     let mut existing_controls = HashSet::new();
-    for control_description in &yaml.unique_child("controls")?.children {
+    for control_description in &yaml.unique_child("autocons")?.children {
         if existing_controls.contains(&control_description.name) {
             return Err(format!(
                 "ERROR: Duplicate entry for {}",

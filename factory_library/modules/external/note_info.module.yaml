@@ -20,7 +20,7 @@ outputs:
     label: Note Release
     icon: factory:note_up
     tooltip: Trigger which fires when the note stops being held down
-controls:
+autocons:
 gui: 
   label: Note Info 
   category: External

@@ -5,7 +5,7 @@ outputs:
     type: waveform
     label: Waveform
     tooltip: A sine wave
-controls:
+autocons:
 gui: 
   label: Sine Wave
   category: Waveform

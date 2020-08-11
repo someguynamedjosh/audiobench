@@ -21,7 +21,7 @@ outputs:
     type: audio
     label: Output
     tooltip: The mixed audio
-controls:
+autocons:
   amp1:
     min: 0
     max: 1

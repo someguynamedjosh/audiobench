@@ -86,20 +86,9 @@ pub struct ControlledInt {
 impl ControlledInt {
     fn from_yaml(yaml: &YamlNode) -> Result<Self, String> {
         let min = yaml.unique_child("min")?.parse()?;
-        let max = yaml.unique_child("min")?.parse_ranged(Some(min), None)?;
+        let max = yaml.unique_child("max")?.parse_ranged(Some(min), None)?;
         let default = if let Ok(child) = yaml.unique_child("default") {
             let default = child.parse_ranged(Some(min), Some(max))?;
-            if default < min {
-                return Err(format!(
-                    "ERROR: The default value '{}' is smaller than the minimum value '{}'.",
-                    default, min
-                ));
-            } else if default > max {
-                return Err(format!(
-                    "ERROR: The default value '{}' is bigger than the maximum value '{}'.",
-                    default, max
-                ));
-            }
             default
         } else {
             min
@@ -147,16 +136,35 @@ pub struct ControlledDuration {
 
 impl ControlledDuration {
     fn from_yaml(yaml: &YamlNode) -> Result<Self, String> {
-        let fraction_mode = if let Ok(child) = yaml.unique_child("default_mode") {
-            child.parse_enumerated(&["decimal", "fraction"])? == 1
+        let fraction_mode = if let Ok(child) = yaml.unique_child("default_format") {
+            child.parse_enumerated(&["decimal", "fractional"])? == 1
         } else {
             false
         };
+        // Oof ouch owie my indentation
         let (decimal_value, fraction_numerator, fraction_denominator) =
             if let Ok(child) = yaml.unique_child("default") {
-                (child.parse_ranged(Some(0.0), None)?, 1, 1)
+                if fraction_mode {
+                    let (num, den) = child.parse_custom(|value| {
+                        let slash_index = value.find("/").ok_or_else(|| {
+                            format!("ERROR: Not a valid fraction, missing a slash.")
+                        })?;
+                        let tex_num = &value[..slash_index].trim();
+                        let tex_den = &value[slash_index + 1..].trim();
+                        let num = tex_num
+                            .parse()
+                            .map_err(|_| format!("ERROR: The numerator is not valid."))?;
+                        let den = tex_den
+                            .parse()
+                            .map_err(|_| format!("ERROR: The numerator is not valid."))?;
+                        Ok((num, den))
+                    })?;
+                    (1.0, num, den)
+                } else {
+                    (child.parse_ranged(Some(0.0), None)?, 1, 1)
+                }
             } else {
-                (0.1, 1, 4)
+                (1.0, 1, 1)
             };
         Ok(Self {
             require_static_only: require_static_only_boilerplate!(yaml),
@@ -532,7 +540,15 @@ pub fn from_yaml(yaml: &YamlNode) -> Result<Staticon, String> {
         "ValueSequence" => {
             ArbitraryStaticonData::ValueSequence(rcrc(ControlledValueSequence::from_yaml(yaml)?))
         }
-        _ => return Err(format!("ERROR: {} is an invalid staticon type.", typ)),
+        "OptionChoice" => {
+            ArbitraryStaticonData::OptionChoice(rcrc(ControlledOptionChoice::from_yaml(yaml)?))
+        }
+        _ => {
+            return Err(format!(
+                "ERROR: '{}' is an invalid staticon type (found at {}).",
+                typ, &yaml.full_name
+            ))
+        }
     };
     Ok(Staticon {
         code_name: name.clone(),

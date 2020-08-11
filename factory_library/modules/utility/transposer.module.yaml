@@ -9,15 +9,24 @@ outputs:
     type: pitch
     label: Transposed
     tooltip: The transposed (shifted) pitch
-controls:
+autocons:
   amount:
     min: -1
     max: 1
     default: 1
-complex_controls:
-  OCTAVES:
-  SEMITONES:
-  CENTS:
+staticons:
+  OCTAVES: Int
+    min: -10
+    max: 10
+    default: 0
+  SEMITONES: Int
+    min: -12
+    max: 12
+    default: 0
+  CENTS: Int
+    min: -100
+    max: 100
+    default: 0
 gui:
   label: Transposer
   category: Utility
@@ -31,27 +40,18 @@ gui:
       control: OCTAVES
       label: Octaves
       tooltip: How many octaves to move the pitch by
-      min: -10
-      max: 10
-      default: 0
     int_box:
       x: 2
       y: 2
       control: SEMITONES
       label: Semitones
       tooltip: How many semitones to move the pitch by
-      min: -12
-      max: 12
-      default: 0
     int_box:
       x: 0
       y: 0
       control: CENTS
       label: Cents
       tooltip: How many cents to move the pitch by
-      min: -100
-      max: 100
-      default: 00
     knob:
       x: 2
       y: 0

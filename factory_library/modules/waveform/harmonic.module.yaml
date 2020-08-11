@@ -9,9 +9,11 @@ outputs:
     type: waveform
     label: Output
     tooltip: A harmonic of the input waveform
-controls:
-complex_controls:
-  HARMONIC:
+autocons:
+staticons:
+  HARMONIC: Int
+    min: 1
+    max: 99
 gui:
   label: Harmonic
   category: Waveform
@@ -25,8 +27,6 @@ gui:
       control: HARMONIC
       label: Harmonic
       tooltip: How many times to repeat the input waveform
-      min: 1
-      max: 99
     waveform_graph:
       x: 2
       y: 0

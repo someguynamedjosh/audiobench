@@ -5,7 +5,7 @@ inputs:
     label: Audio
     tooltip: The audio that will be played for the current note
 outputs:
-controls:
+autocons:
   volume:
     min: 0
     max: 1

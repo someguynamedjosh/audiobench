@@ -11,12 +11,14 @@ outputs:
     type: trigger
     label: Output
     tooltip: Triggered at times specified in the sequence
-controls:
-complex_controls:
-  SEQUENCE:
-  TIME_SOURCE:
-  TIME_TYPE:
-  STEP_TIME:
+autocons:
+staticons:
+  SEQUENCE: TriggerSequence
+  TIMING_MODE: TimingMode
+    default_units: beats
+  STEP_TIME: Duration
+    default_format: fractional
+    default: 1/4
 gui: 
   label: Trigger Sequence
   category: Control
@@ -35,15 +37,12 @@ gui:
     timing_selector:
       x: 0
       y: 1
-      source_control: TIME_SOURCE
-      type_control: TIME_TYPE
-      default_beats_type:
+      control: TIMING_MODE
     duration_box:
       x: 2
       y: 1
-      control: STEP_TIME
-      type_control: TIME_TYPE
-      default: 1.0/4.0
+      duration_control: STEP_TIME
+      mode_control: TIMING_MODE
       label: Step Time
       tooltip: How long one step of the sequence takes
     trigger_sequence_length:

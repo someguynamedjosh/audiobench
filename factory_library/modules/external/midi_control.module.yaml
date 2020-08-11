@@ -5,9 +5,12 @@ outputs:
     type: audio
     label: Value
     tooltip: The value of the selected MIDI control
-controls:
-complex_controls:
-  CONTROL_INDEX:
+autocons:
+staticons:
+  CONTROL_INDEX: Int
+    min: 0
+    max: 127
+    default: 1
 gui:
   label: MIDI Control
   category: External
@@ -21,6 +24,3 @@ gui:
       control: CONTROL_INDEX
       label: Control
       tooltip: The number of the control to use
-      min: 0
-      max: 127
-      default: 1
