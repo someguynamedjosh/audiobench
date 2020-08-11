@@ -1,5 +1,6 @@
 use super::codegen::{self, CodeGenResult};
-use super::data_routing::{AutoconDynDataCollector, FeedbackDisplayer};
+use super::data_format::OwnedIOData;
+use super::data_routing::{AutoconDynDataCollector, FeedbackDisplayer, StaticonDynDataCollector};
 use super::data_transfer::{DataFormat, HostData, HostFormat, InputPacker, OutputUnpacker};
 use super::parts::ModuleGraph;
 use super::program_wrapper::{AudiobenchCompiler, AudiobenchProgram, NoteTracker};
@@ -15,6 +16,7 @@ const FEEDBACK_UPDATE_INTERVAL: Duration = Duration::from_millis(50);
 struct UiThreadData {
     module_graph: Rcrc<ModuleGraph>,
     autocon_dyn_data_collector: AutoconDynDataCollector,
+    staticon_dyn_data_collector: StaticonDynDataCollector,
     feedback_displayer: FeedbackDisplayer,
     current_patch_save_data: Rcrc<Patch>,
 }
@@ -23,7 +25,8 @@ struct CrossThreadData {
     host_format: HostFormat,
     notes: NoteTracker,
     new_source: Option<(String, DataFormat)>,
-    new_aux_input: Option<Vec<f32>>,
+    new_autocon_dyn_data: Option<Vec<f32>>,
+    new_staticon_dyn_data: Option<Vec<OwnedIOData>>,
     new_feedback_data: Option<Vec<f32>>,
     critical_error: Option<String>,
 }
@@ -73,6 +76,7 @@ impl Engine {
         let CodeGenResult {
             code,
             autocon_dyn_data_collector,
+            staticon_dyn_data_collector,
             feedback_displayer,
             data_format,
         } = codegen::generate_code(&module_graph, &host_format).map_err(|_| {
@@ -85,6 +89,7 @@ impl Engine {
         let utd = UiThreadData {
             module_graph: rcrc(module_graph),
             autocon_dyn_data_collector,
+            staticon_dyn_data_collector,
             feedback_displayer,
             current_patch_save_data: default_patch,
         };
@@ -114,7 +119,8 @@ impl Engine {
             host_format,
             notes: NoteTracker::new(data_format.clone()),
             new_source: None,
-            new_aux_input: None,
+            new_autocon_dyn_data: None,
+            new_staticon_dyn_data: None,
             new_feedback_data: None,
             critical_error: None,
         };
@@ -203,9 +209,11 @@ impl Engine {
             .map_err(|_| format!("The note graph cannot contain feedback loops"))?;
         drop(module_graph_ref);
         ctd.new_source = Some((new_gen.code, new_gen.data_format.clone()));
-        ctd.new_aux_input = Some(new_gen.autocon_dyn_data_collector.collect_data());
+        ctd.new_autocon_dyn_data = Some(new_gen.autocon_dyn_data_collector.collect_data());
+        ctd.new_staticon_dyn_data = Some(new_gen.staticon_dyn_data_collector.collect_data());
         ctd.new_feedback_data = None;
         self.utd.autocon_dyn_data_collector = new_gen.autocon_dyn_data_collector;
+        self.utd.staticon_dyn_data_collector = new_gen.staticon_dyn_data_collector;
         self.utd.feedback_displayer = new_gen.feedback_displayer;
         Ok(())
     }
@@ -213,7 +221,13 @@ impl Engine {
     pub fn reload_autocon_dyn_data(&mut self) {
         let mut ctd = self.ctd_mux.lock().unwrap();
 
-        ctd.new_aux_input = Some(self.utd.autocon_dyn_data_collector.collect_data());
+        ctd.new_autocon_dyn_data = Some(self.utd.autocon_dyn_data_collector.collect_data());
+    }
+
+    pub fn reload_staticon_dyn_data(&mut self) {
+        let mut ctd = self.ctd_mux.lock().unwrap();
+
+        ctd.new_staticon_dyn_data = Some(self.utd.staticon_dyn_data_collector.collect_data());
     }
 
     /// Feedback data is generated on the audio thread. This method uses a mutex to retrieve that
@@ -312,7 +326,7 @@ impl Engine {
                 }
             }
         }
-        if let Some(new_autocon_dyn_data) = ctd.new_aux_input.take() {
+        if let Some(new_autocon_dyn_data) = ctd.new_autocon_dyn_data.take() {
             self.atd
                 .input
                 .set_autocon_dyn_data(&new_autocon_dyn_data[..]);

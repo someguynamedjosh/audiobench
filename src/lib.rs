@@ -95,6 +95,9 @@ impl Instance {
             gui::action::InstanceAction::ReloadAutoconDynData => {
                 self.engine.as_mut().map(|e| e.reload_autocon_dyn_data());
             }
+            gui::action::InstanceAction::ReloadStaticonDynData => {
+                self.engine.as_mut().map(|e| e.reload_staticon_dyn_data());
+            }
             gui::action::InstanceAction::ReloadStructure => {
                 if let Some(e) = self.engine.as_mut() {
                     let res = e.recompile();

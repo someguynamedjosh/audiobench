@@ -56,7 +56,7 @@ pub trait ControlledData: Debug + PtrClonable {
 
 /// This is necessary because doing `ControlledData: Clone` makes it impossible to do
 /// `Rcrc<dyn ControlledData>` because it must be sized.
-trait PtrClonable {
+pub trait PtrClonable {
     fn ptr_clone(&self) -> Rcrc<dyn ControlledData>;
 }
 
