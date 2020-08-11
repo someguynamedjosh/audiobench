@@ -16,17 +16,19 @@ outputs:
     type: audio
     label: Signal
     tooltip: The current value of the envelope
-controls:
+autocons:
   sustain:
     min: 0
     max: 1
     default: 1.0
-complex_controls:
-  TIME_SOURCE:
-  TIME_TYPE:
-  ATTACK_TIME:
-  DECAY_TIME:
-  RELEASE_TIME:
+staticons:
+  TIMING_MODE: TimingMode
+  ATTACK_TIME: Duration
+    default: 0.005
+  DECAY_TIME: Duration
+    default: 0.2
+  RELEASE_TIME: Duration
+    default: 0.3
 gui: 
   label: Envelope
   category: Control
@@ -43,30 +45,26 @@ gui:
     timing_selector:
       x: 0
       y: 2
-      source_control: TIME_SOURCE
-      type_control: TIME_TYPE
+      control: TIMING_MODE
     duration_box:
       x: 2
       y: 2
-      control: ATTACK_TIME
-      type_control: TIME_TYPE
-      default: 0.005
+      duration_control: ATTACK_TIME
+      mode_control: TIMING_MODE
       label: Attack
       tooltip: How long the envelope takes to rise to full volume
     duration_box:
       x: 4
       y: 2
-      control: DECAY_TIME
-      default: 0.200
-      type_control: TIME_TYPE
+      duration_control: DECAY_TIME
+      mode_control: TIMING_MODE
       label: Decay
       tooltip: How long the envelope takes to fall back down to the sustain value after the attack ends
     duration_box:
       x: 6
       y: 2
-      control: RELEASE_TIME
-      default: 0.300
-      type_control: TIME_TYPE
+      duration_control: RELEASE_TIME
+      mode_control: TIMING_MODE
       label: Release
       tooltip: How long the envelope takes to fade out after receiving the release trigger
     envelope_graph:

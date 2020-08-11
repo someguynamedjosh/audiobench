@@ -15,7 +15,7 @@ outputs:
     type: waveform
     label: Waveform
     tooltip: The modulated waveform
-controls:
+autocons:
   intensity:
     min: 0
     max: 1

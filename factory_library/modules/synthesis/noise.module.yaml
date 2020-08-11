@@ -5,7 +5,7 @@ outputs:
     type: audio
     label: Noise
     tooltip: Noise output
-controls:
+autocons:
   amplitude:
     min: 0
     max: 1
@@ -14,11 +14,14 @@ controls:
     min: 0
     max: 1
     default: 1
-complex_controls:
-  TIME_SOURCE:
-  TIME_TYPE:
-  MAX_DELAY:
-  SMOOTH_MODE:
+staticons:
+  TIMING_MODE: TimingMode
+  MAX_DELAY: Duration
+  SMOOTH_MODE: OptionChoice
+    options:
+      Sharp:
+      Smooth:
+    default: 1
 gui:
   label: Noise
   category: Synthesis
@@ -40,10 +43,6 @@ gui:
       control: SMOOTH_MODE
       label: Mode
       tooltip: Whether to transition smoothly or abruptly to the next value in the sequence
-      default: 1
-      options:
-        Sharp:
-        Smooth:
     knob:
       x: 2
       y: 2
@@ -59,13 +58,11 @@ gui:
     timing_selector:
       x: 4
       y: 2
-      source_control: TIME_SOURCE
-      type_control: TIME_TYPE
+      control: TIMING_MODE
     duration_box:
       x: 6
       y: 2
-      control: MAX_DELAY
-      type_control: TIME_TYPE
+      duration_control: MAX_DELAY
+      mode_control: TIMING_MODE
       label: Max Delay
       tooltip: The maximum amount of time between two values in the sequence
-      default: 0.000
