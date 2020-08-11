@@ -45,37 +45,11 @@ impl TimingSelector {
     }
 
     fn source_value(&self) -> bool {
-        self.source_control.borrow().value == "TRUE"
+        self.control.borrow().uses_song_time()
     }
 
     fn type_value(&self) -> bool {
-        self.type_control.borrow().value == "TRUE"
-    }
-
-    fn get_defaults(
-        outline: &GeneratedTimingSelectorOutline,
-        yaml: &YamlNode,
-    ) -> Result<Vec<(usize, String)>, String> {
-        Ok(vec![
-            (
-                outline.source_control_index,
-                if let Ok(..) = yaml.unique_child("default_song_source") {
-                    "TRUE"
-                } else {
-                    "FALSE"
-                }
-                .to_owned(),
-            ),
-            (
-                outline.type_control_index,
-                if let Ok(..) = yaml.unique_child("default_beats_type") {
-                    "TRUE"
-                } else {
-                    "FALSE"
-                }
-                .to_owned(),
-            ),
-        ])
+        self.control.borrow().uses_song_time()
     }
 }
 
@@ -94,16 +68,11 @@ impl ModuleWidget for TimingSelector {
         _mods: &MouseMods,
         _parent_pos: (f32, f32),
     ) -> MouseAction {
+        let cref = Rc::clone(&self.control);
         if local_pos.0 < grid(2) / 2.0 {
-            MouseAction::SetComplexControl(
-                Rc::clone(&self.source_control),
-                if self.source_value() { "FALSE" } else { "TRUE" }.to_owned(),
-            )
+            MouseAction::MutateStaticon(Box::new(move || cref.borrow_mut().toggle_source()))
         } else {
-            MouseAction::SetComplexControl(
-                Rc::clone(&self.type_control),
-                if self.type_value() { "FALSE" } else { "TRUE" }.to_owned(),
-            )
+            MouseAction::MutateStaticon(Box::new(move || cref.borrow_mut().toggle_units()))
         }
     }
 

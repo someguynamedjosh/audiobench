@@ -111,6 +111,17 @@ impl ControlledInt {
         })
     }
 
+    pub fn get_value(&self) -> i32 {
+        self.value
+    }
+
+    pub fn set_value(&self, value: i32) -> StaticonUpdateRequest {
+        assert!(value >= self.range.0);
+        assert!(value <= self.range.1);
+        self.value = value;
+        StaticonUpdateRequest::dyn_update_if_allowed(self)
+    }
+
     pub fn get_range(&self) -> (i32, i32) {
         self.range
     }
@@ -287,8 +298,18 @@ impl ControlledTimingMode {
         self.use_song_time
     }
 
+    pub fn toggle_source(&mut self) -> StaticonUpdateRequest {
+        self.use_song_time = !self.use_song_time;
+        StaticonUpdateRequest::dyn_update_if_allowed(self)
+    }
+
     pub fn is_beat_synchronized(&self) -> bool {
         self.beat_synchronized
+    }
+
+    pub fn toggle_units(&mut self) -> StaticonUpdateRequest {
+        self.beat_synchronized = !self.beat_synchronized;
+        StaticonUpdateRequest::dyn_update_if_allowed(self)
     }
 }
 

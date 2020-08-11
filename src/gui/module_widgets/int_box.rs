@@ -45,9 +45,8 @@ pub trait IntBoxImpl {
     fn get_base(&self) -> &IntBoxBase;
     fn get_current_value(&self) -> i32;
     // The callback will be called whenever the user changes the value and that change should be
-    // shown on screen. A recompile will be requested once the user stops changing the value
-    // regardless of what happens in this callback.
-    fn make_callback(&self) -> Box<dyn Fn(i32)>;
+    // shown on screen. The return value will tell the instance what to do with the change.
+    fn make_callback(&self) -> Box<dyn FnMut(i32) -> staticons::StaticonUpdateRequest>;
 }
 
 impl<T: IntBoxImpl> ModuleWidget for T {
@@ -164,11 +163,11 @@ impl IntBoxImpl for IntBox {
     }
 
     fn get_current_value(&self) -> i32 {
-        self.control.borrow().value.parse().unwrap()
+        self.control.borrow().get_value()
     }
 
-    fn make_callback(&self) -> Box<dyn Fn(i32)> {
+    fn make_callback(&self) -> Box<dyn FnMut(i32) -> staticons::StaticonUpdateRequest> {
         let control = Rc::clone(&self.control);
-        Box::new(move |new_value| control.borrow_mut().value = format!("{}", new_value))
+        Box::new(move |new_value| control.borrow_mut().set_value(new_value))
     }
 }
