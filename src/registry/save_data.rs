@@ -433,7 +433,7 @@ impl SavedStaticon {
     }
 
     fn restore(&self, on: &mut staticons::Staticon) {
-        unimplemented!("This isn't ready.");
+        // TODO: Anything.
     }
 
     fn serialize(&self, buffer: &mut Vec<u8>) {
@@ -1007,13 +1007,17 @@ impl SavedModuleGraph {
         }
 
         let mut staticons = Vec::new();
-        for _ in 0..num_autocons {
+        for _ in 0..num_staticons {
             staticons.push(SavedStaticon::deserialize(slice)?);
         }
         let lane_modes = des_u4_slice(slice, num_lanes)?;
         let mut lanes = Vec::new();
         for mode in lane_modes.into_iter() {
             lanes.push(SavedAutomationLane::deserialize(slice, mode)?);
+        }
+
+        if slice.len() > 0 {
+            return Err(());
         }
 
         let (mut ip, mut cp, mut ccp, mut lp) = (0, 0, 0, 0);
