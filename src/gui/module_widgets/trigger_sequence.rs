@@ -159,7 +159,7 @@ yaml_widget_boilerplate::make_widget_outline! {
         label: String,
         tooltip: String,
     ),
-    complex_control_default_provider: get_defaults,
+    staticon_default_provider: get_defaults,
 }
 
 pub struct TriggerSequenceLength {

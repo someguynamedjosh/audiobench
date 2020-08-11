@@ -1,3 +1,4 @@
+use super::static_controls::Staticon;
 use crate::registry::module_template::ModuleTemplate;
 use crate::util::*;
 use std::collections::{HashMap, HashSet};
@@ -40,13 +41,6 @@ impl Autocon {
             }
         }
     }
-}
-
-#[derive(Clone, Debug)]
-pub struct ComplexControl {
-    pub code_name: String,
-    pub value: String,
-    pub default: String,
 }
 
 #[derive(Clone, Debug)]
@@ -232,8 +226,8 @@ impl IOJack {
 #[derive(Debug)]
 pub struct Module {
     pub template: Rcrc<ModuleTemplate>,
-    pub controls: Vec<Rcrc<Autocon>>,
-    pub complex_controls: Vec<Rcrc<ComplexControl>>,
+    pub autocons: Vec<Rcrc<Autocon>>,
+    pub staticons: Vec<Rcrc<Staticon>>,
     pub pos: (f32, f32),
     pub inputs: Vec<InputConnection>,
     pub feedback_data: Option<Rcrc<Vec<f32>>>,
@@ -245,11 +239,11 @@ impl Clone for Module {
         // of the controls.
         Self {
             template: Rc::clone(&self.template),
-            controls: self
-                .controls
+            autocons: self
+                .autocons
                 .imc(|control_ref| rcrc((*control_ref.borrow()).clone())),
-            complex_controls: self
-                .complex_controls
+            staticons: self
+                .staticons
                 .imc(|control_ref| rcrc((*control_ref.borrow()).clone())),
             pos: self.pos,
             inputs: self.inputs.clone(),
@@ -261,14 +255,14 @@ impl Clone for Module {
 impl Module {
     pub fn create(
         template: Rcrc<ModuleTemplate>,
-        controls: Vec<Rcrc<Autocon>>,
-        complex_controls: Vec<Rcrc<ComplexControl>>,
+        autocons: Vec<Rcrc<Autocon>>,
+        staticons: Vec<Rcrc<Staticon>>,
         default_inputs: Vec<usize>,
     ) -> Self {
         Self {
             template,
-            controls,
-            complex_controls,
+            autocons,
+            staticons,
             pos: (0.0, 0.0),
             inputs: default_inputs
                 .into_iter()
@@ -283,8 +277,8 @@ impl Module {
     /// modules.
     pub fn sever(&mut self) {
         self.inputs.clear();
-        self.controls.clear();
-        self.complex_controls.clear();
+        self.autocons.clear();
+        self.staticons.clear();
         self.feedback_data = None;
     }
 
@@ -297,7 +291,7 @@ impl Module {
                 }
             }
         }
-        for control in &mut self.controls {
+        for control in &mut self.autocons {
             control.borrow_mut().sever_connections_with(other);
         }
     }
@@ -364,7 +358,7 @@ impl ModuleGraph {
                     dependencies.insert(self.index_of_module(module_ref).ok_or(())?);
                 }
             }
-            for control in &module_ref.controls {
+            for control in &module_ref.autocons {
                 let control_ref = control.borrow();
                 for lane in &control_ref.automation {
                     dependencies.insert(self.index_of_module(&lane.connection.0).ok_or(())?);

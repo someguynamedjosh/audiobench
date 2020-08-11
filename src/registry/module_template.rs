@@ -1,5 +1,6 @@
 use super::yaml::YamlNode;
 use crate::engine::parts as ep;
+use crate::engine::static_controls as staticons;
 use crate::gui::module_widgets::WidgetOutline;
 use crate::util::*;
 use std::collections::{HashMap, HashSet};
@@ -43,15 +44,14 @@ pub(super) fn create_module_prototype_from_yaml(
         controls.push(create_control_from_yaml(&control_description)?);
     }
 
-    let mut complex_controls = Vec::new();
-    if let Ok(child) = &yaml.unique_child("complex_controls") {
+    let mut staticons = Vec::new();
+    let mut staticon_datas = Vec::new();
+    if let Ok(child) = &yaml.unique_child("staticons") {
         for description in &child.children {
             // TODO: Error for duplicate control
-            complex_controls.push(rcrc(ep::ComplexControl {
-                code_name: description.name.clone(),
-                value: "".to_owned(),
-                default: "".to_owned(),
-            }));
+            let (control, data) = staticons::from_yaml(description)?;
+            staticons.push(rcrc(control));
+            staticon_datas.push(data);
         }
     }
 
@@ -73,17 +73,8 @@ pub(super) fn create_module_prototype_from_yaml(
         widgets.push(WidgetOutline::from_yaml(
             widget_description,
             &controls,
-            &mut complex_controls,
+            &mut staticons,
         )?);
-    }
-
-    for control in &complex_controls {
-        if control.borrow().value == "" {
-            return Err(format!(
-                "ERROR: No widget was created for the complex control {}",
-                control.borrow().code_name
-            ));
-        }
     }
 
     let mut inputs = Vec::new();
@@ -181,7 +172,7 @@ pub(super) fn create_module_prototype_from_yaml(
     Ok(ep::Module::create(
         rcrc(template),
         controls,
-        complex_controls,
+        staticons,
         default_inputs,
     ))
 }

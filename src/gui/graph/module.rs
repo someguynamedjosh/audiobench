@@ -241,12 +241,12 @@ impl Module {
         let template_ref = module_ref.template.borrow();
         let grid_size = template_ref.size;
         let label = template_ref.label.clone();
-        let module_controls = &module_ref.controls;
-        let module_ccontrols = &module_ref.complex_controls;
+        let module_autocons = &module_ref.autocons;
+        let module_staticons = &module_ref.staticons;
         let widgets = template_ref
             .widget_outlines
             .iter()
-            .map(|wo| wo.instantiate(registry, module_controls, module_ccontrols))
+            .map(|wo| wo.instantiate(registry, module_autocons, module_staticons))
             .collect();
 
         let size = (

@@ -1,4 +1,5 @@
 use crate::engine::parts as ep;
+use crate::engine::static_controls as staticons;
 use crate::gui::constants::*;
 use crate::gui::module_widgets;
 use crate::gui::ui_widgets::TextField;
@@ -54,24 +55,24 @@ pub enum MouseAction {
         float_value: f32,
     },
     ManipulateHertzControl {
-        cref: Rcrc<ep::ComplexControl>,
+        cref: Rcrc<staticons::Staticon>,
         min: f32,
         max: f32,
         precise_value: f32,
     },
     ManipulateDurationControl {
-        cref: Rcrc<ep::ComplexControl>,
+        cref: Rcrc<staticons::ControlledDuration>,
         precise_value: f32,
         denominator: bool,
     },
     ManipulateSequencedValue {
-        cref: Rcrc<ep::ComplexControl>,
+        cref: Rcrc<staticons::ControlledValueSequence>,
         value_start: usize,
         value_end: usize,
         float_value: f32,
         value_formatter: fn(f32) -> String,
     },
-    SetComplexControl(Rcrc<ep::ComplexControl>, String),
+    SetComplexControl(Rcrc<staticons::Staticon>, String),
     MoveModule(Rcrc<ep::Module>, (f32, f32)),
     PanOffset(Rcrc<(f32, f32)>),
     ConnectInput(Rcrc<ep::Module>, usize),
@@ -289,96 +290,14 @@ impl MouseAction {
                 max,
                 precise_value,
             } => {
-                // How many pixels the user must drag across to change the value by an octave.
-                const PIXELS_PER_OCTAVE: f32 = 40.0;
-                let delta = delta.0 - delta.1;
-                let mut delta = delta as f32 / PIXELS_PER_OCTAVE;
-                if mods.precise {
-                    delta *= 0.2;
-                }
-                let multiplier = (2.0f32).powf(delta);
-                *precise_value *= multiplier;
-                *precise_value = precise_value.min(*max as f32);
-                *precise_value = precise_value.max(*min as f32);
-                let decimals = if *precise_value < 1.0 {
-                    4
-                } else if *precise_value < 10.0 {
-                    3
-                } else if *precise_value < 100.0 {
-                    2
-                } else if *precise_value < 1000.0 {
-                    1
-                } else {
-                    0
-                };
-                let str_value = format!("{:.1$}", *precise_value, decimals);
-                if str_value != cref.borrow().value {
-                    cref.borrow_mut().value = str_value;
-                }
+                unimplemented!("New staticon code");
             }
             Self::ManipulateDurationControl {
                 cref,
                 precise_value,
                 denominator,
             } => {
-                // If we are editing a fraction...
-                if cref.borrow().value.contains("/") {
-                    // How many pixels the user must drag across to change the value by 1.
-                    const DRAG_PIXELS: f32 = 12.0;
-                    let delta = delta.0 - delta.1;
-                    let mut delta = delta as f32 / DRAG_PIXELS;
-                    if mods.precise {
-                        delta *= 0.2;
-                    }
-                    *precise_value += delta;
-                    *precise_value = precise_value.min(98.0);
-                    *precise_value = precise_value.max(1.0);
-                    let str_value = cref.borrow().value.clone();
-                    let slash_pos = str_value.find('/').unwrap();
-                    let mut num = (str_value[..slash_pos]).parse::<f32>().unwrap() as i32;
-                    let mut den = (str_value[slash_pos + 1..]).parse::<f32>().unwrap() as i32;
-                    if *denominator {
-                        den = *precise_value as i32;
-                    } else {
-                        num = *precise_value as i32;
-                    }
-                    let str_value = format!("{}.0/{}.0", num, den);
-                    if str_value != cref.borrow().value {
-                        cref.borrow_mut().value = str_value;
-                    }
-                } else {
-                    // How many pixels the user must drag across to double the value
-                    const PIXELS_PER_OCTAVE: f32 = 40.0;
-                    let delta = delta.0 - delta.1;
-                    let mut delta = delta as f32 / PIXELS_PER_OCTAVE;
-                    if mods.precise {
-                        delta *= 0.2;
-                    }
-                    let multiplier = (2.0f32).powf(delta);
-                    *precise_value *= multiplier;
-                    *precise_value = precise_value.min(99.8);
-                    *precise_value = precise_value.max(0.0003);
-                    let decimals = if *precise_value < 0.999 {
-                        3
-                    } else if *precise_value < 9.99 {
-                        2
-                    } else if *precise_value < 99.9 {
-                        1
-                    } else {
-                        0
-                    };
-                    let str_value = format!("{:.1$}", *precise_value, decimals);
-                    if str_value != cref.borrow().value {
-                        cref.borrow_mut().value = str_value;
-                    }
-                }
-                return (
-                    None,
-                    Some(Tooltip {
-                        text: "".to_owned(),
-                        interaction: InteractionHint::LeftClickAndDrag | InteractionHint::Alt,
-                    }),
-                );
+                unimplemented!("New staticon code");
             }
             Self::ManipulateSequencedValue {
                 cref,
@@ -387,34 +306,7 @@ impl MouseAction {
                 float_value,
                 value_formatter,
             } => {
-                let delta = delta.0 - delta.1;
-                // How many pixels the user must drag across to cover half the slider range.
-                const DRAG_PIXELS: f32 = 100.0;
-                let mut delta = delta as f32 / DRAG_PIXELS;
-                if mods.precise {
-                    delta *= 0.2;
-                }
-                *float_value += delta;
-                *float_value = float_value.max(-1.0).min(1.0);
-                let set_value = maybe_snap_value(*float_value, (-1.0, 1.0), mods);
-                let formatted = value_formatter(set_value);
-                let mut borrowed = cref.borrow_mut();
-                let new_value = format!(
-                    "{}{}{}",
-                    &borrowed.value[..*value_start],
-                    formatted,
-                    &borrowed.value[*value_end..]
-                );
-                borrowed.value = new_value;
-                return (
-                    None,
-                    Some(Tooltip {
-                        text: format!("{:.3}", set_value),
-                        interaction: InteractionHint::LeftClickAndDrag
-                            | InteractionHint::Shift
-                            | InteractionHint::Alt,
-                    }),
-                );
+                unimplemented!("New staticon code");
             }
             Self::MoveModule(module, tracking) => {
                 *tracking = tracking.add(delta);
@@ -576,12 +468,7 @@ impl MouseAction {
                 return Some(GuiAction::Elevate(InstanceAction::ReloadStructure));
             }
             Self::SetComplexControl(control, value) => {
-                let mut control_ref = control.borrow_mut();
-                if control_ref.value != value {
-                    control_ref.value = value;
-                    return Some(GuiAction::Elevate(InstanceAction::ReloadStructure));
-                    // If not, don't bother reloading the structure, which causes a notable hiccup.
-                }
+                unimplemented!("New staticon code");
             }
             Self::Scaled(base, ..) => {
                 return base.on_click();
@@ -634,13 +521,7 @@ impl MouseAction {
                 return Some(GuiAction::Elevate(InstanceAction::ReloadAutoconDynData));
             }
             Self::SetComplexControl(control, ..) => {
-                let mut control_ref = control.borrow_mut();
-                let value = control_ref.default.clone();
-                if control_ref.value != value {
-                    control_ref.value = value;
-                    return Some(GuiAction::Elevate(InstanceAction::ReloadStructure));
-                    // If not, don't bother reloading the structure, which causes a notable hiccup.
-                }
+                unimplemented!("New staticon code");
             }
             Self::Scaled(base, ..) => {
                 return base.on_double_click();
@@ -650,7 +531,6 @@ impl MouseAction {
             }
             _ => return self.on_click(),
         }
-        None
     }
 }
 

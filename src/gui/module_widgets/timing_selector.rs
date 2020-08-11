@@ -16,7 +16,7 @@ yaml_widget_boilerplate::make_widget_outline! {
         source_control: ComplexControlRef,
         type_control: ComplexControlRef,
     ),
-    complex_control_default_provider: get_defaults,
+    staticon_default_provider: get_defaults,
 }
 
 #[derive(Clone)]
