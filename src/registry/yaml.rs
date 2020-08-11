@@ -48,7 +48,7 @@ impl YamlNode {
     /// Like `parse()` but uses a custom parse function instead of `str::parse`. Any error returned
     /// by the custom parser will be wrapped with another error specifying the path of this node,
     /// so you do not have to add that information yourself.
-    pub fn custom_parse<T>(
+    pub fn parse_custom<T>(
         &self,
         parser: impl FnOnce(&str) -> Result<T, String>,
     ) -> Result<T, String> {
@@ -92,7 +92,7 @@ impl YamlNode {
     /// there is no matching item, a human readable error is returned containing the location of 
     /// the errror and a list of legal values. E.G.: "ERROR: The value of path.to.node is not one
     /// of 'foo', 'bar', 'baz',". I'm too lazy to get rid of the last comma.
-    pub fn enumerated(&self, possible_values: &[&str]) -> Result<usize, String> {
+    pub fn parse_enumerated(&self, possible_values: &[&str]) -> Result<usize, String> {
         let self_value = self.value.trim();
         for (index, value) in possible_values.iter().enumerate() {
             if self_value == *value {
