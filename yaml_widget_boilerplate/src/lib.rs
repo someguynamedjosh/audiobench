@@ -12,7 +12,7 @@ enum ConstructorItemType {
     GridPos,
     GridSize,
     AutoconRef,
-    ComplexControlRef,
+    StaticonRef,
     IntRange,
     FloatRange,
     String,
@@ -31,7 +31,7 @@ impl ConstructorItem {
             ConstructorItemType::AutoconRef => {
                 vec![(format_ident!("{}_index", self.name), quote! {usize})]
             }
-            ConstructorItemType::ComplexControlRef => {
+            ConstructorItemType::StaticonRef => {
                 vec![(format_ident!("{}_index", self.name), quote! {usize})]
             }
             ConstructorItemType::IntRange => vec![(self.name.clone(), quote! { (i32, i32)})],
@@ -80,13 +80,13 @@ impl ConstructorItem {
                     let #index_name = find_control_index(#name_name)?;
                 }
             }
-            ConstructorItemType::ComplexControlRef => {
+            ConstructorItemType::StaticonRef => {
                 let name = self.name.clone();
                 let name_name = format_ident!("{}_name", self.name);
                 let index_name = format_ident!("{}_index", self.name);
                 quote! {
                     let #name_name = yaml.unique_child(stringify!(#name))?.value.trim();
-                    let #index_name = find_complex_control_index(#name_name)?;
+                    let #index_name = find_staticon_index(#name_name)?;
                 }
             }
             ConstructorItemType::IntRange => {
@@ -152,9 +152,9 @@ impl ConstructorItem {
                 let name = format_ident!("{}_index", self.name);
                 quote! { ::std::rc::Rc::clone(&controls[self.#name]) }
             }
-            ConstructorItemType::ComplexControlRef => {
+            ConstructorItemType::StaticonRef => {
                 let name = format_ident!("{}_index", self.name);
-                quote! { ::std::rc::Rc::clone(&complex_controls[self.#name]) }
+                quote! { ::std::rc::Rc::clone(&staticons[self.#name]) }
             }
         }
     }
@@ -170,7 +170,7 @@ impl Parse for ConstructorItem {
             "GridPos" => ConstructorItemType::GridPos,
             "GridSize" => ConstructorItemType::GridSize,
             "AutoconRef" => ConstructorItemType::AutoconRef,
-            "ComplexControlRef" => ConstructorItemType::ComplexControlRef,
+            "StaticonRef" => ConstructorItemType::StaticonRef,
             "IntRange" => ConstructorItemType::IntRange,
             "FloatRange" => ConstructorItemType::FloatRange,
             "String" => ConstructorItemType::String,
@@ -242,7 +242,7 @@ impl Parse for WidgetOutlineDescription {
             match &name.to_string()[..] {
                 "widget_struct" => result.widget_struct_name = Some(input.parse()?),
                 "constructor" => result.constructor_description = Some(input.parse()?),
-                "complex_control_default_provider" => result.ccdp_name = Some(input.parse()?),
+                "staticon_default_provider" => result.ccdp_name = Some(input.parse()?),
                 "feedback" => result.feedback_description = Some(input.parse()?),
                 _ => panic!("Unexpected identifier {}", name),
             }
@@ -329,14 +329,14 @@ pub fn make_widget_outline(args: TokenStream) -> TokenStream {
         quote! {
             let set_defaults: Vec<(usize, String)> = #widget_struct_name::#ccdp_name(&result, yaml)?;
             for (index, value) in set_defaults {
-                if complex_controls[index] .borrow().value != "" {
+                if staticons[index] .borrow().value != "" {
                     return ::std::result::Result::Err(format!(
                         "ERROR: Multiple widgets controlling the same complex control {}.",
-                        complex_controls[index].borrow().code_name
+                        staticons[index].borrow().code_name
                     ));
                 }
-                complex_controls[index].borrow_mut().default = value.clone();
-                complex_controls[index].borrow_mut().value = value;
+                staticons[index].borrow_mut().default = value.clone();
+                staticons[index].borrow_mut().value = value;
             }
         }
     } else {
@@ -365,7 +365,7 @@ pub fn make_widget_outline(args: TokenStream) -> TokenStream {
             pub fn from_yaml(
                 yaml: &crate::registry::yaml::YamlNode,
                 controls: & ::std::vec::Vec<::std::rc::Rc<::std::cell::RefCell<crate::engine::parts::Autocon>>>,
-                complex_controls: &mut ::std::vec::Vec<::std::rc::Rc<::std::cell::RefCell<crate::engine::parts::ComplexControl>>>,
+                staticons: &mut ::std::vec::Vec<::std::rc::Rc<::std::cell::RefCell<crate::engine::parts::Staticon>>>,
             ) -> ::std::result::Result<#outline_name, ::std::string::String> {
                 let find_control_index = |name: &str| {
                     controls
@@ -378,8 +378,8 @@ pub fn make_widget_outline(args: TokenStream) -> TokenStream {
                             )
                         })
                 };
-                let find_complex_control_index = |name: &str| {
-                    complex_controls
+                let find_staticon_index = |name: &str| {
+                    staticons
                         .iter()
                         .position(|item| &item.borrow().code_name == name)
                         .ok_or_else(|| {
@@ -403,7 +403,7 @@ pub fn make_widget_outline(args: TokenStream) -> TokenStream {
                 &self,
                 registry: &crate::registry::Registry,
                 controls: & ::std::vec::Vec<::std::rc::Rc<::std::cell::RefCell<crate::engine::parts::Autocon>>>,
-                complex_controls: & ::std::vec::Vec<::std::rc::Rc<::std::cell::RefCell<crate::engine::parts::ComplexControl>>>,
+                staticons: & ::std::vec::Vec<::std::rc::Rc<::std::cell::RefCell<crate::engine::parts::Staticon>>>,
             ) -> #widget_struct_name {
                 #widget_struct_name::#constructor_name(#(#constructor_arg_values),*)
             }
@@ -447,7 +447,7 @@ pub fn make_widget_outline_enum(args: TokenStream) -> TokenStream {
             let outline_struct_name = format_ident!("Generated{}Outline", name);
             quote! {
                 #snake_case_string => Self::#name(#outline_struct_name::from_yaml(
-                    yaml, controls, complex_controls
+                    yaml, controls, staticons
                 )?)
             }
         })
@@ -457,7 +457,7 @@ pub fn make_widget_outline_enum(args: TokenStream) -> TokenStream {
         .map(|name| {
             quote! {
                 Self::#name(outline) => Box::new(
-                    outline.instantiate(registry, controls, complex_controls)
+                    outline.instantiate(registry, controls, staticons)
                 )
             }
         })
@@ -479,7 +479,7 @@ pub fn make_widget_outline_enum(args: TokenStream) -> TokenStream {
             pub fn from_yaml(
                 yaml: &crate::registry::yaml::YamlNode,
                 controls: & ::std::vec::Vec<::std::rc::Rc<::std::cell::RefCell<crate::engine::parts::Autocon>>>,
-                complex_controls: &mut ::std::vec::Vec<::std::rc::Rc<::std::cell::RefCell<crate::engine::parts::ComplexControl>>>,
+                staticons: &mut ::std::vec::Vec<::std::rc::Rc<::std::cell::RefCell<crate::engine::parts::Staticon>>>,
             ) -> ::std::result::Result<Self, ::std::string::String> {
                 Ok(match &yaml.name[..] {
                     #(#from_yaml_body),*,
@@ -496,7 +496,7 @@ pub fn make_widget_outline_enum(args: TokenStream) -> TokenStream {
                 &self,
                 registry: &crate::registry::Registry,
                 controls: & ::std::vec::Vec<::std::rc::Rc<::std::cell::RefCell<crate::engine::parts::Autocon>>>,
-                complex_controls: & ::std::vec::Vec<::std::rc::Rc<::std::cell::RefCell<crate::engine::parts::ComplexControl>>>,
+                staticons: & ::std::vec::Vec<::std::rc::Rc<::std::cell::RefCell<crate::engine::parts::Staticon>>>,
             ) -> (::std::boxed::Box<dyn crate::gui::module_widgets::ModuleWidget>, usize) {
                 (
                     match self {

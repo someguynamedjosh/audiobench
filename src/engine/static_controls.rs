@@ -2,6 +2,7 @@ use crate::engine::data_format::{IODataPtr, IOType};
 use crate::registry::yaml::YamlNode;
 use crate::util::*;
 use std::cell::Ref;
+use std::fmt::Debug;
 
 pub enum StaticonUpdateRequest {
     /// For when a particular change does not require any action to be expressed.
@@ -18,7 +19,7 @@ pub struct StaticonDynCode {
     code: String,
 }
 
-pub trait ControlledData {
+pub trait ControlledData: Debug + PtrClonable {
     /// Returns true if the control's value must be available at compile time. This will cause the
     /// code to be recompiled every time the user changes the value, so it should be avoided if at
     /// all possible.
@@ -41,6 +42,18 @@ pub trait ControlledData {
     fn package_dyn_data(&self) -> IODataPtr;
 }
 
+/// This is necessary because doing `ControlledData: Clone` makes it impossible to do
+/// `Rcrc<dyn ControlledData>` because it must be sized.
+trait PtrClonable {
+    fn ptr_clone(&self) -> Rcrc<dyn ControlledData>;
+}
+
+impl<T: ControlledData + Clone + 'static> PtrClonable for T {
+    fn ptr_clone(&self) -> Rcrc<dyn ControlledData> {
+        rcrc(self.clone())
+    }
+}
+
 macro_rules! require_static_only_boilerplate {
     ($yaml:ident) => {
         if let Ok(child) = $yaml.unique_child("require_static_only") {
@@ -51,6 +64,7 @@ macro_rules! require_static_only_boilerplate {
     };
 }
 
+#[derive(Clone, Debug)]
 pub struct ControlledInt {
     require_static_only: bool,
     value: i32,
@@ -58,7 +72,7 @@ pub struct ControlledInt {
 }
 
 impl ControlledInt {
-    fn from_yaml(yaml: YamlNode) -> Result<Self, String> {
+    fn from_yaml(yaml: &YamlNode) -> Result<Self, String> {
         let min = yaml.unique_child("min")?.parse()?;
         let max = yaml.unique_child("min")?.parse_ranged(Some(min), None)?;
         let default = if let Ok(child) = yaml.unique_child("default") {
@@ -95,6 +109,7 @@ impl ControlledData for ControlledInt {
     fn package_dyn_data(&self) -> IODataPtr { IODataPtr::Int(self.value) }
 }
 
+#[derive(Clone, Debug)]
 pub struct ControlledDuration {
     require_static_only: bool,
     decimal_value: f32,
@@ -104,7 +119,7 @@ pub struct ControlledDuration {
 }
 
 impl ControlledDuration {
-    fn from_yaml(yaml: YamlNode) -> Result<Self, String> {
+    fn from_yaml(yaml: &YamlNode) -> Result<Self, String> {
         let fraction_mode = if let Ok(child) = yaml.unique_child("default_mode") {
             child.parse_enumerated(&["decimal", "fraction"])? == 1
         } else {
@@ -143,6 +158,7 @@ impl ControlledData for ControlledDuration {
     fn package_dyn_data(&self) -> IODataPtr { IODataPtr::Float(self.get_raw_value()) }
 }
 
+#[derive(Clone, Debug)]
 pub struct ControlledTimingMode {
     require_static_only: bool,
     /// True if time should be measured against how long the song has been running, false if time
@@ -153,7 +169,7 @@ pub struct ControlledTimingMode {
 }
 
 impl ControlledTimingMode {
-    fn from_yaml(yaml: YamlNode) -> Result<Self, String> {
+    fn from_yaml(yaml: &YamlNode) -> Result<Self, String> {
         let use_song_time = if let Ok(child) = yaml.unique_child("default_source") {
             child.parse_enumerated(&["note", "song"])? == 1
         } else {
@@ -187,13 +203,14 @@ impl ControlledData for ControlledTimingMode {
     fn package_dyn_data(&self) -> IODataPtr { IODataPtr::Int(self.get_raw_value()) }
 }
 
+#[derive(Clone, Debug)]
 pub struct ControlledTriggerSequence {
     require_static_only: bool,
     sequence: Vec<bool>,
 }
 
 impl ControlledTriggerSequence {
-    fn from_yaml(yaml: YamlNode) -> Result<Self, String> {
+    fn from_yaml(yaml: &YamlNode) -> Result<Self, String> {
         Ok(Self {
             require_static_only: require_static_only_boilerplate!(yaml),
             sequence: Vec::new(),
@@ -217,13 +234,14 @@ impl ControlledData for ControlledTriggerSequence {
     fn package_dyn_data(&self) -> IODataPtr { IODataPtr::BoolArray(&self.sequence[..]) }
 }
 
+#[derive(Clone, Debug)]
 pub struct ControlledValueSequence {
     require_static_only: bool,
     sequence: Vec<f32>,
 }
 
 impl ControlledValueSequence {
-    fn from_yaml(yaml: YamlNode) -> Result<Self, String> {
+    fn from_yaml(yaml: &YamlNode) -> Result<Self, String> {
         Ok(Self {
             require_static_only: require_static_only_boilerplate!(yaml),
             sequence: Vec::new(),
@@ -266,7 +284,7 @@ impl ArbitraryStaticonData {
 /// Creates a `Staticon` from a yaml definition. Additionally returns an ArbitraryStaticonData which
 /// can be used to retrieve a statically-typed `Rcrc` to the underlying data that the `Staticon`
 /// controls.
-pub fn from_yaml(yaml: YamlNode) -> Result<(Staticon, ArbitraryStaticonData), String> {
+pub fn from_yaml(yaml: &YamlNode) -> Result<(Staticon, ArbitraryStaticonData), String> {
     let name = yaml.name.clone();
     let typ = yaml.value.trim();
     let data = match typ {
@@ -301,6 +319,7 @@ pub struct PackagedData<'a> {
 }
 
 /// Static control, I.E. one that cannot be automated.
+#[derive(Debug)]
 pub struct Staticon {
     code_name: String,
     data: Rcrc<dyn ControlledData>,
@@ -342,5 +361,14 @@ impl Staticon {
 
     pub fn borrow_data(&self) -> Ref<dyn ControlledData> {
         self.data.borrow()
+    }
+}
+
+impl Clone for Staticon {
+    fn clone(&self) -> Self {
+        Self {
+            code_name: self.code_name.clone(),
+            data: self.data.borrow().ptr_clone(),
+        }
     }
 }

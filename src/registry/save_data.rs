@@ -1,5 +1,6 @@
 use super::Registry;
 use crate::engine::parts as ep;
+use crate::engine::static_controls as staticons;
 use crate::util::*;
 use std::collections::{HashMap, HashSet};
 use std::io::{self, Write};
@@ -313,25 +314,25 @@ impl SavedAutomationLane {
 }
 
 #[derive(Debug, Clone)]
-struct SavedControl {
+struct SavedAutocon {
     // Use None to indicate the default value.
     value: Option<u16>,
     automation_lanes: Vec<SavedAutomationLane>,
 }
 
-impl SavedControl {
+impl SavedAutocon {
     fn save(
-        control: &ep::Autocon,
+        autocon: &ep::Autocon,
         module_indexes: &HashMap<*const RefCell<ep::Module>, usize>,
     ) -> Self {
-        let range = control.range;
-        let value = pack_value(control.value, range);
-        let value = if value == pack_value(control.default, range) || control.automation.len() > 0 {
+        let range = autocon.range;
+        let value = pack_value(autocon.value, range);
+        let value = if value == pack_value(autocon.default, range) || autocon.automation.len() > 0 {
             None
         } else {
             Some(value)
         };
-        let automation_lanes = control
+        let automation_lanes = autocon
             .automation
             .iter()
             .map(|lane| SavedAutomationLane::save(lane, range, module_indexes))
@@ -422,24 +423,21 @@ impl SavedControl {
 }
 
 #[derive(Debug, Clone)]
-struct SavedComplexControl {
+struct SavedStaticon {
     value: String,
 }
 
-impl SavedComplexControl {
-    fn save(ccontrol: &ep::ComplexControl) -> Self {
-        Self {
-            value: ccontrol.value.clone(),
-        }
+impl SavedStaticon {
+    fn save(staticon: &staticons::Staticon) -> Self {
+        unimplemented!("This isn't ready.");
     }
 
-    fn restore(&self, on: &mut ep::ComplexControl) {
-        on.value = self.value.clone();
+    fn restore(&self, on: &mut staticons::Staticon) {
+        unimplemented!("This isn't ready.");
     }
 
-    // No fancy modes. Complex controls are just always inefficient, not much we can do about them.
     fn serialize(&self, buffer: &mut Vec<u8>) {
-        ser_str(buffer, &self.value);
+        unimplemented!("This isn't ready.");
     }
 
     fn deserialize(slice: &mut &[u8]) -> Result<Self, ()> {
@@ -569,8 +567,8 @@ impl SavedInputConnection {
 struct SavedModule {
     lib_name: String,
     template_id: usize,
-    controls: Vec<SavedControl>,
-    complex_controls: Vec<SavedComplexControl>,
+    autocons: Vec<SavedAutocon>,
+    staticons: Vec<SavedStaticon>,
     input_connections: Vec<SavedInputConnection>,
     pos: (i32, i32),
 }
@@ -583,15 +581,15 @@ impl SavedModule {
         let template_ref = module.template.borrow();
         let lib_name = template_ref.lib_name.clone();
         let template_id = template_ref.template_id;
-        let controls = module
-            .controls
+        let autocons = module
+            .autocons
             .iter()
-            .map(|c| SavedControl::save(&*c.borrow(), module_indexes))
+            .map(|c| SavedAutocon::save(&*c.borrow(), module_indexes))
             .collect();
-        let complex_controls = module
-            .complex_controls
+        let staticons = module
+            .staticons
             .iter()
-            .map(|cc| SavedComplexControl::save(&*cc.borrow()))
+            .map(|cc| SavedStaticon::save(&*cc.borrow()))
             .collect();
         let mut input_connections = Vec::new();
         for (index, connection) in module.inputs.iter().enumerate() {
@@ -608,8 +606,8 @@ impl SavedModule {
         Self {
             lib_name,
             template_id,
-            controls,
-            complex_controls,
+            autocons,
+            staticons,
             input_connections,
             pos,
         }
@@ -618,8 +616,8 @@ impl SavedModule {
     fn restore(&self, registry: &Registry) -> Result<ep::Module, ()> {
         let mut m = self.lookup_prototype(registry)?.clone();
         m.pos = (self.pos.0 as f32, self.pos.1 as f32);
-        for index in 0..self.complex_controls.len() {
-            self.complex_controls[index].restore(&mut *m.complex_controls[index].borrow_mut());
+        for index in 0..self.staticons.len() {
+            self.staticons[index].restore(&mut *m.staticons[index].borrow_mut());
         }
         Ok(m)
     }
@@ -634,9 +632,9 @@ impl SavedModule {
             let default = template_ref.default_inputs[index];
             on.inputs[index] = self.input_connections[index].restore(default, modules);
         }
-        for index in 0..self.controls.len() {
-            let mut control_ref = on.controls[index].borrow_mut();
-            self.controls[index].restore(&mut *control_ref, modules);
+        for index in 0..self.autocons.len() {
+            let mut control_ref = on.autocons[index].borrow_mut();
+            self.autocons[index].restore(&mut *control_ref, modules);
         }
         Ok(())
     }
@@ -647,14 +645,14 @@ impl SavedModule {
             .ok_or(())
     }
 
-    /// Gets the number of inputs, controls, and complex controls this module should have when
+    /// Gets the number of inputs, autocons, and staticons this module should have when
     /// fully restored.
     fn get_requirements(&self, registry: &Registry) -> Result<(usize, usize, usize), ()> {
         let p = self.lookup_prototype(registry)?;
         let num_inputs = p.inputs.len();
-        let num_controls = p.controls.len();
-        let num_ccontrols = p.complex_controls.len();
-        Ok((num_inputs, num_controls, num_ccontrols))
+        let num_autocons = p.autocons.len();
+        let num_staticons = p.staticons.len();
+        Ok((num_inputs, num_autocons, num_staticons))
     }
 
     // The mode will indicate how data about this module is stored. Different modes take up
@@ -720,8 +718,8 @@ impl SavedModule {
         Ok(Self {
             lib_name,
             template_id: template_index,
-            controls: Vec::new(),
-            complex_controls: Vec::new(),
+            autocons: Vec::new(),
+            staticons: Vec::new(),
             input_connections: Vec::new(),
             pos: (x, y),
         })
@@ -862,13 +860,13 @@ impl SavedModuleGraph {
 
         let mut control_modes = Vec::new();
         for module in &self.modules {
-            for control in &module.controls {
+            for control in &module.autocons {
                 control_modes.push(control.get_ser_mode_u2());
             }
         }
         ser_u2_slice(buffer, &control_modes[..]);
         for module in &self.modules {
-            for control in &module.controls {
+            for control in &module.autocons {
                 let mode = control.get_ser_mode_u2();
                 if mode == 1 {
                     control.serialize_mode1(buffer);
@@ -877,7 +875,7 @@ impl SavedModuleGraph {
         }
         let mut control_mode3_u4 = Vec::new();
         for module in &self.modules {
-            for control in &module.controls {
+            for control in &module.autocons {
                 let mode = control.get_ser_mode_u2();
                 if mode == 3 {
                     control_mode3_u4.push(control.serialize_mode3_u4());
@@ -887,14 +885,14 @@ impl SavedModuleGraph {
         ser_u4_slice(buffer, &control_mode3_u4[..]);
 
         for module in &self.modules {
-            for ccontrol in &module.complex_controls {
-                ccontrol.serialize(buffer);
+            for staticon in &module.staticons {
+                staticon.serialize(buffer);
             }
         }
 
         let mut lane_modes = Vec::new();
         for module in &self.modules {
-            for control in &module.controls {
+            for control in &module.autocons {
                 for lane in &control.automation_lanes {
                     lane_modes.push(lane.get_ser_mode_u4());
                 }
@@ -902,7 +900,7 @@ impl SavedModuleGraph {
         }
         ser_u4_slice(buffer, &lane_modes[..]);
         for module in &self.modules {
-            for control in &module.controls {
+            for control in &module.autocons {
                 for lane in &control.automation_lanes {
                     let mode = lane.get_ser_mode_u4();
                     lane.serialize(buffer, mode);
@@ -954,12 +952,12 @@ impl SavedModuleGraph {
             .map(|mode| SavedModule::deserialize(slice, *mode, &additional_libs))
             .collect::<Result<_, _>>()?;
 
-        let (mut num_inputs, mut num_controls, mut num_ccontrols) = (0, 0, 0);
+        let (mut num_inputs, mut num_autocons, mut num_staticons) = (0, 0, 0);
         for module in &modules {
-            let (i, c, cc) = module.get_requirements(registry)?;
+            let (i, a, s) = module.get_requirements(registry)?;
             num_inputs += i;
-            num_controls += c;
-            num_ccontrols += cc;
+            num_autocons += a;
+            num_staticons += s;
         }
 
         let input_modes = des_u2_slice(slice, num_inputs)?;
@@ -983,34 +981,34 @@ impl SavedModuleGraph {
             }
         }
 
-        let control_modes = des_u2_slice(slice, num_controls)?;
-        let mut controls = vec![None; num_controls];
-        let mut num_mode3_controls = 0;
+        let control_modes = des_u2_slice(slice, num_autocons)?;
+        let mut autocons = vec![None; num_autocons];
+        let mut num_mode3_autocons = 0;
         let mut num_lanes = 0;
         for (index, mode) in control_modes.iter().cloned().enumerate() {
             if mode == 3 {
-                num_mode3_controls += 1;
+                num_mode3_autocons += 1;
             } else {
-                let (control, lanes) = SavedControl::deserialize_mode012(slice, mode)?;
+                let (control, lanes) = SavedAutocon::deserialize_mode012(slice, mode)?;
                 num_lanes += lanes;
-                controls[index] = Some((control, lanes));
+                autocons[index] = Some((control, lanes));
             }
         }
-        let u4_data = des_u4_slice(slice, num_mode3_controls)?;
+        let u4_data = des_u4_slice(slice, num_mode3_autocons)?;
         let mut data_index = 0;
         for (index, mode) in control_modes.iter().cloned().enumerate() {
             if mode == 3 {
                 let (control, lanes) =
-                    SavedControl::deserialize_mode3_u4(*u4_data.get(data_index).ok_or(())?);
+                    SavedAutocon::deserialize_mode3_u4(*u4_data.get(data_index).ok_or(())?);
                 num_lanes += lanes;
-                controls[index] = Some((control, lanes));
+                autocons[index] = Some((control, lanes));
                 data_index += 1;
             }
         }
 
-        let mut complex_controls = Vec::new();
-        for _ in 0..num_ccontrols {
-            complex_controls.push(SavedComplexControl::deserialize(slice)?);
+        let mut staticons = Vec::new();
+        for _ in 0..num_autocons {
+            staticons.push(SavedStaticon::deserialize(slice)?);
         }
         let lane_modes = des_u4_slice(slice, num_lanes)?;
         let mut lanes = Vec::new();
@@ -1028,20 +1026,18 @@ impl SavedModuleGraph {
                 ip += 1;
             }
             for _ in 0..c {
-                let (mut control, num_lanes) = controls.get(cp).ok_or(())?.clone().unwrap();
+                let (mut autocon, num_lanes) = autocons.get(cp).ok_or(())?.clone().unwrap();
                 cp += 1;
                 for _ in 0..num_lanes {
-                    control
+                    autocon
                         .automation_lanes
                         .push(lanes.get(lp).ok_or(())?.clone());
                     lp += 1;
                 }
-                module.controls.push(control);
+                module.autocons.push(autocon);
             }
             for _ in 0..cc {
-                module
-                    .complex_controls
-                    .push(complex_controls.get(ccp).ok_or(())?.clone());
+                module.staticons.push(staticons.get(ccp).ok_or(())?.clone());
                 ccp += 1;
             }
         }
