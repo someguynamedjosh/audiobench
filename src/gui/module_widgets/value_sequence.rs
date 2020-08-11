@@ -1,6 +1,7 @@
 use super::ModuleWidget;
 use super::{IntBoxBase, IntBoxImpl};
 use crate::engine::parts as ep;
+use crate::engine::static_controls as staticons;
 use crate::gui::action::MouseAction;
 use crate::gui::constants::*;
 use crate::gui::graphics::GrahpicsWrapper;
@@ -14,7 +15,7 @@ yaml_widget_boilerplate::make_widget_outline! {
     constructor: create(
         pos: GridPos,
         size: GridSize,
-        sequence_control: ComplexControlRef,
+        sequence_control: ControlledValueSequenceRef,
         ramping_control: AutoconRef,
         tooltip: String,
     ),
@@ -25,7 +26,7 @@ yaml_widget_boilerplate::make_widget_outline! {
 #[derive(Clone)]
 pub struct ValueSequence {
     tooltip: String,
-    sequence_control: Rcrc<ep::ComplexControl>,
+    sequence_control: Rcrc<staticons::ControlledValueSequence>,
     ramping_control: Rcrc<ep::Autocon>,
     pos: (f32, f32),
     width: f32,
@@ -40,7 +41,7 @@ impl ValueSequence {
     pub fn create(
         pos: (f32, f32),
         size: (f32, f32),
-        sequence_control: Rcrc<ep::ComplexControl>,
+        sequence_control: Rcrc<staticons::ControlledValueSequence>,
         ramping_control: Rcrc<ep::Autocon>,
         tooltip: String,
     ) -> ValueSequence {
@@ -164,7 +165,7 @@ impl ModuleWidget for ValueSequence {
     }
 }
 
-fn parse_sequence_length(control: &Rcrc<ep::ComplexControl>) -> usize {
+fn parse_sequence_length(control: &Rcrc<staticons::ControlledValueSequence>) -> usize {
     (control.borrow().value.len() - 2) / ValueSequence::VALUE_LENGTH
 }
 
@@ -177,23 +178,22 @@ yaml_widget_boilerplate::make_widget_outline! {
     constructor: create(
         registry: RegistryRef,
         pos: GridPos,
-        sequence_control: ComplexControlRef,
+        sequence_control: ControlledValueSequenceRef,
         label: String,
         tooltip: String,
     ),
-    staticon_default_provider: get_defaults,
 }
 
 pub struct ValueSequenceLength {
     base: IntBoxBase,
-    sequence_control: Rcrc<ep::ComplexControl>,
+    sequence_control: Rcrc<staticons::ControlledValueSequence>,
 }
 
 impl ValueSequenceLength {
     pub fn create(
         registry: &Registry,
         pos: (f32, f32),
-        sequence_control: Rcrc<ep::ComplexControl>,
+        sequence_control: Rcrc<staticons::ControlledValueSequence>,
         label: String,
         tooltip: String,
     ) -> Self {
@@ -201,18 +201,6 @@ impl ValueSequenceLength {
             base: IntBoxBase::create(tooltip, registry, pos, (1, 99), label),
             sequence_control,
         }
-    }
-
-    fn get_defaults(
-        outline: &GeneratedValueSequenceLengthOutline,
-        _yaml: &YamlNode,
-    ) -> Result<Vec<(usize, String)>, String> {
-        let p = format_value(1.0);
-        let n = format_value(-1.0);
-        Ok(vec![(
-            outline.sequence_control_index,
-            format!("[{}{}{}{}]", p, p, n, n),
-        )])
     }
 }
 

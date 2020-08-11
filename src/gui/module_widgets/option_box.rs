@@ -1,5 +1,6 @@
 use super::ModuleWidget;
 use crate::engine::parts as ep;
+use crate::engine::static_controls as staticons;
 use crate::gui::action::MouseAction;
 use crate::gui::constants::*;
 use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
@@ -12,19 +13,18 @@ yaml_widget_boilerplate::make_widget_outline! {
     constructor: create(
         pos: GridPos,
         size: GridSize,
-        control: ComplexControlRef,
+        control: ControlledSelectionRef,
         options: StringList,
         label: String,
         tooltip: String,
     ),
-    staticon_default_provider: get_defaults,
 }
 
 #[derive(Clone)]
 pub struct OptionBox {
     pos: (f32, f32),
     size: (f32, f32),
-    ccontrol: Rcrc<ep::ComplexControl>,
+    control: Rcrc<staticons::ControlledSelection>,
     options: Vec<String>,
     label: String,
     tooltip: String,
@@ -34,33 +34,19 @@ impl OptionBox {
     pub fn create(
         pos: (f32, f32),
         size: (f32, f32),
-        ccontrol: Rcrc<ep::ComplexControl>,
+        control: Rcrc<staticons::ControlledSelection>,
         options: Vec<String>,
         label: String,
         tooltip: String,
     ) -> OptionBox {
         OptionBox {
             tooltip,
-            ccontrol,
+            control,
             pos,
             size,
             options,
             label,
         }
-    }
-
-    fn get_defaults(
-        outline: &GeneratedOptionBoxOutline,
-        yaml: &YamlNode,
-    ) -> Result<Vec<(usize, String)>, String> {
-        Ok(vec![(
-            outline.control_index,
-            if let Ok(child) = yaml.unique_child("default") {
-                child.i32()?.to_string()
-            } else {
-                0.to_string()
-            },
-        )])
     }
 }
 

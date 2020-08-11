@@ -45,17 +45,16 @@ pub(super) fn create_module_prototype_from_yaml(
     }
 
     let mut staticons = Vec::new();
-    let mut staticon_datas = Vec::new();
     if let Ok(child) = &yaml.unique_child("staticons") {
         for description in &child.children {
             // TODO: Error for duplicate control
-            let (control, data) = staticons::from_yaml(description)?;
-            staticons.push(rcrc(control));
-            staticon_datas.push(data);
+            staticons.push(rcrc(staticons::from_yaml(description)?));
         }
     }
 
-    let save_id = yaml.unique_child("save_id")?.parse_ranged(Some(0), Some(0xFFFF))?;
+    let save_id = yaml
+        .unique_child("save_id")?
+        .parse_ranged(Some(0), Some(0xFFFF))?;
 
     let gui_description = yaml.unique_child("gui")?;
     let widgets_description = gui_description.unique_child("widgets")?;

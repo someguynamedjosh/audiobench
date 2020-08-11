@@ -1,6 +1,7 @@
 use super::ModuleWidget;
 use super::{IntBoxBase, IntBoxImpl};
 use crate::engine::parts as ep;
+use crate::engine::static_controls as staticons;
 use crate::gui::action::MouseAction;
 use crate::gui::constants::*;
 use crate::gui::graphics::GrahpicsWrapper;
@@ -14,7 +15,7 @@ yaml_widget_boilerplate::make_widget_outline! {
     constructor: create(
         pos: GridPos,
         size: GridSize,
-        sequence_control: ComplexControlRef,
+        sequence_control: ControlledTriggerSequenceRef,
         tooltip: String,
     ),
     // Feedback for playhead
@@ -24,7 +25,7 @@ yaml_widget_boilerplate::make_widget_outline! {
 #[derive(Clone)]
 pub struct TriggerSequence {
     tooltip: String,
-    sequence_control: Rcrc<ep::ComplexControl>,
+    sequence_control: Rcrc<staticons::ControlledTriggerSequence>,
     pos: (f32, f32),
     width: f32,
 }
@@ -40,7 +41,7 @@ impl TriggerSequence {
     pub fn create(
         pos: (f32, f32),
         size: (f32, f32),
-        sequence_control: Rcrc<ep::ComplexControl>,
+        sequence_control: Rcrc<staticons::ControlledTriggerSequence>,
         tooltip: String,
     ) -> TriggerSequence {
         TriggerSequence {
@@ -155,23 +156,22 @@ yaml_widget_boilerplate::make_widget_outline! {
     constructor: create(
         registry: RegistryRef,
         pos: GridPos,
-        sequence_control: ComplexControlRef,
+        sequence_control: ControlledTriggerSequenceRef,
         label: String,
         tooltip: String,
     ),
-    staticon_default_provider: get_defaults,
 }
 
 pub struct TriggerSequenceLength {
     base: IntBoxBase,
-    sequence_control: Rcrc<ep::ComplexControl>,
+    sequence_control: Rcrc<staticons::ControlledTriggerSequence>,
 }
 
 impl TriggerSequenceLength {
     pub fn create(
         registry: &Registry,
         pos: (f32, f32),
-        sequence_control: Rcrc<ep::ComplexControl>,
+        sequence_control: Rcrc<staticons::ControlledTriggerSequence>,
         label: String,
         tooltip: String,
     ) -> Self {
@@ -179,16 +179,6 @@ impl TriggerSequenceLength {
             base: IntBoxBase::create(tooltip, registry, pos, (1, 99), label),
             sequence_control,
         }
-    }
-
-    fn get_defaults(
-        outline: &GeneratedTriggerSequenceLengthOutline,
-        _yaml: &YamlNode,
-    ) -> Result<Vec<(usize, String)>, String> {
-        Ok(vec![(
-            outline.sequence_control_index,
-            "[TRUE ,FALSE,FALSE,FALSE,]".to_owned(),
-        )])
     }
 }
 

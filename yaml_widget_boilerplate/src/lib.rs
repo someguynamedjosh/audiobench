@@ -1,5 +1,6 @@
 use inflector::Inflector;
 use proc_macro::TokenStream;
+use proc_macro2::Span;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::{format_ident, quote};
 use syn::parse::{Parse, ParseStream};
@@ -12,7 +13,7 @@ enum ConstructorItemType {
     GridPos,
     GridSize,
     AutoconRef,
-    StaticonRef,
+    ControlledDataRef(String),
     IntRange,
     FloatRange,
     String,
@@ -26,12 +27,12 @@ struct ConstructorItem {
 
 impl ConstructorItem {
     pub fn get_outline_fields(&self) -> Vec<(Ident, TokenStream2)> {
-        match self.typ {
+        match &self.typ {
             ConstructorItemType::RegistryRef => vec![],
             ConstructorItemType::AutoconRef => {
                 vec![(format_ident!("{}_index", self.name), quote! {usize})]
             }
-            ConstructorItemType::StaticonRef => {
+            ConstructorItemType::ControlledDataRef(_type_name) => {
                 vec![(format_ident!("{}_index", self.name), quote! {usize})]
             }
             ConstructorItemType::IntRange => vec![(self.name.clone(), quote! { (i32, i32)})],
@@ -49,7 +50,7 @@ impl ConstructorItem {
     }
 
     pub fn create_from_yaml_code(&self) -> TokenStream2 {
-        match self.typ {
+        match &self.typ {
             ConstructorItemType::RegistryRef => quote! {},
             ConstructorItemType::GridPos => {
                 let name = self.name.clone();
@@ -77,16 +78,29 @@ impl ConstructorItem {
                 let index_name = format_ident!("{}_index", self.name);
                 quote! {
                     let #name_name = yaml.unique_child(stringify!(#name))?.value.trim();
-                    let #index_name = find_control_index(#name_name)?;
+                    let #index_name = find_autocon_index(#name_name)?;
                 }
             }
-            ConstructorItemType::StaticonRef => {
+            ConstructorItemType::ControlledDataRef(type_name) => {
                 let name = self.name.clone();
                 let name_name = format_ident!("{}_name", self.name);
                 let index_name = format_ident!("{}_index", self.name);
+                let type_name = Ident::new(type_name, Span::call_site());
                 quote! {
                     let #name_name = yaml.unique_child(stringify!(#name))?.value.trim();
                     let #index_name = find_staticon_index(#name_name)?;
+                    if let crate::engine::static_controls::ArbitraryStaticonData::#type_name(..) = staticons[#index_name].borrow().borrow_statically_typed_data() {
+                    } else {
+                        return Err(format!(
+                            concat!(
+                                "ERROR: Invalid widget {}, caused by:\n",
+                                "ERROR: The parameter {} requires a staticon of type {}."
+                            ),
+                            &yaml.full_name,
+                            stringify!(#name),
+                            stringify!(#type_name),
+                        ));
+                    }
                 }
             }
             ConstructorItemType::IntRange => {
@@ -137,7 +151,7 @@ impl ConstructorItem {
     }
 
     pub fn create_constructor_argument(&self) -> TokenStream2 {
-        match self.typ {
+        match &self.typ {
             ConstructorItemType::RegistryRef => quote! { registry },
             ConstructorItemType::GridPos
             | ConstructorItemType::GridSize
@@ -152,9 +166,18 @@ impl ConstructorItem {
                 let name = format_ident!("{}_index", self.name);
                 quote! { ::std::rc::Rc::clone(&controls[self.#name]) }
             }
-            ConstructorItemType::StaticonRef => {
+            ConstructorItemType::ControlledDataRef(type_name) => {
                 let name = format_ident!("{}_index", self.name);
-                quote! { ::std::rc::Rc::clone(&staticons[self.#name]) }
+                let type_name = Ident::new(type_name, Span::call_site());
+                quote! { {
+                    let control = staticons[self.#name].borrow();
+                    let std = control.borrow_statically_typed_data();
+                    if let crate::engine::static_controls::ArbitraryStaticonData::#type_name(data_ptr) = std {
+                        ::std::rc::Rc::clone(data_ptr)
+                    } else {
+                        unreachable!("Type changed after type check in loading phase.")
+                    }
+                } }
             }
         }
     }
@@ -165,12 +188,26 @@ impl Parse for ConstructorItem {
         let name = input.parse()?;
         input.parse::<Token![:]>()?;
         let type_name: Ident = input.parse()?;
-        let typ = match &type_name.to_string()[..] {
+        let type_name_str = type_name.to_string();
+        if type_name_str.starts_with("Controlled") {
+            if !type_name_str.ends_with("Ref") {
+                panic!(
+                    "{} looks like a controlled data ref type but does not end in Ref",
+                    type_name
+                );
+            }
+            return Ok(Self {
+                name,
+                typ: ConstructorItemType::ControlledDataRef(
+                    type_name_str[10..(type_name_str.len() - 3)].to_owned(),
+                ),
+            });
+        }
+        let typ = match &type_name_str[..] {
             "RegistryRef" => ConstructorItemType::RegistryRef,
             "GridPos" => ConstructorItemType::GridPos,
             "GridSize" => ConstructorItemType::GridSize,
             "AutoconRef" => ConstructorItemType::AutoconRef,
-            "StaticonRef" => ConstructorItemType::StaticonRef,
             "IntRange" => ConstructorItemType::IntRange,
             "FloatRange" => ConstructorItemType::FloatRange,
             "String" => ConstructorItemType::String,
@@ -224,7 +261,6 @@ impl Parse for FeedbackDescription {
 struct WidgetOutlineDescription {
     widget_struct_name: Option<Ident>,
     constructor_description: Option<ConstructorDescription>,
-    ccdp_name: Option<Ident>,
     feedback_description: Option<FeedbackDescription>,
 }
 
@@ -233,7 +269,6 @@ impl Parse for WidgetOutlineDescription {
         let mut result = WidgetOutlineDescription {
             widget_struct_name: None,
             constructor_description: None,
-            ccdp_name: None,
             feedback_description: None,
         };
         while !input.is_empty() {
@@ -242,7 +277,6 @@ impl Parse for WidgetOutlineDescription {
             match &name.to_string()[..] {
                 "widget_struct" => result.widget_struct_name = Some(input.parse()?),
                 "constructor" => result.constructor_description = Some(input.parse()?),
-                "staticon_default_provider" => result.ccdp_name = Some(input.parse()?),
                 "feedback" => result.feedback_description = Some(input.parse()?),
                 _ => panic!("Unexpected identifier {}", name),
             }
@@ -257,7 +291,6 @@ pub fn make_widget_outline(args: TokenStream) -> TokenStream {
     let WidgetOutlineDescription {
         widget_struct_name,
         constructor_description,
-        ccdp_name,
         feedback_description,
     } = syn::parse_macro_input!(args);
 
@@ -325,23 +358,6 @@ pub fn make_widget_outline(args: TokenStream) -> TokenStream {
             }
         })
         .collect();
-    let ccdefault_code = if let Some(ccdp_name) = ccdp_name {
-        quote! {
-            let set_defaults: Vec<(usize, String)> = #widget_struct_name::#ccdp_name(&result, yaml)?;
-            for (index, value) in set_defaults {
-                if staticons[index] .borrow().value != "" {
-                    return ::std::result::Result::Err(format!(
-                        "ERROR: Multiple widgets controlling the same complex control {}.",
-                        staticons[index].borrow().code_name
-                    ));
-                }
-                staticons[index].borrow_mut().default = value.clone();
-                staticons[index].borrow_mut().value = value;
-            }
-        }
-    } else {
-        quote! {}
-    };
 
     let constructor_name = constructor_description.name.clone();
     let constructor_arg_values: Vec<_> = constructor_description
@@ -365,15 +381,15 @@ pub fn make_widget_outline(args: TokenStream) -> TokenStream {
             pub fn from_yaml(
                 yaml: &crate::registry::yaml::YamlNode,
                 controls: & ::std::vec::Vec<::std::rc::Rc<::std::cell::RefCell<crate::engine::parts::Autocon>>>,
-                staticons: &mut ::std::vec::Vec<::std::rc::Rc<::std::cell::RefCell<crate::engine::parts::Staticon>>>,
+                staticons: &mut ::std::vec::Vec<::std::rc::Rc<::std::cell::RefCell<crate::engine::static_controls::Staticon>>>,
             ) -> ::std::result::Result<#outline_name, ::std::string::String> {
-                let find_control_index = |name: &str| {
+                let find_autocon_index = |name: &str| {
                     controls
                         .iter()
                         .position(|item| &item.borrow().code_name == name)
                         .ok_or_else(|| {
                             format!(
-                                "ERROR: Invalid widget {}, caused by:\nERROR: No control named {}.",
+                                "ERROR: Invalid widget {}, caused by:\nERROR: No autocon named {}.",
                                 &yaml.full_name, name
                             )
                         })
@@ -381,10 +397,10 @@ pub fn make_widget_outline(args: TokenStream) -> TokenStream {
                 let find_staticon_index = |name: &str| {
                     staticons
                         .iter()
-                        .position(|item| &item.borrow().code_name == name)
+                        .position(|item| item.borrow().borrow_code_name() == name)
                         .ok_or_else(|| {
                             format!(
-                                "ERROR: Invalid widget {}, caused by:\nERROR: No complex control named {}.",
+                                "ERROR: Invalid widget {}, caused by:\nERROR: No staticon named {}.",
                                 &yaml.full_name, name
                             )
                         })
@@ -395,7 +411,6 @@ pub fn make_widget_outline(args: TokenStream) -> TokenStream {
                 let result = #outline_name {
                     #(#outline_field_names),*
                 };
-                #ccdefault_code
                 ::std::result::Result::Ok(result)
             }
 
@@ -403,7 +418,7 @@ pub fn make_widget_outline(args: TokenStream) -> TokenStream {
                 &self,
                 registry: &crate::registry::Registry,
                 controls: & ::std::vec::Vec<::std::rc::Rc<::std::cell::RefCell<crate::engine::parts::Autocon>>>,
-                staticons: & ::std::vec::Vec<::std::rc::Rc<::std::cell::RefCell<crate::engine::parts::Staticon>>>,
+                staticons: & ::std::vec::Vec<::std::rc::Rc<::std::cell::RefCell<crate::engine::static_controls::Staticon>>>,
             ) -> #widget_struct_name {
                 #widget_struct_name::#constructor_name(#(#constructor_arg_values),*)
             }
@@ -479,7 +494,7 @@ pub fn make_widget_outline_enum(args: TokenStream) -> TokenStream {
             pub fn from_yaml(
                 yaml: &crate::registry::yaml::YamlNode,
                 controls: & ::std::vec::Vec<::std::rc::Rc<::std::cell::RefCell<crate::engine::parts::Autocon>>>,
-                staticons: &mut ::std::vec::Vec<::std::rc::Rc<::std::cell::RefCell<crate::engine::parts::Staticon>>>,
+                staticons: &mut ::std::vec::Vec<::std::rc::Rc<::std::cell::RefCell<crate::engine::static_controls::Staticon>>>,
             ) -> ::std::result::Result<Self, ::std::string::String> {
                 Ok(match &yaml.name[..] {
                     #(#from_yaml_body),*,
@@ -496,7 +511,7 @@ pub fn make_widget_outline_enum(args: TokenStream) -> TokenStream {
                 &self,
                 registry: &crate::registry::Registry,
                 controls: & ::std::vec::Vec<::std::rc::Rc<::std::cell::RefCell<crate::engine::parts::Autocon>>>,
-                staticons: & ::std::vec::Vec<::std::rc::Rc<::std::cell::RefCell<crate::engine::parts::Staticon>>>,
+                staticons: & ::std::vec::Vec<::std::rc::Rc<::std::cell::RefCell<crate::engine::static_controls::Staticon>>>,
             ) -> (::std::boxed::Box<dyn crate::gui::module_widgets::ModuleWidget>, usize) {
                 (
                     match self {

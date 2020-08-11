@@ -1,5 +1,6 @@
 use super::ModuleWidget;
 use crate::engine::parts as ep;
+use crate::engine::static_controls as staticons;
 use crate::gui::action::MouseAction;
 use crate::gui::constants::*;
 use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
@@ -11,19 +12,18 @@ yaml_widget_boilerplate::make_widget_outline! {
     widget_struct: DurationBox,
     constructor: create(
         pos: GridPos,
-        control: ComplexControlRef,
-        type_control: ComplexControlRef,
+        duration_control: ControlledDurationRef,
+        mode_control: ControlledTimingModeRef,
         label: String,
         tooltip: String,
     ),
-    staticon_default_provider: get_defaults,
 }
 
 #[derive(Clone)]
 pub struct DurationBox {
     tooltip: String,
-    ccontrol: Rcrc<ep::ComplexControl>,
-    type_control: Rcrc<ep::ComplexControl>,
+    duration_control: Rcrc<staticons::ControlledDuration>,
+    mode_control: Rcrc<staticons::ControlledTimingMode>,
     pos: (f32, f32),
     label: String,
 }
@@ -33,32 +33,18 @@ impl DurationBox {
     const HEIGHT: f32 = grid(2) - FONT_SIZE - GRID_P / 2.0;
     pub fn create(
         pos: (f32, f32),
-        ccontrol: Rcrc<ep::ComplexControl>,
-        type_control: Rcrc<ep::ComplexControl>,
+        duration_control: Rcrc<staticons::ControlledDuration>,
+        mode_control: Rcrc<staticons::ControlledTimingMode>,
         label: String,
         tooltip: String,
     ) -> DurationBox {
         DurationBox {
             tooltip,
-            ccontrol,
-            type_control,
+            duration_control,
+            mode_control,
             pos,
             label,
         }
-    }
-
-    fn get_defaults(
-        outline: &GeneratedDurationBoxOutline,
-        yaml: &YamlNode,
-    ) -> Result<Vec<(usize, String)>, String> {
-        Ok(vec![(
-            outline.control_index,
-            if let Ok(child) = yaml.unique_child("default") {
-                child.value.trim().to_owned()
-            } else {
-                "1.00".to_owned()
-            },
-        )])
     }
 }
 

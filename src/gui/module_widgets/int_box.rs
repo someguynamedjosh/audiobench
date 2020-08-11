@@ -1,5 +1,6 @@
 use super::ModuleWidget;
 use crate::engine::parts as ep;
+use crate::engine::static_controls as staticons;
 use crate::gui::action::MouseAction;
 use crate::gui::constants::*;
 use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
@@ -130,47 +131,30 @@ yaml_widget_boilerplate::make_widget_outline! {
     constructor: create(
         registry: RegistryRef,
         pos: GridPos,
-        control: ComplexControlRef,
-        range: IntRange,
+        control: ControlledIntRef,
         label: String,
         tooltip: String,
     ),
-    staticon_default_provider: get_defaults,
 }
 
 #[derive(Clone)]
 pub struct IntBox {
     base: IntBoxBase,
-    ccontrol: Rcrc<ep::ComplexControl>,
+    control: Rcrc<staticons::ControlledInt>,
 }
 
 impl IntBox {
     pub fn create(
         registry: &Registry,
         pos: (f32, f32),
-        ccontrol: Rcrc<ep::ComplexControl>,
-        range: (i32, i32),
+        control: Rcrc<staticons::ControlledInt>,
         label: String,
         tooltip: String,
     ) -> IntBox {
         IntBox {
-            base: IntBoxBase::create(tooltip, registry, pos, range, label),
-            ccontrol,
+            base: IntBoxBase::create(tooltip, registry, pos, control.borrow().get_range(), label),
+            control,
         }
-    }
-
-    fn get_defaults(
-        outline: &GeneratedIntBoxOutline,
-        yaml: &YamlNode,
-    ) -> Result<Vec<(usize, String)>, String> {
-        Ok(vec![(
-            outline.control_index,
-            if let Ok(child) = yaml.unique_child("default") {
-                child.i32()?.to_string()
-            } else {
-                outline.range.0.to_string()
-            },
-        )])
     }
 }
 
@@ -180,11 +164,11 @@ impl IntBoxImpl for IntBox {
     }
 
     fn get_current_value(&self) -> i32 {
-        self.ccontrol.borrow().value.parse().unwrap()
+        self.control.borrow().value.parse().unwrap()
     }
 
     fn make_callback(&self) -> Box<dyn Fn(i32)> {
-        let ccontrol = Rc::clone(&self.ccontrol);
-        Box::new(move |new_value| ccontrol.borrow_mut().value = format!("{}", new_value))
+        let control = Rc::clone(&self.control);
+        Box::new(move |new_value| control.borrow_mut().value = format!("{}", new_value))
     }
 }
