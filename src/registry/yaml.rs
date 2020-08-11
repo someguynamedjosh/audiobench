@@ -1,4 +1,6 @@
 use std::borrow::Borrow;
+use std::fmt::Display;
+use std::str::FromStr;
 
 // An inefficient and limited but easy to use YAML representation.
 #[derive(Default, Debug)]
@@ -30,22 +32,78 @@ impl YamlNode {
         ))
     }
 
-    pub fn f32(&self) -> Result<f32, String> {
+    /// Returns `Ok` if `self.value` can be parsed as a `T`. This is equivalent to doing
+    /// `self.value.trim().parse()`. If the value cannot be parsed, a human readable error is
+    /// returned along the lines of "ERROR: The value of {path.to.node} is not a valid {type}".
+    pub fn parse<T: FromStr>(&self) -> Result<T, String> {
         self.value.trim().parse().map_err(|_| {
             format!(
-                "ERROR: The value of {} is not a valid decimal number",
+                "ERROR: The value of {} is not a valid {}",
+                self.full_name,
+                std::any::type_name::<T>()
+            )
+        })
+    }
+
+    /// Like `parse()` but uses a custom parse function instead of `str::parse`. Any error returned
+    /// by the custom parser will be wrapped with another error specifying the path of this node,
+    /// so you do not have to add that information yourself.
+    pub fn custom_parse<T>(
+        &self,
+        parser: impl FnOnce(&str) -> Result<T, String>,
+    ) -> Result<T, String> {
+        parser(self.value.trim()).map_err(|err| {
+            format!(
+                "ERROR: The value of {} is not valid, caused by:\n",
                 self.full_name
             )
         })
     }
 
-    pub fn i32(&self) -> Result<i32, String> {
-        self.value.trim().parse().map_err(|_| {
-            format!(
-                "ERROR: The value of {} is not a valid integer",
-                self.full_name
-            )
-        })
+    /// Like `parse()` but returns an error if the value is outside the specified range. The min/max
+    /// bounds are inclusive. You can pass None for a bound if the value should be unbounded in that
+    /// direction.
+    pub fn parse_ranged<T: FromStr + PartialOrd + Display>(
+        &self,
+        min: Option<T>,
+        max: Option<T>,
+    ) -> Result<T, String> {
+        let value = self.parse()?;
+        if let Some(min) = min {
+            if value < min {
+                return Err(format!(
+                    "ERROR: The value of {} is less than the minimum value of '{}'",
+                    self.full_name, min
+                ));
+            }
+        }
+        if let Some(max) = max {
+            if value > max {
+                return Err(format!(
+                    "ERROR: The value of {} is greater than the maximum value of '{}'",
+                    self.full_name, max
+                ));
+            }
+        }
+        Ok(value)
+    }
+
+    /// Returns the index of the item in `possible_values` which matches `self.value.trim()`. If
+    /// there is no matching item, a human readable error is returned containing the location of 
+    /// the errror and a list of legal values. E.G.: "ERROR: The value of path.to.node is not one
+    /// of 'foo', 'bar', 'baz',". I'm too lazy to get rid of the last comma.
+    pub fn enumerated(&self, possible_values: &[&str]) -> Result<usize, String> {
+        let self_value = self.value.trim();
+        for (index, value) in possible_values.iter().enumerate() {
+            if self_value == *value {
+                return Ok(index);
+            }
+        }
+        let mut err = format!("ERROR: The value of {} is not one of", self.full_name);
+        for value in possible_values {
+            err.push_str(&format!(" '{}',", value));
+        }
+        Err(err)
     }
 }
 

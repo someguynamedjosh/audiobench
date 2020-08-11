@@ -5,9 +5,11 @@ use crate::util::*;
 use std::collections::{HashMap, HashSet};
 
 fn create_control_from_yaml(yaml: &YamlNode) -> Result<Rcrc<ep::Autocon>, String> {
-    let min = yaml.unique_child("min")?.f32()?;
-    let max = yaml.unique_child("max")?.f32()?;
-    let default = yaml.unique_child("default")?.f32()?;
+    let min = yaml.unique_child("min")?.parse()?;
+    let max = yaml.unique_child("max")?.parse_ranged(Some(min), None)?;
+    let default = yaml
+        .unique_child("default")?
+        .parse_ranged(Some(min), Some(max))?;
     let suffix = if let Ok(node) = yaml.unique_child("suffix") {
         node.value.clone()
     } else {
@@ -53,15 +55,19 @@ pub(super) fn create_module_prototype_from_yaml(
         }
     }
 
-    let save_id = yaml.unique_child("save_id")?.i32()? as usize;
+    let save_id = yaml.unique_child("save_id")?.parse_ranged(Some(0), Some(0xFFFF))?;
 
     let gui_description = yaml.unique_child("gui")?;
     let widgets_description = gui_description.unique_child("widgets")?;
     let label = gui_description.unique_child("label")?.value.clone();
     let category = gui_description.unique_child("category")?.value.clone();
     let tooltip = gui_description.unique_child("tooltip")?.value.clone();
-    let width = gui_description.unique_child("width")?.i32()?;
-    let height = gui_description.unique_child("height")?.i32()?;
+    let width = gui_description
+        .unique_child("width")?
+        .parse_ranged(Some(0), None)?;
+    let height = gui_description
+        .unique_child("height")?
+        .parse_ranged(Some(0), None)?;
     let mut widgets = Vec::new();
     for widget_description in &widgets_description.children {
         widgets.push(WidgetOutline::from_yaml(
@@ -101,7 +107,7 @@ pub(super) fn create_module_prototype_from_yaml(
         let tooltip = input_description.unique_child("tooltip")?.value.clone();
         default_inputs.push(
             if let Ok(node) = input_description.unique_child("default") {
-                let index = node.i32()? as usize;
+                let index = node.parse()?;
                 if index >= typ.get_num_defaults() {
                     0
                 } else {
