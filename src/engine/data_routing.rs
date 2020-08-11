@@ -1,4 +1,6 @@
+use super::data_format::OwnedIOData;
 use super::parts::{Autocon, Module};
+use super::static_controls::Staticon;
 use crate::util::*;
 
 // This packages changes made by the user to knobs and automation into a format that can be read
@@ -36,6 +38,29 @@ impl AutoconDynDataCollector {
         }
         debug_assert!(data.len() == self.data_length);
         data
+    }
+}
+
+// This packages changes made by the user to static controls into a format that can be read
+// by the nodespeak parameter, so that trivial changes don't necessitate a recompile.
+pub(super) struct StaticonDynDataCollector {
+    ordered_controls: Vec<Rcrc<Staticon>>,
+}
+
+impl StaticonDynDataCollector {
+    pub(super) fn new(ordered_controls: Vec<Rcrc<Staticon>>) -> Self {
+        Self { ordered_controls }
+    }
+
+    pub(super) fn collect_data(&self) -> Vec<OwnedIOData> {
+        self.ordered_controls.iter().filter_map(|staticon| {
+            let staticon = staticon.borrow();
+            if staticon.is_static_only() {
+                None
+            } else {
+                Some(staticon.borrow_data().package_dyn_data().to_owned())
+            }
+        }).collect()
     }
 }
 

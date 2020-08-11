@@ -45,6 +45,23 @@ impl<'a> IODataPtr<'a> {
         }
     }
 
+    pub fn to_owned(&self) -> OwnedIOData {
+        match self {
+            Self::Bool(value) => OwnedIOData::Bool(*value),
+            Self::Int(value) => OwnedIOData::Int(*value),
+            Self::Float(value) => OwnedIOData::Float(*value),
+            Self::BoolArray(slice_ptr) => {
+                OwnedIOData::BoolArray(Vec::from(*slice_ptr).into_boxed_slice())
+            }
+            Self::IntArray(slice_ptr) => {
+                OwnedIOData::IntArray(Vec::from(*slice_ptr).into_boxed_slice())
+            }
+            Self::FloatArray(slice_ptr) => {
+                OwnedIOData::FloatArray(Vec::from(*slice_ptr).into_boxed_slice())
+            }
+        }
+    }
+
     fn write_packed_data(&self, target: &mut [u8]) {
         assert!(self.get_data_type().get_packed_size() == target.len());
         match self {
@@ -82,6 +99,28 @@ impl<'a> IODataPtr<'a> {
                     }
                 }
             }
+        }
+    }
+}
+
+pub enum OwnedIOData {
+    Bool(bool),
+    Int(i32),
+    Float(f32),
+    BoolArray(Box<[bool]>),
+    IntArray(Box<[i32]>),
+    FloatArray(Box<[f32]>),
+}
+
+impl OwnedIOData {
+    pub fn borrow(&self) -> IODataPtr {
+        match self {
+            Self::Bool(value) => IODataPtr::Bool(*value),
+            Self::Int(value) => IODataPtr::Int(*value),
+            Self::Float(value) => IODataPtr::Float(*value),
+            Self::BoolArray(value) => IODataPtr::BoolArray(&value[..]),
+            Self::IntArray(value) => IODataPtr::IntArray(&value[..]),
+            Self::FloatArray(value) => IODataPtr::FloatArray(&value[..]),
         }
     }
 }

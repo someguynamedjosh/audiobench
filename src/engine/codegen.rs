@@ -1,5 +1,7 @@
-use super::data_routing::{AutoconDynDataCollector, FeedbackDisplayer};
+use super::data_format::IOType;
+use super::data_routing::{AutoconDynDataCollector, FeedbackDisplayer, StaticonDynDataCollector};
 use super::data_transfer::{DataFormat, HostFormat};
+use super::static_controls::Staticon;
 use crate::engine::parts::*;
 use crate::gui::module_widgets::FeedbackDataRequirement;
 use crate::util::*;
@@ -7,6 +9,7 @@ use crate::util::*;
 pub(super) struct CodeGenResult {
     pub(super) code: String,
     pub(super) autocon_dyn_data_collector: AutoconDynDataCollector,
+    pub(super) staticon_dyn_data_collector: StaticonDynDataCollector,
     pub(super) feedback_displayer: FeedbackDisplayer,
     pub(super) data_format: DataFormat,
 }
@@ -21,6 +24,8 @@ pub(super) fn generate_code(
         execution_order,
         current_autocon_dyn_data_item: 0,
         autocon_dyn_data_control_order: Vec::new(),
+        staticon_dyn_data_control_order: Vec::new(),
+        staticon_dyn_data_types: Vec::new(),
         feedback_data_len: 0,
     };
     Ok(generator.generate_code(host_format))
@@ -31,6 +36,8 @@ struct CodeGenerator<'a> {
     execution_order: Vec<usize>,
     current_autocon_dyn_data_item: usize,
     autocon_dyn_data_control_order: Vec<Rcrc<Autocon>>,
+    staticon_dyn_data_control_order: Vec<Rcrc<Staticon>>,
+    staticon_dyn_data_types: Vec<IOType>,
     feedback_data_len: usize,
 }
 
@@ -239,6 +246,8 @@ impl<'a> CodeGenerator<'a> {
         let Self {
             autocon_dyn_data_control_order,
             current_autocon_dyn_data_item,
+            staticon_dyn_data_control_order,
+            staticon_dyn_data_types,
             feedback_data_len,
             ..
         } = self;
@@ -248,19 +257,22 @@ impl<'a> CodeGenerator<'a> {
                 sample_rate,
             },
             autocon_dyn_data_len: current_autocon_dyn_data_item,
-            staticon_dyn_data_types: vec![],
+            staticon_dyn_data_types,
             feedback_data_len,
         };
         let autocon_dyn_data_collector = AutoconDynDataCollector::new(
             autocon_dyn_data_control_order,
             data_format.autocon_dyn_data_len,
         );
+        let staticon_dyn_data_collector =
+            StaticonDynDataCollector::new(staticon_dyn_data_control_order);
         let feedback_displayer =
             FeedbackDisplayer::new(ordered_modules, data_format.feedback_data_len);
 
         CodeGenResult {
             code: format!("{}\n{}", header, code),
             autocon_dyn_data_collector,
+            staticon_dyn_data_collector,
             feedback_displayer,
             data_format,
         }
