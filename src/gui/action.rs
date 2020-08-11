@@ -47,7 +47,7 @@ pub enum MouseAction {
     ManipulateLaneStart(Rcrc<ep::Autocon>, usize, f32),
     ManipulateLaneEnd(Rcrc<ep::Autocon>, usize, f32),
     ManipulateIntBox {
-        callback: Box<dyn Fn(i32)>,
+        callback: Box<dyn FnMut(i32) -> staticons::StaticonUpdateRequest>,
         min: i32,
         max: i32,
         click_delta: i32,
@@ -287,7 +287,12 @@ impl MouseAction {
                 *float_value += delta;
                 *float_value = float_value.min(*max as f32);
                 *float_value = float_value.max(*min as f32);
-                callback(*float_value as i32);
+                return (
+                    Some(GuiAction::Elevate(InstanceAction::PerformStaticonRequest(
+                        callback(*float_value as i32),
+                    ))),
+                    None,
+                );
             }
             Self::ManipulateHertzControl {
                 cref,
