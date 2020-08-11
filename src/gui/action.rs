@@ -14,6 +14,7 @@ pub enum InstanceAction {
     ReloadStructure,
     /// Indicates a value has changed, so the aux input data should be recollected.
     ReloadAutoconDynData,
+    PerformStaticonRequest(staticons::StaticonUpdateRequest),
     /// Changes the name of the current patch. Asserts if the current patch is not writable.
     RenamePatch(String),
     SavePatch(Box<dyn FnMut(&Rcrc<Patch>)>),
@@ -60,7 +61,11 @@ pub enum MouseAction {
         max: f32,
         precise_value: f32,
     },
-    ManipulateDurationControl {
+    ManipulateDecimalDurationControl {
+        cref: Rcrc<staticons::ControlledDuration>,
+        precise_value: f32,
+    },
+    ManipulateFractionalDurationControl {
         cref: Rcrc<staticons::ControlledDuration>,
         precise_value: f32,
         denominator: bool,
@@ -72,7 +77,7 @@ pub enum MouseAction {
         float_value: f32,
         value_formatter: fn(f32) -> String,
     },
-    SetComplexControl(Rcrc<staticons::Staticon>, String),
+    MutateStaticon(Box<dyn FnOnce() -> staticons::StaticonUpdateRequest>),
     MoveModule(Rcrc<ep::Module>, (f32, f32)),
     PanOffset(Rcrc<(f32, f32)>),
     ConnectInput(Rcrc<ep::Module>, usize),
@@ -292,7 +297,13 @@ impl MouseAction {
             } => {
                 unimplemented!("New staticon code");
             }
-            Self::ManipulateDurationControl {
+            Self::ManipulateDecimalDurationControl {
+                cref,
+                precise_value,
+            } => {
+                unimplemented!("New staticon code");
+            }
+            Self::ManipulateFractionalDurationControl {
                 cref,
                 precise_value,
                 denominator,
@@ -387,18 +398,6 @@ impl MouseAction {
                 }
                 return Some(GuiAction::Elevate(InstanceAction::ReloadStructure));
             }
-            Self::ManipulateIntBox { .. } => {
-                return Some(GuiAction::Elevate(InstanceAction::ReloadStructure))
-            }
-            Self::ManipulateHertzControl { .. } => {
-                return Some(GuiAction::Elevate(InstanceAction::ReloadStructure))
-            }
-            Self::ManipulateDurationControl { .. } => {
-                return Some(GuiAction::Elevate(InstanceAction::ReloadStructure))
-            }
-            Self::ManipulateSequencedValue { .. } => {
-                return Some(GuiAction::Elevate(InstanceAction::ReloadStructure))
-            }
             Self::Scaled(base, ..) => {
                 return base.on_drop(target);
             }
@@ -465,10 +464,11 @@ impl MouseAction {
                 float_value = float_value.min(max as f32);
                 float_value = float_value.max(min as f32);
                 callback(float_value as i32);
-                return Some(GuiAction::Elevate(InstanceAction::ReloadStructure));
             }
-            Self::SetComplexControl(control, value) => {
-                unimplemented!("New staticon code");
+            Self::MutateStaticon(mutator) => {
+                return Some(GuiAction::Elevate(InstanceAction::PerformStaticonRequest(
+                    mutator(),
+                )))
             }
             Self::Scaled(base, ..) => {
                 return base.on_click();
@@ -519,9 +519,6 @@ impl MouseAction {
                 let mut cref = control.borrow_mut();
                 cref.automation[lane].range.1 = cref.range.1;
                 return Some(GuiAction::Elevate(InstanceAction::ReloadAutoconDynData));
-            }
-            Self::SetComplexControl(control, ..) => {
-                unimplemented!("New staticon code");
             }
             Self::Scaled(base, ..) => {
                 return base.on_double_click();

@@ -13,6 +13,18 @@ pub enum StaticonUpdateRequest {
     UpdateCode,
 }
 
+impl StaticonUpdateRequest {
+    /// Returns `UpdateDynData` if `for_data` allows dynamically updating data (I.E.
+    /// `is_static_only` returns `false`.) Otherwise, returns `UpdateCode`.
+    fn dyn_update_if_allowed(for_data: &impl ControlledData) -> Self {
+        if for_data.is_static_only() {
+            Self::UpdateCode
+        } else {
+            Self::UpdateDynData
+        }
+    }
+}
+
 pub struct StaticonDynCode {
     input_data_type: String,
     input_io_type: IOType,
@@ -151,6 +163,80 @@ impl ControlledDuration {
             self.decimal_value
         }
     }
+
+    pub fn get_formatted_value(&self) -> String {
+        if self.fraction_mode {
+            format!("{}/{}", self.fraction_numerator, self.fraction_denominator)
+        } else {
+            let value = self.decimal_value;
+            let decimals = if value < 0.999 {
+                3
+            } else if value < 9.99 {
+                2
+            } else if value < 99.9 {
+                1
+            } else {
+                0
+            };
+            format!("{:.1$}", value, decimals)
+        }
+    }
+
+    pub fn get_decimal_value(&self) -> f32 {
+        self.decimal_value
+    }
+
+    pub fn set_decimal_value(&mut self, value: f32) -> StaticonUpdateRequest {
+        // This assert does not protect anything but it *is* indicative of a bug.
+        debug_assert!(!self.fraction_mode);
+        self.decimal_value = value;
+        StaticonUpdateRequest::dyn_update_if_allowed(self)
+    }
+
+    pub fn get_fractional_value(&self) -> (u8, u8) {
+        (self.fraction_numerator, self.fraction_denominator)
+    }
+
+    pub fn set_fractional_value(
+        &mut self,
+        (numerator, denominator): (u8, u8),
+    ) -> StaticonUpdateRequest {
+        // This assert does not protect anything but it *is* indicative of a bug.
+        debug_assert!(self.fraction_mode);
+        self.fraction_numerator = numerator;
+        self.fraction_denominator = denominator;
+        StaticonUpdateRequest::dyn_update_if_allowed(self)
+    }
+
+    pub fn is_using_fractional_mode(&self) -> bool {
+        self.fraction_mode
+    }
+
+    pub fn use_decimal_mode(&mut self) -> StaticonUpdateRequest {
+        // This assert does not protect anything but it *is* indicative of a bug.
+        debug_assert!(self.fraction_mode);
+        self.fraction_mode = false;
+        self.decimal_value = self.fraction_numerator as f32 / self.fraction_denominator as f32;
+        StaticonUpdateRequest::dyn_update_if_allowed(self)
+    }
+
+    pub fn use_fractional_mode(&mut self) -> StaticonUpdateRequest {
+        // This assert does not protect anything but it *is* indicative of a bug.
+        debug_assert!(!self.fraction_mode);
+        self.fraction_mode = true;
+        // TODO: Try to convert the decimal value back to fractional?
+        self.fraction_numerator = 1;
+        self.fraction_denominator = 4;
+        StaticonUpdateRequest::dyn_update_if_allowed(self)
+    }
+
+    pub fn toggle_mode(&mut self) -> StaticonUpdateRequest {
+        if self.fraction_mode {
+            self.use_decimal_mode()
+        } else {
+            self.use_fractional_mode()
+        }
+    }
 }
 
 #[rustfmt::skip] 
@@ -195,6 +281,14 @@ impl ControlledTimingMode {
         let source_flag = if self.use_song_time { 0b1 } else { 0b0 };
         let unit_flag = if self.beat_synchronized { 0b10 } else { 0b00 };
         source_flag | unit_flag
+    }
+
+    pub fn uses_song_time(&self) -> bool {
+        self.use_song_time
+    }
+
+    pub fn is_beat_synchronized(&self) -> bool {
+        self.beat_synchronized
     }
 }
 
