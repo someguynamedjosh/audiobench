@@ -14,7 +14,7 @@ pub enum InstanceAction {
     ReloadStructure,
     /// Indicates a value has changed, so the aux input data should be recollected.
     ReloadAutoconDynData,
-    PerformStaticonRequest(staticons::StaticonUpdateRequest),
+    ReloadStaticonDynData,
     /// Changes the name of the current patch. Asserts if the current patch is not writable.
     RenamePatch(String),
     SavePatch(Box<dyn FnMut(&Rcrc<Patch>)>),
@@ -54,29 +54,13 @@ pub enum MouseAction {
         // The user needs to drag across multiple pixels to increse the value by one. This value
         // keeps track of what the value would be if it were a float and not an int.
         float_value: f32,
-    },
-    ManipulateHertzControl {
-        cref: Rcrc<staticons::Staticon>,
-        min: f32,
-        max: f32,
-        precise_value: f32,
-    },
-    ManipulateDecimalDurationControl {
-        cref: Rcrc<staticons::ControlledDuration>,
-        precise_value: f32,
-    },
-    ManipulateFractionalDurationControl {
-        cref: Rcrc<staticons::ControlledDuration>,
-        precise_value: f32,
-        denominator: bool,
-    },
-    ManipulateSequencedValue {
-        cref: Rcrc<staticons::ControlledValueSequence>,
-        step_index: usize,
-        float_value: f32,
-        value_formatter: fn(f32) -> String,
+        code_reload_requested: bool,
     },
     MutateStaticon(Box<dyn FnOnce() -> staticons::StaticonUpdateRequest>),
+    ContinuouslyMutateStaticon {
+        mutator: Box<dyn FnMut(f32) -> staticons::StaticonUpdateRequest>,
+        code_reload_requested: bool,
+    },
     MoveModule(Rcrc<ep::Module>, (f32, f32)),
     PanOffset(Rcrc<(f32, f32)>),
     ConnectInput(Rcrc<ep::Module>, usize),
@@ -269,11 +253,33 @@ impl MouseAction {
                     }),
                 );
             }
+            Self::ContinuouslyMutateStaticon {
+                mutator,
+                code_reload_requested,
+            } => {
+                let mut delta = delta.0 - delta.1;
+                if mods.precise {
+                    delta *= 0.2;
+                }
+                match mutator(delta) {
+                    staticons::StaticonUpdateRequest::Nothing => (),
+                    staticons::StaticonUpdateRequest::UpdateDynData => {
+                        return (
+                            Some(GuiAction::Elevate(InstanceAction::ReloadStaticonDynData)),
+                            None,
+                        );
+                    }
+                    staticons::StaticonUpdateRequest::UpdateCode => {
+                        *code_reload_requested = true;
+                    }
+                }
+            }
             Self::ManipulateIntBox {
                 callback,
                 min,
                 max,
                 float_value,
+                code_reload_requested,
                 ..
             } => {
                 // How many pixels the user must drag across to change the value by 1.
@@ -286,41 +292,18 @@ impl MouseAction {
                 *float_value += delta;
                 *float_value = float_value.min(*max as f32);
                 *float_value = float_value.max(*min as f32);
-                return (
-                    Some(GuiAction::Elevate(InstanceAction::PerformStaticonRequest(
-                        callback(*float_value as i32),
-                    ))),
-                    None,
-                );
-            }
-            Self::ManipulateHertzControl {
-                cref,
-                min,
-                max,
-                precise_value,
-            } => {
-                unimplemented!("New staticon code");
-            }
-            Self::ManipulateDecimalDurationControl {
-                cref,
-                precise_value,
-            } => {
-                unimplemented!("New staticon code");
-            }
-            Self::ManipulateFractionalDurationControl {
-                cref,
-                precise_value,
-                denominator,
-            } => {
-                unimplemented!("New staticon code");
-            }
-            Self::ManipulateSequencedValue {
-                cref,
-                step_index,
-                float_value,
-                value_formatter,
-            } => {
-                unimplemented!("New staticon code");
+                match callback(*float_value as i32) {
+                    staticons::StaticonUpdateRequest::Nothing => (),
+                    staticons::StaticonUpdateRequest::UpdateDynData => {
+                        return (
+                            Some(GuiAction::Elevate(InstanceAction::ReloadStaticonDynData)),
+                            None,
+                        );
+                    }
+                    staticons::StaticonUpdateRequest::UpdateCode => {
+                        *code_reload_requested = true;
+                    }
+                }
             }
             Self::MoveModule(module, tracking) => {
                 *tracking = tracking.add(delta);
@@ -457,21 +440,41 @@ impl MouseAction {
                 return Some(GuiAction::Elevate(InstanceAction::ReloadStructure));
             }
             Self::ManipulateIntBox {
-                callback,
+                mut callback,
                 min,
                 max,
                 click_delta,
                 mut float_value,
+                code_reload_requested,
             } => {
                 float_value += click_delta as f32;
                 float_value = float_value.min(max as f32);
                 float_value = float_value.max(min as f32);
-                callback(float_value as i32);
+                let request = callback(float_value as i32);
+                // This takes priority over everything.
+                if code_reload_requested {
+                    return Some(GuiAction::Elevate(InstanceAction::ReloadStructure));
+                }
+                return match request {
+                    staticons::StaticonUpdateRequest::Nothing => None,
+                    staticons::StaticonUpdateRequest::UpdateDynData => {
+                        Some(GuiAction::Elevate(InstanceAction::ReloadStaticonDynData))
+                    }
+                    staticons::StaticonUpdateRequest::UpdateCode => {
+                        Some(GuiAction::Elevate(InstanceAction::ReloadStructure))
+                    }
+                };
             }
             Self::MutateStaticon(mutator) => {
-                return Some(GuiAction::Elevate(InstanceAction::PerformStaticonRequest(
-                    mutator(),
-                )))
+                return match mutator() {
+                    staticons::StaticonUpdateRequest::Nothing => None,
+                    staticons::StaticonUpdateRequest::UpdateDynData => {
+                        Some(GuiAction::Elevate(InstanceAction::ReloadStaticonDynData))
+                    }
+                    staticons::StaticonUpdateRequest::UpdateCode => {
+                        Some(GuiAction::Elevate(InstanceAction::ReloadStructure))
+                    }
+                };
             }
             Self::Scaled(base, ..) => {
                 return base.on_click();

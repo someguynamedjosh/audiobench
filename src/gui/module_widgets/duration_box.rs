@@ -70,15 +70,38 @@ impl ModuleWidget for DurationBox {
         } else if duration.is_using_fractional_mode() {
             let (num, den) = duration.get_fractional_value();
             let use_denominator = local_pos.0 >= Self::WIDTH / 2.0;
-            MouseAction::ManipulateFractionalDurationControl {
-                cref,
-                precise_value: if use_denominator { den } else { num } as f32,
-                denominator: use_denominator,
+            let mutator: Box<dyn FnMut(f32) -> staticons::StaticonUpdateRequest> =
+                if use_denominator {
+                    let mut float_value = den as f32;
+                    Box::new(move |delta| {
+                        float_value += delta / 12.0;
+                        float_value = float_value.clam(1.0, 99.0);
+                        cref.borrow_mut()
+                            .set_fractional_value((num, float_value as u8))
+                    })
+                } else {
+                    let mut float_value = num as f32;
+                    Box::new(move |delta| {
+                        float_value += delta / 12.0;
+                        float_value = float_value.clam(1.0, 99.0);
+                        cref.borrow_mut()
+                            .set_fractional_value((float_value as u8, den))
+                    })
+                };
+            MouseAction::ContinuouslyMutateStaticon {
+                mutator,
+                code_reload_requested: false,
             }
         } else {
-            MouseAction::ManipulateDecimalDurationControl {
-                cref,
-                precise_value: duration.get_decimal_value(),
+            let mut float_value = duration.get_decimal_value();
+            let mutator = Box::new(move |delta| {
+                float_value += delta / 12.0;
+                float_value = float_value.clam(0.0, 9999.0);
+                cref.borrow_mut().set_decimal_value(float_value)
+            });
+            MouseAction::ContinuouslyMutateStaticon {
+                mutator,
+                code_reload_requested: false,
             }
         }
     }
