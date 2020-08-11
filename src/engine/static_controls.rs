@@ -98,6 +98,10 @@ impl ControlledInt {
             range: (min, max),
         })
     }
+
+    pub fn get_range(&self) -> (i32, i32) {
+        self.range
+    }
 }
 
 #[rustfmt::skip] // Keeps trying to ruin my perfectly fine one-line functions.
@@ -213,7 +217,7 @@ impl ControlledTriggerSequence {
     fn from_yaml(yaml: &YamlNode) -> Result<Self, String> {
         Ok(Self {
             require_static_only: require_static_only_boilerplate!(yaml),
-            sequence: Vec::new(),
+            sequence: vec![true, false, false, false],
         })
     }
 }
@@ -244,7 +248,7 @@ impl ControlledValueSequence {
     fn from_yaml(yaml: &YamlNode) -> Result<Self, String> {
         Ok(Self {
             require_static_only: require_static_only_boilerplate!(yaml),
-            sequence: Vec::new(),
+            sequence: vec![1.0, -1.0, -1.0, -1.0],
         })
     }
 }
@@ -265,6 +269,7 @@ impl ControlledData for ControlledValueSequence {
     fn package_dyn_data(&self) -> IODataPtr { IODataPtr::FloatArray(&self.sequence[..]) }
 }
 
+#[derive(Debug)]
 pub enum ArbitraryStaticonData {
     Int(Rcrc<ControlledInt>),
     Duration(Rcrc<ControlledDuration>),
@@ -279,12 +284,15 @@ impl ArbitraryStaticonData {
             Self::Int(ptr) => Rc::clone(ptr) as _,
         }
     }
+
+    fn deep_clone(&self) -> Self {
+        match self {
+            Self::Int(ptr) => Self::Int(rcrc((*ptr.borrow()).clone())),
+        }
+    }
 }
 
-/// Creates a `Staticon` from a yaml definition. Additionally returns an ArbitraryStaticonData which
-/// can be used to retrieve a statically-typed `Rcrc` to the underlying data that the `Staticon`
-/// controls.
-pub fn from_yaml(yaml: &YamlNode) -> Result<(Staticon, ArbitraryStaticonData), String> {
+pub fn from_yaml(yaml: &YamlNode) -> Result<Staticon, String> {
     let name = yaml.name.clone();
     let typ = yaml.value.trim();
     let data = match typ {
@@ -301,13 +309,11 @@ pub fn from_yaml(yaml: &YamlNode) -> Result<(Staticon, ArbitraryStaticonData), S
         }
         _ => return Err(format!("ERROR: {} is an invalid staticon type.", typ)),
     };
-    Ok((
-        Staticon {
-            code_name: name.clone(),
-            data: data.make_dyn_ptr(),
-        },
-        data,
-    ))
+    Ok(Staticon {
+        code_name: name.clone(),
+        data: data.make_dyn_ptr(),
+        statically_typed_data: data,
+    })
 }
 
 /// Holds on to packaged data returned by `Staticon::package_dyn_data`. Internally that method
@@ -323,6 +329,7 @@ pub struct PackagedData<'a> {
 pub struct Staticon {
     code_name: String,
     data: Rcrc<dyn ControlledData>,
+    statically_typed_data: ArbitraryStaticonData,
 }
 
 impl Staticon {
@@ -359,8 +366,16 @@ impl Staticon {
         )
     }
 
+    pub fn borrow_code_name(&self) -> &str {
+        &self.code_name
+    }
+
     pub fn borrow_data(&self) -> Ref<dyn ControlledData> {
         self.data.borrow()
+    }
+
+    pub fn borrow_statically_typed_data(&self) -> &ArbitraryStaticonData {
+        &self.statically_typed_data
     }
 }
 
@@ -369,6 +384,7 @@ impl Clone for Staticon {
         Self {
             code_name: self.code_name.clone(),
             data: self.data.borrow().ptr_clone(),
+            statically_typed_data: self.statically_typed_data.deep_clone(),
         }
     }
 }

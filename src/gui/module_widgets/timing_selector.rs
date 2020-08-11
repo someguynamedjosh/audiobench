@@ -1,5 +1,6 @@
 use super::ModuleWidget;
 use crate::engine::parts as ep;
+use crate::engine::static_controls as staticons;
 use crate::gui::action::MouseAction;
 use crate::gui::constants::*;
 use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
@@ -13,16 +14,13 @@ yaml_widget_boilerplate::make_widget_outline! {
     constructor: create(
         registry: RegistryRef,
         pos: GridPos,
-        source_control: ComplexControlRef,
-        type_control: ComplexControlRef,
+        control: ControlledTimingModeRef,
     ),
-    staticon_default_provider: get_defaults,
 }
 
 #[derive(Clone)]
 pub struct TimingSelector {
-    source_control: Rcrc<ep::ComplexControl>,
-    type_control: Rcrc<ep::ComplexControl>,
+    control: Rcrc<staticons::ControlledTimingMode>,
     pos: (f32, f32),
     note_icon: usize,
     song_icon: usize,
@@ -34,12 +32,10 @@ impl TimingSelector {
     pub fn create(
         registry: &Registry,
         pos: (f32, f32),
-        source_control: Rcrc<ep::ComplexControl>,
-        type_control: Rcrc<ep::ComplexControl>,
+        control: Rcrc<staticons::ControlledTimingMode>,
     ) -> Self {
         Self {
-            source_control,
-            type_control,
+            control,
             pos,
             note_icon: registry.lookup_icon("factory:note").unwrap(),
             song_icon: registry.lookup_icon("factory:treble_clef").unwrap(),
