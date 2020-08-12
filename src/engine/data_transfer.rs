@@ -1,4 +1,4 @@
-use crate::engine::data_format::{DataPacker, DataUnpacker, IODataPtr, IOType};
+use crate::engine::data_format::{DataPacker, DataUnpacker, IODataPtr, IOType, OwnedIOData};
 
 #[derive(Clone, PartialEq, Eq)]
 pub struct HostFormat {
@@ -70,6 +70,7 @@ impl InputPacker {
     const GPI_SONG_BEATS: usize = 8;
     const GPI_MIDI_CONTROLS: usize = 9;
     const GPI_AUTOCON_DYN_DATA: usize = 10;
+    const GPI_STATICON_DYN_DATA_START: usize = 11;
     fn make_data_packer(data_format: &DataFormat) -> DataPacker {
         let buf_len = data_format.host_format.buffer_len;
         let mut parameters = vec![
@@ -190,6 +191,15 @@ impl InputPacker {
     pub fn set_autocon_dyn_data(&mut self, data: &[f32]) {
         self.real_packer
             .set_parameter(Self::GPI_AUTOCON_DYN_DATA, IODataPtr::FloatArray(data));
+    }
+
+    pub fn set_staticon_dyn_data(&mut self, data: &[OwnedIOData]) {
+        assert!(self.data_format.staticon_dyn_data_types.len() == data.len());
+        for (index, item) in data.iter().enumerate() {
+            let item_ptr = item.borrow();
+            self.real_packer
+                .set_parameter(Self::GPI_STATICON_DYN_DATA_START + index, item_ptr);
+        }
     }
 }
 

@@ -384,6 +384,27 @@ impl MouseAction {
                 }
                 return Some(GuiAction::Elevate(InstanceAction::ReloadStructure));
             }
+            Self::ManipulateIntBox {
+                mut callback,
+                float_value,
+                code_reload_requested,
+                ..
+            } => {
+                let request = callback(float_value as i32);
+                // This takes priority over everything.
+                if code_reload_requested {
+                    return Some(GuiAction::Elevate(InstanceAction::ReloadStructure));
+                }
+                return match request {
+                    staticons::StaticonUpdateRequest::Nothing => None,
+                    staticons::StaticonUpdateRequest::UpdateDynData => {
+                        Some(GuiAction::Elevate(InstanceAction::ReloadStaticonDynData))
+                    }
+                    staticons::StaticonUpdateRequest::UpdateCode => {
+                        Some(GuiAction::Elevate(InstanceAction::ReloadStructure))
+                    }
+                };
+            }
             Self::Scaled(base, ..) => {
                 return base.on_drop(target);
             }

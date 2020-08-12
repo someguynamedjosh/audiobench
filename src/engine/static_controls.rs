@@ -4,6 +4,7 @@ use crate::util::*;
 use std::cell::Ref;
 use std::fmt::Debug;
 
+#[derive(Debug)]
 pub enum StaticonUpdateRequest {
     /// For when a particular change does not require any action to be expressed.
     Nothing,
@@ -557,14 +558,6 @@ pub fn from_yaml(yaml: &YamlNode) -> Result<Staticon, String> {
     })
 }
 
-/// Holds on to packaged data returned by `Staticon::package_dyn_data`. Internally that method
-/// requires borrowing from a `RefCell` of a private type so this struct holds on to that borrow
-/// while not exposing it to the user of the function.
-pub struct PackagedData<'a> {
-    borrow: std::cell::Ref<'a, dyn ControlledData>,
-    pub data_ref: IODataPtr<'a>,
-}
-
 /// Static control, I.E. one that cannot be automated.
 #[derive(Debug)]
 pub struct Staticon {
@@ -622,10 +615,12 @@ impl Staticon {
 
 impl Clone for Staticon {
     fn clone(&self) -> Self {
+        let new_static_data = self.statically_typed_data.deep_clone();
+        let new_data = new_static_data.make_dyn_ptr();
         Self {
             code_name: self.code_name.clone(),
-            data: self.data.borrow().ptr_clone(),
-            statically_typed_data: self.statically_typed_data.deep_clone(),
+            data: new_data,
+            statically_typed_data: new_static_data,
         }
     }
 }
