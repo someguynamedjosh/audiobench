@@ -151,7 +151,14 @@ impl IntBox {
         label: String,
         tooltip: String,
     ) -> IntBox {
-        let base = IntBoxBase::create(tooltip, registry, pos, control.borrow().get_range(), label);
+        let (min, max) = control.borrow().get_range();
+        let base = IntBoxBase::create(
+            tooltip,
+            registry,
+            pos,
+            (min as i32, max as i32),
+            label,
+        );
         IntBox { base, control }
     }
 }
@@ -162,11 +169,11 @@ impl IntBoxImpl for IntBox {
     }
 
     fn get_current_value(&self) -> i32 {
-        self.control.borrow().get_value()
+        self.control.borrow().get_value() as _
     }
 
     fn make_callback(&self) -> Box<dyn FnMut(i32) -> staticons::StaticonUpdateRequest> {
         let control = Rc::clone(&self.control);
-        Box::new(move |new_value| control.borrow_mut().set_value(new_value))
+        Box::new(move |new_value| control.borrow_mut().set_value(new_value as i16))
     }
 }

@@ -1,7 +1,8 @@
 use crate::engine::data_format::{IODataPtr, IOType};
+use crate::registry::mini_bin;
 use crate::registry::yaml::YamlNode;
 use crate::util::*;
-use std::cell::Ref;
+use std::cell::{Ref, RefMut};
 use std::fmt::Debug;
 
 #[derive(Debug)]
@@ -32,7 +33,7 @@ pub struct StaticonDynCode {
     code: String,
 }
 
-pub trait ControlledData: Debug + PtrClonable {
+pub trait ControlledData: Debug {
     /// Returns true if the control's value must be available at compile time. This will cause the
     /// code to be recompiled every time the user changes the value, so it should be avoided if at
     /// all possible.
@@ -53,18 +54,10 @@ pub trait ControlledData: Debug + PtrClonable {
     /// dynamically to update the value of the static control. This should never be called if
     /// is_static_only is false.
     fn package_dyn_data(&self) -> IODataPtr;
-}
 
-/// This is necessary because doing `ControlledData: Clone` makes it impossible to do
-/// `Rcrc<dyn ControlledData>` because it must be sized.
-pub trait PtrClonable {
-    fn ptr_clone(&self) -> Rcrc<dyn ControlledData>;
-}
+    fn serialize(&self, buffer: &mut Vec<u8>);
 
-impl<T: ControlledData + Clone + 'static> PtrClonable for T {
-    fn ptr_clone(&self) -> Rcrc<dyn ControlledData> {
-        rcrc(self.clone())
-    }
+    fn deserialize(&mut self, data: &mut &[u8]) -> Result<(), ()>;
 }
 
 macro_rules! require_static_only_boilerplate {
@@ -80,8 +73,8 @@ macro_rules! require_static_only_boilerplate {
 #[derive(Clone, Debug)]
 pub struct ControlledInt {
     require_static_only: bool,
-    value: i32,
-    range: (i32, i32),
+    value: i16,
+    range: (i16, i16),
 }
 
 impl ControlledInt {
@@ -101,18 +94,18 @@ impl ControlledInt {
         })
     }
 
-    pub fn get_value(&self) -> i32 {
+    pub fn get_value(&self) -> i16 {
         self.value
     }
 
-    pub fn set_value(&mut self, value: i32) -> StaticonUpdateRequest {
+    pub fn set_value(&mut self, value: i16) -> StaticonUpdateRequest {
         assert!(value >= self.range.0);
         assert!(value <= self.range.1);
         self.value = value;
         StaticonUpdateRequest::dyn_update_if_allowed(self)
     }
 
-    pub fn get_range(&self) -> (i32, i32) {
+    pub fn get_range(&self) -> (i16, i16) {
         self.range
     }
 }
@@ -123,7 +116,16 @@ impl ControlledData for ControlledInt {
     fn get_data_type(&self) -> String { "INT".to_owned() }
     fn get_io_type(&self) -> IOType { IOType::Int }
     fn generate_static_code(&self) -> String { self.value.to_string() }
-    fn package_dyn_data(&self) -> IODataPtr { IODataPtr::Int(self.value) }
+    fn package_dyn_data(&self) -> IODataPtr { IODataPtr::Int(self.value as _) }
+    fn serialize(&self, buffer: &mut Vec<u8>) { mini_bin::ser_i16(buffer, self.value); }
+    fn deserialize(&mut self, slice: &mut &[u8]) -> Result<(), ()> { 
+        self.value = mini_bin::des_i16(slice)?;
+        if self.value < self.range.0 || self.value > self.range.1 {
+            Err(())
+        } else {
+            Ok(())
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -266,6 +268,28 @@ impl ControlledData for ControlledDuration {
     fn get_io_type(&self) -> IOType { IOType::Float }
     fn generate_static_code(&self) -> String { format!("{:.05}", self.get_raw_value()) }
     fn package_dyn_data(&self) -> IODataPtr { IODataPtr::Float(self.get_raw_value()) }
+    fn serialize(&self, buffer: &mut Vec<u8>) { 
+        if self.fraction_mode {
+            mini_bin::ser_u8(buffer, 1);
+            mini_bin::ser_u8(buffer, self.fraction_numerator);
+            mini_bin::ser_u8(buffer, self.fraction_denominator);
+        } else {
+            mini_bin::ser_u8(buffer, 0);
+            mini_bin::ser_f32(buffer, self.decimal_value);
+        }
+    }
+    fn deserialize(&mut self, slice: &mut &[u8]) -> Result<(), ()> { 
+        let mode = mini_bin::des_u8(slice)?;
+        if mode == 1 {
+            self.fraction_mode = true;
+            self.fraction_numerator = mini_bin::des_u8(slice)?;
+            self.fraction_denominator = mini_bin::des_u8(slice)?;
+        } else {
+            self.fraction_mode = false;
+            self.decimal_value = mini_bin::des_f32(slice)?;
+        }
+        Ok(())
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -297,7 +321,7 @@ impl ControlledTimingMode {
         })
     }
 
-    fn get_raw_value(&self) -> i32 {
+    fn get_raw_value(&self) -> u8 {
         let source_flag = if self.use_song_time { 0b1 } else { 0b0 };
         let unit_flag = if self.beat_synchronized { 0b10 } else { 0b00 };
         source_flag | unit_flag
@@ -328,7 +352,17 @@ impl ControlledData for ControlledTimingMode {
     fn get_data_type(&self) -> String { "INT".to_owned() }
     fn get_io_type(&self) -> IOType { IOType::Int }
     fn generate_static_code(&self) -> String { self.get_raw_value().to_string() }
-    fn package_dyn_data(&self) -> IODataPtr { IODataPtr::Int(self.get_raw_value()) }
+    fn package_dyn_data(&self) -> IODataPtr { IODataPtr::Int(self.get_raw_value() as _) }
+    fn serialize(&self, buffer: &mut Vec<u8>) { mini_bin::ser_u8(buffer, self.get_raw_value()); }
+    fn deserialize(&mut self, slice: &mut &[u8]) -> Result<(), ()> { 
+        let raw_value = mini_bin::des_u8(slice)?;
+        if raw_value > 0b11 {
+            return Err(());
+        }
+        self.use_song_time = raw_value & 0b1 == 0b1;
+        self.beat_synchronized = raw_value & 0b10 == 0b10;
+        Ok(())
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -382,6 +416,16 @@ impl ControlledData for ControlledTriggerSequence {
         result
     }
     fn package_dyn_data(&self) -> IODataPtr { IODataPtr::BoolArray(&self.sequence[..]) }
+    fn serialize(&self, buffer: &mut Vec<u8>) { 
+        assert!(self.sequence.len() <= 0xFF);
+        mini_bin::ser_u8(buffer, self.sequence.len() as u8); 
+        mini_bin::ser_bool_slice(buffer, &self.sequence[..]); 
+    }
+    fn deserialize(&mut self, slice: &mut &[u8]) -> Result<(), ()> { 
+        let len = mini_bin::des_u8(slice)?;
+        self.sequence = mini_bin::des_bool_slice(slice, len as usize)?;
+        Ok(())
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -435,6 +479,23 @@ impl ControlledData for ControlledValueSequence {
         result
     }
     fn package_dyn_data(&self) -> IODataPtr { IODataPtr::FloatArray(&self.sequence[..]) }
+    fn serialize(&self, buffer: &mut Vec<u8>) { 
+        assert!(self.sequence.len() <= 0xFF);
+        mini_bin::ser_u8(buffer, self.sequence.len() as u8); 
+        for value in &self.sequence {
+            let packed = mini_bin::pack_value(*value, (-1.0, 1.0));
+            mini_bin::ser_u16(buffer, packed);
+        }
+    }
+    fn deserialize(&mut self, slice: &mut &[u8]) -> Result<(), ()> { 
+        let len = mini_bin::des_u8(slice)?;
+        self.sequence.clear();
+        for _ in 0..len {
+            let packed = mini_bin::des_u16(slice)?;
+            self.sequence.push(mini_bin::unpack_value(packed, (-1.0, 1.0)));
+        }
+        Ok(())
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -490,6 +551,17 @@ impl ControlledData for ControlledOptionChoice {
     fn get_io_type(&self) -> IOType { IOType::Int }
     fn generate_static_code(&self) -> String { self.selected_option.to_string() }
     fn package_dyn_data(&self) -> IODataPtr { IODataPtr::Int(self.selected_option as _) }
+    fn serialize(&self, buffer: &mut Vec<u8>) { 
+        mini_bin::ser_u8(buffer, self.selected_option as _); 
+    }
+    fn deserialize(&mut self, slice: &mut &[u8]) -> Result<(), ()> { 
+        self.selected_option = mini_bin::des_u8(slice)? as _;
+        if self.selected_option >= self.options.len() {
+            Err(())
+        } else {
+            Ok(())
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -606,6 +678,10 @@ impl Staticon {
 
     pub fn borrow_data(&self) -> Ref<dyn ControlledData> {
         self.data.borrow()
+    }
+
+    pub fn borrow_data_mut(&self) -> RefMut<dyn ControlledData> {
+        self.data.borrow_mut()
     }
 
     pub fn borrow_statically_typed_data(&self) -> &ArbitraryStaticonData {
