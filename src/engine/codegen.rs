@@ -24,6 +24,7 @@ pub(super) fn generate_code(
         execution_order,
         current_autocon_dyn_data_item: 0,
         autocon_dyn_data_control_order: Vec::new(),
+        staticon_input_code: Vec::new(),
         staticon_dyn_data_control_order: Vec::new(),
         staticon_dyn_data_types: Vec::new(),
         feedback_data_len: 0,
@@ -36,6 +37,7 @@ struct CodeGenerator<'a> {
     execution_order: Vec<usize>,
     current_autocon_dyn_data_item: usize,
     autocon_dyn_data_control_order: Vec<Rcrc<Autocon>>,
+    staticon_input_code: Vec<String>,
     staticon_dyn_data_control_order: Vec<Rcrc<Staticon>>,
     staticon_dyn_data_types: Vec<IOType>,
     feedback_data_len: usize,
@@ -95,6 +97,23 @@ impl<'a> CodeGenerator<'a> {
                 code.push_str(&self.generate_code_for_lane(lane));
             }
             code
+        }
+    }
+
+    fn generate_code_for_staticon(&mut self, control: &Rcrc<Staticon>) -> String {
+        let control_ref = control.borrow();
+        if control_ref.is_static_only() {
+            format!("    {}\n", control_ref.generate_static_code())
+        } else {
+            let unique_input_name = format!(
+                "staticon_dyn_data_{}",
+                self.staticon_dyn_data_control_order.len(),
+            );
+            let (input_code, body_code) = control_ref.generate_dynamic_code(&unique_input_name);
+            self.staticon_dyn_data_control_order.push(Rc::clone(control));
+            self.staticon_dyn_data_types.push(control_ref.get_io_type());
+            self.staticon_input_code.push(input_code);
+            format!("    {}\n", body_code)
         }
     }
 
@@ -169,9 +188,7 @@ impl<'a> CodeGenerator<'a> {
         }
         code.push_str(&custom_feedback_code);
         for control in &module_ref.staticons {
-            let control_ref = control.borrow();
-            // TODO: Allow dynamic modification.
-            code.push_str(&control_ref.generate_static_code());
+            code.push_str(&self.generate_code_for_staticon(control));
         }
 
         code.push_str(&format!(
@@ -242,6 +259,10 @@ impl<'a> CodeGenerator<'a> {
                 "output [{}]FLOAT global_feedback_data;\n",
                 self.feedback_data_len
             ));
+        }
+        for line in &self.staticon_input_code {
+            header.push_str(line);
+            header.push_str("\n");
         }
         let Self {
             autocon_dyn_data_control_order,

@@ -49,7 +49,7 @@ impl TimingSelector {
     }
 
     fn type_value(&self) -> bool {
-        self.control.borrow().uses_song_time()
+        self.control.borrow().is_beat_synchronized()
     }
 }
 

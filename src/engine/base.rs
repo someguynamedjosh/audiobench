@@ -95,6 +95,7 @@ impl Engine {
         };
 
         let mut compiler = AudiobenchCompiler::new(registry);
+        println!("{}", code);
         let program = compiler.compile(code).map_err(|err| {
             format!(
                 concat!(
@@ -330,6 +331,11 @@ impl Engine {
             self.atd
                 .input
                 .set_autocon_dyn_data(&new_autocon_dyn_data[..]);
+        }
+        if let Some(new_staticon_dyn_data) = ctd.new_staticon_dyn_data.take() {
+            self.atd
+                .input
+                .set_staticon_dyn_data(&new_staticon_dyn_data[..]);
         }
         let audio_buf_len = ctd.host_format.buffer_len * 2;
         if self.atd.audio_buffer.len() != audio_buf_len {
