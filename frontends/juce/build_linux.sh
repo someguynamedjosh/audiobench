@@ -8,6 +8,7 @@ echo "1. Remove JUCE splash screen (Audiobench is GPLv3)"
 echo "2. Build Audiobench"
 echo "3. Build the JUCE frontend for Audiobench"
 echo "Run with argument 'run' to execute the standalone version for testing."
+echo "Run with argument 'perf' to profile the standalone version with perf."
 echo "Run with argument 'clean' to delete old build files before building."
 echo "Run with argument 'release' to build optimized release binaries."
 echo ""
@@ -49,16 +50,23 @@ fi
 mkdir -p artifacts
 mkdir -p _build
 cd _build
-cmake -Wno-dev ..
+if [ "$1" == "release" ]; then
+    cmake -Wno-dev -DCMAKE_BUILD_TYPE=Release ..
+else
+    cmake -Wno-dev -DCMAKE_BUILD_TYPE=Debug ..
+fi
 cd ..
 if [ "$1" == "release" ]; then
-    cmake --build _build --config Release
+    cmake --build _build --config Release 
+    cd $FRONTEND_ROOT
+    cp _build/Audiobench_artefacts/Release/Standalone/Audiobench artifacts/Audiobench_Linux_x64_Standalone.bin
+    cp _build/Audiobench_artefacts/Release/VST3/Audiobench.vst3/Contents/x86_64-linux/Audiobench.so artifacts/Audiobench_Linux_x64_VST3.so
 else
     cmake --build _build --config Debug
+    cd $FRONTEND_ROOT
+    cp _build/Audiobench_artefacts/Debug/Standalone/Audiobench artifacts/Audiobench_Linux_x64_Standalone.bin
+    cp _build/Audiobench_artefacts/Debug/VST3/Audiobench.vst3/Contents/x86_64-linux/Audiobench.so artifacts/Audiobench_Linux_x64_VST3.so
 fi
-cd $FRONTEND_ROOT
-cp _build/Audiobench_artefacts/Standalone/Audiobench artifacts/Audiobench_Linux_x64_Standalone.bin
-cp _build/Audiobench_artefacts/VST3/Audiobench.vst3/Contents/x86_64-linux/Audiobench.so artifacts/Audiobench_Linux_x64_VST3.so
 echo "Success!"
 
 if [ "$1" == "run" ]; then
@@ -66,4 +74,9 @@ if [ "$1" == "run" ]; then
     echo "Starting standalone version..."
     # Standalone version
     ./artifacts/Audiobench_Linux_x64_Standalone.bin
+fi
+if [ "$1" == "perf" ]; then
+    echo ""
+    echo "Profiling standalone version..."
+    perf record -g ./artifacts/Audiobench_Linux_x64_Standalone.bin
 fi
