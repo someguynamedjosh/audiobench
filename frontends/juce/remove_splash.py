@@ -16,7 +16,9 @@ replace_with += '\n    '
 if content[start:end] == replace_with:
     print('Splash already removed.')
 else:
+    # Right now we are diagnosing an isuse with JUCE code and might eventually make a patch to 
+    # contribute back, so we don't want to have the splash removal included in that patch.
     content = content[:start] + replace_with + content[end:]
-    f = open(path, 'w')
-    f.write(content)
-    f.close()
+    # f = open(path, 'w')
+    # f.write(content)
+    # f.close()
