@@ -23,7 +23,7 @@ fn copy_to_clipboard(text: String) {
 }
 
 impl Instance {
-    fn new() -> Self {
+    pub fn new() -> Self {
         let mut critical_error = None;
 
         let (mut registry, registry_load_result) = registry::Registry::new();
