@@ -9,6 +9,7 @@ echo "This version of the script only makes a release version because I don't"
 echo "know how to use Powershell and I don't plan on learning."
 
 echo "Removing JUCE splash..."
+cd components/juce_frontend/
 python remove_splash.py
 
 mkdir juce6_built -ea 0
@@ -20,8 +21,8 @@ cmake --build cmake-build-install --target install
 cd ..
 $Env:JUCE_DIR = "$Env:JUCE6_PREFIX/lib/cmake/JUCE-6.0.0"
 
-cargo build --release
-mkdir artifacts -ea 0
+cargo build --release -p audiobench
+mkdir ../../artifacts -ea 0
 mkdir _build -ea 0
 
 $Env:PROJECT_ROOT = Resolve-Path "../.."
@@ -33,6 +34,5 @@ cmake -G"Visual Studio 16 2019" -A x64 -Thost=x64 ..
 cd ..
 cmake --build _build --config Release
 
-Tree _build/Audiobench_artefacts/ /F
-cp _build/Audiobench_artefacts/Release/Standalone/Audiobench.exe artifacts/Audiobench_Windows_x64_Standalone.exe
-cp _build/Audiobench_artefacts/Release/VST3/Audiobench.vst3/Contents/x86_64-win/Audiobench.vst3 artifacts/Audiobench_Windows_x64_VST3.vst3
+cp _build/Audiobench_artefacts/Release/Standalone/Audiobench.exe ../../artifacts/Audiobench_Windows_x64_Standalone.exe
+cp _build/Audiobench_artefacts/Release/VST3/Audiobench.vst3/Contents/x86_64-win/Audiobench.vst3 ../../artifacts/Audiobench_Windows_x64_VST3.vst3

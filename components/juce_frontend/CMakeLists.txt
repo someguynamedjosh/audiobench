@@ -54,7 +54,7 @@ juce_add_plugin(
 
 target_include_directories(
     Audiobench PRIVATE
-    "$ENV{PROJECT_ROOT}/src/"
+    "$ENV{PROJECT_ROOT}/components/audiobench-clib/"
 )
 
 # `juce_generate_juce_header` will create a JuceHeader.h for a given target, which will be generated
@@ -124,7 +124,7 @@ if(WIN32)
         Audiobench PRIVATE
         # AudioPluginData           # If we'd created a binary data target, we'd link to it here
         juce::juce_audio_utils
-        "$ENV{RUST_OUTPUT_DIR}/audiobench.lib"
+        "$ENV{RUST_OUTPUT_DIR}/audiobench_clib.lib"
         Crypt32
         Ncrypt
         Secur32
@@ -142,7 +142,7 @@ else()
         Audiobench PRIVATE
         # AudioPluginData           # If we'd created a binary data target, we'd link to it here
         juce::juce_audio_utils
-        "$ENV{RUST_OUTPUT_DIR}/libaudiobench.a"
+        "$ENV{RUST_OUTPUT_DIR}/libaudiobench_clib.a"
         z
         curses
         ssl

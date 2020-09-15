@@ -10,7 +10,10 @@ fn main() {
     let options =
         zip::write::FileOptions::default().compression_method(zip::CompressionMethod::Deflated);
 
-    let input_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("factory_library");
+    let input_path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("..")
+        .join("..")
+        .join("factory_library");
     println!("cargo:rerun-if-changed={:?}", input_path.as_os_str());
     // https://github.com/mvdnes/zip-rs/blob/master/examples/write_dir.rs
     for entry in walkdir::WalkDir::new(input_path.clone()).into_iter() {
