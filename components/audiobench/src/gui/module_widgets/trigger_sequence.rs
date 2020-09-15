@@ -1,12 +1,10 @@
 use super::ModuleWidget;
 use super::{IntBoxBase, IntBoxImpl};
-use crate::engine::parts as ep;
 use crate::engine::static_controls as staticons;
 use crate::gui::action::MouseAction;
 use crate::gui::constants::*;
 use crate::gui::graphics::GrahpicsWrapper;
 use crate::gui::{InteractionHint, MouseMods, Tooltip};
-use crate::registry::yaml::YamlNode;
 use crate::registry::Registry;
 use crate::util::*;
 

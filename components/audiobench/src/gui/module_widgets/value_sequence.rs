@@ -6,7 +6,6 @@ use crate::gui::action::MouseAction;
 use crate::gui::constants::*;
 use crate::gui::graphics::GrahpicsWrapper;
 use crate::gui::{InteractionHint, MouseMods, Tooltip};
-use crate::registry::yaml::YamlNode;
 use crate::registry::Registry;
 use crate::util::*;
 
@@ -35,8 +34,6 @@ pub struct ValueSequence {
 impl ValueSequence {
     const HEIGHT: f32 = grid(2);
     const HEADER_SPACE: f32 = CORNER_SIZE * 2.0;
-    const VALUE_DECIMALS: usize = 5;
-    const VALUE_LENGTH: usize = Self::VALUE_DECIMALS + 4; // 2 for 0., 1 for sign, 1 for comma
 
     pub fn create(
         pos: (f32, f32),
@@ -125,7 +122,6 @@ impl ModuleWidget for ValueSequence {
         let num_steps = borrowed.get_len();
         let step_width = self.width / num_steps as f32;
         let ramping = feedback_data[1];
-        const VALUE_LEN: usize = ValueSequence::VALUE_LENGTH;
         const MIDPOINT: f32 = HEAD + (H - HEAD) * 0.5;
         let first_value = borrowed.get_value(0);
         let mut value = first_value;
@@ -170,10 +166,6 @@ impl ModuleWidget for ValueSequence {
 
         g.pop_state();
     }
-}
-
-fn format_value(value: f32) -> String {
-    format!("{: >8.*},", ValueSequence::VALUE_DECIMALS, value,)
 }
 
 yaml_widget_boilerplate::make_widget_outline! {
