@@ -76,10 +76,20 @@ impl ModuleWidget for ValueSequence {
         let clicked_step = (local_pos.0 / step_width) as usize;
         let mut float_value = borrowed.get_value(clicked_step);
         let cref = Rc::clone(&self.sequence_control);
-        let mutator = Box::new(move |delta| {
+        let mutator = Box::new(move |delta, steps| {
             float_value += delta / 100.0;
             float_value = float_value.clam(-1.0, 1.0);
-            cref.borrow_mut().set_value(clicked_step, float_value)
+            let final_value = if let Some(steps) = steps {
+                float_value.snap(-1.0, 1.0, steps)
+            } else {
+                float_value
+            };
+            let update = cref.borrow_mut().set_value(clicked_step, final_value);
+            let tooltip = Tooltip {
+                interaction: InteractionHint::Shift | InteractionHint::Alt,
+                text: format!("{:.3}", final_value),
+            };
+            (update, Some(tooltip))
         });
         MouseAction::ContinuouslyMutateStaticon {
             mutator,

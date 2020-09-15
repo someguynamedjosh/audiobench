@@ -1,11 +1,9 @@
 use super::ModuleWidget;
-use crate::engine::parts as ep;
 use crate::engine::static_controls as staticons;
 use crate::gui::action::MouseAction;
 use crate::gui::constants::*;
 use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
 use crate::gui::{InteractionHint, MouseMods, Tooltip};
-use crate::registry::yaml::YamlNode;
 use crate::util::*;
 
 yaml_widget_boilerplate::make_widget_outline! {
@@ -70,34 +68,40 @@ impl ModuleWidget for DurationBox {
         } else if duration.is_using_fractional_mode() {
             let (num, den) = duration.get_fractional_value();
             let use_denominator = local_pos.0 >= Self::WIDTH / 2.0;
-            let mutator: Box<dyn FnMut(f32) -> staticons::StaticonUpdateRequest> =
-                if use_denominator {
-                    let mut float_value = den as f32;
-                    Box::new(move |delta| {
-                        float_value += delta / 12.0;
-                        float_value = float_value.clam(1.0, 99.0);
-                        cref.borrow_mut()
-                            .set_fractional_value((num, float_value as u8))
-                    })
-                } else {
-                    let mut float_value = num as f32;
-                    Box::new(move |delta| {
-                        float_value += delta / 12.0;
-                        float_value = float_value.clam(1.0, 99.0);
-                        cref.borrow_mut()
-                            .set_fractional_value((float_value as u8, den))
-                    })
-                };
+            let mutator: Box<
+                dyn FnMut(f32, Option<f32>) -> (staticons::StaticonUpdateRequest, Option<Tooltip>),
+            > = if use_denominator {
+                let mut float_value = den as f32;
+                Box::new(move |delta, _steps| {
+                    float_value += delta / 12.0;
+                    float_value = float_value.clam(1.0, 99.0);
+                    let update = cref
+                        .borrow_mut()
+                        .set_fractional_value((num, float_value as u8));
+                    (update, None)
+                })
+            } else {
+                let mut float_value = num as f32;
+                Box::new(move |delta, _steps| {
+                    float_value += delta / 12.0;
+                    float_value = float_value.clam(1.0, 99.0);
+                    let update = cref
+                        .borrow_mut()
+                        .set_fractional_value((float_value as u8, den));
+                    (update, None)
+                })
+            };
             MouseAction::ContinuouslyMutateStaticon {
                 mutator,
                 code_reload_requested: false,
             }
         } else {
             let mut float_value = duration.get_decimal_value();
-            let mutator = Box::new(move |delta| {
-                float_value += delta / 12.0;
-                float_value = float_value.clam(0.0, 9999.0);
-                cref.borrow_mut().set_decimal_value(float_value)
+            let mutator = Box::new(move |delta, _steps| {
+                float_value *= (2.0f32).powf(delta / LOG_OCTAVE_PIXELS);
+                float_value = float_value.clam(0.0003, 99.8);
+                let update = cref.borrow_mut().set_decimal_value(float_value);
+                (update, None)
             });
             MouseAction::ContinuouslyMutateStaticon {
                 mutator,

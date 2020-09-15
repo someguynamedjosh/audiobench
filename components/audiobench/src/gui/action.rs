@@ -58,7 +58,8 @@ pub enum MouseAction {
     },
     MutateStaticon(Box<dyn FnOnce() -> staticons::StaticonUpdateRequest>),
     ContinuouslyMutateStaticon {
-        mutator: Box<dyn FnMut(f32) -> staticons::StaticonUpdateRequest>,
+        mutator:
+            Box<dyn FnMut(f32, Option<f32>) -> (staticons::StaticonUpdateRequest, Option<Tooltip>)>,
         code_reload_requested: bool,
     },
     MoveModule(Rcrc<ep::Module>, (f32, f32)),
@@ -82,12 +83,21 @@ pub enum MouseAction {
     OpenWebpage(String),
 }
 
-fn maybe_snap_value(value: f32, range: (f32, f32), mods: &MouseMods) -> f32 {
-    let steps = if mods.precise { 72.0 } else { 12.0 };
+fn get_snap_steps(mods: &MouseMods) -> Option<f32> {
     if mods.shift {
-        let r08 = value.from_range_to_range(range.0, range.1, 0.0, steps + 0.8);
-        let snapped = (r08 - 0.4).round();
-        snapped.from_range_to_range(0.0, steps, range.0, range.1)
+        Some(if mods.precise {
+            PRECISE_SNAP_STEPS
+        } else {
+            SNAP_STEPS
+        })
+    } else {
+        None
+    }
+}
+
+fn maybe_snap_value(value: f32, range: (f32, f32), mods: &MouseMods) -> f32 {
+    if let Some(steps) = get_snap_steps(mods) {
+        value.snap(range.0, range.1, steps)
     } else {
         value
     }
@@ -132,9 +142,7 @@ impl MouseAction {
             }
             Self::ManipulateControl(control, tracking) => {
                 let delta = delta.0 - delta.1;
-                // How many pixels the user must drag across to cover the entire range of the knob.
-                const DRAG_PIXELS: f32 = 200.0;
-                let mut delta = delta / DRAG_PIXELS;
+                let mut delta = delta / RANGE_DRAG_PIXELS;
                 if mods.precise {
                     delta *= 0.2;
                 }
@@ -164,9 +172,7 @@ impl MouseAction {
             }
             Self::ManipulateLane(control, lane_index) => {
                 let delta = delta.0 - delta.1;
-                // How many pixels the user must drag across to cover the entire range of the knob.
-                const DRAG_PIXELS: f32 = 200.0;
-                let mut delta = delta as f32 / DRAG_PIXELS;
+                let mut delta = delta as f32 / RANGE_DRAG_PIXELS;
                 if mods.precise {
                     delta *= 0.2;
                 }
@@ -193,9 +199,7 @@ impl MouseAction {
             }
             Self::ManipulateLaneStart(control, lane_index, tracking) => {
                 let delta = delta.0 - delta.1;
-                // How many pixels the user must drag across to cover the entire range of the knob.
-                const DRAG_PIXELS: f32 = 200.0;
-                let mut delta = delta as f32 / DRAG_PIXELS;
+                let mut delta = delta as f32 / RANGE_DRAG_PIXELS;
                 if mods.precise {
                     delta *= 0.2;
                 }
@@ -224,9 +228,7 @@ impl MouseAction {
             }
             Self::ManipulateLaneEnd(control, lane_index, tracking) => {
                 let delta = delta.0 - delta.1;
-                // How many pixels the user must drag across to cover the entire range of the knob.
-                const DRAG_PIXELS: f32 = 200.0;
-                let mut delta = delta as f32 / DRAG_PIXELS;
+                let mut delta = delta as f32 / RANGE_DRAG_PIXELS;
                 if mods.precise {
                     delta *= 0.2;
                 }
@@ -261,18 +263,18 @@ impl MouseAction {
                 if mods.precise {
                     delta *= 0.2;
                 }
-                match mutator(delta) {
-                    staticons::StaticonUpdateRequest::Nothing => (),
+                let (update, tooltip) = mutator(delta, get_snap_steps(mods));
+                let action = match update {
+                    staticons::StaticonUpdateRequest::Nothing => None,
                     staticons::StaticonUpdateRequest::UpdateDynData => {
-                        return (
-                            Some(GuiAction::Elevate(InstanceAction::ReloadStaticonDynData)),
-                            None,
-                        );
+                        Some(GuiAction::Elevate(InstanceAction::ReloadStaticonDynData))
                     }
                     staticons::StaticonUpdateRequest::UpdateCode => {
                         *code_reload_requested = true;
+                        None
                     }
-                }
+                };
+                return (action, tooltip);
             }
             Self::ManipulateIntBox {
                 callback,
@@ -282,10 +284,8 @@ impl MouseAction {
                 code_reload_requested,
                 ..
             } => {
-                // How many pixels the user must drag across to change the value by 1.
-                const DRAG_PIXELS: f32 = 12.0;
                 let delta = delta.0 - delta.1;
-                let mut delta = delta as f32 / DRAG_PIXELS;
+                let mut delta = delta as f32 / DISCRETE_STEP_PIXELS;
                 if mods.precise {
                     delta *= 0.2;
                 }

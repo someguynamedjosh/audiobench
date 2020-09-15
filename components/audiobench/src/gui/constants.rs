@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 /// Pixels of padding between grid squares.
 const GRID_P_INT: i32 = 6;
 pub const GRID_P: f32 = GRID_P_INT as f32;
@@ -51,6 +53,23 @@ pub const WIRE_MIN_SEGMENT_LENGTH: f32 = 21.0;
 // Amount of x and y offset required to create a 45 degree line MIN_WIRE_SEGMENT_LENGTH long
 pub const WIRE_MIN_DIAGONAL_SIZE: f32 = WIRE_MIN_SEGMENT_LENGTH * std::f32::consts::SQRT_2 / 2.0;
 pub const WIRE_SPACING: f32 = (GRID_1 + GRID_P_INT) as f32 / 4.0;
+
+/// How many pixels the mouse must be dragged across to move a knob or slider from its minimum value
+/// to its maximum value.
+pub const RANGE_DRAG_PIXELS: f32 = 200.0;
+/// How many pixels the mouse must be dragged across to double or halve a logarithmic value.
+pub const LOG_OCTAVE_PIXELS: f32 = 40.0;
+/// How many pixels the mouse must be dragged across to increase or decrease a discrete integer by
+/// one step.
+pub const DISCRETE_STEP_PIXELS: f32 = 12.0;
+/// How many pixels the mouse must move across while being held down for dragging to start.
+pub const DRAG_DEADZONE: f32 = 4.0;
+/// The maximum amount of time between two clicks for the event to be considered a double-click.
+pub const DOUBLE_CLICK_TIME: Duration = Duration::from_millis(500);
+/// When holding Shift, how many steps should be snapped to.
+pub const SNAP_STEPS: f32 = 12.0;
+/// When holding Shift and Alt, how many steps should be snapped to.
+pub const PRECISE_SNAP_STEPS: f32 = 72.0;
 
 const fn hex_color(hex: u32) -> (u8, u8, u8) {
     (
