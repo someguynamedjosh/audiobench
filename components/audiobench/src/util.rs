@@ -30,9 +30,10 @@ pub trait FloatUtil: Sized + Copy {
     ) -> Self {
         self.from_range(from_min, from_max).to_range(to_min, to_max)
     }
-
     /// Clamps the value to the specified range. Not called clamp because that causes an error.
     fn clam(self, min: Self, max: Self) -> Self;
+    /// Snaps the value to equally-spaced steps within the given range.
+    fn snap(self, min: Self, max: Self, num_steps: Self) -> Self;
 }
 
 impl<T: Float> FloatUtil for T {
@@ -52,6 +53,15 @@ impl<T: Float> FloatUtil for T {
         } else {
             self
         }
+    }
+
+    fn snap(self, min: Self, max: Self, num_steps: Self) -> Self {
+        // Unfortunately we can't make this const because of how the compiler works.
+        let third: T = T::one() / (T::one() + T::one() + T::one());
+        self.from_range(min, max)
+            .to_range(-third, num_steps + third)
+            .round()
+            .from_range_to_range(T::zero(), num_steps, min, max)
     }
 }
 

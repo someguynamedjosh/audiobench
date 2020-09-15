@@ -227,8 +227,6 @@ impl Gui {
         ret
     }
 
-    /// Minimum number of pixels the mouse must move before dragging starts.
-    const MIN_DRAG_DELTA: f32 = 4.0;
     pub fn on_mouse_move(
         &mut self,
         registry: &Registry,
@@ -245,7 +243,7 @@ impl Gui {
             );
             if !self.dragged {
                 let distance = delta.0.abs() + delta.1.abs();
-                if distance > Self::MIN_DRAG_DELTA {
+                if distance > DRAG_DEADZONE {
                     self.dragged = true;
                 }
             }
@@ -317,14 +315,13 @@ impl Gui {
         None
     }
 
-    const DOUBLE_CLICK_TIME: Duration = Duration::from_millis(500);
     pub fn on_mouse_up(&mut self, registry: &Registry) -> Option<InstanceAction> {
         let mouse_action = std::mem::replace(&mut self.mouse_action, MouseAction::None);
         let gui_action = if self.dragged {
             let drop_target = self.graph.get_drop_target_at(self.mouse_pos);
             mouse_action.on_drop(drop_target)
         } else {
-            if self.last_click.elapsed() < Self::DOUBLE_CLICK_TIME {
+            if self.last_click.elapsed() < DOUBLE_CLICK_TIME {
                 mouse_action.on_double_click()
             } else {
                 self.last_click = Instant::now();
