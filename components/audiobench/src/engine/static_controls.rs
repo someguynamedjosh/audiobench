@@ -27,12 +27,6 @@ impl StaticonUpdateRequest {
     }
 }
 
-pub struct StaticonDynCode {
-    input_data_type: String,
-    input_io_type: IOType,
-    code: String,
-}
-
 pub trait ControlledData: Debug {
     /// Returns true if the control's value must be available at compile time. This will cause the
     /// code to be recompiled every time the user changes the value, so it should be avoided if at
@@ -101,6 +95,9 @@ impl ControlledInt {
     pub fn set_value(&mut self, value: i16) -> StaticonUpdateRequest {
         assert!(value >= self.range.0);
         assert!(value <= self.range.1);
+        if self.value == value {
+            return StaticonUpdateRequest::Nothing;
+        }
         self.value = value;
         StaticonUpdateRequest::dyn_update_if_allowed(self)
     }
@@ -211,6 +208,9 @@ impl ControlledDuration {
     pub fn set_decimal_value(&mut self, value: f32) -> StaticonUpdateRequest {
         // This assert does not protect anything but it *is* indicative of a bug.
         debug_assert!(!self.fraction_mode);
+        if self.decimal_value == value {
+            return StaticonUpdateRequest::Nothing;
+        }
         self.decimal_value = value;
         StaticonUpdateRequest::dyn_update_if_allowed(self)
     }
@@ -225,6 +225,9 @@ impl ControlledDuration {
     ) -> StaticonUpdateRequest {
         // This assert does not protect anything but it *is* indicative of a bug.
         debug_assert!(self.fraction_mode);
+        if self.fraction_numerator == numerator && self.fraction_denominator == denominator {
+            return StaticonUpdateRequest::Nothing;
+        }
         self.fraction_numerator = numerator;
         self.fraction_denominator = denominator;
         StaticonUpdateRequest::dyn_update_if_allowed(self)
@@ -384,6 +387,9 @@ impl ControlledTriggerSequence {
     }
 
     pub fn set_len(&mut self, len: usize) -> StaticonUpdateRequest {
+        if self.sequence.len() == len {
+            return StaticonUpdateRequest::Nothing;
+        }
         self.sequence.resize(len, false);
         // Changing the length changes the data type of the information dynamically passed in for
         // this control, so the code has to be updated.
@@ -447,6 +453,9 @@ impl ControlledValueSequence {
     }
 
     pub fn set_len(&mut self, len: usize) -> StaticonUpdateRequest {
+        if self.sequence.len() == len {
+            return StaticonUpdateRequest::Nothing;
+        }
         self.sequence.resize(len, -1.0);
         // Changing the length changes the data type of the information dynamically passed in for
         // this control, so the code has to be updated.
@@ -460,6 +469,9 @@ impl ControlledValueSequence {
 
     pub fn set_value(&mut self, index: usize, value: f32) -> StaticonUpdateRequest {
         assert!(index < self.get_len());
+        if self.sequence[index] == value {
+            return StaticonUpdateRequest::Nothing;
+        }
         self.sequence[index] = value;
         StaticonUpdateRequest::dyn_update_if_allowed(self)
     }
@@ -539,6 +551,9 @@ impl ControlledOptionChoice {
 
     pub fn set_selected_option(&mut self, selected_option: usize) -> StaticonUpdateRequest {
         assert!(selected_option < self.options.len());
+        if self.selected_option == selected_option {
+            return StaticonUpdateRequest::Nothing;
+        }
         self.selected_option = selected_option;
         StaticonUpdateRequest::dyn_update_if_allowed(self)
     }

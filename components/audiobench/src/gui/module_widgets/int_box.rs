@@ -1,11 +1,10 @@
 use super::ModuleWidget;
-use crate::engine::parts as ep;
 use crate::engine::static_controls as staticons;
 use crate::gui::action::MouseAction;
 use crate::gui::constants::*;
 use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
 use crate::gui::{InteractionHint, MouseMods, Tooltip};
-use crate::registry::{yaml::YamlNode, Registry};
+use crate::registry::Registry;
 use crate::util::*;
 
 #[derive(Clone)]
@@ -152,13 +151,7 @@ impl IntBox {
         tooltip: String,
     ) -> IntBox {
         let (min, max) = control.borrow().get_range();
-        let base = IntBoxBase::create(
-            tooltip,
-            registry,
-            pos,
-            (min as i32, max as i32),
-            label,
-        );
+        let base = IntBoxBase::create(tooltip, registry, pos, (min as i32, max as i32), label);
         IntBox { base, control }
     }
 }

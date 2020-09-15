@@ -54,8 +54,8 @@ impl YamlNode {
     ) -> Result<T, String> {
         parser(self.value.trim()).map_err(|err| {
             format!(
-                "ERROR: The value of {} is not valid, caused by:\n",
-                self.full_name
+                "ERROR: The value of {} is not valid, caused by:\n{}",
+                self.full_name, err
             )
         })
     }
@@ -89,7 +89,7 @@ impl YamlNode {
     }
 
     /// Returns the index of the item in `possible_values` which matches `self.value.trim()`. If
-    /// there is no matching item, a human readable error is returned containing the location of 
+    /// there is no matching item, a human readable error is returned containing the location of
     /// the errror and a list of legal values. E.G.: "ERROR: The value of path.to.node is not one
     /// of 'foo', 'bar', 'baz',". I'm too lazy to get rid of the last comma.
     pub fn parse_enumerated(&self, possible_values: &[&str]) -> Result<usize, String> {
