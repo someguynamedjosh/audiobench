@@ -34,9 +34,9 @@ if [ "$1" == "clean" ]; then
     cargo clean
 fi
 if [ "$1" == "release" ]; then
-    cargo build --release -p audiobench
+    cargo build --release -p audiobench-clib
 else
-    cargo build -p audiobench
+    cargo build -p audiobench-clib
 fi
 echo "Success!"
 

@@ -21,7 +21,7 @@ cmake --build cmake-build-install --target install
 cd ..
 $Env:JUCE_DIR = "$Env:JUCE6_PREFIX/lib/cmake/JUCE-6.0.0"
 
-cargo build --release -p audiobench
+cargo build --release -p audiobench-clib
 mkdir ../../artifacts -ea 0
 mkdir _build -ea 0
 
