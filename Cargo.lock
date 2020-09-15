@@ -78,6 +78,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "audiobench-clib"
+version = "0.1.0"
+dependencies = [
+ "audiobench",
+]
+
+[[package]]
 name = "autocfg"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -94,6 +101,10 @@ name = "base64"
 version = "0.12.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3441f0f7b02788e948e47f457ca01f1d7e6d92c693bc132c22b087d3141c03ff"
+
+[[package]]
+name = "benchmark"
+version = "0.1.0"
 
 [[package]]
 name = "bitflags"

@@ -1,5 +1,5 @@
-[submodule "frontends/juce/juce_git"]
-	path = frontends/juce/juce_git
+[submodule "components/juce_frontend/juce_git"]
+	path = components/juce_frontend/juce_git
 	url = https://github.com/juce-framework/JUCE.git
 	branch = juce6
 	ignore = dirty
