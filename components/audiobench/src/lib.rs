@@ -188,6 +188,13 @@ impl Instance {
         }
     }
 
+    pub fn perf_report(&self) -> String {
+        self.engine
+            .as_ref()
+            .map(|engine| engine.perf_counter_report())
+            .unwrap_or("Engine failed to initialize.".to_owned())
+    }
+
     pub fn get_num_icons(&self) -> usize {
         self.registry.get_num_icons()
     }
