@@ -113,18 +113,27 @@ impl PerfCounter for SimplePerfCounter {
 
     fn report(&self) -> String {
         let mut report = String::new();
-        report += &format!(" SECTION NAME                   | SAMPLES | TIME PER SAMPLE \n");
+        report += &format!(
+            "SECTION NAME                   | TOTAL TIME | SAMPLES | TIME PER SAMPLE \n"
+        );
+        let mut everything_time = 0.0;
         for section in &sections::ALL_SECTIONS {
             let invocations = self.num_invocations[section.index];
-            let average_time =
-                self.cumulative_time[section.index].as_secs_f64() / (invocations as f64);
+            let total_time = self.cumulative_time[section.index].as_secs_f64();
+            everything_time += total_time;
+            let average_time = total_time / (invocations as f64);
             report += &format!(
-                " {:<30} | {:>7} | {:>15} \n",
+                "{:<30} | {:>10} | {:>7} | {:>15} \n",
                 section.name,
+                total_time.format_metric(6, "s"),
                 invocations,
                 average_time.format_metric(6, "s")
             );
         }
+        report += &format!(
+            "                                 {:>10}",
+            everything_time.format_metric(6, "s")
+        );
         report
     }
 }

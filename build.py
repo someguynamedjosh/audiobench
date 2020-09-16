@@ -151,6 +151,13 @@ def run_standalone():
     command([PROJECT_ROOT.joinpath('artifacts', 'bin', artifact)])
 
 
+def run_benchmark():
+    args = ['cargo', 'run', '-p', 'benchmark']
+    if DO_RELEASE:
+        args.append('--release')
+    command(args)
+
+
 def build_juce6_win():
     JUCE6_PREFIX = JUCE_FRONTEND_ROOT.joinpath('juce6_built')
     slashed_prefix = str(JUCE6_PREFIX).replace('\\', '/')
@@ -178,6 +185,7 @@ JOBS = {
     'remove_juce_splash': Job('Remove JUCE splash screen (Audiobench is GPLv3)', [], remove_juce_splash),
     'juce_frontend': Job('Build the JUCE frontend for Audiobench', ['remove_juce_splash', 'clib'], build_juce_frontend),
     'run': Job('Run the standalone version of Audiobench', ['juce_frontend'], run_standalone),
+    'benchmark': Job('Run a benchmarking suite', [], run_benchmark),
 }
 
 if ON_WINDOWS:

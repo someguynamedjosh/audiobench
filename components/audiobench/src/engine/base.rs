@@ -104,7 +104,6 @@ impl Engine {
         };
 
         let mut compiler = AudiobenchCompiler::new(registry);
-        println!("{}", code);
         let program = compiler.compile(code).map_err(|err| {
             format!(
                 concat!(
@@ -318,7 +317,6 @@ impl Engine {
         let mut ctd = self.ctd_mux.lock().unwrap();
 
         if let Some((code, data_format)) = ctd.new_source.take() {
-            println!("{}", code);
             self.atd.input.set_data_format(data_format.clone());
             self.atd.output.set_data_format(data_format.clone());
             ctd.notes.set_data_format(data_format.clone());
