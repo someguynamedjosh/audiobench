@@ -36,6 +36,9 @@ build-windows:
     - windows-1809
   stage: build
   script:
+    - echo "Required for build script."
+    - choco install python3 -y
+    - python3 --help
     - git submodule init
     - git submodule update
     - echo "this script fills me with pain"
@@ -57,7 +60,7 @@ build-windows:
     - $Env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
     - choco install rust-ms --version=1.44.1 -y
     - choco install windows-sdk-10.0 -y
-    - python build.py juce_frontend --release
+    - python3 build.py juce_frontend --release
   only:
     - master
     - merge_requests
