@@ -3,6 +3,7 @@ use super::data_format::OwnedIOData;
 use super::data_routing::{AutoconDynDataCollector, FeedbackDisplayer, StaticonDynDataCollector};
 use super::data_transfer::{DataFormat, HostData, HostFormat, InputPacker, OutputUnpacker};
 use super::parts::ModuleGraph;
+use super::perf_counter::PerfCounter;
 use super::program_wrapper::{AudiobenchCompiler, AudiobenchProgram, NoteTracker};
 use crate::registry::{save_data::Patch, Registry};
 use crate::util::*;
@@ -12,6 +13,8 @@ use std::time::{Duration, Instant};
 const DEFAULT_BUFFER_LENGTH: usize = 512;
 const DEFAULT_SAMPLE_RATE: usize = 44100;
 const FEEDBACK_UPDATE_INTERVAL: Duration = Duration::from_millis(50);
+
+type PreferredPerfCounter = crate::engine::perf_counter::SimplePerfCounter;
 
 struct UiThreadData {
     module_graph: Rcrc<ModuleGraph>,
@@ -29,6 +32,7 @@ struct CrossThreadData {
     new_staticon_dyn_data: Option<Vec<OwnedIOData>>,
     new_feedback_data: Option<Vec<f32>>,
     critical_error: Option<String>,
+    perf_counter: PreferredPerfCounter,
 }
 
 struct AudioThreadData {
@@ -48,6 +52,11 @@ pub struct Engine {
 }
 
 impl Engine {
+    // MISC METHODS ================================================================================
+    pub fn perf_counter_report(&self) -> String {
+        self.ctd_mux.lock().unwrap().perf_counter.report()
+    }
+
     // UI THREAD METHODS ===========================================================================
     pub fn new(registry: &mut Registry) -> Result<Self, String> {
         let mut module_graph = ModuleGraph::new();
@@ -124,6 +133,7 @@ impl Engine {
             new_staticon_dyn_data: None,
             new_feedback_data: None,
             critical_error: None,
+            perf_counter: PreferredPerfCounter::new(),
         };
 
         Ok(Self {
@@ -347,13 +357,19 @@ impl Engine {
             self.atd.last_feedback_data_update = Instant::now();
         }
         if let Some(program) = &mut self.atd.current_program {
+            let CrossThreadData {
+                notes,
+                perf_counter,
+                ..
+            } = &mut *ctd;
             let result = program.execute(
                 update_feedback_data,
                 &mut self.atd.input,
                 &mut self.atd.output,
                 &mut self.atd.host_data,
-                &mut ctd.notes,
+                notes,
                 &mut self.atd.audio_buffer[..],
+                perf_counter,
             );
             if let Err(err) = result {
                 ctd.critical_error = Some(err);

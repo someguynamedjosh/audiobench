@@ -1,4 +1,6 @@
 use const_env::from_env;
+use num::Float;
+use std::fmt::Display;
 
 #[from_env("CARGO_PKG_VERSION_MINOR")]
 pub const ENGINE_VERSION: u16 = 0xFFFF;
@@ -13,8 +15,6 @@ pub const ENGINE_INFO: &'static str = concat!(
 pub const ENGINE_UPDATE_URL: &'static str = "http://localhost:8000/latest.json";
 #[cfg(not(debug_assertions))]
 pub const ENGINE_UPDATE_URL: &'static str = "https://bit.ly/audiobench-engine-update-check";
-
-use num::Float;
 
 pub trait FloatUtil: Sized + Copy {
     /// Converts from the range [from_min,from_max] to [0,1]
@@ -34,9 +34,13 @@ pub trait FloatUtil: Sized + Copy {
     fn clam(self, min: Self, max: Self) -> Self;
     /// Snaps the value to equally-spaced steps within the given range.
     fn snap(self, min: Self, max: Self, num_steps: Self) -> Self;
+    /// Returns a string which represents this value using metric units (e.g. k, m, M, G). sig_figs
+    /// is how many significant figures should be displayed. For example, a value of 5 might produce
+    /// an output like 1.2345kV or 123.45um. Values less than 3 are unsupported and will assert.
+    fn format_metric(self, sig_figs: usize, unit: &str) -> String;
 }
 
-impl<T: Float> FloatUtil for T {
+impl<T: Float + Display> FloatUtil for T {
     fn from_range(self, from_min: Self, from_max: Self) -> Self {
         (self - from_min) / (from_max - from_min)
     }
@@ -62,6 +66,63 @@ impl<T: Float> FloatUtil for T {
             .to_range(-third, num_steps + third)
             .round()
             .from_range_to_range(T::zero(), num_steps, min, max)
+    }
+
+    fn format_metric(self, sig_figs: usize, unit: &str) -> String {
+        assert!(sig_figs >= 3);
+        // ._.
+        let one: T = T::one();
+        let five: T = one + one + one + one + one;
+        let ten = five + five;
+        let thousand = ten * ten * ten;
+        let mut adjusted_value = self;
+
+        let format_metric_sig_figs = |value: T| -> String {
+            let mut precision = sig_figs;
+            // We only format values that have between one and three sig figs before the decimal.
+            if value >= ten * ten {
+                precision -= 3;
+            } else if value >= ten {
+                precision -= 2;
+            } else {
+                precision -= 1;
+            }
+            format!("{0:.1$}", value, precision)
+        };
+
+        if adjusted_value.abs() < one {
+            // Keep using smaller prefixes until it looks nice.
+            const PREFIXES: [&str; 9] = ["", "m", "u", "n", "p", "f", "a", "z", "y"];
+            for (index, prefix) in PREFIXES.iter().enumerate() {
+                if adjusted_value.abs() >= one {
+                    return format!(
+                        "{}{}{}",
+                        format_metric_sig_figs(adjusted_value),
+                        prefix,
+                        unit
+                    );
+                }
+                adjusted_value = adjusted_value * thousand;
+            }
+            // If we get down to the smallest prefix and it still isn't enough, return 0.
+            format!("{0:.1$}{2}", 0.0, sig_figs - 1, unit)
+        } else {
+            // Keep using bigger prefixes until it looks nice.
+            const PREFIXES: [&str; 9] = ["", "k", "M", "G", "T", "P", "E", "Z", "Y"];
+            for (index, prefix) in PREFIXES.iter().enumerate() {
+                if adjusted_value.abs() <= thousand {
+                    return format!(
+                        "{}{}{}",
+                        format_metric_sig_figs(adjusted_value),
+                        prefix,
+                        unit
+                    );
+                }
+                adjusted_value = adjusted_value / thousand;
+            }
+            // If we get up to the largest prefix and it still isn't enough, return inf.
+            format!("inf {}", unit)
+        }
     }
 }
 
