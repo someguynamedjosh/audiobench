@@ -4,6 +4,7 @@ members = [
     "components/audiobench",
     "components/audiobench-clib",
     "components/benchmark",
+    "components/nodespeak",
     "components/yaml_widget_boilerplate",
 ]
 

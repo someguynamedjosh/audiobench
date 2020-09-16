@@ -1,0 +1,30 @@
+[package]
+name = "nodespeak"
+version = "0.2.1"
+authors = ["Code_Cube <Code_Cube@gitlab.com>"]
+edition = "2018"
+default-run="nodespeak"
+
+description = "A JIT-ish compiler for number-crunching applications."
+license = "MIT OR Apache-2.0"
+documentation = "https://docs.rs/nodespeak"
+homepage = "https://gitlab.com/Code_Cube/nodespeak-compiler"
+repository = "https://gitlab.com/Code_Cube/nodespeak-compiler"
+
+[features]
+no-vague=["no-resolved"]
+no-resolved=["no-trivial"]
+no-trivial=["no-llvmir"]
+no-llvmir=[]
+dump-llvmir=[]
+
+[dependencies]
+colored = "1.8"
+libc = "0.2"
+llvm-sys = "70"
+pest = "2.1"
+pest_derive = "2.1"
+readonly = "0.1"
+snailquote = "0.3"
+terminal_size="0.1"
+text_io = "0.1"
