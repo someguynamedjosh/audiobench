@@ -29,9 +29,29 @@ pub mod sections {
         index: 4,
         name: "Global Finalize",
     };
+    pub const GENERATE_CODE: PerfCountSection = PerfCountSection {
+        index: 8,
+        name: "Generate Code",
+    };
+    pub const COMPILE_CODE: PerfCountSection = PerfCountSection {
+        index: 5,
+        name: "Compile Code",
+    };
+    pub const COLLECT_AUTOCON_DATA: PerfCountSection = PerfCountSection {
+        index: 6,
+        name: "Collect Autocon Data",
+    };
+    pub const COLLECT_STATICON_DATA: PerfCountSection = PerfCountSection {
+        index: 7,
+        name: "Collect Staticon Data",
+    };
 
-    pub const NUM_SECTIONS: usize = 5;
+    pub const NUM_SECTIONS: usize = 9;
     pub const ALL_SECTIONS: [&'static PerfCountSection; NUM_SECTIONS] = [
+        &GENERATE_CODE,
+        &COMPILE_CODE,
+        &COLLECT_AUTOCON_DATA,
+        &COLLECT_STATICON_DATA,
         &GLOBAL_SETUP,
         &NOTE_SETUP,
         &NODESPEAK_EXEC,
