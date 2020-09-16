@@ -486,7 +486,9 @@ impl<'a> Converter<'a> {
             i::BinaryOperator::Or => unsafe { LLVMBuildOr(self.builder, ar, br, UNNAMED) },
             i::BinaryOperator::Xor => unsafe { LLVMBuildXor(self.builder, ar, br, UNNAMED) },
             i::BinaryOperator::LeftShift => unsafe { LLVMBuildShl(self.builder, ar, br, UNNAMED) },
-            i::BinaryOperator::RightShift => unsafe { LLVMBuildLShr(self.builder, ar, br, UNNAMED) },
+            i::BinaryOperator::RightShift => unsafe {
+                LLVMBuildLShr(self.builder, ar, br, UNNAMED)
+            },
         }
     }
 
@@ -714,13 +716,81 @@ impl<'a> Converter<'a> {
             );
 
             let pm = LLVMCreatePassManager();
+            // Available passes: https://llvm.org/docs/Passes.html#transform-passes
+            // Good example of a full optimization pipeline:
+            // Line 436 starts a -O1 pipeline
+            // Line 557 starts -O2 and -O3 pipelines. This is more what is being mimicked.
+            // There is also a different one at 1035 which may be better. I think it is supposed
+            // to work at a module level rather than a function level.
+            // https://llvm.org/doxygen/PassBuilder_8cpp_source.html#l01230
             // Convert all our stores / loads into flat, efficient SSA style code.
             llvmt::scalar::LLVMAddScalarReplAggregatesPassSSA(pm);
             llvmt::scalar::LLVMAddEarlyCSEPass(pm);
-            llvmt::scalar::LLVMAddInstructionCombiningPass(pm);
-            llvmt::scalar::LLVMAddReassociatePass(pm);
-            llvmt::scalar::LLVMAddGVNPass(pm);
+            // Not sure if this is supposed to work here.
+            // llvmt::scalar::LLVMAddGVNPass(pm); ------
             llvmt::scalar::LLVMAddCFGSimplificationPass(pm);
+            // We do not seem to have a function to add speculative execution optimizations.
+            llvmt::scalar::LLVMAddJumpThreadingPass(pm);
+            // Couldn't find what this one does.
+            llvmt::scalar::LLVMAddCorrelatedValuePropagationPass(pm);
+            llvmt::scalar::LLVMAddCFGSimplificationPass(pm);
+            llvmt::scalar::LLVMAddInstructionCombiningPass(pm);
+            // We do not do tail call elimination because we do not have functions or a stack.
+            // llvmt::scalar::LLVMAddTailCallEliminationPass(pm);
+            // llvmt::scalar::LLVMAddCFGSimplificationPass(pm);
+            llvmt::scalar::LLVMAddReassociatePass(pm);
+            // The source linked above adds loop optimizations which I am not sure how to express
+            // with the C API.
+
+            // The following is executed in between and after the loop optimizations:
+            // llvmt::scalar::LLVMAddCFGSimplificationPass(pm);
+            // llvmt::instcombine::LLVMAddInstructionCombiningPass(pm);
+            // llvmt::scalar::LLVMAddScalarReplAggregatesPassSSA(pm);
+            // I don't understand what this pass does but it looks fancy.
+            llvmt::scalar::LLVMAddMergedLoadStoreMotionPass(pm);
+            llvmt::scalar::LLVMAddGVNPass(pm);
+            llvmt::scalar::LLVMAddMemCpyOptPass(pm);
+            // The original source uses a fancy "Sparse conditional" propogation I can't find.
+            llvmt::scalar::LLVMAddConstantPropagationPass(pm);
+            llvmt::scalar::LLVMAddBitTrackingDCEPass(pm);
+            llvmt::instcombine::LLVMAddInstructionCombiningPass(pm);
+            // The original code mentions redoing these things because new opportunities are opened
+            // up by previous optimizations.
+            llvmt::scalar::LLVMAddJumpThreadingPass(pm);
+            llvmt::scalar::LLVMAddCorrelatedValuePropagationPass(pm);
+            llvmt::scalar::LLVMAddDeadStoreEliminationPass(pm);
+            // This is a loop based pass. I'm not sure if it will work.
+            llvmt::scalar::LLVMAddLICMPass(pm);
+            // The original code mentions wrapping up with expensive passes.
+            llvmt::scalar::LLVMAddAggressiveDCEPass(pm);
+            llvmt::scalar::LLVMAddCFGSimplificationPass(pm);
+            llvmt::instcombine::LLVMAddInstructionCombiningPass(pm);
+
+
+            // This is where I start doing stuff fromn line 1035
+            llvmt::ipo::LLVMAddGlobalOptimizerPass(pm);
+            llvmt::ipo::LLVMAddGlobalDCEPass(pm);
+            llvmt::scalar::LLVMAddLoopRotatePass(pm);
+            llvmt::vectorize::LLVMAddLoopVectorizePass(pm);
+            // There is supposed to be a LoopLoadEliminationPass here but I can't find it.
+            llvmt::instcombine::LLVMAddInstructionCombiningPass(pm);
+            llvmt::scalar::LLVMAddCFGSimplificationPass(pm);
+            llvmt::vectorize::LLVMAddSLPVectorizePass(pm);
+            // VectorCombinePass is missing
+            llvmt::instcombine::LLVMAddInstructionCombiningPass(pm);
+            // This may be too expensive.
+            // llvmt::scalar::LLVMAddLoopUnrollAndJamPass(pm);
+            llvmt::scalar::LLVMAddLICMPass(pm);
+            llvmt::scalar::LLVMAddAlignmentFromAssumptionsPass(pm);
+            // Missing HotColdSplittingPass
+            // Missing LoopSinkPass, which is supposed to run after LICM.
+            // Missing InstSimplifyPass
+            // wtf is this library
+            // MISSING DIVREMPAIRSPASS
+            llvmt::scalar::LLVMAddCFGSimplificationPass(pm);
+            // Missing SpeculateAroundPHIsPass...
+            llvmt::ipo::LLVMAddGlobalDCEPass(pm);
+            llvmt::ipo::LLVMAddConstantMergePass(pm);
 
             LLVMRunPassManager(pm, self.module);
             LLVMDisposePassManager(pm);
