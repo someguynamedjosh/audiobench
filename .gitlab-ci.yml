@@ -27,7 +27,7 @@ build-linux:
   artifacts:
     expire_in: 2h
     paths:
-      - frontends/juce/artifacts/
+      - artifacts/bin/
 
 build-windows:
   tags:
@@ -64,30 +64,29 @@ build-windows:
   artifacts:
     expire_in: 2h
     paths:
-      - frontends/juce/artifacts/
+      - artifacts/bin/
 
 build-website:
   stage: build
   image: alpine
   script:
-    - cd docs/website
-    - mkdir artifacts
-    - cp -r src/* artifacts/
+    - mkdir -p artifacts/website/
+    - cp -r docs/website/src/* artifacts/website/
   only:
     - master
   artifacts:
     expire_in: 2h
     paths:
-      - docs/website/artifacts/
+      - artifacts/website/
 
 pages:
   stage: publish
   image: alpine
   script:
     - mkdir public
-    - mv docs/website/artifacts/* public/
-    - mkdir public/builds/
-    - mv frontends/juce/artifacts/* public/builds/
+    - mv artifacts/website/* public/
+    - mkdir -p public/builds/
+    - mv artifacts/bin/* public/builds/
   only:
     - master
   artifacts:
