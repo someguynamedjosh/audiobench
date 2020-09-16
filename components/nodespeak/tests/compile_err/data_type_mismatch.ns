@@ -1,0 +1,2 @@
+INT var;
+FLOAT other = var;

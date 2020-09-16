@@ -1,0 +1,120 @@
+block_comment = _{ "/*" ~ (!"*/" ~ ANY)* ~ "*/" }
+line_comment = _{ "//" ~ (!"\n" ~ ANY)* ~ (EOI | "\n") }
+COMMENT = _{ block_comment | line_comment }
+WHITESPACE = _{ " " | "\t" | "\n" | "\r\n" }
+
+dec_int = @{ (ASCII_DIGIT | "_")+ }
+bin_int = @{ "0b" ~ (ASCII_BIN_DIGIT | "_")+ }
+oct_int = @{ "0o" ~ (ASCII_OCT_DIGIT | "_")+ }
+hex_int = @{ "0x" ~ (ASCII_HEX_DIGIT | "_")+ }
+legacy_oct_int = @{ "0" ~ (ASCII_OCT_DIGIT | "_")+ }
+
+int = _{ bin_int | hex_int | oct_int | legacy_oct_int | dec_int }
+dec_digit = _{ ASCII_DIGIT | "_" }
+float = @{
+    (dec_digit* ~ "." ~ dec_digit+ ~ ("e" ~ ("+" | "-")? ~ dec_digit+)?)
+    | (dec_digit+ ~ "." ~ ("e" ~ ("+" | "-")? ~ dec_digit+)?)
+    | (dec_digit+ ~ "e" ~ ("+" | "-")? ~ dec_digit+)
+}
+
+literal = { float | int }
+
+identifier = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
+
+// Value Producing Expressions
+vp_var = { identifier }
+
+build_array = { "[" ~ (vpe ~ ("," ~ vpe)*)? ~ ","? ~ "]" }
+
+vpe_part_1 = { literal | macro_call | vp_var | "(" ~ vpe ~ ")" | build_array }
+
+build_array_type = { ("[" ~ vpe ~ "]")+ ~ vpe_part_1 }
+optional_index_indicator = { "?" }
+vp_index = { vpe_part_1 ~ ("[" ~ vpe ~ optional_index_indicator? ~ "]")+ }
+vpe_part_2 = { build_array_type | vp_index | vpe_part_1 }
+
+negate = { "-" ~ vpe_part_2 }
+not = { "!" ~ vpe_part_2 }
+get_property = { vpe_part_2 ~ ":" ~ identifier }
+vpe_part_3 = { negate | not | get_property | vpe_part_2 }
+
+vpe_part = _{ vpe_part_3 }
+
+// Operator precedence is done after parsing, because Pest uses an algorithm which chokes and
+// slows down drastically if operator precedence is built in to the grammar.
+operator = { 
+    "**" | "*" | "//" | "/" | "%" | "+" | "-"
+    | "<<" | ">>"
+    | "<=" | ">=" | "<" | ">" | "==" | "!="
+    | "band" | "bnand" | "bor" | "bnor" | "bxor" | "bxnor"
+    | "and" | "nand" | "or" | "nor" | "xor" | "xnor"
+}
+
+vpe = { vpe_part ~ (operator ~ vpe_part)* }
+
+// Value Consuming Expressions
+var_dec = { vpe ~ identifier }
+vc_identifier = { identifier }
+vc_index = { vc_identifier ~ ("[" ~ vpe ~ optional_index_indicator? ~ "]")+ }
+vce = { vc_index | var_dec | vc_identifier }
+
+// Macro calls
+
+macro_call_input_list = { "(" ~ (vpe ~ ("," ~ vpe)*)? ~ ","? ~ ")" }
+inline_output = { "inline" }
+macro_call_output = _{ vce | inline_output }
+macro_call_output_list = { ":" ~ "(" ~ (macro_call_output~ ("," ~ macro_call_output)*)? ~ ","? ~ ")" }
+macro_call = { identifier ~ macro_call_input_list ~ macro_call_output_list? }
+
+// Macro definitions (techincally part of statements.)
+
+macro_inputs = { "(" ~ (
+    identifier ~ ("," ~ identifier )* ~ ","?
+)? ~ ")" }
+macro_outputs = { ":" ~ "(" ~ (
+    identifier ~ ("," ~ identifier)* ~ ","?
+)? ~ ")" }
+single_macro_output = { ":" ~ identifier }
+
+macro_signature = {
+    (macro_inputs ~ (macro_outputs | single_macro_output)?)
+}
+macro_definition = { 
+    "macro" ~ identifier ~ macro_signature ~ code_block 
+}
+
+// If statements.
+else_if_clause = { "else" ~ "if" ~ vpe ~ code_block }
+else_clause = { "else" ~ code_block }
+if_statement = { "if" ~ vpe ~ code_block ~ (else_if_clause)* ~ (else_clause)? }
+
+// For loop statements.
+no_unroll_keyword = { "no_unroll" }
+for_loop_statement = { "for" ~ identifier ~ "=" ~ vpe ~ "to" ~ vpe ~ no_unroll_keyword? ~ code_block }
+
+// Strings (wip)
+raw_string = @{ (!("\\" | "\"") ~ ANY)+ }
+escape_sequence = @{ "\\n" | "\\t" | "\\r" | "\\\\" | "\\\"" | "\\'" }
+string = @{"\"" ~ (raw_string | escape_sequence)* ~ "\"" }
+
+// Statements.
+input_variable_statement = { "input" ~ vpe ~ identifier ~ ("," ~ identifier)* ~ ","? ~ ";" }
+output_variable_statement = { "output" ~ vpe ~ identifier ~ ("," ~ identifier)* ~ ","? ~ ";" }
+static_variable_statement = { "static" ~ (identifier ~ ("," ~ identifier)*)? ~ code_block }
+assign_statement = { vce ~ "=" ~ vpe ~ ";" }
+macro_call_statement = _{ macro_call ~ ";" }
+var_dec_statement = _{ var_dec ~ ";" }
+return_statement = { "return" ~ ";" }
+assert_statement = { "assert" ~ vpe ~ ";" }
+include_statement = { "include" ~ string ~ ";" }
+
+statement = { 
+    macro_definition | code_block | return_statement | assert_statement | include_statement
+    | if_statement | for_loop_statement 
+    | input_variable_statement | output_variable_statement | static_variable_statement 
+    | assign_statement | macro_call_statement | var_dec_statement
+}
+
+code_block = { "{" ~ statement* ~ "}" }
+
+root = { SOI ~ statement* ~ EOI }
