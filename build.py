@@ -102,7 +102,7 @@ def build_juce_frontend():
 
     cmake_config = ['Debug', 'Release'][DO_RELEASE]
     if ON_WINDOWS:
-        command(['cmake', '-G"Visual Studio 16 2019"', '-A', 'x64', '-Thost=x64',
+        command(['cmake', '-GVisual Studio 16 2019', '-A', 'x64', '-Thost=x64',
                  '..'], working_dir=JUCE_FRONTEND_ROOT.joinpath('_build'))
         command(['cmake', '--build', '_build', '--config',
                  cmake_config], working_dir=JUCE_FRONTEND_ROOT)
@@ -163,8 +163,8 @@ def build_juce6_win():
     slashed_prefix = str(JUCE6_PREFIX).replace('\\', '/')
     set_env('JUCE6_PREFIX', slashed_prefix)
     mkdir(JUCE6_PREFIX)
-    command(['cmake', '-Bcmake-build-install', '-DCMAKE_INSTALL_PREFIX="{}"'.format(
-        slashed_prefix), '-G"Visual Studio 16 2019"', '-A', 'x64', '-Thost=x64'], working_dir=JUCE_FRONTEND_ROOT.joinpath('juce_git'))
+    command(['cmake', '-Bcmake-build-install', '-DCMAKE_INSTALL_PREFIX={}'.format(
+        slashed_prefix), '-GVisual Studio 16 2019', '-A', 'x64', '-Thost=x64'], working_dir=JUCE_FRONTEND_ROOT.joinpath('juce_git'))
     command(['cmake', '--build', 'cmake-build-install', '--target',
              'install'], working_dir=JUCE_FRONTEND_ROOT.joinpath('juce_git'))
     set_env('JUCE_DIR', str(JUCE6_PREFIX.joinpath(
