@@ -38,6 +38,7 @@ build-windows:
   script:
     - echo "Required for build script."
     - choco install python3 -y
+    - $Env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
     - python3 --help
     - git submodule init
     - git submodule update
