@@ -3,7 +3,7 @@ use super::data_format::OwnedIOData;
 use super::data_routing::{AutoconDynDataCollector, FeedbackDisplayer, StaticonDynDataCollector};
 use super::data_transfer::{DataFormat, HostData, HostFormat, InputPacker, OutputUnpacker};
 use super::parts::ModuleGraph;
-use super::perf_counter::PerfCounter;
+use super::perf_counter::{PerfCounter, sections};
 use super::program_wrapper::{AudiobenchCompiler, AudiobenchProgram, NoteTracker};
 use crate::registry::{save_data::Patch, Registry};
 use crate::util::*;
@@ -57,7 +57,6 @@ impl Engine {
         self.ctd_mux.lock().unwrap().perf_counter.report()
     }
 
-    // UI THREAD METHODS ===========================================================================
     pub fn new(registry: &mut Registry) -> Result<Self, String> {
         let mut module_graph = ModuleGraph::new();
         let host_format = HostFormat {
@@ -142,6 +141,7 @@ impl Engine {
         })
     }
 
+    // UI THREAD METHODS ===========================================================================
     pub fn rename_current_patch(&mut self, name: String) {
         assert!(self.utd.current_patch_save_data.borrow().is_writable());
         let mut patch_ref = self.utd.current_patch_save_data.borrow_mut();
@@ -215,12 +215,18 @@ impl Engine {
         let mut ctd = self.ctd_mux.lock().unwrap();
 
         let module_graph_ref = self.utd.module_graph.borrow();
+        ctd.perf_counter.begin_section(&sections::GENERATE_CODE);
         let new_gen = codegen::generate_code(&*module_graph_ref, &ctd.host_format)
             .map_err(|_| format!("The note graph cannot contain feedback loops"))?;
+        ctd.perf_counter.end_section(&sections::GENERATE_CODE);
         drop(module_graph_ref);
         ctd.new_source = Some((new_gen.code, new_gen.data_format.clone()));
+        ctd.perf_counter.begin_section(&sections::COLLECT_AUTOCON_DATA);
         ctd.new_autocon_dyn_data = Some(new_gen.autocon_dyn_data_collector.collect_data());
+        ctd.perf_counter.end_section(&sections::COLLECT_AUTOCON_DATA);
+        ctd.perf_counter.begin_section(&sections::COLLECT_STATICON_DATA);
         ctd.new_staticon_dyn_data = Some(new_gen.staticon_dyn_data_collector.collect_data());
+        ctd.perf_counter.end_section(&sections::COLLECT_STATICON_DATA);
         ctd.new_feedback_data = None;
         self.utd.autocon_dyn_data_collector = new_gen.autocon_dyn_data_collector;
         self.utd.staticon_dyn_data_collector = new_gen.staticon_dyn_data_collector;
@@ -231,13 +237,17 @@ impl Engine {
     pub fn reload_autocon_dyn_data(&mut self) {
         let mut ctd = self.ctd_mux.lock().unwrap();
 
+        ctd.perf_counter.begin_section(&sections::COLLECT_AUTOCON_DATA);
         ctd.new_autocon_dyn_data = Some(self.utd.autocon_dyn_data_collector.collect_data());
+        ctd.perf_counter.end_section(&sections::COLLECT_AUTOCON_DATA);
     }
 
     pub fn reload_staticon_dyn_data(&mut self) {
         let mut ctd = self.ctd_mux.lock().unwrap();
 
+        ctd.perf_counter.begin_section(&sections::COLLECT_STATICON_DATA);
         ctd.new_staticon_dyn_data = Some(self.utd.staticon_dyn_data_collector.collect_data());
+        ctd.perf_counter.end_section(&sections::COLLECT_STATICON_DATA);
     }
 
     /// Feedback data is generated on the audio thread. This method uses a mutex to retrieve that
@@ -320,6 +330,7 @@ impl Engine {
             self.atd.input.set_data_format(data_format.clone());
             self.atd.output.set_data_format(data_format.clone());
             ctd.notes.set_data_format(data_format.clone());
+            ctd.perf_counter.begin_section(&sections::COMPILE_CODE);
             match self.atd.compiler.compile(code) {
                 Ok(program) => self.atd.current_program = Some(program),
                 Err(err) => {
@@ -334,6 +345,7 @@ impl Engine {
                 ));
                 }
             }
+            ctd.perf_counter.end_section(&sections::COMPILE_CODE);
         }
         if let Some(new_autocon_dyn_data) = ctd.new_autocon_dyn_data.take() {
             self.atd
