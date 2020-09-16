@@ -39,7 +39,6 @@ build-windows:
     - echo "Required for build script."
     - choco install python3 -y
     - $Env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
-    - python --version
     - git submodule init
     - git submodule update
     - echo "this script fills me with pain"
@@ -61,7 +60,7 @@ build-windows:
     - $Env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
     - choco install rust-ms --version=1.44.1 -y
     - choco install windows-sdk-10.0 -y
-    - python3 build.py juce_frontend --release
+    - python build.py juce_frontend --release
   only:
     - master
     - merge_requests
