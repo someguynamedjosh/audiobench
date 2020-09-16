@@ -12,7 +12,6 @@ fn main() {
 
     let input_path = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("..")
-        .join("..")
         .join("factory_library");
     println!("cargo:rerun-if-changed={:?}", input_path.as_os_str());
     // https://github.com/mvdnes/zip-rs/blob/master/examples/write_dir.rs
