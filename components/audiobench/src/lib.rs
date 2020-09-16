@@ -311,7 +311,7 @@ impl Instance {
             // If the engine has new feedback data (from audio being played) then copy it over before
             // we render the UI so it will show up in the UI.
             self.engine.as_mut().unwrap().display_new_feedback_data();
-            g.set_color(&gui::constants::COLOR_BG);
+            g.set_color(&gui::constants::COLOR_BG0);
             g.clear();
             if let Some(gui) = &mut self.gui {
                 gui.draw(&mut g, &mut self.registry);

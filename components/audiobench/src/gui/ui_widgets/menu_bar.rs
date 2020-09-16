@@ -97,7 +97,7 @@ impl MenuBar {
         let w = hint_width(icons.len() as f32);
         if active {
             let x = rx - GRID_P - w;
-            g.set_color(&COLOR_TEXT);
+            g.set_color(&COLOR_FG1);
             g.fill_rounded_rect(x, y, w, HINT_HEIGHT, CORNER_SIZE);
             for (index, icon) in icons.iter().enumerate() {
                 g.draw_icon(
@@ -120,7 +120,7 @@ impl MenuBar {
             .position(|e| e == &current_screen)
             .unwrap() as i32;
 
-        g.set_color(&COLOR_SURFACE);
+        g.set_color(&COLOR_BG2);
         g.fill_rect(0.0, 0.0, width, Self::HEIGHT);
 
         const GP: f32 = GRID_P;
@@ -129,7 +129,7 @@ impl MenuBar {
         const HEIGHT: f32 = MenuBar::HEIGHT;
         const ITEM_HEIGHT: f32 = HEIGHT - GP * 2.0;
 
-        g.set_color(&COLOR_BG);
+        g.set_color(&COLOR_BG0);
         g.fill_rounded_rect(
             coord(0),
             coord(0),
@@ -143,12 +143,12 @@ impl MenuBar {
         if let Some(status) = self.status.as_ref() {
             g.set_color(&status.color);
         } else {
-            g.set_color(&COLOR_BG);
+            g.set_color(&COLOR_BG0);
         }
         g.fill_rounded_rect(tooltip_x, coord(0), tooltip_width + CS, ITEM_HEIGHT, CS);
         let text_x = tooltip_x + GP;
         let text_width = tooltip_width - GP * 2.0;
-        g.set_color(&COLOR_TEXT);
+        g.set_color(&COLOR_FG1);
         let text = if let Some(status) = self.status.as_ref() {
             &status.text
         } else {
@@ -166,7 +166,7 @@ impl MenuBar {
             text,
         );
 
-        g.set_color(&COLOR_BG);
+        g.set_color(&COLOR_BG0);
         let mut x = width + GP2;
         let hints = [
             (InteractionHint::Alt, vec![self.alt]),
@@ -188,7 +188,7 @@ impl MenuBar {
         for (index, icon) in self.screen_icons.iter().enumerate() {
             let index = index as i32;
             if current_screen_index == index {
-                g.set_color(&COLOR_TEXT);
+                g.set_color(&COLOR_FG1);
                 g.fill_rounded_rect(coord(index), coord(0), grid(1) + GP, grid(1) + GP, CS);
                 g.draw_icon(*icon, coord(index) + GP2, coord(0) + GP2, grid(1));
             } else {

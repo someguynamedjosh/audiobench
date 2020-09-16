@@ -126,9 +126,9 @@ impl LibraryBrowser {
         const TOP: VAlign = VAlign::Top;
         let tw = width - GP * 2.0;
 
-        g.set_color(&COLOR_SURFACE);
+        g.set_color(&COLOR_BG2);
         g.fill_rounded_rect(x, y, width, Self::ENTRY_HEIGHT, CS);
-        g.set_color(&COLOR_IO_AREA);
+        g.set_color(&COLOR_BG1);
         g.fill_rounded_rect(x, y, width, fatgrid(1), CS);
         let mut total_height = Self::ENTRY_HEIGHT;
         let mut actions = Vec::new();
@@ -140,9 +140,9 @@ impl LibraryBrowser {
             let y = y + Self::ENTRY_HEIGHT - CS;
             g.fill_rounded_rect(x, y, width, FS + CS + GP * 2.0, CS);
             // This gets rid of the bottom corners on the main text box.
-            g.set_color(&COLOR_SURFACE);
+            g.set_color(&COLOR_BG2);
             g.fill_rect(x, y, width, CS);
-            g.set_color(&COLOR_TEXT);
+            g.set_color(&COLOR_FG1);
             let ty = y + CS + GRID_P;
             let text = "Failed to check for updates, see console for details.";
             g.write_text(FS, x + GRID_P, ty, tw, FS, L, TOP, 1, text);
@@ -160,9 +160,9 @@ impl LibraryBrowser {
             let y = y + Self::ENTRY_HEIGHT - CS;
             let height = GP + (FS + GP) * (changes.len() + 1) as f32;
             g.fill_rounded_rect(x, y, width, height + CS, CS);
-            g.set_color(&COLOR_SURFACE);
+            g.set_color(&COLOR_BG2);
             g.fill_rect(x, y, width, CS);
-            g.set_color(&COLOR_TEXT);
+            g.set_color(&COLOR_FG1);
             let mut ty = y + CS + GRID_P;
             g.write_text(FS, x + GRID_P, ty, tw, FS, L, TOP, 1, &header);
             for change in changes {
@@ -177,7 +177,7 @@ impl LibraryBrowser {
             ));
         }
 
-        g.set_color(&COLOR_TEXT);
+        g.set_color(&COLOR_FG1);
         g.write_text(TFS, x + GP, y + GP, tw, grid(1), L, TOP, 1, name);
         let version = format!("v{}", version);
         g.write_text(TFS, x + GP, y + GP, tw, grid(1), R, TOP, 1, &version);
@@ -194,7 +194,7 @@ impl LibraryBrowser {
         g.push_state();
         g.apply_offset(self.pos.0, self.pos.1 - self.scroll_offset);
 
-        g.set_color(&COLOR_BG);
+        g.set_color(&COLOR_BG0);
         g.fill_rect(0.0, 0.0, self.size.0, self.size.1);
 
         self.mouse_actions.clear();

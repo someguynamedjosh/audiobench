@@ -80,13 +80,20 @@ const fn hex_color(hex: u32) -> (u8, u8, u8) {
 }
 
 // pub const COLOR_DEBUG: (u8, u8, u8) = hex_color(0xFF00FF);
-pub const COLOR_BG: (u8, u8, u8) = hex_color(0x121520);
-pub const COLOR_SURFACE: (u8, u8, u8) = hex_color(0x48525F);
-pub const COLOR_IO_AREA: (u8, u8, u8) = hex_color(0x2F434F);
+/// The darkest background color.
+pub const COLOR_BG0: (u8, u8, u8) = hex_color(0x121520);
+/// A medium-intensity background color.
+pub const COLOR_BG1: (u8, u8, u8) = hex_color(0x2F434F);
+/// The brightest background color.
+pub const COLOR_BG2: (u8, u8, u8) = hex_color(0x48525F);
 pub const COLOR_ERROR: (u8, u8, u8) = hex_color(0xFF0022);
 pub const COLOR_SUCCESS: (u8, u8, u8) = hex_color(0x038c23);
-pub const COLOR_KNOB: (u8, u8, u8) = hex_color(0xFF0022);
+/// Used to indicate an editable control. COLOR_FG1 should be used for editable values that are
+/// represented as text since it is white and COLOR_EDITABLE is red, which is less readable.
+pub const COLOR_EDITABLE: (u8, u8, u8) = hex_color(0xFF0022);
 pub const COLOR_AUTOMATION: (u8, u8, u8) = hex_color(0xC7D5E8);
 // pub const COLOR_AUTOMATION_FOCUSED: (u8, u8, u8) = hex_color(0x54bdff);
-pub const COLOR_TEXT: (u8, u8, u8) = (0xFF, 0xFF, 0xFF);
-pub const COLOR_MUTED_TEXT: (u8, u8, u8) = (0x77, 0x77, 0x77);
+/// The darkest foreground color.
+pub const COLOR_FG0: (u8, u8, u8) = (0x77, 0x77, 0x77);
+/// The brightest foreground color. Use for text and for diagrams.
+pub const COLOR_FG1: (u8, u8, u8) = (0xFF, 0xFF, 0xFF);

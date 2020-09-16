@@ -70,9 +70,9 @@ impl TextBox {
         g.push_state();
         g.apply_offset(self.pos.0, self.pos.1);
 
-        g.set_color(if focused { &COLOR_IO_AREA } else { &COLOR_BG });
+        g.set_color(if focused { &COLOR_BG1 } else { &COLOR_BG0 });
         g.fill_rounded_rect(0.0, 0.0, self.size.0, self.size.1, CORNER_SIZE);
-        g.set_color(&COLOR_TEXT);
+        g.set_color(&COLOR_FG1);
         const H: HAlign = HAlign::Left;
         const V: VAlign = VAlign::Center;
         let w = self.size.0 - GP * 2.0;
@@ -112,12 +112,12 @@ impl IconButton {
         g.push_state();
         g.apply_offset(self.pos.0, self.pos.1);
 
-        g.set_color(&COLOR_BG);
+        g.set_color(&COLOR_BG0);
         g.fill_rounded_rect(0.0, 0.0, self.size, self.size, CORNER_SIZE);
         const IP: f32 = GRID_P / 2.0;
         g.draw_white_icon(self.icon, IP, IP, self.size - IP * 2.0);
         if !self.enabled {
-            g.set_color(&COLOR_BG);
+            g.set_color(&COLOR_BG0);
             g.set_alpha(0.5);
             g.fill_rounded_rect(0.0, 0.0, self.size, self.size, CORNER_SIZE);
         }

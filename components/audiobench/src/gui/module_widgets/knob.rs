@@ -118,13 +118,13 @@ impl ModuleWidget for Knob {
             value.from_range_to_range(range.0, range.1, MIN_ANGLE, MAX_ANGLE)
         }
 
-        g.set_color(&COLOR_TEXT);
+        g.set_color(&COLOR_FG1);
         g.apply_offset(self.pos.0, self.pos.1);
 
         if highlight {
-            g.set_color(&COLOR_TEXT);
+            g.set_color(&COLOR_FG1);
         } else {
-            g.set_color(&COLOR_BG);
+            g.set_color(&COLOR_BG0);
         }
         g.fill_pie(
             0.0,
@@ -134,7 +134,7 @@ impl ModuleWidget for Knob {
             MIN_ANGLE,
             MAX_ANGLE,
         );
-        g.set_color(&COLOR_KNOB);
+        g.set_color(&COLOR_EDITABLE);
         if highlight {
             g.set_alpha(0.5);
         }
@@ -157,7 +157,7 @@ impl ModuleWidget for Knob {
             value_angle,
         );
         g.set_alpha(1.0);
-        g.set_color(&COLOR_TEXT);
+        g.set_color(&COLOR_FG1);
         const H: HAlign = HAlign::Center;
         const V: VAlign = VAlign::Bottom;
         g.write_text(FONT_SIZE, 0.0, 0.0, grid(2), grid(2), H, V, 1, &self.label);
@@ -375,7 +375,7 @@ impl PopupMenu for KnobEditor {
         const BSR: f32 = POPUP_SHADOW_RADIUS;
         const CS: f32 = CORNER_SIZE;
         g.draw_inset_box_shadow(0.0, 0.0, self.size.0, self.size.1, BSR, CS);
-        g.set_color(&COLOR_SURFACE);
+        g.set_color(&COLOR_BG2);
         g.fill_rounded_rect(0.0, 0.0, self.size.0, self.size.1, CS);
 
         let control = &*self.control.borrow();
@@ -386,9 +386,9 @@ impl PopupMenu for KnobEditor {
 
         const KOR: f32 = KNOB_MENU_KNOB_OR;
         const KIR: f32 = KNOB_MENU_KNOB_IR;
-        g.set_color(&COLOR_BG);
+        g.set_color(&COLOR_BG0);
         g.fill_pie(-KOR, -KOR, KOR * 2.0, KIR * 2.0, PI, 0.0);
-        g.set_color(&COLOR_KNOB);
+        g.set_color(&COLOR_EDITABLE);
         let zero_angle = value_to_angle(control.range, 0.0);
         let value = *self.value.borrow();
         let value_angle = value_to_angle(control.range, value);
@@ -406,7 +406,7 @@ impl PopupMenu for KnobEditor {
         for (index, lane) in control.automation.iter().rev().enumerate() {
             let ir = KOR + GAP + (GAP + LS) * index as f32;
             let or = ir + LS;
-            g.set_color(&COLOR_BG);
+            g.set_color(&COLOR_BG0);
             g.fill_pie(-or, -or, or * 2.0, ir * 2.0, PI, 0.0);
             g.set_color(&COLOR_AUTOMATION);
             let min_angle = value_to_angle(control.range, lane.range.0);
@@ -419,7 +419,7 @@ impl PopupMenu for KnobEditor {
             g.fill_pie(-or, -or, or * 2.0, ir * 2.0, min_angle, max_angle);
         }
 
-        g.set_color(&COLOR_TEXT);
+        g.set_color(&COLOR_FG1);
         let value_text = format!("{}{}", format_decimal(value, 3), control.suffix);
         g.write_label(-KIR, -12.0, KIR * 2.0, &value_text);
         g.write_label(-KOR, GRID_P, KOR * 2.0, &self.label);

@@ -67,9 +67,9 @@ impl InputJack {
         const JIP: f32 = JACK_ICON_PADDING;
 
         if mute {
-            g.set_color(&COLOR_MUTED_TEXT);
+            g.set_color(&COLOR_FG0);
         } else {
-            g.set_color(&COLOR_TEXT);
+            g.set_color(&COLOR_FG1);
         }
         if let Some(default) = &default {
             const X: f32 = -JS;
@@ -164,9 +164,9 @@ impl OutputJack {
         const JS: f32 = JACK_SIZE;
         const CS: f32 = CORNER_SIZE;
         if mute {
-            g.set_color(&COLOR_MUTED_TEXT);
+            g.set_color(&COLOR_FG0);
         } else {
-            g.set_color(&COLOR_TEXT);
+            g.set_color(&COLOR_FG1);
         }
         g.fill_rounded_rect(0.0, 0.0, JS, JS, CS);
         g.fill_rect(JS - CS, 0.0, CS, JS);
@@ -429,7 +429,7 @@ impl Module {
                 CORNER_SIZE,
             );
         } else if layer_index == 1 {
-            g.set_color(&COLOR_TEXT);
+            g.set_color(&COLOR_FG1);
             self.draw_wires(g, pos);
         } else if layer_index == 2 {
             g.push_state();
@@ -440,12 +440,12 @@ impl Module {
             const JS: f32 = JACK_SIZE;
             const MIW: f32 = MODULE_IO_WIDTH;
 
-            g.set_color(&COLOR_IO_AREA);
+            g.set_color(&COLOR_BG1);
             g.fill_rounded_rect(JS, 0.0, self.size.0 - JS, self.size.1, CS);
-            g.set_color(&COLOR_SURFACE);
+            g.set_color(&COLOR_BG2);
             g.fill_rect(JS + MIW, 0.0, self.size.0 - MIW * 2.0 - JS, self.size.1);
 
-            g.set_color(&COLOR_TEXT);
+            g.set_color(&COLOR_FG1);
             g.write_text(
                 FONT_SIZE,
                 MODULE_IO_WIDTH,
@@ -501,9 +501,9 @@ impl Module {
             }
 
             g.pop_state();
-            g.set_color(&COLOR_TEXT);
+            g.set_color(&COLOR_FG1);
         } else if layer_index == 3 {
-            g.set_color(&COLOR_TEXT);
+            g.set_color(&COLOR_FG1);
             g.set_alpha(0.2);
             self.draw_wires(g, pos);
         }

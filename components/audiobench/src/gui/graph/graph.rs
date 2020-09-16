@@ -222,12 +222,12 @@ impl ModuleGraph {
             if let MouseAction::ConnectInput(module, index) = cma {
                 let module_ref = module.borrow();
                 let (sx, sy) = Module::input_position(&*module_ref, *index as i32);
-                g.set_color(&COLOR_TEXT);
+                g.set_color(&COLOR_FG1);
                 g.stroke_line(sx, sy, mx, my, 2.0);
             } else if let MouseAction::ConnectOutput(module, index) = cma {
                 let module_ref = module.borrow();
                 let (sx, sy) = Module::output_position(&*module_ref, *index as i32);
-                g.set_color(&COLOR_TEXT);
+                g.set_color(&COLOR_FG1);
                 g.stroke_line(sx, sy, mx, my, 2.0);
             }
         }
