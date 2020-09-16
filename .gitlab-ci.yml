@@ -8,6 +8,8 @@ build-linux:
   stage: build
   image: rust:latest
   script:
+    - git submodule init
+    - git submodule update
     - export SOURCE_DIR="$(pwd)"
     - cd /
     - echo "and of course the default package registry has some old-ass version of cmake"
@@ -18,10 +20,7 @@ build-linux:
     - apt -y install llvm-7 libxrandr-dev libxinerama-dev libxcursor-dev libasound-dev extra-cmake-modules
     - export LLVM_SYS_70_PREFIX=/usr/bin/llvm-7/
     - cd $SOURCE_DIR
-    - cd frontends/juce/
-    - git submodule init
-    - git submodule update
-    - ./build_linux.sh release
+    - ./build.py juce_frontend --release
   only:
     - master
     - merge_requests
@@ -58,8 +57,7 @@ build-windows:
     - $Env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
     - choco install rust-ms --version=1.44.1 -y
     - choco install windows-sdk-10.0 -y
-    - cd frontends/juce/
-    - .\build_win
+    - python build.py juce_frontend --release
   only:
     - master
     - merge_requests
