@@ -213,7 +213,6 @@ impl OutputUnpacker {
     const GPI_FEEDBACK_DATA: usize = 1;
     fn make_data_unpacker(data_format: &DataFormat) -> DataUnpacker {
         let buf_len = data_format.host_format.buffer_len;
-        eprintln!("{}", data_format.feedback_data_len);
         let parameters = vec![
             IOType::FloatArray(buf_len * 2),                   // global_audio_out
             IOType::FloatArray(data_format.feedback_data_len), // global_feedback_data
