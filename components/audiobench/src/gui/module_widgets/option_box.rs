@@ -90,7 +90,7 @@ impl ModuleWidget for OptionBox {
         g.apply_offset(self.pos.0, self.pos.1);
 
         const CS: f32 = CORNER_SIZE;
-        g.set_color(&COLOR_BG);
+        g.set_color(&COLOR_BG0);
         let num_options = self.control.borrow().get_options().len();
         // Don't ask why GP / 2 and not just GP, it just looks better and I don't know why.
         let height_per_option = (self.size.1 - FONT_SIZE - GRID_P / 2.0) / num_options as f32;
@@ -100,10 +100,10 @@ impl ModuleWidget for OptionBox {
         for (index, option) in self.control.borrow().get_options().iter().enumerate() {
             let y = index as f32 * height_per_option;
             if index == current_option {
-                g.set_color(&COLOR_IO_AREA);
+                g.set_color(&COLOR_BG1);
                 g.fill_rounded_rect(0.0, y, self.size.0, height_per_option, CORNER_SIZE);
             }
-            g.set_color(&COLOR_TEXT);
+            g.set_color(&COLOR_FG1);
             g.write_text(
                 FONT_SIZE,
                 0.0,

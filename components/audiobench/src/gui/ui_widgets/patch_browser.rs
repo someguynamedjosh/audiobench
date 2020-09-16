@@ -316,7 +316,7 @@ impl PatchBrowser {
         let hw = (self.size.0 - GRID_P * 3.0) / 2.0;
         const GP: f32 = GRID_P;
 
-        g.set_color(&COLOR_SURFACE);
+        g.set_color(&COLOR_BG2);
         g.fill_rect(0.0, 0.0, self.size.0, self.size.1);
         self.name_box.draw(g);
         self.save_button.borrow().draw(g);
@@ -326,10 +326,10 @@ impl PatchBrowser {
 
         const CG: f32 = PatchBrowser::CG;
         let y = CG + GP;
-        g.set_color(&COLOR_BG);
+        g.set_color(&COLOR_BG0);
         let panel_height = self.size.1 - y - GP;
         g.fill_rounded_rect(GP, y, hw, panel_height, CORNER_SIZE);
-        g.set_color(&COLOR_TEXT);
+        g.set_color(&COLOR_FG1);
         let offset = self.scroll_offset;
         let num_entries = self.alphabetical_order.borrow().len();
         let range = offset..(offset + self.num_visible_entries).min(num_entries);
@@ -340,9 +340,9 @@ impl PatchBrowser {
             let x = GP;
             let y = y + HEIGHT * (index - offset) as f32;
             if Some(self.alphabetical_order.borrow()[index]) == *self.current_entry_index.borrow() {
-                g.set_color(&COLOR_IO_AREA);
+                g.set_color(&COLOR_BG1);
                 g.fill_rounded_rect(x, y, hw, HEIGHT, CORNER_SIZE);
-                g.set_color(&COLOR_TEXT);
+                g.set_color(&COLOR_FG1);
             }
             let entry = entry.borrow();
             const H: HAlign = HAlign::Left;
@@ -376,7 +376,7 @@ impl PatchBrowser {
         if num_entries > self.num_visible_entries {
             let visible_percent = self.num_visible_entries as f32 / num_entries as f32;
             let offset_percent = offset as f32 / num_entries as f32;
-            g.set_color(&COLOR_IO_AREA);
+            g.set_color(&COLOR_BG1);
             g.fill_rounded_rect(
                 GP + hw - CORNER_SIZE,
                 y + panel_height * offset_percent,

@@ -93,7 +93,7 @@ impl ModuleWidget for TriggerSequence {
         const CS: f32 = CORNER_SIZE;
         const HEAD: f32 = TriggerSequence::HEADER_SPACE;
         const SG: f32 = TriggerSequence::STEP_GAP;
-        g.set_color(&COLOR_BG);
+        g.set_color(&COLOR_BG0);
 
         let borrowed = self.sequence_control.borrow();
         let num_steps = borrowed.get_len();
@@ -101,14 +101,14 @@ impl ModuleWidget for TriggerSequence {
         for step_index in 0..num_steps {
             let x = step_index as f32 * step_width;
             if borrowed.get_trigger(step_index) {
-                g.set_color(&COLOR_KNOB);
+                g.set_color(&COLOR_EDITABLE);
             } else {
-                g.set_color(&COLOR_BG);
+                g.set_color(&COLOR_BG0);
             }
             g.fill_rounded_rect(x, HEAD, step_width - SG, H - HEAD, CS);
         }
 
-        g.set_color(&COLOR_TEXT);
+        g.set_color(&COLOR_FG1);
         g.fill_pie(
             feedback_data[0] * step_width - HEAD,
             0.0,

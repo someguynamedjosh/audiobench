@@ -44,10 +44,10 @@ impl ModuleWidget for WaveformGraph {
 
         const CS: f32 = CORNER_SIZE;
         g.apply_offset(self.pos.0, self.pos.1);
-        g.set_color(&COLOR_BG);
+        g.set_color(&COLOR_BG0);
         g.fill_rounded_rect(0.0, 0.0, self.size.0, self.size.1, CS);
 
-        g.set_color(&COLOR_TEXT);
+        g.set_color(&COLOR_FG1);
         let space_per_segment = self.size.0 as f32 / (feedback_data.len() - 3) as f32;
         let mut old_x = 0.0;
         let mut old_y =

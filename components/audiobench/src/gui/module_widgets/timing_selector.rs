@@ -107,7 +107,7 @@ impl ModuleWidget for TimingSelector {
 
         const CS: f32 = CORNER_SIZE;
         const ICON_SIZE: f32 = (grid(2) - CS * 3.0) / 2.0;
-        g.set_color(&COLOR_BG);
+        g.set_color(&COLOR_BG0);
         g.fill_rounded_rect(0.0, 0.0, grid(2), CS * 2.0 + ICON_SIZE, CS);
         g.draw_white_icon(
             if self.source_value() {
@@ -129,7 +129,7 @@ impl ModuleWidget for TimingSelector {
             CS,
             ICON_SIZE,
         );
-        g.set_color(&COLOR_TEXT);
+        g.set_color(&COLOR_FG1);
         g.write_text(
             FONT_SIZE,
             0.0,

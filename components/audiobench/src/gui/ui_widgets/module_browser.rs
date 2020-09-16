@@ -51,16 +51,16 @@ impl ModuleBrowserEntry {
 
         let num_ports = self.input_icons.len().max(self.output_icons.len()) as f32;
         let port_space = ICON_PADDING + (ICON_PADDING + ICON_SIZE) * num_ports;
-        g.set_color(&COLOR_SURFACE);
+        g.set_color(&COLOR_BG2);
         let main_width = Self::WIDTH - port_space - BAND_SIZE;
         g.fill_rounded_rect(0.0, 0.0, main_width + BAND_SIZE, Self::HEIGHT, CS);
-        g.set_color(&COLOR_TEXT);
+        g.set_color(&COLOR_FG1);
         g.fill_rounded_rect(main_width, 0.0, port_space + BAND_SIZE, Self::HEIGHT, CS);
-        g.set_color(&COLOR_IO_AREA);
+        g.set_color(&COLOR_BG1);
         g.fill_rect(main_width, 0.0, BAND_SIZE, Self::HEIGHT);
         g.fill_rect(main_width + BAND_SIZE, Self::HEIGHT / 2.0, port_space, 1.0);
 
-        g.set_color(&COLOR_TEXT);
+        g.set_color(&COLOR_FG1);
         g.write_text(
             FONT_SIZE,
             GRID_P,
@@ -216,7 +216,7 @@ impl ModuleBrowser {
             match entry {
                 VisualEntry::RealEntry(index) => self.entries[*index].draw(g),
                 VisualEntry::Label(text) => {
-                    g.set_color(&COLOR_TEXT);
+                    g.set_color(&COLOR_FG1);
                     g.write_text(
                         BIG_FONT_SIZE,
                         0.0,

@@ -101,7 +101,7 @@ impl<T: IntBoxImpl> ModuleWidget for T {
         const W: f32 = IntBoxBase::WIDTH;
         const H: f32 = IntBoxBase::HEIGHT;
         const CS: f32 = CORNER_SIZE;
-        g.set_color(&COLOR_BG);
+        g.set_color(&COLOR_BG0);
         g.fill_rounded_rect(0.0, 0.0, W, H, CS);
         const IS: f32 = H / 2.0;
         g.draw_white_icon(base.icons.0, W - IS, 0.0, IS);
@@ -110,14 +110,14 @@ impl<T: IntBoxImpl> ModuleWidget for T {
             let val = format!("{}", self.get_current_value());
             const HA: HAlign = HAlign::Right;
             const VA: VAlign = VAlign::Center;
-            g.set_color(&COLOR_TEXT);
+            g.set_color(&COLOR_FG1);
             g.write_text(BIG_FONT_SIZE, 0.0, 0.0, W - IS - 4.0, H, HA, VA, 1, &val);
         }
         {
             let val = &base.label;
             const HA: HAlign = HAlign::Center;
             const VA: VAlign = VAlign::Bottom;
-            g.set_color(&COLOR_TEXT);
+            g.set_color(&COLOR_FG1);
             g.write_text(FONT_SIZE, 0.0, 0.0, W, grid(2), HA, VA, 1, val);
         }
 

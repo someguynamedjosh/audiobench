@@ -115,7 +115,7 @@ impl ModuleWidget for ValueSequence {
         const H: f32 = ValueSequence::HEIGHT;
         const CS: f32 = CORNER_SIZE;
         const HEAD: f32 = ValueSequence::HEADER_SPACE;
-        g.set_color(&COLOR_BG);
+        g.set_color(&COLOR_BG0);
         g.fill_rounded_rect(0.0, HEAD, self.width, H - HEAD, CS);
 
         let borrowed = self.sequence_control.borrow();
@@ -128,11 +128,11 @@ impl ModuleWidget for ValueSequence {
         for step_index in 0..num_steps {
             let x = step_index as f32 * step_width;
             if step_index != num_steps - 1 {
-                g.set_color(&COLOR_TEXT);
+                g.set_color(&COLOR_FG1);
                 // g.set_alpha(0.5);
                 g.stroke_line(x + step_width, HEAD, x + step_width, H, 1.0);
             }
-            g.set_color(&COLOR_KNOB);
+            g.set_color(&COLOR_EDITABLE);
             let y = (0.5 - value * 0.5) * (H - HEAD) + HEAD;
             g.set_alpha(0.3);
             g.fill_rect(x, MIDPOINT.min(y), step_width, (MIDPOINT - y).abs());
@@ -154,7 +154,7 @@ impl ModuleWidget for ValueSequence {
             );
         }
 
-        g.set_color(&COLOR_TEXT);
+        g.set_color(&COLOR_FG1);
         g.fill_pie(
             feedback_data[0] * step_width - HEAD,
             0.0,

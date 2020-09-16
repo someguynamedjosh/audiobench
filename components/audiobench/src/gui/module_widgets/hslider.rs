@@ -121,16 +121,16 @@ impl ModuleWidget for HSlider {
             value.from_range_to_range(range.0, range.1, 0.0, width)
         }
 
-        g.set_color(&COLOR_TEXT);
+        g.set_color(&COLOR_FG1);
         g.apply_offset(self.pos.0, self.pos.1);
 
         if highlight {
-            g.set_color(&COLOR_TEXT);
+            g.set_color(&COLOR_FG1);
         } else {
-            g.set_color(&COLOR_BG);
+            g.set_color(&COLOR_BG0);
         }
         g.fill_rounded_rect(0.0, 0.0, self.width, grid(1), CS);
-        g.set_color(&COLOR_KNOB);
+        g.set_color(&COLOR_EDITABLE);
         if highlight {
             g.set_alpha(0.5);
         }
@@ -152,7 +152,7 @@ impl ModuleWidget for HSlider {
             CS,
         );
         g.set_alpha(1.0);
-        g.set_color(&COLOR_TEXT);
+        g.set_color(&COLOR_FG1);
 
         if control.automation.len() > 0 {
             let num_lanes = control.automation.len() as f32;
@@ -317,17 +317,17 @@ impl PopupMenu for HSliderEditor {
         const CS: f32 = CORNER_SIZE;
         const GP: f32 = GRID_P;
         g.draw_inset_box_shadow(0.0, 0.0, self.size.0, self.size.1, BSR, CS);
-        g.set_color(&COLOR_SURFACE);
+        g.set_color(&COLOR_BG2);
         g.fill_rounded_rect(0.0, 0.0, self.size.0, self.size.1, CS);
 
         let control = &*self.control.borrow();
 
-        g.set_color(&COLOR_BG);
+        g.set_color(&COLOR_BG0);
         let x = GP + grid(1);
         let width = self.size.0 - (GP + grid(1)) * 2.0;
         let boty = self.size.1 - GP - grid(1);
         g.fill_rounded_rect(x, boty, width, grid(1), CS);
-        g.set_color(&COLOR_KNOB);
+        g.set_color(&COLOR_EDITABLE);
         let value = *self.value.borrow();
         let zero_point = self.value_to_point(0.0);
         let value_point = self.value_to_point(value);
@@ -342,7 +342,7 @@ impl PopupMenu for HSliderEditor {
         const GAP: f32 = KNOB_MENU_LANE_GAP;
         const LS: f32 = KNOB_MENU_LANE_SIZE;
         for (index, lane) in control.automation.iter().rev().enumerate() {
-            g.set_color(&COLOR_BG);
+            g.set_color(&COLOR_BG0);
             let y = GP + (LS + GAP) * index as f32;
             g.fill_rounded_rect(x, y, width, LS, CS);
             g.set_color(&COLOR_AUTOMATION);
@@ -362,7 +362,7 @@ impl PopupMenu for HSliderEditor {
             );
         }
 
-        g.set_color(&COLOR_TEXT);
+        g.set_color(&COLOR_FG1);
         g.write_text(
             FONT_SIZE,
             x + GP,

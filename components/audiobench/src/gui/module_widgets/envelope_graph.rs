@@ -45,11 +45,11 @@ impl ModuleWidget for EnvelopeGraph {
 
         const CS: f32 = CORNER_SIZE;
         g.apply_offset(self.pos.0, self.pos.1);
-        g.set_color(&COLOR_BG);
+        g.set_color(&COLOR_BG0);
         g.fill_rounded_rect(0.0, 0.0, self.size.0, self.size.1, CS);
         g.apply_offset(0.0, CS);
 
-        g.set_color(&COLOR_TEXT);
+        g.set_color(&COLOR_FG1);
         let (a, d, s, r) = (
             feedback_data[0],
             feedback_data[1],

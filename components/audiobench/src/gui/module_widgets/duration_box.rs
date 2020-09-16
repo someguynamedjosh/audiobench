@@ -130,7 +130,7 @@ impl ModuleWidget for DurationBox {
         const W: f32 = DurationBox::WIDTH;
         const H: f32 = DurationBox::HEIGHT;
         const CS: f32 = CORNER_SIZE;
-        g.set_color(&COLOR_BG);
+        g.set_color(&COLOR_BG0);
         g.fill_rounded_rect(0.0, 0.0, W, H, CS);
         {
             let is_beats = self.mode_control.borrow().is_beat_synchronized();
@@ -138,7 +138,7 @@ impl ModuleWidget for DurationBox {
             let val = format!("{}{}", val, if is_beats { "b" } else { "s" });
             const HA: HAlign = HAlign::Right;
             const VA: VAlign = VAlign::Center;
-            g.set_color(&COLOR_TEXT);
+            g.set_color(&COLOR_FG1);
             g.write_text(
                 BIG_FONT_SIZE,
                 GRID_P,
@@ -155,7 +155,7 @@ impl ModuleWidget for DurationBox {
             let val = &self.label;
             const HA: HAlign = HAlign::Center;
             const VA: VAlign = VAlign::Bottom;
-            g.set_color(&COLOR_TEXT);
+            g.set_color(&COLOR_FG1);
             g.write_text(FONT_SIZE, 0.0, 0.0, W, grid(2), HA, VA, 1, val);
         }
 
