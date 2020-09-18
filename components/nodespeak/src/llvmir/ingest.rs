@@ -5,18 +5,12 @@ use inkwell::{
     basic_block::BasicBlock,
     builder::Builder,
     context::Context,
-    execution_engine::{ExecutionEngine, JitFunction},
     module::Module,
-    targets::{InitializationConfig, Target},
     types::{BasicTypeEnum, PointerType},
-    values::{
-        BasicValue, BasicValueEnum, CallSiteValue, FloatValue, FunctionValue, IntValue,
-        PointerValue,
-    },
-    AddressSpace, FloatPredicate, IntPredicate, OptimizationLevel,
+    values::{BasicValue, BasicValueEnum, FloatValue, FunctionValue, IntValue, PointerValue},
+    AddressSpace, FloatPredicate, IntPredicate,
 };
-use std::collections::{HashMap, HashSet};
-use std::pin::Pin;
+use std::collections::HashMap;
 
 const UNNAMED: &str = "";
 
@@ -38,22 +32,22 @@ struct Intrinsics<'ctx> {
 }
 
 impl<'ctx> Intrinsics<'ctx> {
-    fn new(module: &'ctx Module<'ctx>, context: &'ctx Context) -> Self {
+    fn new(module: &Module<'ctx>, context: &'ctx Context) -> Self {
         let make = |name: &str| -> FunctionValue<'ctx> {
             let float_type = context.f32_type();
-            let mut arg_types = [float_type.into()];
+            let arg_types = [float_type.into()];
             let fn_type = float_type.fn_type(&arg_types[..], false);
             module.add_function(name, fn_type, None)
         };
         let make_f32_f32_f32 = |name: &str| -> FunctionValue<'ctx> {
             let float_type = context.f32_type();
-            let mut arg_types = [float_type.into(), float_type.into()];
+            let arg_types = [float_type.into(), float_type.into()];
             let fn_type = float_type.fn_type(&arg_types[..], false);
             module.add_function(name, fn_type, None)
         };
         let make_i32_i32_i32 = |name: &str| -> FunctionValue<'ctx> {
             let int_type = context.i32_type();
-            let mut arg_types = [int_type.into(), int_type.into()];
+            let arg_types = [int_type.into(), int_type.into()];
             let fn_type = int_type.fn_type(&arg_types[..], false);
             module.add_function(name, fn_type, None)
         };
@@ -84,7 +78,7 @@ struct Converter<'i, 'ctx> {
     static_pointer_type: PointerType<'ctx>,
 
     context: &'ctx Context,
-    module: &'ctx Module<'ctx>,
+    module: &'i Module<'ctx>,
     builder: Builder<'ctx>,
     intrinsics: Intrinsics<'ctx>,
 
@@ -168,7 +162,7 @@ impl<'i, 'ctx> Converter<'i, 'ctx> {
         content: TYP,
         indexes: &mut [IntValue<'ctx>],
     ) {
-        let mut indexes = self.apply_proxy_to_dyn_indexes(&value.dimensions, indexes);
+        let indexes = self.apply_proxy_to_dyn_indexes(&value.dimensions, indexes);
         match &value.base {
             i::ValueBase::Variable(id) => {
                 let mut ptr = *self
@@ -191,7 +185,7 @@ impl<'i, 'ctx> Converter<'i, 'ctx> {
         value: &i::Value,
         indexes: &mut [IntValue<'ctx>],
     ) -> BasicValueEnum<'ctx> {
-        let mut indexes = self.apply_proxy_to_dyn_indexes(&value.dimensions, indexes);
+        let indexes = self.apply_proxy_to_dyn_indexes(&value.dimensions, indexes);
         match &value.base {
             i::ValueBase::Variable(id) => {
                 let mut ptr = *self
@@ -385,15 +379,10 @@ impl<'i, 'ctx> Converter<'i, 'ctx> {
                 .builder
                 .build_float_to_signed_int(ar.into_float_value(), self.context.i32_type(), UNNAMED)
                 .into(),
-            i::UnaryOperator::Itof => unsafe {
-                self.builder
-                    .build_signed_int_to_float(
-                        ar.into_int_value(),
-                        self.context.f32_type(),
-                        UNNAMED,
-                    )
-                    .into()
-            },
+            i::UnaryOperator::Itof => self
+                .builder
+                .build_signed_int_to_float(ar.into_int_value(), self.context.f32_type(), UNNAMED)
+                .into(),
         }
     }
 
@@ -622,12 +611,12 @@ impl<'i, 'ctx> Converter<'i, 'ctx> {
             let llvmt = llvm_type(self.context, self.source[var_id].borrow_type());
             let ptr = match self.source[var_id].get_location() {
                 i::StorageLocation::Input => {
-                    let mut indices = [self.u32_const(0), self.u32_const(input_index as u32)];
+                    let indices = [self.u32_const(0), self.u32_const(input_index as u32)];
                     input_index += 1;
                     unsafe { self.builder.build_gep(input_pointer, &indices[..], UNNAMED) }
                 }
                 i::StorageLocation::Output => {
-                    let mut indices = [self.u32_const(0), self.u32_const(output_index as u32)];
+                    let indices = [self.u32_const(0), self.u32_const(output_index as u32)];
                     output_index += 1;
                     unsafe {
                         self.builder
@@ -635,7 +624,7 @@ impl<'i, 'ctx> Converter<'i, 'ctx> {
                     }
                 }
                 i::StorageLocation::Static => {
-                    let mut indices = [self.u32_const(0), self.u32_const(static_index as u32)];
+                    let indices = [self.u32_const(0), self.u32_const(static_index as u32)];
                     static_index += 1;
                     unsafe {
                         self.builder
@@ -645,9 +634,7 @@ impl<'i, 'ctx> Converter<'i, 'ctx> {
                 i::StorageLocation::StaticBody => {
                     continue;
                 }
-                i::StorageLocation::MainBody => unsafe {
-                    self.builder.build_alloca(llvmt, UNNAMED)
-                },
+                i::StorageLocation::MainBody => self.builder.build_alloca(llvmt, UNNAMED),
             };
             self.value_pointers.insert(var_id, ptr);
         }
@@ -665,16 +652,14 @@ impl<'i, 'ctx> Converter<'i, 'ctx> {
                     continue;
                 }
                 i::StorageLocation::Static => {
-                    let mut indices = [self.u32_const(0), self.u32_const(static_index as u32)];
+                    let indices = [self.u32_const(0), self.u32_const(static_index as u32)];
                     static_index += 1;
                     unsafe {
                         self.builder
                             .build_gep(static_pointer, &indices[..], UNNAMED)
                     }
                 }
-                i::StorageLocation::StaticBody => unsafe {
-                    self.builder.build_alloca(llvmt, UNNAMED)
-                },
+                i::StorageLocation::StaticBody => self.builder.build_alloca(llvmt, UNNAMED),
                 i::StorageLocation::MainBody => {
                     continue;
                 }
@@ -740,7 +725,7 @@ impl<'i, 'ctx> Converter<'i, 'ctx> {
     fn convert(&mut self) {
         // LLVM related setup for main function.
         let i32t = self.context.i32_type();
-        let mut argts = [
+        let argts = [
             self.input_pointer_type.into(),
             self.static_pointer_type.into(),
             self.output_pointer_type.into(),
@@ -769,7 +754,7 @@ impl<'i, 'ctx> Converter<'i, 'ctx> {
         }
 
         // LLVM related setup for static init function.
-        let mut argts = [self.static_pointer_type.into()];
+        let argts = [self.static_pointer_type.into()];
         let function_type = i32t.fn_type(&argts[..], false);
         let static_init_fn = self.module.add_function("static_init", function_type, None);
         let entry_block = self.context.append_basic_block(static_init_fn, "entry");
@@ -811,35 +796,32 @@ fn llvm_type<'ctx>(context: &'ctx Context, trivial_type: &i::DataType) -> BasicT
     }
 }
 
-pub fn ingest<'ctx>(source: &i::Program) -> o::Program<'ctx> {
-    let context_box = Box::new(Context::create());
-    let context: &'ctx _ = &*context_box;
-    let module_box = Box::new(context.create_module("nsprog"));
-    let module: &'ctx Module<'ctx> = &*module_box;
+use rental::rental;
+rental! {
+    mod rent_impl {
+        use super::*;
+
+        #[rental]
+        pub struct TestRental {
+            context: Box<Context>,
+            module: Module<'context>,
+        }
+    }
+}
+
+fn create_module<'ctx>(source: &i::Program, context: &'ctx Context) -> Module<'ctx> {
+    let module = context.create_module("nsprog");
     let builder = context.create_builder();
 
     let mut input_types = Vec::new();
-    let mut input_len = 0;
     let mut output_types = Vec::new();
-    let mut output_len = 0;
     let mut static_types = Vec::new();
-    let mut static_len = 0;
     for var in source.iterate_all_variables() {
-        let typ = source[var].borrow_type();
-        let ltype = llvm_type(&*context, typ);
+        let ltype = llvm_type(&*context, source[var].borrow_type());
         match source[var].get_location() {
-            i::StorageLocation::Input => {
-                input_len += typ.size();
-                input_types.push(ltype);
-            }
-            i::StorageLocation::Output => {
-                output_len += typ.size();
-                output_types.push(ltype);
-            }
-            i::StorageLocation::Static => {
-                static_len += typ.size();
-                static_types.push(ltype);
-            }
+            i::StorageLocation::Input => input_types.push(ltype),
+            i::StorageLocation::Output => output_types.push(ltype),
+            i::StorageLocation::Static => static_types.push(ltype),
             _ => (),
         }
     }
@@ -862,7 +844,7 @@ pub fn ingest<'ctx>(source: &i::Program) -> o::Program<'ctx> {
         static_pointer_type,
 
         context,
-        module: module,
+        module: &module,
         builder,
         intrinsics,
 
@@ -873,9 +855,27 @@ pub fn ingest<'ctx>(source: &i::Program) -> o::Program<'ctx> {
 
     converter.convert();
 
+    module
+}
+
+pub fn ingest(source: &i::Program) -> o::Program {
+    let mut input_len = 0;
+    let mut output_len = 0;
+    let mut static_len = 0;
+    for var in source.iterate_all_variables() {
+        let typ = source[var].borrow_type();
+        match source[var].get_location() {
+            i::StorageLocation::Input => input_len += typ.size(),
+            i::StorageLocation::Output => output_len += typ.size(),
+            i::StorageLocation::Static => static_len += typ.size(),
+            _ => (),
+        }
+    }
+
+    let context = Context::create();
     o::Program::new(
-        context_box,
-        module_box,
+        context,
+        |context| Box::new(create_module(source, context)),
         input_len,
         output_len,
         static_len,
