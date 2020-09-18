@@ -1,114 +1,114 @@
 use crate::llvmir::structure as o;
 use crate::shared::{self, ProxyMode};
 use crate::trivial::structure as i;
-use llvm_sys::core::*;
-use llvm_sys::prelude::*;
-use llvm_sys::transforms as llvmt;
-use llvm_sys::*;
+use inkwell::{
+    basic_block::BasicBlock,
+    builder::Builder,
+    context::Context,
+    execution_engine::{ExecutionEngine, JitFunction},
+    module::Module,
+    targets::{InitializationConfig, Target},
+    types::{BasicTypeEnum, PointerType},
+    values::{
+        BasicValue, BasicValueEnum, CallSiteValue, FloatValue, FunctionValue, IntValue,
+        PointerValue,
+    },
+    AddressSpace, FloatPredicate, IntPredicate, OptimizationLevel,
+};
 use std::collections::{HashMap, HashSet};
+use std::pin::Pin;
 
-const UNNAMED: *const libc::c_char = b"\0".as_ptr() as *const libc::c_char;
+const UNNAMED: &str = "";
 
-struct Intrinsics {
-    sqrt_f32: LLVMValueRef,
-    powi_i32: LLVMValueRef,
-    sin_f32: LLVMValueRef,
-    cos_f32: LLVMValueRef,
-    pow_f32: LLVMValueRef,
-    exp_f32: LLVMValueRef,
-    exp2_f32: LLVMValueRef,
-    log_f32: LLVMValueRef,
-    log10_f32: LLVMValueRef,
-    log2_f32: LLVMValueRef,
-    fabs_f32: LLVMValueRef,
-    floor_f32: LLVMValueRef,
-    ceil_f32: LLVMValueRef,
-    trunc_f32: LLVMValueRef,
+struct Intrinsics<'ctx> {
+    sqrt_f32: FunctionValue<'ctx>,
+    powi_i32: FunctionValue<'ctx>,
+    sin_f32: FunctionValue<'ctx>,
+    cos_f32: FunctionValue<'ctx>,
+    pow_f32: FunctionValue<'ctx>,
+    exp_f32: FunctionValue<'ctx>,
+    exp2_f32: FunctionValue<'ctx>,
+    log_f32: FunctionValue<'ctx>,
+    log10_f32: FunctionValue<'ctx>,
+    log2_f32: FunctionValue<'ctx>,
+    fabs_f32: FunctionValue<'ctx>,
+    floor_f32: FunctionValue<'ctx>,
+    ceil_f32: FunctionValue<'ctx>,
+    trunc_f32: FunctionValue<'ctx>,
 }
 
-impl Intrinsics {
-    fn new(module: LLVMModuleRef, context: LLVMContextRef) -> Self {
-        let make = |name_nullterm: &[u8]| -> LLVMValueRef {
-            unsafe {
-                let float_type = LLVMFloatTypeInContext(context);
-                let mut arg_types = [float_type];
-                let fn_type = LLVMFunctionType(float_type, arg_types.as_mut_ptr(), 1, 0);
-                LLVMAddFunction(module, name_nullterm.as_ptr() as *const _, fn_type)
-            }
+impl<'ctx> Intrinsics<'ctx> {
+    fn new(module: &'ctx Module<'ctx>, context: &'ctx Context) -> Self {
+        let make = |name: &str| -> FunctionValue<'ctx> {
+            let float_type = context.f32_type();
+            let mut arg_types = [float_type.into()];
+            let fn_type = float_type.fn_type(&arg_types[..], false);
+            module.add_function(name, fn_type, None)
         };
-        let make_f32_f32_f32 = |name_nullterm: &[u8]| -> LLVMValueRef {
-            unsafe {
-                let float_type = LLVMFloatTypeInContext(context);
-                let mut arg_types = [float_type, float_type];
-                let fn_type = LLVMFunctionType(float_type, arg_types.as_mut_ptr(), 2, 0);
-                LLVMAddFunction(module, name_nullterm.as_ptr() as *const _, fn_type)
-            }
+        let make_f32_f32_f32 = |name: &str| -> FunctionValue<'ctx> {
+            let float_type = context.f32_type();
+            let mut arg_types = [float_type.into(), float_type.into()];
+            let fn_type = float_type.fn_type(&arg_types[..], false);
+            module.add_function(name, fn_type, None)
         };
-        let make_i32_i32_i32 = |name_nullterm: &[u8]| -> LLVMValueRef {
-            unsafe {
-                let int_type = LLVMInt32TypeInContext(context);
-                let mut arg_types = [int_type, int_type];
-                let fn_type = LLVMFunctionType(int_type, arg_types.as_mut_ptr(), 2, 0);
-                LLVMAddFunction(module, name_nullterm.as_ptr() as *const _, fn_type)
-            }
+        let make_i32_i32_i32 = |name: &str| -> FunctionValue<'ctx> {
+            let int_type = context.i32_type();
+            let mut arg_types = [int_type.into(), int_type.into()];
+            let fn_type = int_type.fn_type(&arg_types[..], false);
+            module.add_function(name, fn_type, None)
         };
 
         Self {
-            sqrt_f32: make(b"llvm.sqrt.f32\0"),
-            sin_f32: make(b"llvm.sin.f32\0"),
-            cos_f32: make(b"llvm.cos.f32\0"),
-            pow_f32: make_f32_f32_f32(b"llvm.pow.f32\0"),
-            powi_i32: make_i32_i32_i32(b"llvm.powi.i32\0"),
-            exp_f32: make(b"llvm.exp.f32\0"),
-            exp2_f32: make(b"llvm.exp2.f32\0"),
-            log_f32: make(b"llvm.log.f32\0"),
-            log10_f32: make(b"llvm.log10.f32\0"),
-            log2_f32: make(b"llvm.log2.f32\0"),
-            fabs_f32: make(b"llvm.fabs.f32\0"),
-            floor_f32: make(b"llvm.floor.f32\0"),
-            ceil_f32: make(b"llvm.ceil.f32\0"),
-            trunc_f32: make(b"llvm.trunc.f32\0"),
+            sqrt_f32: make("llvm.sqrt.f32"),
+            sin_f32: make("llvm.sin.f32"),
+            cos_f32: make("llvm.cos.f32"),
+            pow_f32: make_f32_f32_f32("llvm.pow.f32"),
+            powi_i32: make_i32_i32_i32("llvm.powi.i32"),
+            exp_f32: make("llvm.exp.f32"),
+            exp2_f32: make("llvm.exp2.f32"),
+            log_f32: make("llvm.log.f32"),
+            log10_f32: make("llvm.log10.f32"),
+            log2_f32: make("llvm.log2.f32"),
+            fabs_f32: make("llvm.fabs.f32"),
+            floor_f32: make("llvm.floor.f32"),
+            ceil_f32: make("llvm.ceil.f32"),
+            trunc_f32: make("llvm.trunc.f32"),
         }
     }
 }
 
-struct Converter<'a> {
-    source: &'a i::Program,
-    input_pointer_type: LLVMTypeRef,
-    output_pointer_type: LLVMTypeRef,
-    static_pointer_type: LLVMTypeRef,
+struct Converter<'i, 'ctx> {
+    source: &'i i::Program,
+    input_pointer_type: PointerType<'ctx>,
+    output_pointer_type: PointerType<'ctx>,
+    static_pointer_type: PointerType<'ctx>,
 
-    context: LLVMContextRef,
-    module: LLVMModuleRef,
-    builder: LLVMBuilderRef,
-    intrinsics: Intrinsics,
+    context: &'ctx Context,
+    module: &'ctx Module<'ctx>,
+    builder: Builder<'ctx>,
+    intrinsics: Intrinsics<'ctx>,
 
-    value_pointers: HashMap<i::VariableId, LLVMValueRef>,
-    label_blocks: Vec<LLVMBasicBlockRef>,
+    value_pointers: HashMap<i::VariableId, PointerValue<'ctx>>,
+    label_blocks: Vec<BasicBlock<'ctx>>,
     current_block_terminated: bool,
 }
 
-impl<'a> Converter<'a> {
-    fn u32_const(&self, value: u32) -> LLVMValueRef {
-        unsafe { LLVMConstInt(LLVMInt32TypeInContext(self.context), value as u64, 0) }
+impl<'i, 'ctx> Converter<'i, 'ctx> {
+    fn u32_const(&self, value: u32) -> IntValue<'ctx> {
+        // TODO: This is not u32
+        self.context.i32_type().const_int(value as _, false)
     }
 
-    fn i32_const(&self, value: i32) -> LLVMValueRef {
-        unsafe { LLVMConstInt(LLVMInt32TypeInContext(self.context), value as u64, 1) }
+    fn i32_const(&self, value: i32) -> IntValue<'ctx> {
+        self.context.i32_type().const_int(value as _, false)
     }
 
-    fn f32_const(&self, value: f32) -> LLVMValueRef {
-        unsafe { LLVMConstReal(LLVMFloatTypeInContext(self.context), value as f64) }
+    fn f32_const(&self, value: f32) -> FloatValue<'ctx> {
+        self.context.f32_type().const_float(value as _)
     }
 
-    fn b1_const(&self, value: bool) -> LLVMValueRef {
-        unsafe {
-            LLVMConstInt(
-                LLVMInt1TypeInContext(self.context),
-                if value { 1 } else { 0 },
-                0,
-            )
-        }
+    fn b1_const(&self, value: bool) -> IntValue<'ctx> {
+        self.context.bool_type().const_int(value as _, false)
     }
 
     fn apply_proxy_to_const_indexes(proxy: &[(usize, ProxyMode)], indexes: &[u32]) -> Vec<u32> {
@@ -127,8 +127,8 @@ impl<'a> Converter<'a> {
     fn apply_proxy_to_dyn_indexes(
         &self,
         proxy: &[(usize, ProxyMode)],
-        indexes: &[LLVMValueRef],
-    ) -> Vec<LLVMValueRef> {
+        indexes: &[IntValue<'ctx>],
+    ) -> Vec<IntValue<'ctx>> {
         if indexes.len() == 0 {
             assert!(proxy.len() == 0);
             return Vec::new();
@@ -146,7 +146,12 @@ impl<'a> Converter<'a> {
         result
     }
 
-    fn store_value(&mut self, value: &i::Value, content: LLVMValueRef, const_indexes: &[u32]) {
+    fn store_value<TYP: BasicValue<'ctx>>(
+        &mut self,
+        value: &i::Value,
+        content: TYP,
+        const_indexes: &[u32],
+    ) {
         let mut indexes = Vec::new();
         if const_indexes.len() > 0 {
             indexes.push(self.u32_const(0));
@@ -157,11 +162,11 @@ impl<'a> Converter<'a> {
         self.store_value_dyn(value, content, &mut indexes[..]);
     }
 
-    fn store_value_dyn(
+    fn store_value_dyn<TYP: BasicValue<'ctx>>(
         &mut self,
         value: &i::Value,
-        content: LLVMValueRef,
-        indexes: &mut [LLVMValueRef],
+        content: TYP,
+        indexes: &mut [IntValue<'ctx>],
     ) {
         let mut indexes = self.apply_proxy_to_dyn_indexes(&value.dimensions, indexes);
         match &value.base {
@@ -171,27 +176,21 @@ impl<'a> Converter<'a> {
                     .get(&id)
                     .expect("A variable was not given a pointer.");
                 if indexes.len() > 0 {
-                    ptr = unsafe {
-                        LLVMBuildGEP(
-                            self.builder,
-                            ptr,
-                            indexes.as_mut_ptr(),
-                            indexes.len() as u32,
-                            UNNAMED,
-                        )
-                    };
+                    ptr = unsafe { self.builder.build_gep(ptr, &indexes[..], UNNAMED) };
                 } else {
                     assert!(value.dimensions.len() == 0);
                 }
-                unsafe {
-                    LLVMBuildStore(self.builder, content, ptr);
-                }
+                self.builder.build_store(ptr, content);
             }
             i::ValueBase::Literal(..) => panic!("Cannot store to a constant."),
         }
     }
 
-    fn load_value_dyn(&mut self, value: &i::Value, indexes: &mut [LLVMValueRef]) -> LLVMValueRef {
+    fn load_value_dyn(
+        &mut self,
+        value: &i::Value,
+        indexes: &mut [IntValue<'ctx>],
+    ) -> BasicValueEnum<'ctx> {
         let mut indexes = self.apply_proxy_to_dyn_indexes(&value.dimensions, indexes);
         match &value.base {
             i::ValueBase::Variable(id) => {
@@ -200,17 +199,9 @@ impl<'a> Converter<'a> {
                     .get(&id)
                     .expect("A variable was not given a pointer.");
                 if indexes.len() > 0 {
-                    ptr = unsafe {
-                        LLVMBuildGEP(
-                            self.builder,
-                            ptr,
-                            indexes.as_mut_ptr(),
-                            indexes.len() as u32,
-                            UNNAMED,
-                        )
-                    };
+                    ptr = unsafe { self.builder.build_gep(ptr, &indexes[..], UNNAMED) };
                 }
-                unsafe { LLVMBuildLoad(self.builder, ptr, UNNAMED) }
+                self.builder.build_load(ptr, UNNAMED)
             }
             i::ValueBase::Literal(data) => {
                 // Last we left it, we were trying to figure out how to index stuff or something
@@ -221,30 +212,23 @@ impl<'a> Converter<'a> {
                     let required_dims = value.get_type(&self.source).collect_dimensions();
                     // +1 for pointer dereference.
                     assert!(required_dims.len() + 1 == indexes.len());
-                    unsafe {
-                        let value_ptr = LLVMBuildGEP(
-                            self.builder,
-                            runtime_value,
-                            indexes.as_mut_ptr(),
-                            indexes.len() as u32,
-                            UNNAMED,
-                        );
-                        LLVMBuildLoad(self.builder, value_ptr, UNNAMED)
-                    }
+                    let value_ptr =
+                        unsafe { self.builder.build_gep(runtime_value, &indexes[..], UNNAMED) };
+                    self.builder.build_load(value_ptr, UNNAMED)
                 } else {
                     assert!(indexes.len() == 0, "Cannot index scalar data.");
                     match data {
                         i::KnownData::Array(..) => unreachable!("Handled above."),
-                        i::KnownData::Bool(value) => self.b1_const(*value),
-                        i::KnownData::Int(value) => self.i32_const(*value as i32),
-                        i::KnownData::Float(value) => self.f32_const(*value as f32),
+                        i::KnownData::Bool(value) => self.b1_const(*value).into(),
+                        i::KnownData::Int(value) => self.i32_const(*value as i32).into(),
+                        i::KnownData::Float(value) => self.f32_const(*value as f32).into(),
                     }
                 }
             }
         }
     }
 
-    fn load_value(&mut self, value: &i::Value, const_indexes: &[u32]) -> LLVMValueRef {
+    fn load_value(&mut self, value: &i::Value, const_indexes: &[u32]) -> BasicValueEnum<'ctx> {
         let const_indexes = Self::apply_proxy_to_const_indexes(&value.dimensions, const_indexes);
         match &value.base {
             i::ValueBase::Variable(id) => {
@@ -262,17 +246,9 @@ impl<'a> Converter<'a> {
                             ProxyMode::Discard => (),
                         }
                     }
-                    ptr = unsafe {
-                        LLVMBuildGEP(
-                            self.builder,
-                            ptr,
-                            indices.as_mut_ptr(),
-                            indices.len() as u32,
-                            UNNAMED,
-                        )
-                    };
+                    ptr = unsafe { self.builder.build_gep(ptr, &indices[..], UNNAMED) };
                 }
-                unsafe { LLVMBuildLoad(self.builder, ptr, UNNAMED) }
+                self.builder.build_load(ptr, UNNAMED)
             }
             i::ValueBase::Literal(data) => {
                 let mut data = data.clone();
@@ -285,15 +261,20 @@ impl<'a> Converter<'a> {
                 }
                 match data {
                     i::KnownData::Array(..) => unimplemented!(),
-                    i::KnownData::Bool(value) => self.b1_const(value),
-                    i::KnownData::Int(value) => self.i32_const(value as i32),
-                    i::KnownData::Float(value) => self.f32_const(value as f32),
+                    i::KnownData::Bool(value) => self.b1_const(value).into(),
+                    i::KnownData::Int(value) => self.i32_const(value as i32).into(),
+                    i::KnownData::Float(value) => self.f32_const(value as f32).into(),
                 }
             }
         }
     }
 
-    fn store_data_in_ptr(&self, ptr: LLVMValueRef, data: &i::KnownData, current_indexes: &[usize]) {
+    fn store_data_in_ptr(
+        &self,
+        ptr: PointerValue<'ctx>,
+        data: &i::KnownData,
+        current_indexes: &[usize],
+    ) {
         if let i::KnownData::Array(items) = data {
             debug_assert!(items.len() > 0);
             let mut new_indexes = Vec::with_capacity(current_indexes.len() + 1);
@@ -314,37 +295,27 @@ impl<'a> Converter<'a> {
                     .map(|i| self.u32_const(*i as u32))
                     .collect();
                 literal_indexes.insert(0, self.u32_const(0));
-                ptr = unsafe {
-                    LLVMBuildGEP(
-                        self.builder,
-                        ptr,
-                        literal_indexes.as_mut_ptr(),
-                        literal_indexes.len() as u32,
-                        UNNAMED,
-                    )
-                };
+                ptr = unsafe { self.builder.build_gep(ptr, &literal_indexes[..], UNNAMED) };
             }
-            let value = match data {
-                i::KnownData::Bool(value) => self.b1_const(*value),
-                i::KnownData::Int(value) => self.i32_const(*value as i32),
-                i::KnownData::Float(value) => self.f32_const(*value as f32),
+            let value: BasicValueEnum<'ctx> = match data {
+                i::KnownData::Bool(value) => self.b1_const(*value).into(),
+                i::KnownData::Int(value) => self.i32_const(*value as i32).into(),
+                i::KnownData::Float(value) => self.f32_const(*value as f32).into(),
                 i::KnownData::Array(..) => unreachable!("Handled above."),
             };
-            unsafe {
-                LLVMBuildStore(self.builder, value, ptr);
-            }
+            self.builder.build_store(ptr, value);
         }
     }
 
-    fn create_temp_value_holding_data(&self, data: &i::KnownData) -> LLVMValueRef {
+    fn create_temp_value_holding_data(&self, data: &i::KnownData) -> PointerValue<'ctx> {
         let dtype = data.get_type();
         let vtype = llvm_type(self.context, &dtype);
-        let value_ptr = unsafe { LLVMBuildAlloca(self.builder, vtype, UNNAMED) };
+        let value_ptr = self.builder.build_alloca(vtype, UNNAMED);
         self.store_data_in_ptr(value_ptr, data, &[]);
         value_ptr
     }
 
-    fn get_block_for_label(&self, id: &i::LabelId) -> LLVMBasicBlockRef {
+    fn get_block_for_label(&self, id: &i::LabelId) -> BasicBlock<'ctx> {
         self.label_blocks[id.raw()]
     }
 
@@ -363,23 +334,28 @@ impl<'a> Converter<'a> {
         }
     }
 
-    fn build_call(&mut self, fn_ref: LLVMValueRef, args: &mut [LLVMValueRef]) -> LLVMValueRef {
-        unsafe {
-            LLVMBuildCall(
-                self.builder,
-                fn_ref,
-                args.as_mut_ptr(),
-                args.len() as u32,
-                UNNAMED,
-            )
-        }
+    fn build_call(
+        &mut self,
+        fn_ref: FunctionValue<'ctx>,
+        args: &mut [BasicValueEnum<'ctx>],
+    ) -> BasicValueEnum<'ctx> {
+        self.builder
+            .build_call(fn_ref, &args[..], UNNAMED)
+            .try_as_basic_value()
+            .left()
+            .unwrap()
     }
 
-    fn do_unary_op(&mut self, op: &i::UnaryOperator, ar: LLVMValueRef) -> LLVMValueRef {
+    fn do_unary_op(
+        &mut self,
+        op: &i::UnaryOperator,
+        ar: BasicValueEnum<'ctx>,
+    ) -> BasicValueEnum<'ctx> {
         match op {
-            i::UnaryOperator::BNot => unsafe {
-                LLVMBuildXor(self.builder, ar, self.u32_const(0xFFFFFFFF), UNNAMED)
-            },
+            i::UnaryOperator::BNot => self
+                .builder
+                .build_xor(ar.into_int_value(), self.u32_const(0xFFFFFFFF), UNNAMED)
+                .into(),
             i::UnaryOperator::FAbs => self.build_call(self.intrinsics.fabs_f32, &mut [ar]),
             i::UnaryOperator::FCeil => self.build_call(self.intrinsics.ceil_f32, &mut [ar]),
             i::UnaryOperator::FCos => self.build_call(self.intrinsics.cos_f32, &mut [ar]),
@@ -393,30 +369,30 @@ impl<'a> Converter<'a> {
             i::UnaryOperator::FSqrt => self.build_call(self.intrinsics.sqrt_f32, &mut [ar]),
             i::UnaryOperator::FTrunc => self.build_call(self.intrinsics.trunc_f32, &mut [ar]),
             i::UnaryOperator::IAbs => unimplemented!(),
-            i::UnaryOperator::NegF => unsafe {
-                LLVMBuildFSub(self.builder, self.f32_const(0.0), ar, UNNAMED)
-            },
-            i::UnaryOperator::NegI => unsafe {
-                LLVMBuildSub(self.builder, self.i32_const(0), ar, UNNAMED)
-            },
-            i::UnaryOperator::Not => unsafe {
-                LLVMBuildXor(self.builder, ar, self.b1_const(true), UNNAMED)
-            },
-            i::UnaryOperator::Ftoi => unsafe {
-                LLVMBuildFPToSI(
-                    self.builder,
-                    ar,
-                    LLVMInt32TypeInContext(self.context),
-                    UNNAMED,
-                )
-            },
+            i::UnaryOperator::NegF => self
+                .builder
+                .build_float_sub(self.f32_const(0.0), ar.into_float_value(), UNNAMED)
+                .into(),
+            i::UnaryOperator::NegI => self
+                .builder
+                .build_int_sub(self.i32_const(0), ar.into_int_value(), UNNAMED)
+                .into(),
+            i::UnaryOperator::Not => self
+                .builder
+                .build_xor(ar.into_int_value(), self.b1_const(true), UNNAMED)
+                .into(),
+            i::UnaryOperator::Ftoi => self
+                .builder
+                .build_float_to_signed_int(ar.into_float_value(), self.context.i32_type(), UNNAMED)
+                .into(),
             i::UnaryOperator::Itof => unsafe {
-                LLVMBuildSIToFP(
-                    self.builder,
-                    ar,
-                    LLVMFloatTypeInContext(self.context),
-                    UNNAMED,
-                )
+                self.builder
+                    .build_signed_int_to_float(
+                        ar.into_int_value(),
+                        self.context.f32_type(),
+                        UNNAMED,
+                    )
+                    .into()
             },
         }
     }
@@ -442,53 +418,114 @@ impl<'a> Converter<'a> {
     fn do_binary_op(
         &mut self,
         op: &i::BinaryOperator,
-        ar: LLVMValueRef,
-        br: LLVMValueRef,
-    ) -> LLVMValueRef {
+        ar: BasicValueEnum<'ctx>,
+        br: BasicValueEnum<'ctx>,
+    ) -> BasicValueEnum<'ctx> {
         match op {
-            i::BinaryOperator::AddI => unsafe { LLVMBuildAdd(self.builder, ar, br, UNNAMED) },
-            i::BinaryOperator::SubI => unsafe { LLVMBuildSub(self.builder, ar, br, UNNAMED) },
-            i::BinaryOperator::MulI => unsafe { LLVMBuildMul(self.builder, ar, br, UNNAMED) },
-            i::BinaryOperator::DivI => unsafe { LLVMBuildSDiv(self.builder, ar, br, UNNAMED) },
-            i::BinaryOperator::ModI => unsafe { LLVMBuildSRem(self.builder, ar, br, UNNAMED) },
-            i::BinaryOperator::AddF => unsafe { LLVMBuildFAdd(self.builder, ar, br, UNNAMED) },
-            i::BinaryOperator::SubF => unsafe { LLVMBuildFSub(self.builder, ar, br, UNNAMED) },
-            i::BinaryOperator::MulF => unsafe { LLVMBuildFMul(self.builder, ar, br, UNNAMED) },
-            i::BinaryOperator::DivF => unsafe { LLVMBuildFDiv(self.builder, ar, br, UNNAMED) },
-            i::BinaryOperator::ModF => unsafe { LLVMBuildFRem(self.builder, ar, br, UNNAMED) },
+            i::BinaryOperator::AddI => self
+                .builder
+                .build_int_add(ar.into_int_value(), br.into_int_value(), UNNAMED)
+                .into(),
+            i::BinaryOperator::SubI => self
+                .builder
+                .build_int_sub(ar.into_int_value(), br.into_int_value(), UNNAMED)
+                .into(),
+            i::BinaryOperator::MulI => self
+                .builder
+                .build_int_mul(ar.into_int_value(), br.into_int_value(), UNNAMED)
+                .into(),
+            i::BinaryOperator::DivI => self
+                .builder
+                .build_int_signed_div(ar.into_int_value(), br.into_int_value(), UNNAMED)
+                .into(),
+            i::BinaryOperator::ModI => self
+                .builder
+                .build_int_signed_rem(ar.into_int_value(), br.into_int_value(), UNNAMED)
+                .into(),
+            i::BinaryOperator::AddF => self
+                .builder
+                .build_float_add(ar.into_float_value(), br.into_float_value(), UNNAMED)
+                .into(),
+            i::BinaryOperator::SubF => self
+                .builder
+                .build_float_sub(ar.into_float_value(), br.into_float_value(), UNNAMED)
+                .into(),
+            i::BinaryOperator::MulF => self
+                .builder
+                .build_float_mul(ar.into_float_value(), br.into_float_value(), UNNAMED)
+                .into(),
+            i::BinaryOperator::DivF => self
+                .builder
+                .build_float_div(ar.into_float_value(), br.into_float_value(), UNNAMED)
+                .into(),
+            i::BinaryOperator::ModF => self
+                .builder
+                .build_float_rem(ar.into_float_value(), br.into_float_value(), UNNAMED)
+                .into(),
             i::BinaryOperator::PowF => self.build_call(self.intrinsics.pow_f32, &mut [ar, br]),
             i::BinaryOperator::CompI(condition) => {
                 let predicate = match condition {
-                    i::Condition::Equal => LLVMIntPredicate::LLVMIntEQ,
-                    i::Condition::NotEqual => LLVMIntPredicate::LLVMIntNE,
-                    i::Condition::GreaterThan => LLVMIntPredicate::LLVMIntSGT,
-                    i::Condition::GreaterThanOrEqual => LLVMIntPredicate::LLVMIntSGE,
-                    i::Condition::LessThan => LLVMIntPredicate::LLVMIntSLT,
-                    i::Condition::LessThanOrEqual => LLVMIntPredicate::LLVMIntSLE,
+                    i::Condition::Equal => IntPredicate::EQ,
+                    i::Condition::NotEqual => IntPredicate::NE,
+                    i::Condition::GreaterThan => IntPredicate::SGT,
+                    i::Condition::GreaterThanOrEqual => IntPredicate::SGE,
+                    i::Condition::LessThan => IntPredicate::SLT,
+                    i::Condition::LessThanOrEqual => IntPredicate::SLE,
                 };
-                unsafe { LLVMBuildICmp(self.builder, predicate, ar, br, UNNAMED) }
+                self.builder
+                    .build_int_compare(predicate, ar.into_int_value(), br.into_int_value(), UNNAMED)
+                    .into()
             }
             i::BinaryOperator::CompF(condition) => {
                 let predicate = match condition {
-                    i::Condition::Equal => LLVMRealPredicate::LLVMRealOEQ,
-                    i::Condition::NotEqual => LLVMRealPredicate::LLVMRealONE,
-                    i::Condition::GreaterThan => LLVMRealPredicate::LLVMRealOGT,
-                    i::Condition::GreaterThanOrEqual => LLVMRealPredicate::LLVMRealOGE,
-                    i::Condition::LessThan => LLVMRealPredicate::LLVMRealOLT,
-                    i::Condition::LessThanOrEqual => LLVMRealPredicate::LLVMRealOLE,
+                    i::Condition::Equal => FloatPredicate::OEQ,
+                    i::Condition::NotEqual => FloatPredicate::ONE,
+                    i::Condition::GreaterThan => FloatPredicate::OGT,
+                    i::Condition::GreaterThanOrEqual => FloatPredicate::OGE,
+                    i::Condition::LessThan => FloatPredicate::OLT,
+                    i::Condition::LessThanOrEqual => FloatPredicate::OLE,
                 };
-                unsafe { LLVMBuildFCmp(self.builder, predicate, ar, br, UNNAMED) }
+                self.builder
+                    .build_float_compare(
+                        predicate,
+                        ar.into_float_value(),
+                        br.into_float_value(),
+                        UNNAMED,
+                    )
+                    .into()
             }
-            i::BinaryOperator::BAnd => unsafe { LLVMBuildAnd(self.builder, ar, br, UNNAMED) },
-            i::BinaryOperator::BOr => unsafe { LLVMBuildOr(self.builder, ar, br, UNNAMED) },
-            i::BinaryOperator::BXor => unsafe { LLVMBuildXor(self.builder, ar, br, UNNAMED) },
-            i::BinaryOperator::And => unsafe { LLVMBuildAnd(self.builder, ar, br, UNNAMED) },
-            i::BinaryOperator::Or => unsafe { LLVMBuildOr(self.builder, ar, br, UNNAMED) },
-            i::BinaryOperator::Xor => unsafe { LLVMBuildXor(self.builder, ar, br, UNNAMED) },
-            i::BinaryOperator::LeftShift => unsafe { LLVMBuildShl(self.builder, ar, br, UNNAMED) },
-            i::BinaryOperator::RightShift => unsafe {
-                LLVMBuildLShr(self.builder, ar, br, UNNAMED)
-            },
+            i::BinaryOperator::BAnd => self
+                .builder
+                .build_and(ar.into_int_value(), br.into_int_value(), UNNAMED)
+                .into(),
+            i::BinaryOperator::BOr => self
+                .builder
+                .build_or(ar.into_int_value(), br.into_int_value(), UNNAMED)
+                .into(),
+            i::BinaryOperator::BXor => self
+                .builder
+                .build_xor(ar.into_int_value(), br.into_int_value(), UNNAMED)
+                .into(),
+            i::BinaryOperator::And => self
+                .builder
+                .build_and(ar.into_int_value(), br.into_int_value(), UNNAMED)
+                .into(),
+            i::BinaryOperator::Or => self
+                .builder
+                .build_or(ar.into_int_value(), br.into_int_value(), UNNAMED)
+                .into(),
+            i::BinaryOperator::Xor => self
+                .builder
+                .build_xor(ar.into_int_value(), br.into_int_value(), UNNAMED)
+                .into(),
+            i::BinaryOperator::LeftShift => self
+                .builder
+                .build_left_shift(ar.into_int_value(), br.into_int_value(), UNNAMED)
+                .into(),
+            i::BinaryOperator::RightShift => self
+                .builder
+                .build_right_shift(ar.into_int_value(), br.into_int_value(), true, UNNAMED)
+                .into(),
         }
     }
 
@@ -505,7 +542,7 @@ impl<'a> Converter<'a> {
         let dimensions = from.dimensions.iter().map(|(len, _)| *len).collect();
         let mut dyn_indexes: Vec<_> = to_indexes
             .iter()
-            .map(|value| self.load_value(value, &[]))
+            .map(|value| self.load_value(value, &[]).into_int_value())
             .collect();
         dyn_indexes.insert(0, self.u32_const(0));
         for position in shared::NDIndexIter::new(dimensions) {
@@ -523,7 +560,7 @@ impl<'a> Converter<'a> {
         let dimensions = to.dimensions.iter().map(|(len, _)| *len).collect();
         let mut dyn_indexes: Vec<_> = from_indexes
             .iter()
-            .map(|value| self.load_value(value, &[]))
+            .map(|value| self.load_value(value, &[]).into_int_value())
             .collect();
         dyn_indexes.insert(0, self.u32_const(0));
         for position in shared::NDIndexIter::new(dimensions) {
@@ -538,12 +575,11 @@ impl<'a> Converter<'a> {
     }
 
     fn convert_label(&mut self, id: &i::LabelId) {
-        unsafe {
-            if !self.current_block_terminated {
-                LLVMBuildBr(self.builder, self.get_block_for_label(id));
-            }
-            LLVMPositionBuilderAtEnd(self.builder, self.get_block_for_label(id));
+        if !self.current_block_terminated {
+            self.builder
+                .build_unconditional_branch(self.get_block_for_label(id));
         }
+        self.builder.position_at_end(self.get_block_for_label(id));
         self.current_block_terminated = false;
     }
 
@@ -553,36 +589,31 @@ impl<'a> Converter<'a> {
         true_target: &i::LabelId,
         false_target: &i::LabelId,
     ) {
-        unsafe {
-            LLVMBuildCondBr(
-                self.builder,
-                self.load_value(condition, &[]),
-                self.get_block_for_label(true_target),
-                self.get_block_for_label(false_target),
-            );
-        }
+        let condition = self.load_value(condition, &[]).into_int_value();
+        self.builder.build_conditional_branch(
+            condition,
+            self.get_block_for_label(true_target),
+            self.get_block_for_label(false_target),
+        );
         self.current_block_terminated = true;
     }
 
     fn convert_abort(&mut self, error_code: u32) {
-        unsafe {
-            LLVMBuildRet(self.builder, self.u32_const(error_code));
-        }
+        self.builder.build_return(Some(&self.u32_const(error_code)));
         self.current_block_terminated = true;
     }
 
     fn convert_jump(&mut self, label: &i::LabelId) {
-        unsafe {
-            LLVMBuildBr(self.builder, self.get_block_for_label(label));
-        }
+        self.builder
+            .build_unconditional_branch(self.get_block_for_label(label));
         self.current_block_terminated = true;
     }
 
     fn create_variable_pointers_for_main_body(
         &mut self,
-        input_pointer: LLVMValueRef,
-        static_pointer: LLVMValueRef,
-        output_pointer: LLVMValueRef,
+        input_pointer: PointerValue<'ctx>,
+        static_pointer: PointerValue<'ctx>,
+        output_pointer: PointerValue<'ctx>,
     ) {
         let mut input_index = 0;
         let mut output_index = 0;
@@ -593,54 +624,36 @@ impl<'a> Converter<'a> {
                 i::StorageLocation::Input => {
                     let mut indices = [self.u32_const(0), self.u32_const(input_index as u32)];
                     input_index += 1;
-                    unsafe {
-                        LLVMBuildGEP(
-                            self.builder,
-                            input_pointer,
-                            indices.as_mut_ptr(),
-                            indices.len() as u32,
-                            UNNAMED,
-                        )
-                    }
+                    unsafe { self.builder.build_gep(input_pointer, &indices[..], UNNAMED) }
                 }
                 i::StorageLocation::Output => {
                     let mut indices = [self.u32_const(0), self.u32_const(output_index as u32)];
                     output_index += 1;
                     unsafe {
-                        LLVMBuildGEP(
-                            self.builder,
-                            output_pointer,
-                            indices.as_mut_ptr(),
-                            indices.len() as u32,
-                            UNNAMED,
-                        )
+                        self.builder
+                            .build_gep(output_pointer, &indices[..], UNNAMED)
                     }
                 }
                 i::StorageLocation::Static => {
                     let mut indices = [self.u32_const(0), self.u32_const(static_index as u32)];
                     static_index += 1;
                     unsafe {
-                        LLVMBuildGEP(
-                            self.builder,
-                            static_pointer,
-                            indices.as_mut_ptr(),
-                            indices.len() as u32,
-                            UNNAMED,
-                        )
+                        self.builder
+                            .build_gep(static_pointer, &indices[..], UNNAMED)
                     }
                 }
                 i::StorageLocation::StaticBody => {
                     continue;
                 }
                 i::StorageLocation::MainBody => unsafe {
-                    LLVMBuildAlloca(self.builder, llvmt, UNNAMED)
+                    self.builder.build_alloca(llvmt, UNNAMED)
                 },
             };
             self.value_pointers.insert(var_id, ptr);
         }
     }
 
-    fn create_variable_pointers_for_static_body(&mut self, static_pointer: LLVMValueRef) {
+    fn create_variable_pointers_for_static_body(&mut self, static_pointer: PointerValue<'ctx>) {
         let mut static_index = 0;
         for var_id in self.source.iterate_all_variables() {
             let llvmt = llvm_type(self.context, self.source[var_id].borrow_type());
@@ -655,17 +668,12 @@ impl<'a> Converter<'a> {
                     let mut indices = [self.u32_const(0), self.u32_const(static_index as u32)];
                     static_index += 1;
                     unsafe {
-                        LLVMBuildGEP(
-                            self.builder,
-                            static_pointer,
-                            indices.as_mut_ptr(),
-                            indices.len() as u32,
-                            UNNAMED,
-                        )
+                        self.builder
+                            .build_gep(static_pointer, &indices[..], UNNAMED)
                     }
                 }
                 i::StorageLocation::StaticBody => unsafe {
-                    LLVMBuildAlloca(self.builder, llvmt, UNNAMED)
+                    self.builder.build_alloca(llvmt, UNNAMED)
                 },
                 i::StorageLocation::MainBody => {
                     continue;
@@ -675,26 +683,23 @@ impl<'a> Converter<'a> {
         }
     }
 
-    fn create_blocks_for_labels(&mut self, function: LLVMValueRef, static_body: bool) {
+    fn create_blocks_for_labels(&mut self, function: FunctionValue<'ctx>, static_body: bool) {
         for label in self.source.iterate_all_labels() {
             if self.source.is_label_in_static_body(label) != static_body {
                 continue;
             }
-            self.label_blocks.push(unsafe {
-                LLVMAppendBasicBlockInContext(
-                    self.context,
-                    function,
-                    format!("{:?}\0", label).as_ptr() as *const _,
-                )
-            });
+            self.label_blocks.push(
+                self.context
+                    .append_basic_block(function, &format!("{:?}", label)),
+            );
         }
     }
 
-    fn create_blocks_for_main_body_labels(&mut self, function: LLVMValueRef) {
+    fn create_blocks_for_main_body_labels(&mut self, function: FunctionValue<'ctx>) {
         self.create_blocks_for_labels(function, false);
     }
 
-    fn create_blocks_for_static_body_labels(&mut self, function: LLVMValueRef) {
+    fn create_blocks_for_static_body_labels(&mut self, function: FunctionValue<'ctx>) {
         self.create_blocks_for_labels(function, true);
     }
 
@@ -702,99 +707,6 @@ impl<'a> Converter<'a> {
         self.label_blocks.clear();
         self.value_pointers.clear();
         self.current_block_terminated = false;
-    }
-
-    fn optimize(&mut self) {
-        unsafe {
-            debug_assert!(
-                llvm_sys::analysis::LLVMVerifyModule(
-                    self.module,
-                    llvm_sys::analysis::LLVMVerifierFailureAction::LLVMPrintMessageAction,
-                    std::ptr::null_mut()
-                ) == 0,
-                "Module failed to verify."
-            );
-
-            let pm = LLVMCreatePassManager();
-            // Available passes: https://llvm.org/docs/Passes.html#transform-passes
-            // Good example of a full optimization pipeline:
-            // Line 436 starts a -O1 pipeline
-            // Line 557 starts -O2 and -O3 pipelines. This is more what is being mimicked.
-            // There is also a different one at 1035 which may be better. I think it is supposed
-            // to work at a module level rather than a function level.
-            // https://llvm.org/doxygen/PassBuilder_8cpp_source.html#l01230
-            // Convert all our stores / loads into flat, efficient SSA style code.
-            llvmt::scalar::LLVMAddScalarReplAggregatesPassSSA(pm);
-            llvmt::scalar::LLVMAddEarlyCSEPass(pm);
-            // Not sure if this is supposed to work here.
-            // llvmt::scalar::LLVMAddGVNPass(pm); ------
-            llvmt::scalar::LLVMAddCFGSimplificationPass(pm);
-            // We do not seem to have a function to add speculative execution optimizations.
-            llvmt::scalar::LLVMAddJumpThreadingPass(pm);
-            // Couldn't find what this one does.
-            llvmt::scalar::LLVMAddCorrelatedValuePropagationPass(pm);
-            llvmt::scalar::LLVMAddCFGSimplificationPass(pm);
-            llvmt::scalar::LLVMAddInstructionCombiningPass(pm);
-            // We do not do tail call elimination because we do not have functions or a stack.
-            // llvmt::scalar::LLVMAddTailCallEliminationPass(pm);
-            // llvmt::scalar::LLVMAddCFGSimplificationPass(pm);
-            llvmt::scalar::LLVMAddReassociatePass(pm);
-            // The source linked above adds loop optimizations which I am not sure how to express
-            // with the C API.
-
-            // The following is executed in between and after the loop optimizations:
-            // llvmt::scalar::LLVMAddCFGSimplificationPass(pm);
-            // llvmt::instcombine::LLVMAddInstructionCombiningPass(pm);
-            // llvmt::scalar::LLVMAddScalarReplAggregatesPassSSA(pm);
-            // I don't understand what this pass does but it looks fancy.
-            llvmt::scalar::LLVMAddMergedLoadStoreMotionPass(pm);
-            llvmt::scalar::LLVMAddGVNPass(pm);
-            llvmt::scalar::LLVMAddMemCpyOptPass(pm);
-            // The original source uses a fancy "Sparse conditional" propogation I can't find.
-            llvmt::scalar::LLVMAddConstantPropagationPass(pm);
-            llvmt::scalar::LLVMAddBitTrackingDCEPass(pm);
-            llvmt::instcombine::LLVMAddInstructionCombiningPass(pm);
-            // The original code mentions redoing these things because new opportunities are opened
-            // up by previous optimizations.
-            llvmt::scalar::LLVMAddJumpThreadingPass(pm);
-            llvmt::scalar::LLVMAddCorrelatedValuePropagationPass(pm);
-            llvmt::scalar::LLVMAddDeadStoreEliminationPass(pm);
-            // This is a loop based pass. I'm not sure if it will work.
-            llvmt::scalar::LLVMAddLICMPass(pm);
-            // The original code mentions wrapping up with expensive passes.
-            llvmt::scalar::LLVMAddAggressiveDCEPass(pm);
-            llvmt::scalar::LLVMAddCFGSimplificationPass(pm);
-            llvmt::instcombine::LLVMAddInstructionCombiningPass(pm);
-
-
-            // This is where I start doing stuff fromn line 1035
-            llvmt::ipo::LLVMAddGlobalOptimizerPass(pm);
-            llvmt::ipo::LLVMAddGlobalDCEPass(pm);
-            llvmt::scalar::LLVMAddLoopRotatePass(pm);
-            llvmt::vectorize::LLVMAddLoopVectorizePass(pm);
-            // There is supposed to be a LoopLoadEliminationPass here but I can't find it.
-            llvmt::instcombine::LLVMAddInstructionCombiningPass(pm);
-            llvmt::scalar::LLVMAddCFGSimplificationPass(pm);
-            llvmt::vectorize::LLVMAddSLPVectorizePass(pm);
-            // VectorCombinePass is missing
-            llvmt::instcombine::LLVMAddInstructionCombiningPass(pm);
-            // This may be too expensive.
-            // llvmt::scalar::LLVMAddLoopUnrollAndJamPass(pm);
-            llvmt::scalar::LLVMAddLICMPass(pm);
-            llvmt::scalar::LLVMAddAlignmentFromAssumptionsPass(pm);
-            // Missing HotColdSplittingPass
-            // Missing LoopSinkPass, which is supposed to run after LICM.
-            // Missing InstSimplifyPass
-            // wtf is this library
-            // MISSING DIVREMPAIRSPASS
-            llvmt::scalar::LLVMAddCFGSimplificationPass(pm);
-            // Missing SpeculateAroundPHIsPass...
-            llvmt::ipo::LLVMAddGlobalDCEPass(pm);
-            llvmt::ipo::LLVMAddConstantMergePass(pm);
-
-            LLVMRunPassManager(pm, self.module);
-            LLVMDisposePassManager(pm);
-        }
     }
 
     fn convert_instruction(&mut self, instruction: &i::Instruction) {
@@ -826,186 +738,147 @@ impl<'a> Converter<'a> {
     }
 
     fn convert(&mut self) {
-        unsafe {
-            // LLVM related setup for main function.
-            let i32t = LLVMInt32TypeInContext(self.context);
-            let mut argts = [
-                self.input_pointer_type,
-                self.static_pointer_type,
-                self.output_pointer_type,
-            ];
-            let function_type = LLVMFunctionType(i32t, argts.as_mut_ptr(), argts.len() as u32, 0);
-            let main_fn =
-                LLVMAddFunction(self.module, b"main\0".as_ptr() as *const _, function_type);
-            let entry_block = LLVMAppendBasicBlockInContext(
-                self.context,
-                main_fn,
-                b"entry\0".as_ptr() as *const _,
-            );
-            LLVMPositionBuilderAtEnd(self.builder, entry_block);
-            let input_pointer = LLVMGetParam(main_fn, 0);
-            let static_pointer = LLVMGetParam(main_fn, 1);
-            let output_pointer = LLVMGetParam(main_fn, 2);
+        // LLVM related setup for main function.
+        let i32t = self.context.i32_type();
+        let mut argts = [
+            self.input_pointer_type.into(),
+            self.static_pointer_type.into(),
+            self.output_pointer_type.into(),
+        ];
+        let function_type = i32t.fn_type(&argts[..], false);
+        let main_fn = self.module.add_function("main", function_type, None);
+        let entry_block = self.context.append_basic_block(main_fn, "entry");
+        self.builder.position_at_end(entry_block);
+        let input_pointer = main_fn.get_params()[0].into_pointer_value();
+        let static_pointer = main_fn.get_params()[1].into_pointer_value();
+        let output_pointer = main_fn.get_params()[2].into_pointer_value();
 
-            // Self-related setup for main function.
-            self.reset();
-            self.create_variable_pointers_for_main_body(
-                input_pointer,
-                static_pointer,
-                output_pointer,
-            );
-            self.create_blocks_for_main_body_labels(main_fn);
+        // Self-related setup for main function.
+        self.reset();
+        self.create_variable_pointers_for_main_body(input_pointer, static_pointer, output_pointer);
+        self.create_blocks_for_main_body_labels(main_fn);
 
-            // Convert instructions.
-            for instruction in self.source.borrow_instructions().clone() {
-                self.convert_instruction(instruction);
-            }
-
-            // Add OK return if missing.
-            if !self.current_block_terminated {
-                LLVMBuildRet(self.builder, self.u32_const(0));
-            }
+        // Convert instructions.
+        for instruction in self.source.borrow_instructions().clone() {
+            self.convert_instruction(instruction);
         }
 
-        unsafe {
-            // LLVM related setup for static init function.
-            let i32t = LLVMInt32TypeInContext(self.context);
-            let mut argts = [self.static_pointer_type];
-            let function_type = LLVMFunctionType(i32t, argts.as_mut_ptr(), argts.len() as u32, 0);
-            let static_init_fn = LLVMAddFunction(
-                self.module,
-                b"static_init\0".as_ptr() as *const _,
-                function_type,
-            );
-            let entry_block = LLVMAppendBasicBlockInContext(
-                self.context,
-                static_init_fn,
-                b"entry\0".as_ptr() as *const _,
-            );
-            LLVMPositionBuilderAtEnd(self.builder, entry_block);
-            let static_pointer = LLVMGetParam(static_init_fn, 0);
-
-            // Self-related setup for main function.
-            self.reset();
-            self.create_variable_pointers_for_static_body(static_pointer);
-            self.create_blocks_for_static_body_labels(static_init_fn);
-
-            // Convert instructions.
-            for instruction in self.source.borrow_static_init_instructions().clone() {
-                self.convert_instruction(instruction);
-            }
-
-            // Add OK return if missing.
-            if !self.current_block_terminated {
-                LLVMBuildRet(self.builder, self.u32_const(0));
-            }
+        // Add OK return if missing.
+        if !self.current_block_terminated {
+            self.builder.build_return(Some(&self.u32_const(0)));
         }
 
-        unsafe {
-            LLVMDisposeBuilder(self.builder);
+        // LLVM related setup for static init function.
+        let mut argts = [self.static_pointer_type.into()];
+        let function_type = i32t.fn_type(&argts[..], false);
+        let static_init_fn = self.module.add_function("static_init", function_type, None);
+        let entry_block = self.context.append_basic_block(static_init_fn, "entry");
+        self.builder.position_at_end(entry_block);
+        let static_pointer = static_init_fn.get_params()[0].into_pointer_value();
 
-            #[cfg(feature = "dump-llvmir")]
-            {
-                // Dump human-readable IR to stdout
-                println!("\nUnoptimized:");
-                LLVMDumpModule(self.module);
-            }
+        // Self-related setup for main function.
+        self.reset();
+        self.create_variable_pointers_for_static_body(static_pointer);
+        self.create_blocks_for_static_body_labels(static_init_fn);
+
+        // Convert instructions.
+        for instruction in self.source.borrow_static_init_instructions().clone() {
+            self.convert_instruction(instruction);
         }
 
-        self.optimize();
-
-        #[cfg(feature = "dump-llvmir")]
-        unsafe {
-            println!("\nOptimized:");
-            LLVMDumpModule(self.module);
+        // Add OK return if missing.
+        if !self.current_block_terminated {
+            self.builder.build_return(Some(&self.u32_const(0)));
         }
+
+        // Dump human-readable IR to stdout
+        println!("\nUnoptimized:");
+        self.module.print_to_stderr();
     }
 }
 
-fn llvm_type(context: LLVMContextRef, trivial_type: &i::DataType) -> LLVMTypeRef {
-    unsafe {
-        match trivial_type {
-            i::DataType::B1 => LLVMInt1TypeInContext(context),
-            i::DataType::I32 => LLVMInt32TypeInContext(context),
-            i::DataType::F32 => LLVMFloatTypeInContext(context),
-            i::DataType::Array(len, etype) => LLVMArrayType(llvm_type(context, etype), *len as u32),
-        }
+fn llvm_type<'ctx>(context: &'ctx Context, trivial_type: &i::DataType) -> BasicTypeEnum<'ctx> {
+    match trivial_type {
+        i::DataType::B1 => context.bool_type().into(),
+        i::DataType::I32 => context.i32_type().into(),
+        i::DataType::F32 => context.f32_type().into(),
+        i::DataType::Array(len, etype) => match llvm_type(context, etype) {
+            BasicTypeEnum::ArrayType(typ) => typ.array_type(*len as _).into(),
+            BasicTypeEnum::FloatType(typ) => typ.array_type(*len as _).into(),
+            BasicTypeEnum::IntType(typ) => typ.array_type(*len as _).into(),
+            _ => unreachable!(),
+        },
     }
 }
 
-pub fn ingest(source: &i::Program) -> o::Program {
-    unsafe {
-        let context = LLVMContextCreate();
-        let module = LLVMModuleCreateWithNameInContext(b"nsprog\0".as_ptr() as *const _, context);
-        let builder = LLVMCreateBuilderInContext(context);
+pub fn ingest<'ctx>(source: &i::Program) -> o::Program<'ctx> {
+    let context_box = Box::new(Context::create());
+    let context: &'ctx _ = &*context_box;
+    let module_box = Box::new(context.create_module("nsprog"));
+    let module: &'ctx Module<'ctx> = &*module_box;
+    let builder = context.create_builder();
 
-        let mut input_types = Vec::new();
-        let mut output_types = Vec::new();
-        let mut static_types = Vec::new();
-        for var in source.iterate_all_variables() {
-            let ltype = llvm_type(context, source[var].borrow_type());
-            match source[var].get_location() {
-                i::StorageLocation::Input => input_types.push(ltype),
-                i::StorageLocation::Output => output_types.push(ltype),
-                i::StorageLocation::Static => static_types.push(ltype),
-                _ => (),
+    let mut input_types = Vec::new();
+    let mut input_len = 0;
+    let mut output_types = Vec::new();
+    let mut output_len = 0;
+    let mut static_types = Vec::new();
+    let mut static_len = 0;
+    for var in source.iterate_all_variables() {
+        let typ = source[var].borrow_type();
+        let ltype = llvm_type(&*context, typ);
+        match source[var].get_location() {
+            i::StorageLocation::Input => {
+                input_len += typ.size();
+                input_types.push(ltype);
             }
+            i::StorageLocation::Output => {
+                output_len += typ.size();
+                output_types.push(ltype);
+            }
+            i::StorageLocation::Static => {
+                static_len += typ.size();
+                static_types.push(ltype);
+            }
+            _ => (),
         }
-
-        // The input and output data types should be packed so that their layout can be more
-        // easily predicted by the host program.
-        let input_data_type = LLVMStructTypeInContext(
-            context,
-            input_types.as_mut_ptr(),
-            input_types.len() as u32,
-            1,
-        );
-        let input_pointer_type = LLVMPointerType(input_data_type, 0);
-        let output_data_type = LLVMStructTypeInContext(
-            context,
-            output_types.as_mut_ptr(),
-            output_types.len() as u32,
-            1,
-        );
-        let output_pointer_type = LLVMPointerType(output_data_type, 0);
-        let static_data_type = LLVMStructTypeInContext(
-            context,
-            static_types.as_mut_ptr(),
-            static_types.len() as u32,
-            0,
-        );
-        let static_pointer_type = LLVMPointerType(static_data_type, 0);
-
-        let intrinsics = Intrinsics::new(module, context);
-
-        let mut converter = Converter {
-            source,
-            input_pointer_type,
-            output_pointer_type,
-            static_pointer_type,
-
-            context,
-            module,
-            builder,
-            intrinsics,
-
-            value_pointers: HashMap::new(),
-            label_blocks: Vec::with_capacity(source.iterate_all_labels().count()),
-            current_block_terminated: false,
-        };
-
-        converter.convert();
-
-        let Converter {
-            context, module, ..
-        } = converter;
-        o::Program::new(
-            context,
-            module,
-            input_data_type,
-            output_data_type,
-            static_data_type,
-            source.borrow_error_descriptions().clone(),
-        )
     }
+
+    // The input and output data types should be packed so that their layout can be more
+    // easily predicted by the host program.
+    let input_data_type = context.struct_type(&input_types[..], true);
+    let input_pointer_type = input_data_type.ptr_type(AddressSpace::Generic);
+    let output_data_type = context.struct_type(&output_types[..], true);
+    let output_pointer_type = output_data_type.ptr_type(AddressSpace::Generic);
+    let static_data_type = context.struct_type(&static_types[..], true);
+    let static_pointer_type = static_data_type.ptr_type(AddressSpace::Generic);
+
+    let intrinsics = Intrinsics::new(&module, &*context);
+
+    let mut converter = Converter {
+        source,
+        input_pointer_type,
+        output_pointer_type,
+        static_pointer_type,
+
+        context,
+        module: module,
+        builder,
+        intrinsics,
+
+        value_pointers: HashMap::new(),
+        label_blocks: Vec::with_capacity(source.iterate_all_labels().count()),
+        current_block_terminated: false,
+    };
+
+    converter.convert();
+
+    o::Program::new(
+        context_box,
+        module_box,
+        input_len,
+        output_len,
+        static_len,
+        source.borrow_error_descriptions().clone(),
+    )
 }
