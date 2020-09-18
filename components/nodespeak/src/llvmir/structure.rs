@@ -1,73 +1,85 @@
 use inkwell::{
-    basic_block::BasicBlock,
-    builder::Builder,
     context::Context,
     execution_engine::{ExecutionEngine, JitFunction},
     module::Module,
-    targets::{InitializationConfig, Target},
-    types::{BasicTypeEnum, PointerType, StructType},
-    values::{
-        BasicValue, BasicValueEnum, CallSiteValue, FloatValue, FunctionValue, IntValue,
-        PointerValue,
-    },
-    AddressSpace, FloatPredicate, IntPredicate, OptimizationLevel,
+    OptimizationLevel,
 };
 use std::fmt::{self, Debug, Formatter};
-use std::mem::{self, MaybeUninit};
-use std::pin::Pin;
-use std::ptr;
+use std::mem;
 
 pub struct StaticData {
     data: Vec<u8>,
 }
 
-pub struct Program<'ctx> {
-    execution_engine: ExecutionEngine<'ctx>,
-    function: JitFunction<'ctx, unsafe extern "C" fn(*mut u8, *mut u8, *mut u8) -> u32>,
-    static_init: JitFunction<'ctx, unsafe extern "C" fn(*mut u8) -> u32>,
-    context: Box<Context>,
-    module: Box<Module<'ctx>>,
+// Macro for creating self-referential structs.
+rental! {
+    mod rented_impl {
+        use super::*;
+
+        // Disgusting, it's covered in references to itself.
+        #[rental]
+        pub struct IncestuousData {
+            context: Box<Context>,
+            module: Box<Module<'context>>,
+            execution_engine: Box<ExecutionEngine<'context>>,
+            function: Box<JitFunction<
+                'context, unsafe extern "C" fn(*mut u8, *mut u8, *mut u8) -> u32>>,
+            static_init: Box<JitFunction<
+                'context, unsafe extern "C" fn(*mut u8) -> u32>>,
+        }
+    }
+}
+
+use rented_impl::IncestuousData;
+
+pub struct Program {
+    idata: IncestuousData,
     in_size: usize,
     out_size: usize,
     static_size: usize,
     error_descriptions: Vec<String>,
 }
 
-impl<'ctx> Debug for Program<'ctx> {
+impl Debug for Program {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         writeln!(formatter, "error codes:")?;
         for (code, description) in self.error_descriptions.iter().enumerate() {
             writeln!(formatter, "  {}: {}", code, description)?;
         }
-        unsafe {
-            let content = self.module.print_to_string();
-            write!(formatter, "LLVM IR Code:{}", content)?;
-        }
+        let content = self.idata.rent_all(|data| data.module.print_to_string());
+        write!(formatter, "LLVM IR Code:{}", content)?;
         write!(formatter, "")
     }
 }
 
-impl<'ctx> Program<'ctx> {
-    /// After this, the prrogram will handle dropping the module and context automatically.
+impl Program {
     pub fn new(
-        context: Box<Context>,
-        module: Box<Module<'ctx>>,
+        context: Context,
+        module_creator: impl for<'ctx> FnOnce(&'ctx Context) -> Box<Module<'ctx>>,
         in_size: usize,
         out_size: usize,
         static_size: usize,
         error_descriptions: Vec<String>,
     ) -> Self {
-        let execution_engine = module
-            .create_jit_execution_engine(OptimizationLevel::Default)
-            .unwrap();
-        let function = unsafe { execution_engine.get_function("main").unwrap() };
-        let static_init = unsafe { execution_engine.get_function("static_init").unwrap() };
+        let idata = IncestuousData::new(
+            Box::new(context),
+            module_creator,
+            |module, _| {
+                Box::new(
+                    module
+                        .create_jit_execution_engine(OptimizationLevel::Default)
+                        .unwrap(),
+                )
+            },
+            |execution_engine, _, _| {
+                Box::new(unsafe { execution_engine.get_function("main").unwrap() })
+            },
+            |_, execution_engine, _, _| {
+                Box::new(unsafe { execution_engine.get_function("static_init").unwrap() })
+            },
+        );
         Self {
-            execution_engine,
-            function,
-            static_init,
-            context,
-            module,
+            idata,
             in_size,
             out_size,
             static_size,
@@ -110,7 +122,9 @@ impl<'ctx> Program<'ctx> {
         let mut data = StaticData {
             data: vec![0; self.static_size],
         };
-        let error_code = self.static_init.call(data.data.as_mut_ptr());
+        let error_code = self
+            .idata
+            .rent_all(|idata| idata.static_init.call(data.data.as_mut_ptr()));
         self.parse_error_code(error_code)?;
         Ok(data)
     }
@@ -122,7 +136,9 @@ impl<'ctx> Program<'ctx> {
             self.static_size,
             data.data.len()
         );
-        let error_code = self.static_init.call(data.data.as_mut_ptr());
+        let error_code = self
+            .idata
+            .rent_all(|idata| idata.static_init.call(data.data.as_mut_ptr()));
         self.parse_error_code(error_code)
     }
 
@@ -137,11 +153,13 @@ impl<'ctx> Program<'ctx> {
             mem::size_of::<U>(),
             static_data.data.len(),
         );
-        let error_code = self.function.call(
-            input_data as *mut T as *mut u8,
-            static_data.data.as_mut_ptr(),
-            output_data as *mut U as *mut u8,
-        );
+        let error_code = self.idata.rent_all(|idata| {
+            idata.function.call(
+                input_data as *mut T as *mut u8,
+                static_data.data.as_mut_ptr(),
+                output_data as *mut U as *mut u8,
+            )
+        });
         self.parse_error_code(error_code)
     }
 
@@ -152,11 +170,13 @@ impl<'ctx> Program<'ctx> {
         static_data: &mut StaticData,
     ) -> Result<(), &str> {
         self.assert_size(input_data.len(), output_data.len(), static_data.data.len());
-        let error_code = self.function.call(
-            input_data.as_mut_ptr(),
-            static_data.data.as_mut_ptr(),
-            output_data.as_mut_ptr(),
-        );
+        let error_code = self.idata.rent_all(|idata| {
+            idata.function.call(
+                input_data.as_mut_ptr(),
+                static_data.data.as_mut_ptr(),
+                output_data.as_mut_ptr(),
+            )
+        });
         self.parse_error_code(error_code)
     }
 }
