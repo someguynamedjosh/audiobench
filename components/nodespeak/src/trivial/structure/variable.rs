@@ -33,6 +33,15 @@ impl DataType {
             _ => new_base,
         }
     }
+
+    pub fn size(&self) -> usize {
+        match self {
+            Self::B1 => 1,
+            Self::I32 => 4,
+            Self::F32 => 4,
+            Self::Array(len, etyp) => len * etyp.size(),
+        }
+    }
 }
 
 impl Debug for DataType {
