@@ -147,6 +147,7 @@ else()
         curses
         ssl
         crypto
+        ffi
         ${XCB_LIBRARIES}
     )
 endif()

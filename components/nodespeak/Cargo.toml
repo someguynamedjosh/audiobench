@@ -22,10 +22,10 @@ dump-llvmir=[]
 colored = "1.8"
 inkwell = { git = "https://github.com/TheDan64/inkwell", branch = "master", features = ["llvm7-0"] }
 libc = "0.2"
+ouroboros = "0.2"
 pest = "2.1"
 pest_derive = "2.1"
 readonly = "0.1"
-rental = "0.5.4"
 snailquote = "0.3"
 terminal_size="0.1"
 text_io = "0.1"
