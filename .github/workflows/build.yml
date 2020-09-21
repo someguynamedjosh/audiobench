@@ -1,0 +1,51 @@
+name: Build All Artifacts
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        lfs: 'true' 
+        submodules: 'true'
+    - name: Install Dependencies
+      run: |
+        echo "Prebuilt LLVM development libraries for Windows because no one else has them apparently."
+        git clone "https://gitlab.com/Code_Cube/llvm-win.git" "C:\LLVM"
+        $Env:LLVM_SYS_70_PREFIX="C:\LLVM\"
+    - name: Build
+      run: python build.py juce_frontend --release
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v2
+      with:
+        name: artifacts-bin-windows
+        path: artifacts/bin/
+    
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        lfs: 'true' 
+        submodules: 'true'
+    - name: Install Dependencies
+      run: |
+        sudo apt update
+        sudo apt -y install llvm-7 libxrandr-dev libxinerama-dev libxcursor-dev libasound-dev extra-cmake-modules
+        export LLVM_SYS_70_PREFIX=/usr/bin/llvm-7/
+    - name: Build
+      run: ./build.py juce_frontend --release
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v2
+      with:
+        name: artifacts-bin-linux
+        path: artifacts/bin/
