@@ -269,6 +269,14 @@ AudiobenchAudioProcessorEditor::AudiobenchAudioProcessorEditor(AudiobenchAudioPr
     // Make sure that before the constructor has finished, you've set the
     // editor's size to whatever you need it to be.
     setSize(640, 480);
+    setResizable(true, true);
+    this->constrainer = new ComponentBoundsConstrainer();
+    this->constrainer->setFixedAspectRatio(640.0 / 480.0);
+    this->constrainer->setMinimumWidth(640 / 2);
+    this->constrainer->setMaximumWidth(640 * 8);
+    this->constrainer->setMinimumHeight(480 / 2);
+    this->constrainer->setMaximumHeight(480 * 8);
+    this->setConstrainer(this->constrainer);
     ABCreateUI(processor.ab);
     addKeyListener(this);
     setWantsKeyboardFocus(true);
@@ -288,22 +296,23 @@ void AudiobenchAudioProcessorEditor::paint(Graphics &g)
 {
     // Rust will pass the pointer to the Graphics object as the first argument to the drawing
     // functions whenever it uses them.
+    g.addTransform(AffineTransform().scaled(this->windowScale));
     ABDrawUI(processor.ab, (void *)&g, (void *)&iconStore);
 }
 
 void AudiobenchAudioProcessorEditor::mouseDown(const MouseEvent &event)
 {
-    ABUIMouseDown(processor.ab, event.x, event.y, event.mods.isPopupMenu(), event.mods.isShiftDown(), event.mods.isAltDown());
+    ABUIMouseDown(processor.ab, event.x / this->windowScale, event.y / this->windowScale, event.mods.isPopupMenu(), event.mods.isShiftDown(), event.mods.isAltDown());
 }
 
 void AudiobenchAudioProcessorEditor::mouseMove(const MouseEvent &event)
 {
-    ABUIMouseMove(processor.ab, event.x, event.y, event.mods.isPopupMenu(), event.mods.isShiftDown(), event.mods.isAltDown());
+    ABUIMouseMove(processor.ab, event.x / this->windowScale, event.y / this->windowScale, event.mods.isPopupMenu(), event.mods.isShiftDown(), event.mods.isAltDown());
 }
 
 void AudiobenchAudioProcessorEditor::mouseDrag(const MouseEvent &event)
 {
-    ABUIMouseMove(processor.ab, event.x, event.y, event.mods.isPopupMenu(), event.mods.isShiftDown(), event.mods.isAltDown());
+    ABUIMouseMove(processor.ab, event.x / this->windowScale, event.y / this->windowScale, event.mods.isPopupMenu(), event.mods.isShiftDown(), event.mods.isAltDown());
 }
 
 void AudiobenchAudioProcessorEditor::mouseUp(const MouseEvent &event)
@@ -324,6 +333,8 @@ bool AudiobenchAudioProcessorEditor::keyPressed(const KeyPress &key, Component *
 
 void AudiobenchAudioProcessorEditor::resized()
 {
+    AudioProcessorEditor::resized();
     // This is generally where you'll want to lay out the positions of any
     // subcomponents in your editor..
+    this->windowScale = this->getWidth() / 640.0;
 }

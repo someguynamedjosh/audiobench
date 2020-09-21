@@ -42,7 +42,9 @@ public:
 private:
     // This reference is provided as a quick way for your editor to
     // access the processor object that created it.
-    AudiobenchAudioProcessor& processor;
+    AudiobenchAudioProcessor &processor;
+    ComponentBoundsConstrainer *constrainer;
+    double windowScale = 1.0;
     bool focusGrabbed = false;
     std::vector<std::unique_ptr<Drawable>> iconStore;
 
