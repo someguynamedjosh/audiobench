@@ -14,6 +14,8 @@ parser.add_argument('-c', '--clean', action='store_true',
                     help='Clean all intermediate files before starting.')
 parser.add_argument('-r', '--release', action='store_true',
                     help='Use release profiles and optimizations wherever possible.')
+parser.add_argument('-g', '--github-runner', action='store_true',
+                    help='Activate extra steps necessary for building within the limitations of GitHub hosted runners.')
 
 args = parser.parse_args()
 
@@ -58,6 +60,7 @@ ON_MAC = sys.platform.startswith('darwin')
 ON_LINUX = sys.platform.startswith('linux')
 DO_CLEAN = args.clean
 DO_RELEASE = args.release
+ON_GITHUB_RUNNER = args.github_runner
 PROJECT_ROOT = Path(os.path.abspath(__file__)).parent
 RUST_OUTPUT_DIR = PROJECT_ROOT.joinpath(
     'target', ['debug', 'release'][DO_RELEASE])
@@ -106,9 +109,7 @@ def build_juce_frontend():
                  '..'], working_dir=JUCE_FRONTEND_ROOT.joinpath('_build'))
         command(['cmake', '--build', '_build', '--config',
                  cmake_config], working_dir=JUCE_FRONTEND_ROOT)
-    if ON_MAC:
-        exit(1)
-    if ON_LINUX:
+    if ON_MAC or ON_LINUX:
         command(['cmake', '-Wno-dev', '-DCMAKE_BUILD_TYPE=' + ['Debug', 'Release']
                  [DO_RELEASE], '..'], working_dir=JUCE_FRONTEND_ROOT.joinpath('_build'))
         command(['cmake', '--build', '_build', '--config',
@@ -117,27 +118,50 @@ def build_juce_frontend():
     artifact_source = JUCE_FRONTEND_ROOT.joinpath('_build', 'Audiobench_artefacts', [
         'Debug', 'Release'][DO_RELEASE])
     standalone_source = artifact_source.joinpath('Standalone')
-    standalone_target = PROJECT_ROOT.joinpath('artifacts', 'bin')
     vst3_source = artifact_source.joinpath(
         'VST3', 'Audiobench.vst3', 'Contents')
-    vst3_target = PROJECT_ROOT.joinpath('artifacts', 'bin')
+    artifact_target = PROJECT_ROOT.joinpath('artifacts', 'bin')
+    standalone_target = artifact_target.joinpath()
+    vst3_target = artifact_target.joinpath()
     if ON_WINDOWS:
         standalone_source = standalone_source.joinpath('Audiobench.exe')
         standalone_target = standalone_target.joinpath(
             'Audiobench_Windows_x64_Standalone.exe')
         vst3_source = vst3_source.joinpath('x86_64-win', 'Audiobench.vst3')
         vst3_target = vst3_target.joinpath('Audiobench_Windows_x64_VST3.vst3')
-    if ON_MAC:
-        # Unimplemented
-        exit(1)
     if ON_LINUX:
         standalone_source = standalone_source.joinpath('Audiobench')
         standalone_target = standalone_target.joinpath(
             'Audiobench_Linux_x64_Standalone.bin')
         vst3_source = vst3_source.joinpath('x86_64-linux', 'Audiobench.so')
         vst3_target = vst3_target.joinpath('Audiobench_Linux_x64_VST3.so')
-    cp(standalone_source, standalone_target)
-    cp(vst3_source, vst3_target)
+
+    # Mac requires an extra packaging step whose output goes directly in artifacts/bin/. Other
+    # platforms require copying the artifacts to the folder.
+    if ON_MAC:
+        au_source = artifact_source.joinpath('AU')
+        # Add links to install directories.
+        command(['ln', '-s', '/Applications',
+                 standalone_source.joinpath('Applications')])
+        command(['ln', '-s', '/Library/Audio/Plug-Ins/VST3',
+                 vst3_source.joinpath('VST3')])
+        command(['ln', '-s', '/Library/Audio/Plug-Ins/Components',
+                 au_source.joinpath('Components')])
+        # Convert everything to disk images.
+        # Build artifacts are approximately 60MB in size. hdiutil can frequently miscalculate the
+        # size of files to be included and will complain about "not enough space available":
+        # https://stackoverflow.com/questions/34119341/hdiutil-create-failed-error-5342
+        # so we tell it the size should be 120MB. According to above post, this does not
+        # significantly increase the size of the produced DMG.
+        command(['hdiutil', 'create', '-volname', 'Audiobench', '-size', '120m', '-srcfolder',
+                 standalone_source, '-ov', '-format', 'UDRO', artifact_target.joinpath('Audiobench_MacOS_x64_Standalone.dmg')])
+        command(['hdiutil', 'create', '-volname', 'Audiobench', '-size', '120m', '-srcfolder',
+                 vst3_source, '-ov', '-format', 'UDRO', artifact_target.joinpath('Audiobench_MacOS_x64_VST3.dmg')])
+        command(['hdiutil', 'create', '-volname', 'Audiobench', '-size', '120m', '-srcfolder',
+                 au_source, '-ov', '-format', 'UDRO', artifact_target.joinpath('Audiobench_MacOS_x64_AU.dmg')])
+    else:
+        cp(standalone_source, standalone_target)
+        cp(vst3_source, vst3_target)
 
 
 def run_standalone():
@@ -186,6 +210,8 @@ JOBS = {
     'juce_frontend': Job('Build the JUCE frontend for Audiobench', ['remove_juce_splash', 'clib'], build_juce_frontend),
     'run': Job('Run the standalone version of Audiobench', ['juce_frontend'], run_standalone),
     'benchmark': Job('Run a benchmarking suite', [], run_benchmark),
+
+
 }
 
 if ON_WINDOWS:
