@@ -777,8 +777,10 @@ impl<'i, 'ctx> Converter<'i, 'ctx> {
         }
 
         // Dump human-readable IR to stdout
-        println!("\nUnoptimized:");
-        self.module.print_to_stderr();
+        if cfg!(feature = "dump-llvmir") {
+            println!("\nUnoptimized:");
+            self.module.print_to_stderr();
+        }
     }
 }
 
@@ -793,19 +795,6 @@ fn llvm_type<'ctx>(context: &'ctx Context, trivial_type: &i::DataType) -> BasicT
             BasicTypeEnum::IntType(typ) => typ.array_type(*len as _).into(),
             _ => unreachable!(),
         },
-    }
-}
-
-use rental::rental;
-rental! {
-    mod rent_impl {
-        use super::*;
-
-        #[rental]
-        pub struct TestRental {
-            context: Box<Context>,
-            module: Module<'context>,
-        }
     }
 }
 

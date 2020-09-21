@@ -4,6 +4,7 @@ use inkwell::{
     module::Module,
     OptimizationLevel,
 };
+use ouroboros::self_referencing;
 use std::fmt::{self, Debug, Formatter};
 use std::mem;
 
@@ -11,26 +12,19 @@ pub struct StaticData {
     data: Vec<u8>,
 }
 
-// Macro for creating self-referential structs.
-rental! {
-    mod rented_impl {
-        use super::*;
-
-        // Disgusting, it's covered in references to itself.
-        #[rental]
-        pub struct IncestuousData {
-            context: Box<Context>,
-            module: Box<Module<'context>>,
-            execution_engine: Box<ExecutionEngine<'context>>,
-            function: Box<JitFunction<
-                'context, unsafe extern "C" fn(*mut u8, *mut u8, *mut u8) -> u32>>,
-            static_init: Box<JitFunction<
-                'context, unsafe extern "C" fn(*mut u8) -> u32>>,
-        }
-    }
+// Disgusting, it's covered in references to itself.
+#[self_referencing(chain_hack)]
+pub struct IncestuousData {
+    context: Box<Context>,
+    #[borrows(context)]
+    module: Box<Module<'this>>,
+    #[borrows(module)]
+    execution_engine: Box<ExecutionEngine<'this>>,
+    #[borrows(execution_engine)]
+    function: JitFunction<'this, unsafe extern "C" fn(*mut u8, *mut u8, *mut u8) -> u32>,
+    #[borrows(execution_engine)]
+    static_init: JitFunction<'this, unsafe extern "C" fn(*mut u8) -> u32>,
 }
-
-use rented_impl::IncestuousData;
 
 pub struct Program {
     idata: IncestuousData,
@@ -46,7 +40,7 @@ impl Debug for Program {
         for (code, description) in self.error_descriptions.iter().enumerate() {
             writeln!(formatter, "  {}: {}", code, description)?;
         }
-        let content = self.idata.rent_all(|data| data.module.print_to_string());
+        let content = self.idata.with_module_contents(|module| module.print_to_string());
         write!(formatter, "LLVM IR Code:{}", content)?;
         write!(formatter, "")
     }
@@ -55,29 +49,29 @@ impl Debug for Program {
 impl Program {
     pub fn new(
         context: Context,
-        module_creator: impl for<'ctx> FnOnce(&'ctx Context) -> Box<Module<'ctx>>,
+        module_builder: impl for<'this> FnOnce(&'this Context) -> Box<Module<'this>>,
         in_size: usize,
         out_size: usize,
         static_size: usize,
         error_descriptions: Vec<String>,
     ) -> Self {
-        let idata = IncestuousData::new(
-            Box::new(context),
-            module_creator,
-            |module, _| {
+        let idata = IncestuousDataBuilder{
+            context: Box::new(context),
+            module_builder: module_builder,
+            execution_engine_builder: |module| {
                 Box::new(
                     module
-                        .create_jit_execution_engine(OptimizationLevel::Default)
+                        .create_jit_execution_engine(OptimizationLevel::Less)
                         .unwrap(),
                 )
             },
-            |execution_engine, _, _| {
-                Box::new(unsafe { execution_engine.get_function("main").unwrap() })
+            function_builder: |execution_engine| {
+                unsafe { execution_engine.get_function("main").unwrap() }
             },
-            |_, execution_engine, _, _| {
-                Box::new(unsafe { execution_engine.get_function("static_init").unwrap() })
+            static_init_builder: |execution_engine| {
+                unsafe { execution_engine.get_function("static_init").unwrap() }
             },
-        );
+        }.build();
         Self {
             idata,
             in_size,
@@ -124,7 +118,7 @@ impl Program {
         };
         let error_code = self
             .idata
-            .rent_all(|idata| idata.static_init.call(data.data.as_mut_ptr()));
+            .with(|idata| idata.static_init.call(data.data.as_mut_ptr()));
         self.parse_error_code(error_code)?;
         Ok(data)
     }
@@ -138,7 +132,7 @@ impl Program {
         );
         let error_code = self
             .idata
-            .rent_all(|idata| idata.static_init.call(data.data.as_mut_ptr()));
+            .with(|idata| idata.static_init.call(data.data.as_mut_ptr()));
         self.parse_error_code(error_code)
     }
 
@@ -153,7 +147,7 @@ impl Program {
             mem::size_of::<U>(),
             static_data.data.len(),
         );
-        let error_code = self.idata.rent_all(|idata| {
+        let error_code = self.idata.with(|idata| {
             idata.function.call(
                 input_data as *mut T as *mut u8,
                 static_data.data.as_mut_ptr(),
@@ -170,7 +164,7 @@ impl Program {
         static_data: &mut StaticData,
     ) -> Result<(), &str> {
         self.assert_size(input_data.len(), output_data.len(), static_data.data.len());
-        let error_code = self.idata.rent_all(|idata| {
+        let error_code = self.idata.with(|idata| {
             idata.function.call(
                 input_data.as_mut_ptr(),
                 static_data.data.as_mut_ptr(),
