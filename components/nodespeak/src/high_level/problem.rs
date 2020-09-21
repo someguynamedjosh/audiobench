@@ -1,5 +1,4 @@
 use crate::high_level::compiler::SourceSet;
-use colored::*;
 use pest::error::InputLocation;
 use pest::iterators::Pair;
 use pest::RuleType;
@@ -220,14 +219,23 @@ impl CompileProblem {
         result
     }
 
+    fn maybe_push_squiggles(body: &mut String, squiggles: &mut String, spaces: &str) {
+        if squiggles.len() == 0 {
+            return;
+        }
+        body.push_str(&format!("\n|{}| ", spaces));
+        body.push_str(&squiggles);
+        squiggles.clear();
+    }
+
     // This whole thing is a mess but it doesn't need to run fast.
     pub fn format(&self, width: usize, source_set: &SourceSet) -> String {
         let mut output = "".to_owned();
         for descriptor in self.descriptors.iter() {
             output.push_str(&match descriptor.ptype {
-                ProblemType::Error => "ERROR: ".bright_red().to_string(),
+                ProblemType::Error => "ERROR: ",
                 // ProblemType::Warning => "WARNING: ".bright_yellow().to_string(),
-                ProblemType::Hint => "HINT: ".bright_cyan().to_string(),
+                ProblemType::Hint => "HINT: ",
             });
             output.push_str(&wrap_text(&descriptor.caption, width, 10));
             output.push_str("\n");
@@ -237,55 +245,51 @@ impl CompileProblem {
             let grabbed = Self::grab_text(&source_set.borrow_source(position.file).1, position);
             let spacing = grabbed.line_number.to_string().len();
             let spaces = &format!("{: ^1$}", "", spacing + 2);
-            output.push_str(&format!("{:-^1$}\n", "", width).blue().to_string());
+            output.push_str(&format!("{:-^1$}\n", "", width));
             output.push_str(&format!(
                 "{}{}{}{}:{}:{}\n",
-                "|".blue().to_string(),
-                spaces,
-                "| ".blue().to_string(),
-                source_name,
-                grabbed.line_number,
-                grabbed.column_number,
+                "|", spaces, "| ", source_name, grabbed.line_number, grabbed.column_number,
             ));
-            output.push_str(&format!("{:-^1$}", "", width).blue().to_string());
+            output.push_str(&format!("{:-^1$}", "", width));
+
+            let mut squiggles = "".to_owned();
             let highlight_start = grabbed.prefix.len();
             let highlight_end = highlight_start + grabbed.highlighted.len();
             let start_x = spacing + 5;
             let mut x = start_x;
             let mut line = grabbed.line_number;
-            for (index, ch) in grabbed
+            let mut index = 0;
+            for ch in grabbed
                 .prefix
                 .add(&grabbed.highlighted.add(&grabbed.suffix))
                 .chars()
-                .enumerate()
             {
                 if ch == '\n' || index == 0 {
-                    output.push_str(
-                        &format!("\n| {: >1$} | ", (line), spacing)
-                            .blue()
-                            .to_string(),
-                    );
+                    Self::maybe_push_squiggles(&mut output, &mut squiggles, spaces);
+                    output.push_str(&format!("\n| {: >1$} | ", (line), spacing));
                     x = start_x;
                     line += 1;
+                    squiggles.clear();
                 }
                 if ch != '\n' {
-                    if index < highlight_start || index >= highlight_end {
-                        output.push(ch);
-                    } else {
-                        output.push_str(&match descriptor.ptype {
-                            ProblemType::Error => ch.to_string().bright_red().to_string(),
-                            // ProblemType::Warning => ch.to_string().bright_yellow().to_string(),
-                            ProblemType::Hint => ch.to_string().bright_cyan().to_string(),
-                        });
+                    output.push(ch);
+                    if index >= highlight_start && index < highlight_end {
+                        if index == highlight_start {
+                            squiggles.push_str(&format!("{: >1$}", "", x - start_x));
+                        }
+                        squiggles.push('~');
                     }
                     x += 1;
                     if x >= width {
-                        output.push_str(&format!("\n|{}| ", spaces).blue().to_string());
+                        Self::maybe_push_squiggles(&mut output, &mut squiggles, spaces);
+                        output.push_str(&format!("\n|{}| ", spaces));
                         x = start_x;
                     }
                 }
+                index += 1;
             }
-            output.push_str(&format!("\n{:-^1$}\n\n", "", width).blue().to_string());
+            Self::maybe_push_squiggles(&mut output, &mut squiggles, spaces);
+            output.push_str(&format!("\n{:-^1$}\n\n", "", width));
         }
         output
     }

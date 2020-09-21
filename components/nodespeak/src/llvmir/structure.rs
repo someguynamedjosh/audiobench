@@ -41,7 +41,7 @@ impl Debug for Program {
             writeln!(formatter, "  {}: {}", code, description)?;
         }
         let content = self.idata.with_module_contents(|module| module.print_to_string());
-        write!(formatter, "LLVM IR Code:{}", content)?;
+        write!(formatter, "LLVM IR Code:\n{}", content.to_string())?;
         write!(formatter, "")
     }
 }
