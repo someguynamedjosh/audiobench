@@ -18,6 +18,7 @@ div#header div#title {
 div#download {
     position: relative;
     background-color: black;
+    background-image: url("/assets/bg.png");
     color: white;
 }
 
