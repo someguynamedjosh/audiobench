@@ -18,7 +18,7 @@ function downloadURI(uri, name) {
 
 function linkClicked(name) {
     if (name === 'getting-started') {
-        window.open('/book', '_blank');
+        window.open('/book/getting_started.html', '_blank');
     } else if (name === 'github') {
         window.open('https://github.com/joshua-maros/audiobench', '_blank');
     } else if (name === 'sponsor') {
