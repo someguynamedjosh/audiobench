@@ -22,7 +22,7 @@ function linkClicked(name) {
     } else if (name === 'github') {
         window.open('https://github.com/joshua-maros/audiobench', '_blank');
     } else if (name === 'sponsor') {
-        window.open('/sponsor.html', '_blank');
+        window.open('https://ko-fi.com/joshua_maros', '_blank');
     }
 }
 
