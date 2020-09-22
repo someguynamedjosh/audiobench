@@ -3,19 +3,106 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto&display=swap" rel="stylesheet"> 
+    <link rel="stylesheet" href="index.css">
+    <script src="index.js"></script>
     <title>Audiobench</title>
 </head>
 <body>
-    <h1>This is the web page.</h1>
-    <br>
-    <h3>Here are some download links:</h3>
-    <br>
-    <a href="builds/Audiobench_Windows_x64_Standalone.exe">Windows, x86_64, Standalone</a>
-    <br>
-    <a href="builds/Audiobench_Windows_x64_VST3.vst3">Windows, x86_64, VST3</a>
-    <br>
-    <a href="builds/Audiobench_Linux_x64_Standalone.bin">Linux, x86_64, Standalone</a>
-    <br>
-    <a href="builds/Audiobench_Linux_x64_VST3.so">Linux, x86_64, VST3</a>
+    <div id="header">
+        <div id="title">AUDIOBENCH</div>
+    </div>
+    <div id="download">
+        <div id="download-menu-root" class="download-menu-3">
+            <div class="menu-header">Choose Your OS</div>
+            <div></div>
+            <div id='btn-windows' class="download-category">
+                <img class="image" src="/assets/windows.svg">
+                <div class="label">Windows</div>
+            </div>
+            <div></div>
+            <div id='btn-macos' class="download-category">
+                <img class="image" src="/assets/apple.svg">
+                <div class="label">Mac OS</div>
+            </div>
+            <div></div>
+            <div id='btn-linux' class="download-category">
+                <img class="image" src="/assets/linux.svg">
+                <div class="label">Linux</div>
+            </div>
+            <div></div>
+        </div>
+        <div id="download-menu-windows" class="download-menu-2 hidden">
+            <div class="menu-header">Choose A Format</div>
+            <div></div>
+            <div id='btn-windows-standalone' class="download-category">
+                <img class="image" src="/assets/standalone.svg">
+                <div class="label">Standalone</div>
+            </div>
+            <div></div>
+            <div id='btn-windows-vst3' class="download-category">
+                <img class="wide-image" src="/assets/vst.svg">
+                <div class="label">VST3</div>
+            </div>
+            <div></div>
+        </div>
+        <div id="download-menu-macos" class="download-menu-3 hidden">
+            <div class="menu-header">Choose A Format</div>
+            <div></div>
+            <div id='btn-macos-standalone' class="download-category">
+                <img class="image" src="/assets/standalone.svg">
+                <div class="label">Standalone</div>
+            </div>
+            <div></div>
+            <div id='btn-macos-au' class="download-category">
+                <img class="wide-image" src="/assets/audio-unit.svg">
+                <div class="label">Audio Unit</div>
+            </div>
+            <div></div>
+            <div id='btn-macos-vst3' class="download-category">
+                <img class="wide-image" src="/assets/vst.svg">
+                <div class="label">VST3</div>
+            </div>
+            <div></div>
+        </div>
+        <div id="download-menu-linux" class="download-menu-2 hidden">
+            <div class="menu-header">Choose A Format</div>
+            <div></div>
+            <div id='btn-linux-standalone' class="download-category">
+                <img class="image" src="/assets/standalone.svg">
+                <div class="label">Standalone</div>
+            </div>
+            <div></div>
+            <div id='btn-linux-vst3' class="download-category">
+                <img class="wide-image" src="/assets/vst.svg">
+                <div class="label">VST3</div>
+            </div>
+            <div></div>
+        </div>
+        <div id="download-menu-downloading" class="hidden">
+            <div>Thank you for checking out Audiobench! Your download will start shortly.</div>
+            <div>Not starting? <a id="manual-link" href="/bin/file.exe">Use this manual link.</a></div>
+            <div>While you're waiting, check out some of the links below.</div>
+        </div>
+    </div>
+    <div id="description">
+        Audiobench is a free and open source modular synthesizer. You can create many different
+        sounds by connecting together any of a number of modules in any arrangement you can think
+        of. 
+    </div>
+    <div id="links">
+        <div class="link-box" onclick="linkClicked('getting-started')">
+            <img class="image" src="assets/guide.svg">
+            <div class="label">Learn the basics with the Getting Started guide.</div>
+        </div>
+        <div class="link-box" onclick="linkClicked('github')">
+            <img class="image" src="assets/github.svg">
+            <div class="label">Check out the source code on GitHub.</div>
+        </div>
+        <div class="link-box" onclick="linkClicked('sponsor')">
+            <img class="image" src="assets/patreon.svg">
+            <div class="label">Sponsor the lead developer.</div>
+        </div>
+    </div>
 </body>
 </html>

@@ -1,0 +1,225 @@
+body {
+    font-family: 'Roboto', sans-serif;
+    margin: 0;
+}
+
+div#header {
+    padding: 1em;
+    border-bottom: 1px solid gray;
+}
+
+div#header div#title {
+    font-weight: bold;
+    font-size: 4em;
+    margin: auto;
+    text-align: center;
+}
+
+div#download {
+    position: relative;
+    background-color: black;
+    color: white;
+}
+
+div#download > * {
+    position: absolute;
+    box-sizing: border-box;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    transition: opacity 200ms;
+}
+
+div.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+div.download-menu-3 {
+    grid-template-rows: 3em 1fr 3em;
+    grid-template-areas:
+        "h h h h h h h"
+        ". . . . . . .";
+}
+
+div.download-menu-2 {
+    grid-template-rows: 3em 1fr 3em;
+    grid-template-areas:
+        "h h h h h"
+        ". . . . .";
+}
+
+div.menu-header {
+    grid-area: h;
+    margin-bottom: 1em;
+    text-align: center;
+}
+
+@media only screen and (min-width: 60em) {
+
+div#download {
+    height: 36em;
+    max-height: 36em;
+}
+
+div#download > * {
+    padding: 8em;
+}
+
+div.download-menu-3 {
+    display: grid;
+    grid-template-columns: 1fr 14em 4em 14em 4em 14em 1fr;
+    height: 100%;
+}
+
+div.download-menu-2 {
+    display: grid;
+    grid-template-columns: 1fr 14em 4em 14em 1fr;
+    height: 100%;
+}
+
+div.download-category .label, div.menu-header {
+    font-size: 1.5em;
+}
+
+}
+
+@media only screen and (max-width: 60em) and (min-width: 0em) {
+
+div#download {
+    background-color: black;
+    height: 26em;
+}
+
+div#download > * {
+    padding: 5em;
+}
+
+div.download-menu-3 {
+    display: grid;
+    grid-template-columns: 1fr 10em 3em 10em 3em 10em 1fr;
+    height: 100%;
+}
+
+div.download-menu-2 {
+    display: grid;
+    grid-template-columns: 1fr 10em 3em 10em 1fr;
+    height: 100%;
+}
+
+}
+
+div.download-category .image {
+    height: 100%;
+    margin: auto;
+}
+
+div.download-category .wide-image {
+    width: 100%;
+    margin: auto;
+}
+
+div.download-category {
+    display: grid;
+    grid-template-rows: 1fr auto;
+    grid-row-gap: 0.5em;
+    row-gap: 1em;
+    color: white;
+    max-height: 100%;
+    border-radius: 1em;
+    margin: -1em;
+    padding: 1em;
+    transition: background 100ms;
+}
+
+div.download-category:hover {
+    background: rgba(255, 255, 255, 0.2);
+    cursor: pointer;
+}
+
+div.download-category .label {
+    text-align: center;
+    height: 100%;
+}
+
+div#download-menu-downloading {
+    text-align: center;
+}
+
+div#download-menu-downloading > * {
+    margin: 1em;
+    font-size: 1.5em;
+}
+
+div#download-menu-downloading a {
+    color: #4fc3f7;
+}
+
+
+
+
+div#links {
+    margin-top: 3em;
+    margin-bottom: 3em;
+    display: grid;
+    grid-template-columns: 16em 16em 16em;
+    grid-row-gap: 1em;
+    row-gap: 1em;
+    grid-column-gap: 1em;
+    column-gap: 1em;
+    width: 50em;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+@media only screen and (max-width: 60em) and (min-width: 0em) {
+
+div#links {
+    grid-template-columns: 16em 16em;
+    width: 33em;
+}
+
+}
+
+div.link-box {
+    padding: 2em;
+    border: solid 1px rgba(0, 0, 0, 0.4);
+    border-radius: 1em;
+    box-sizing: border-box;
+    cursor: pointer;
+    transition: background-color 100ms;
+
+    display: grid;
+    grid-template-rows: 10em auto;
+    grid-row-gap: 2em;
+    row-gap: 2em;
+}
+
+div.link-box:hover {
+    background-color: rgba(50, 130, 255, 0.1);
+}
+
+div.link-box img {
+    height: 100%;
+    margin: auto;
+    color: black;
+}
+
+
+
+div#description {
+    margin-top: 3em;
+    margin-bottom: 3em;
+    width: 50em;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+@media only screen and (max-width: 60em) and (min-width: 0em) {
+
+div#description {
+    width: 33em;
+}
+
+}
