@@ -2,7 +2,7 @@ use crate::engine::parts as ep;
 use crate::gui;
 use crate::gui::action::{GuiAction, InstanceAction, MouseAction};
 use crate::gui::constants::*;
-use crate::gui::graphics::GrahpicsWrapper;
+use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
 use crate::registry::save_data::Patch;
 use crate::registry::Registry;
 use crate::util::*;
@@ -173,7 +173,12 @@ impl Gui {
         self.menu_bar.clear_status();
     }
 
-    pub fn draw(&mut self, g: &mut GrahpicsWrapper, registry: &mut Registry) {
+    pub fn draw(
+        &mut self,
+        g: &mut GrahpicsWrapper,
+        registry: &mut Registry,
+        currently_compiling: bool,
+    ) {
         if !self.update_check_complete {
             // Returns false when update checker is complete.
             if !registry.poll_update_checker() {
@@ -193,6 +198,28 @@ impl Gui {
             GuiScreen::ModuleBrowser => self.module_browser.draw(g),
         }
         self.menu_bar.draw(self.size.0, self.current_screen, g);
+        if currently_compiling {
+            g.set_color(&COLOR_WARNING);
+            g.fill_rounded_rect(
+                GRID_P,
+                gui::ui_widgets::MenuBar::HEIGHT + GRID_P,
+                100.0,
+                FONT_SIZE + GRID_P * 2.0,
+                CORNER_SIZE,
+            );
+            g.set_color(&COLOR_FG1);
+            g.write_text(
+                FONT_SIZE,
+                GRID_P * 2.0,
+                gui::ui_widgets::MenuBar::HEIGHT + GRID_P,
+                100.0 - GRID_P * 2.0,
+                FONT_SIZE + GRID_P * 2.0,
+                HAlign::Center,
+                VAlign::Center,
+                1,
+                "Compiling...",
+            );
+        }
     }
 
     pub fn on_patch_change(&mut self, registry: &Registry) {

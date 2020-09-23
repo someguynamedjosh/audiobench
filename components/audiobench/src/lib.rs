@@ -167,6 +167,14 @@ impl Instance {
                     let mut clipboard: clipboard::ClipboardContext =
                         clipboard::ClipboardProvider::new().unwrap();
                     let data = clipboard.get_contents().unwrap();
+                    // We use the URL-safe dataset, so letters, numbers, - and _.
+                    // is_digit(36) checks for numbers and a-z case insensitive.
+                    let data: String = data
+                        .chars()
+                        .filter(|character| {
+                            character.is_digit(36) || *character == '-' || *character == '_'
+                        })
+                        .collect();
                     let err = match e.new_patch_from_clipboard(&mut self.registry, data.as_bytes())
                     {
                         Ok(patch) => {
@@ -317,11 +325,13 @@ impl Instance {
         } else {
             // If the engine has new feedback data (from audio being played) then copy it over before
             // we render the UI so it will show up in the UI.
-            self.engine.as_mut().unwrap().display_new_feedback_data();
+            let engine_ref = self.engine.as_mut().unwrap();
+            engine_ref.display_new_feedback_data();
+            let is_compiling = engine_ref.is_currently_compiling();
             g.set_color(&gui::constants::COLOR_BG0);
             g.clear();
             if let Some(gui) = &mut self.gui {
-                gui.draw(&mut g, &mut self.registry);
+                gui.draw(&mut g, &mut self.registry, is_compiling);
             } else {
                 panic!("draw_ui called before GUI was created!");
             }
