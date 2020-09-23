@@ -104,7 +104,7 @@ jobs:
         submodules: 'true'
         persist-credentials: 'false'
     - name: Check version numbers
-      runs: ./build.py check_version
+      run: ./build.py check_version
     
   deploy-site:
     needs: [build-windows, build-macos, build-linux, build-book]
