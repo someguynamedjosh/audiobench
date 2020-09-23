@@ -139,6 +139,7 @@ def build_juce_frontend():
     # Mac requires an extra packaging step whose output goes directly in artifacts/bin/. Other
     # platforms require copying the artifacts to the folder.
     if ON_MAC:
+        vst3_source = artifact_source.joinpath('VST3')
         au_source = artifact_source.joinpath('AU')
         # Add links to install directories.
         command(['ln', '-s', '/Applications',
@@ -147,6 +148,13 @@ def build_juce_frontend():
                  vst3_source.joinpath('VST3')])
         command(['ln', '-s', '/Library/Audio/Plug-Ins/Components',
                  au_source.joinpath('Components')])
+        # Add DS_Store and bg,png
+        bg_png_path = JUCE_FRONTEND_ROOT.joinpath('osx_stuff', 'bg.png')
+        ds_store_path = JUCE_FRONTEND_ROOT.joinpath('osx_stuff', 'DS_Store')
+        for source in [standalone_source, vst3_source, au_source]:
+            mkdir(source.joinpath('.background'))
+            cp(bg_png_path, source.joinpath('.background', 'bg.png'))
+            cp(ds_store_path, source.joinpath('.DS_Store'))
         # Convert everything to disk images.
         # Build artifacts are approximately 60MB in size. hdiutil can frequently miscalculate the
         # size of files to be included and will complain about "not enough space available":
