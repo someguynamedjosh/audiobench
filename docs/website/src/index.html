@@ -91,17 +91,29 @@
         of. 
     </div>
     <div id="links">
-        <div class="link-box" onclick="linkClicked('getting-started')">
-            <img class="image" src="assets/guide.svg">
-            <div class="label">Learn the basics with the Getting Started guide.</div>
+        <div id="links-main" class="link-category">
+            <div class="link-box" onclick="linkClicked('getting-started')">
+                <img class="image" src="assets/guide.svg">
+                <div class="label">Learn the basics with the Getting Started guide.</div>
+            </div>
+            <div class="link-box" onclick="linkClicked('github')">
+                <img class="image" src="assets/github.svg">
+                <div class="label">Check out the source code on GitHub.</div>
+            </div>
+            <div class="link-box" onclick="linkClicked('sponsor')">
+                <img class="image" src="assets/kofi.svg">
+                <div class="label">Sponsor the lead developer.</div>
+            </div>
         </div>
-        <div class="link-box" onclick="linkClicked('github')">
-            <img class="image" src="assets/github.svg">
-            <div class="label">Check out the source code on GitHub.</div>
-        </div>
-        <div class="link-box" onclick="linkClicked('sponsor')">
-            <img class="image" src="assets/kofi.svg">
-            <div class="label">Sponsor the lead developer.</div>
+        <div id="links-sponsor" class="link-category hidden">
+            <div class="link-box" onclick="linkClicked('sponsor-github')">
+                <img class="image" src="assets/github.svg">
+                <div class="label">Sponsor on Github (monthly)</div>
+            </div>
+            <div class="link-box" onclick="linkClicked('sponsor-kofi')">
+                <img class="image" src="assets/kofi.svg">
+                <div class="label">Sponsor on Ko-Fi (one-time)</div>
+            </div>
         </div>
     </div>
 </body>
