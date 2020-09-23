@@ -109,7 +109,7 @@ jobs:
   deploy-site:
     needs: [build-windows, build-macos, build-linux, build-book]
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'release'
+    if: github.event_name == 'push'
     steps:
     - uses: actions/checkout@v2
       with:
@@ -119,21 +119,21 @@ jobs:
     - name: Gather Artifacts
       run: |
         mkdir -p website/
-        mkdir -p website/builds/
+        mkdir -p website/bin/
         mkdir -p website/book/
         cp -r docs/website/src/* website/
     - uses: actions/download-artifact@v2
       with:
         name: artifacts-bin-windows
-        path: website/builds/
+        path: website/bin/
     - uses: actions/download-artifact@v2
       with:
         name: artifacts-bin-macos
-        path: website/builds/
+        path: website/bin/
     - uses: actions/download-artifact@v2
       with:
         name: artifacts-bin-linux
-        path: website/builds/
+        path: website/bin/
     - uses: actions/download-artifact@v2
       with:
         name: book-html
