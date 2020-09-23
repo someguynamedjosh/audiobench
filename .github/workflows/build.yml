@@ -1,0 +1,111 @@
+name: Build All Artifacts
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        lfs: 'true' 
+        submodules: 'true'
+    - name: Install Dependencies
+      run: |
+        echo "Prebuilt LLVM development libraries for Windows because no one else has them apparently."
+        git clone "https://gitlab.com/Code_Cube/llvm-win.git" "C:\LLVM"
+    - name: Build
+      run: python build.py juce_frontend --release --github-runner
+      env:
+        LLVM_SYS_70_PREFIX: C:\LLVM\ 
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v2
+      with:
+        name: artifacts-bin-windows
+        path: artifacts/bin/
+    
+  build-macos:
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        lfs: 'true' 
+        submodules: 'true'
+    - name: Install Dependencies
+      run: |
+        brew install llvm@7
+    - name: Build
+      run: |
+        export OPENSSL_ROOT_DIR=$(brew --prefix openssl)
+        export OPENSSL_LIB_DIR=$(brew --prefix openssl)"/lib"
+        export OPENSSL_INCLUDE_DIR=$(brew --prefix openssl)"/include"
+        ./build.py juce_frontend --release --github-runner
+      env:
+        LLVM_SYS_70_PREFIX: /usr/local/Cellar/llvm@7/7.1.0_2
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v2
+      with:
+        name: artifacts-bin-macos
+        path: artifacts/bin/
+    
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        lfs: 'true' 
+        submodules: 'true'
+    - name: Install Dependencies
+      run: |
+        sudo apt update
+        sudo apt -y install llvm-7 libxrandr-dev libxinerama-dev libxcursor-dev libasound-dev extra-cmake-modules libxcb-shape0-dev libxcb-xfixes0-dev
+        export LLVM_SYS_70_PREFIX=/usr/bin/llvm-7/
+    - name: Build
+      run: ./build.py juce_frontend --release --github-runner
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v2
+      with:
+        name: artifacts-bin-linux
+        path: artifacts/bin/
+    
+  build-and-deploy-site:
+    needs: [build-windows, build-macos, build-linux]
+    runs-on: ubuntu-latest
+    if: github.event != 'pull_request'
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        lfs: 'true' 
+        submodules: 'true'
+        persist-credentials: 'false'
+    - name: Gather Artifacts
+      run: |
+        mkdir -p website/
+        mkdir -p website/builds/
+        cp -r docs/website/src/* website/
+    - uses: actions/download-artifact@v2
+      with:
+        name: artifacts-bin-windows
+        path: website/builds/
+    - uses: actions/download-artifact@v2
+      with:
+        name: artifacts-bin-macos
+        path: website/builds/
+    - uses: actions/download-artifact@v2
+      with:
+        name: artifacts-bin-linux
+        path: website/builds/
+    - name: Deploy
+      uses: JamesIves/github-pages-deploy-action@3.6.1
+      with:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        BRANCH: gh-pages
+        FOLDER: website/
+        CLEAN: true

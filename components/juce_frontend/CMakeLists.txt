@@ -3,6 +3,10 @@
 
 cmake_minimum_required(VERSION 3.15)
 
+if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+    set(MACOS TRUE)
+endif()
+
 # Statically link c++ runtime because installing it is a pain
 if (WIN32)
     cmake_policy(SET CMP0091 NEW)
@@ -131,12 +135,31 @@ if(WIN32)
         ws2_32
         userenv
     )
+elseif(APPLE)
+    find_package(OpenSSL REQUIRED)
+    find_package(CURL REQUIRED)
+    find_library(SECURITY_LIBRARY Security)
+    target_link_libraries(
+        Audiobench PRIVATE
+        # AudioPluginData           # If we'd created a binary data target, we'd link to it here
+        juce::juce_audio_utils
+        "$ENV{RUST_OUTPUT_DIR}/libaudiobench_clib.a"
+        ${OPENSSL_LIBRARIES}
+        ${CURL_LIBRARIES}
+        ${SECURITY_LIBRARY}
+        ffi
+        z
+        curses
+    )
 else()
     # The clipboard library I'm using uses a weird X11 wrapper to do its dirty work making this 
     # whole blob necessary.
     find_package(ECM REQUIRED NO_MODULE)
     set(CMAKE_MODULE_PATH ${ECM_FIND_MODULE_DIR})
     find_package(XCB REQUIRED COMPONENTS XCB RENDER SHAPE XFIXES)
+
+    set(THREADS_PREFER_PTHREAD_FLAG ON)
+    find_package(Threads REQUIRED)
 
     target_link_libraries(
         Audiobench PRIVATE
@@ -149,5 +172,6 @@ else()
         crypto
         ffi
         ${XCB_LIBRARIES}
+        Threads::Threads
     )
 endif()
