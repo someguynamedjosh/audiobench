@@ -138,6 +138,8 @@ jobs:
       with:
         name: book-html
         path: website/book/
+    - name: Mark artifacts as executable
+      run: chmod +x website/builds/*
     - name: Deploy
       uses: JamesIves/github-pages-deploy-action@3.6.1
       with:
