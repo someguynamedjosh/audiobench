@@ -10,6 +10,18 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  check-version:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' && github.base_ref == 'release'
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        lfs: 'true' 
+        submodules: 'true'
+        persist-credentials: 'false'
+    - name: Check version numbers
+      run: ./build.py check_version
+
   build-windows:
     runs-on: windows-latest
     steps:
@@ -93,18 +105,6 @@ jobs:
       with:
         name: book-html
         path: docs/book/book/
-  
-  check-version:
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request' && github.head_ref == 'release'
-    steps:
-    - uses: actions/checkout@v2
-      with:
-        lfs: 'true' 
-        submodules: 'true'
-        persist-credentials: 'false'
-    - name: Check version numbers
-      run: ./build.py check_version
     
   deploy-site:
     needs: [build-windows, build-macos, build-linux, build-book]

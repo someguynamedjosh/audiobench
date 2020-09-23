@@ -33,12 +33,12 @@ control on the triangle wave module:
 
 ![Triangle wave automated by envelope](images/default_c.png)
 
-You may have noticed while setting that up that the application temporarily
-froze and a notification saying "compiling..." appeared. Because of how
-Audiobench works internally, some changes necessitate doing a slow, one-time
-process called "compilation" before you can start playing notes again. This
-process will not occur whenever you modify a control. Right now compilation is
-fairly slow, this will be improved as development continues.
+You may have noticed while setting that up that the audio cut out and a
+notification saying "compiling" appeared. Because of how Audiobench works
+internally, some changes necessitate doing a slow, one-time process called
+"compilation" before you can start playing notes again. This process will not
+occur whenever you modify a control. Right now compilation is fairly slow, this
+will be improved as development continues.
 
 You can change the range of the automation by right-clicking on the knob and
 clicking and dragging on the **automation lane**. You can also right-click on

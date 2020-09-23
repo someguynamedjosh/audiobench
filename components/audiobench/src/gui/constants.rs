@@ -88,6 +88,7 @@ pub const COLOR_BG1: (u8, u8, u8) = hex_color(0x2F434F);
 pub const COLOR_BG2: (u8, u8, u8) = hex_color(0x48525F);
 pub const COLOR_ERROR: (u8, u8, u8) = hex_color(0xFF0022);
 pub const COLOR_SUCCESS: (u8, u8, u8) = hex_color(0x038c23);
+pub const COLOR_WARNING: (u8, u8, u8) = hex_color(0xCC7722);
 /// Used to indicate an editable control. COLOR_FG1 should be used for editable values that are
 /// represented as text since it is white and COLOR_EDITABLE is red, which is less readable.
 pub const COLOR_EDITABLE: (u8, u8, u8) = hex_color(0xFF0022);
