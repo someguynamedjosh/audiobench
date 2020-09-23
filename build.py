@@ -186,6 +186,7 @@ def check_version():
     import requests
     latest = requests.get('https://joshua-maros.github.io/audiobench/latest.json').json()
     version = int(latest['version'])
+    expected_version = version + 1
     good = True
 
     cargo_toml = open('components/audiobench/Cargo.toml', 'r').read()
@@ -193,9 +194,18 @@ def check_version():
     version_end = cargo_toml.find('"', version_start)
     cargo_version = cargo_toml[version_start:version_end]
     minor_version = int(cargo_version.split('.')[1].strip())
-    if minor_version != version + 1:
+    if minor_version != expected_version:
         print('ERROR in components/audiobench/Cargo.toml:')
-        print('Expected minor version to be ' + str(version + 1) + ' but found ' + str(minor_version))
+        print('Expected minor version to be ' + str(expected_version) + ' but found ' + str(minor_version))
+        good = False
+    
+    latest_json = open('docs/website/src/latest.json', 'r').read()
+    version_start = latest_json.find('"version": ') + len('"version": ')
+    version_end = latest_json.find(',', version_start)
+    latest_version = int(latest_json[version_start:version_end].strip())
+    if latest_version != expected_version:
+        print('ERROR in docs/website/src/latest.json:')
+        print('Expected version to be ' + str(expected_version) + ' but found ' + str(latest_version))
         good = False
 
     if not good:
