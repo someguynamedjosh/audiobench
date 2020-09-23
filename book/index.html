@@ -1,0 +1,298 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Getting Started - Audiobench</title>
+        
+        
+
+
+        <!-- Custom HTML head -->
+        
+
+
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        
+        <link rel="icon" href="favicon.svg">
+        
+        
+        <link rel="shortcut icon" href="favicon.png">
+        
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        
+        <link rel="stylesheet" href="fonts/fonts.css">
+        
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        
+
+        
+    </head>
+    <body>
+        <!-- Provide site root to javascript -->
+        <script type="text/javascript">
+            var path_to_root = "";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script type="text/javascript">
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add('js');
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var html = document.querySelector('html');
+            var sidebar = 'hidden';
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded "><a href="getting_started.html"><strong aria-hidden="true">1.</strong> Getting Started</a></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky bordered">
+                    <div class="left-buttons">
+                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light (default)</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                        
+                    </div>
+
+                    <h1 class="menu-title">Audiobench</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        
+                    </div>
+                </div>
+
+                
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" name="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+                
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script type="text/javascript">
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1><a class="header" href="#getting-started" id="getting-started">Getting Started</a></h1>
+<p>When you first open Audiobench, you should see something like this:</p>
+<p><img src="images/default_patch.png" alt="Default patch" /></p>
+<p>The main area of the window shown here is called the &quot;note graph&quot;, it is where
+you can connect modules together to design your sounds. The large bar at the top
+will show tooltips describing whatever item you are hovering over as well as the
+different ways you can interact with it, such as right click or left click and
+drag. The icons at the top left cycle between different interfaces. Hovering
+over them will show a tooltip describing their function. If anything appears too
+small, you can resize the window to make it bigger.</p>
+<p>This simple default patch already contains all the concepts you need to know to
+get started making sounds with Audiobench. The patch is made of four 
+<strong>modules</strong>, each showing their name above them. Each module has <strong>controls</strong>
+that change their behavior. The modules are connected together through 
+<strong>wires</strong>. All told, this patch makes a simple &quot;ding&quot; sound. Playing a note
+will reveal how the modules affect each other:</p>
+<p><img src="images/default_played.png" alt="Envelope affects the oscillator" /></p>
+<p>The <em>amplitude</em> (also known as volume) of the oscillator module is being
+affected by the wire coming from the envelope module. We say that the
+<em>amplitude</em> control is <strong>automated</strong> by the output from the envelope. If you
+change some of the controls on the envelope by clicking and dragging them, you
+change how the <em>amplitude</em> of the oscillator changes over time. The only
+controls that can be automated are <strong>knobs</strong> and <strong>sliders</strong>. You can automate
+them by dragging a wire from an output onto a knob or slider. One way to make
+this patch more interesting is by making the envelope automate the <em>peak phase</em>
+control on the triangle wave module:</p>
+<p><img src="images/default_c.png" alt="Triangle wave automated by envelope" /></p>
+<p>You may have noticed while setting that up that the application temporarily
+froze and a notification saying &quot;compiling...&quot; appeared. Because of how
+Audiobench works internally, some changes necessitate doing a slow, one-time
+process called &quot;compilation&quot; before you can start playing notes again. This
+process will not occur whenever you modify a control. Right now compilation is
+fairly slow, this will be improved as development continues.</p>
+<p>You can change the range of the automation by right-clicking on the knob and
+clicking and dragging on the <strong>automation lane</strong>. You can also right-click on
+the lane itself to remove its automation from the control.</p>
+<p><img src="images/default_d.png" alt="Automation being adjusted" /></p>
+<p>The last thing to talk about is <strong>inputs</strong> and <strong>outputs</strong>. These are the white
+boxes that appear on the sides of each module. Inputs are on the left and
+outputs are on the right. Each of them has a specific type, so that pitch inputs
+can only be connected to pitch outputs, waveform inputs can only be connected to
+waveform outputs, and so on. Audio outputs are special because they also allows
+you to automate knobs and sliders in addition to connecting to audio inputs.
+When an input is not connected, it uses a default value instead. If you hover
+over the envelope module, you will notice it says that the input to reset the
+envelope uses the default value of whenever the note starts, and the input to
+release it uses whenever the note releases. Similarly, the pitch of the
+oscillator defaults to the pitch of the note you are currently playing. Clicking
+on an unconnected input will cycle between different default values. For
+example, disconnecting the triangle wave from the oscillator would let you cycle
+through a handful of default waveforms. Inputs and outputs can be connected by
+clicking and dragging.</p>
+<h1><a class="header" href="#beyond-the-default-patch" id="beyond-the-default-patch">Beyond The Default Patch</a></h1>
+<p>To really start making some noise, you'll want to add in more modules, The plus
+button at the top left of the screen takes you to the <strong>module browser</strong>, which
+lists all available modules:</p>
+<p><img src="images/module_browser.png" alt="List of available modules" /></p>
+<p>Clicking on one will add it to the note graph. You can click and drag the module
+to move it around, or click and drag on the background to pan your view.
+Scrolling on the background will zoom in and out to help with building larger
+patches.</p>
+<p><img src="images/default_e.png" alt="The default patch with an LFO added" /></p>
+<p>Once you have something you like, go to the patch browser by clicking its icon
+in the top-left corner. This is where all the factory-provided and user-made
+patches live. To save your patch, first click the '+' button to make a new file.
+Give it a name, then click the save button to save your changes. If you want to
+easily share your patch with other people, click the copy button to get a piece
+of text that represents your patch. Others can then copy that text and click the
+paste button to load your patch. You can try it out with this code for the
+patch in the picture above:</p>
+<pre><code>AQAHRGVmYXVsdAAAAQAE_wHgAKgFAVAAqAYAeADACgAwADAOIgABAliAAGqqAAA7o9cKAD5MzM0APpmZmgMD
+</code></pre>
+<h1><a class="header" href="#miscellaneous-tips" id="miscellaneous-tips">Miscellaneous Tips</a></h1>
+<ul>
+<li>Right-clicking a duration control lets you adjust it as a fraction instead of
+a number.</li>
+<li>The timing control lets you set if durations should be in terms of beats or
+seconds and also lets you sync up certain modules with the current time in
+your song.</li>
+<li>Using a MIDI Control module with the control set to 1 will let you automate
+things using the mod wheel.</li>
+<li>The library browser panel (the first icon in the top-left) will tell you what
+new features are available if a new version of Audiobench has been released.</li>
+</ul>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                        
+
+                        
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                
+
+                
+            </nav>
+
+        </div>
+
+        
+
+        
+
+        
+
+        
+        <script type="text/javascript">
+            window.playground_copyable = true;
+        </script>
+        
+
+        
+
+        
+        <script src="elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="searcher.js" type="text/javascript" charset="utf-8"></script>
+        
+
+        <script src="clipboard.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="highlight.js" type="text/javascript" charset="utf-8"></script>
+        <script src="book.js" type="text/javascript" charset="utf-8"></script>
+
+        <!-- Custom JS scripts -->
+        
+
+        
+
+    </body>
+</html>
