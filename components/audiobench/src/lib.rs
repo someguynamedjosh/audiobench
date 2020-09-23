@@ -167,6 +167,14 @@ impl Instance {
                     let mut clipboard: clipboard::ClipboardContext =
                         clipboard::ClipboardProvider::new().unwrap();
                     let data = clipboard.get_contents().unwrap();
+                    // We use the URL-safe dataset, so letters, numbers, - and _.
+                    // is_digit(36) checks for numbers and a-z case insensitive.
+                    let data: String = data
+                        .chars()
+                        .filter(|character| {
+                            character.is_digit(36) || *character == '-' || *character == '_'
+                        })
+                        .collect();
                     let err = match e.new_patch_from_clipboard(&mut self.registry, data.as_bytes())
                     {
                         Ok(patch) => {

@@ -86,7 +86,8 @@ paste button to load your patch. You can try it out with this code for the
 patch in the picture above:
 
 ```
-AQAHRGVmYXVsdAAAAQAE_wHgAKgFAVAAqAYAeADACgAwADAOIgABAliAAGqqAAA7o9cKAD5MzM0APpmZmgMD
+AQAXR2V0dGluZyBTdGFydGVkIEV4YW1wbGUAAAEABf8DAeAAqAUBUACoBgB4AMAKADAAAA7_cAB4CyIA
+AQJoAGqqAAA7o9cKAD5MzM0APpmZmgAAP4AAAAIzAwQ
 ```
 
 # Miscellaneous Tips
