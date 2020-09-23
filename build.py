@@ -142,6 +142,11 @@ def build_juce_frontend():
         command(['ls', artifact_source])
         vst3_source = artifact_source.joinpath('VST3')
         command(['ls', vst3_source])
+        command(['ls', vst3_source.joinpath('Audiobench.vst3')])
+        command(['du', '-hs', vst3_source])
+        command(['rm', '-r', vst3_source.joinpath('libAudiobench_SharedCode.a')])
+        command(['rm', '-r', vst3_source.joinpath('Audiobench.component')])
+        command(['du', '-hs', vst3_source])
         au_source = artifact_source.joinpath('AU')
         command(['ls', au_source])
         # Add links to install directories.
