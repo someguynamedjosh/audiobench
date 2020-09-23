@@ -14,7 +14,7 @@ pub const ENGINE_INFO: &'static str = concat!(
 #[cfg(debug_assertions)]
 pub const ENGINE_UPDATE_URL: &'static str = "http://localhost:8000/latest.json";
 #[cfg(not(debug_assertions))]
-pub const ENGINE_UPDATE_URL: &'static str = "https://bit.ly/audiobench-engine-update-check";
+pub const ENGINE_UPDATE_URL: &'static str = "https://bit.ly/adb_update_check";
 
 pub trait FloatUtil: Sized + Copy {
     /// Converts from the range [from_min,from_max] to [0,1]
