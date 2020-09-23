@@ -182,6 +182,27 @@ def run_benchmark():
     command(args)
 
 
+def check_version():
+    import requests
+    latest = requests.get('https://joshua-maros.github.io/audiobench/latest.json').json()
+    version = int(latest['version'])
+    good = True
+
+    cargo_toml = open('components/audiobench/Cargo.toml', 'r').read()
+    version_start = cargo_toml.find('version = "') + len('version = "')
+    version_end = cargo_toml.find('"', version_start)
+    cargo_version = cargo_toml[version_start:version_end]
+    minor_version = int(cargo_version.split('.')[1].strip())
+    if minor_version != version + 1:
+        print('ERROR in components/audiobench/Cargo.toml:')
+        print('Expected minor version to be ' + str(version + 1) + ' but found ' + str(minor_version))
+        good = False
+
+    if not good:
+        exit(1)
+    print('Version has been incremented correctly.')
+
+
 def build_juce6_win():
     JUCE6_PREFIX = JUCE_FRONTEND_ROOT.joinpath('juce6_built')
     slashed_prefix = str(JUCE6_PREFIX).replace('\\', '/')
@@ -210,8 +231,7 @@ JOBS = {
     'juce_frontend': Job('Build the JUCE frontend for Audiobench', ['remove_juce_splash', 'clib'], build_juce_frontend),
     'run': Job('Run the standalone version of Audiobench', ['juce_frontend'], run_standalone),
     'benchmark': Job('Run a benchmarking suite', [], run_benchmark),
-
-
+    'check_version': Job('Ensures version numbers have been incremented', [], check_version),
 }
 
 if ON_WINDOWS:
