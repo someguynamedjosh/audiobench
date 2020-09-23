@@ -109,7 +109,7 @@ jobs:
   deploy-site:
     needs: [build-windows, build-macos, build-linux, build-book]
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'release'
+    if: github.event_name == 'push'
     steps:
     - uses: actions/checkout@v2
       with:
