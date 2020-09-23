@@ -18,11 +18,17 @@ function downloadURI(uri, name) {
 
 function linkClicked(name) {
     if (name === 'getting-started') {
-        window.open('/book/getting_started.html', '_blank');
+        window.open('book/getting_started.html', '_blank');
     } else if (name === 'github') {
         window.open('https://github.com/joshua-maros/audiobench', '_blank');
-    } else if (name === 'sponsor') {
+    } else if (name == 'sponsor') {
+        transitionMenu('links-main', 'links-sponsor');
+    } else if (name === 'sponsor-github') {
+        window.open('https://github.com/sponsors/joshua-maros', '_blank');
+        transitionMenu('links-sponsor', 'links-main');
+    } else if (name === 'sponsor-kofi') {
         window.open('https://ko-fi.com/joshua_maros', '_blank');
+        transitionMenu('links-sponsor', 'links-main');
     }
 }
 
@@ -41,7 +47,7 @@ function startDownload(from, artifactUrl) {
 
 function makeDownloadButton(name, parentMenu, artifactName) {
     document.getElementById(name).addEventListener('click', event => {
-        startDownload(parentMenu, '/bin/' + artifactName);
+        startDownload(parentMenu, 'bin/' + artifactName);
     });
 }
 

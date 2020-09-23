@@ -18,7 +18,7 @@ div#header div#title {
 div#download {
     position: relative;
     background-color: black;
-    background-image: url("/assets/bg.png");
+    background-image: url("assets/bg.png");
     background-position: center;
     background-size: cover;
     color: white;
@@ -165,20 +165,34 @@ div#download-menu-downloading a {
 div#links {
     margin-top: 3em;
     margin-bottom: 3em;
+    width: 50em;
+    margin-left: auto;
+    margin-right: auto;
+    position: relative;
+    height: 20em;
+}
+
+div.link-category {
     display: grid;
     grid-template-columns: 16em 16em 16em;
     grid-row-gap: 1em;
     row-gap: 1em;
     grid-column-gap: 1em;
     column-gap: 1em;
-    width: 50em;
-    margin-left: auto;
-    margin-right: auto;
+
+    position: absolute;
+    left: 0;
+    right: 0;
+    transition: opacity 200ms;
 }
 
 @media only screen and (max-width: 60em) and (min-width: 0em) {
 
 div#links {
+    width: 33em;
+}
+
+div.link-category {
     grid-template-columns: 16em 16em;
     width: 33em;
 }
