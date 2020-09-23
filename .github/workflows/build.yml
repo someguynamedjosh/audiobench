@@ -12,6 +12,7 @@ env:
 jobs:
   build-windows:
     runs-on: windows-latest
+    if: github.event_name == 'pull_request' || github.ref == 'release'
     steps:
     - uses: actions/checkout@v2
       with:
@@ -33,6 +34,7 @@ jobs:
     
   build-macos:
     runs-on: macos-latest
+    if: github.event_name == 'pull_request' || github.ref == 'release'
     steps:
     - uses: actions/checkout@v2
       with:
@@ -57,6 +59,7 @@ jobs:
     
   build-linux:
     runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' || github.ref == 'release'
     steps:
     - uses: actions/checkout@v2
       with:
@@ -77,6 +80,7 @@ jobs:
   
   build-book:
     runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' || github.ref == 'release'
     steps:
     - uses: actions/checkout@v2
       with:
@@ -104,7 +108,7 @@ jobs:
         submodules: 'true'
         persist-credentials: 'false'
     - name: Check version numbers
-      runs: ./build.py check_version
+      run: ./build.py check_version
     
   deploy-site:
     needs: [build-windows, build-macos, build-linux, build-book]
