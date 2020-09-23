@@ -2,9 +2,9 @@ name: Build All Artifacts
 
 on:
   push:
-    branches: [ master ]
+    branches: [ beta, release ]
   pull_request:
-    branches: [ master ]
+    branches: [ beta, release ]
 
 env:
   CARGO_TERM_COLOR: always
