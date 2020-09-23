@@ -74,9 +74,28 @@ jobs:
       with:
         name: artifacts-bin-linux
         path: artifacts/bin/
+  
+  build-book:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        lfs: 'true' 
+        submodules: 'true'
+    - name: Install MDBook
+      run: |
+        cargo install mdbook --vers "^0.4.0"
+    - name: Build Book
+      run: |
+        mdbook build docs/book
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v2
+      with:
+        name: book-html
+        path: docs/book/book/
     
-  build-and-deploy-site:
-    needs: [build-windows, build-macos, build-linux]
+  deploy-site:
+    needs: [build-windows, build-macos, build-linux, build-book]
     runs-on: ubuntu-latest
     if: github.event != 'pull_request'
     steps:
@@ -89,6 +108,7 @@ jobs:
       run: |
         mkdir -p website/
         mkdir -p website/builds/
+        mkdir -p website/book/
         cp -r docs/website/src/* website/
     - uses: actions/download-artifact@v2
       with:
@@ -102,6 +122,10 @@ jobs:
       with:
         name: artifacts-bin-linux
         path: website/builds/
+    - uses: actions/download-artifact@v2
+      with:
+        name: book-html
+        path: website/book/
     - name: Deploy
       uses: JamesIves/github-pages-deploy-action@3.6.1
       with:
