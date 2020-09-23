@@ -139,8 +139,11 @@ def build_juce_frontend():
     # Mac requires an extra packaging step whose output goes directly in artifacts/bin/. Other
     # platforms require copying the artifacts to the folder.
     if ON_MAC:
+        command(['ls', artifact_source])
         vst3_source = artifact_source.joinpath('VST3')
+        command(['ls', vst3_source])
         au_source = artifact_source.joinpath('AU')
+        command(['ls', au_source])
         # Add links to install directories.
         command(['ln', '-s', '/Applications',
                  standalone_source.joinpath('Applications')])
@@ -150,8 +153,9 @@ def build_juce_frontend():
                  au_source.joinpath('Components')])
         # Add DS_Store and bg,png
         bg_png_path = JUCE_FRONTEND_ROOT.joinpath('osx_stuff', 'bg.png')
-        ds_store_path = JUCE_FRONTEND_ROOT.joinpath('osx_stuff', 'DS_Store')
         for source in [standalone_source, vst3_source, au_source]:
+            name = source.name
+            ds_store_path = JUCE_FRONTEND_ROOT.joinpath('osx_stuff', 'DS_Store_' + name)
             mkdir(source.joinpath('.background'))
             cp(bg_png_path, source.joinpath('.background', 'bg.png'))
             cp(ds_store_path, source.joinpath('.DS_Store'))
