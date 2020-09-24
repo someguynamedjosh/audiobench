@@ -139,16 +139,8 @@ def build_juce_frontend():
     # Mac requires an extra packaging step whose output goes directly in artifacts/bin/. Other
     # platforms require copying the artifacts to the folder.
     if ON_MAC:
-        command(['ls', artifact_source])
         vst3_source = artifact_source.joinpath('VST3')
-        command(['ls', vst3_source])
-        command(['ls', vst3_source.joinpath('Audiobench.vst3')])
-        command(['du', '-hs', vst3_source])
-        command(['rm', '-r', vst3_source.joinpath('libAudiobench_SharedCode.a')])
-        command(['rm', '-r', vst3_source.joinpath('Audiobench.component')])
-        command(['du', '-hs', vst3_source])
         au_source = artifact_source.joinpath('AU')
-        command(['ls', au_source])
         # Add links to install directories.
         command(['ln', '-s', '/Applications',
                  standalone_source.joinpath('Applications')])
@@ -157,25 +149,23 @@ def build_juce_frontend():
         command(['ln', '-s', '/Library/Audio/Plug-Ins/Components',
                  au_source.joinpath('Components')])
         # Add DS_Store and bg,png
-        bg_png_path = JUCE_FRONTEND_ROOT.joinpath('osx_stuff', 'bg.png')
-        for source in [standalone_source, vst3_source, au_source]:
-            name = source.name
-            ds_store_path = JUCE_FRONTEND_ROOT.joinpath('osx_stuff', 'DS_Store_' + name)
-            mkdir(source.joinpath('.background'))
-            cp(bg_png_path, source.joinpath('.background', 'bg.png'))
-            cp(ds_store_path, source.joinpath('.DS_Store'))
-        # Convert everything to disk images.
-        # Build artifacts are approximately 60MB in size. hdiutil can frequently miscalculate the
-        # size of files to be included and will complain about "not enough space available":
-        # https://stackoverflow.com/questions/34119341/hdiutil-create-failed-error-5342
-        # so we tell it the size should be 120MB. According to above post, this does not
-        # significantly increase the size of the produced DMG.
-        command(['hdiutil', 'create', '-volname', 'Audiobench', '-size', '120m', '-srcfolder',
-                 standalone_source, '-ov', '-format', 'UDRO', artifact_target.joinpath('Audiobench_MacOS_x64_Standalone.dmg')])
-        command(['hdiutil', 'create', '-volname', 'Audiobench', '-size', '120m', '-srcfolder',
-                 vst3_source, '-ov', '-format', 'UDRO', artifact_target.joinpath('Audiobench_MacOS_x64_VST3.dmg')])
-        command(['hdiutil', 'create', '-volname', 'Audiobench', '-size', '120m', '-srcfolder',
-                 au_source, '-ov', '-format', 'UDRO', artifact_target.joinpath('Audiobench_MacOS_x64_AU.dmg')])
+        # NOTE: The DS_Store_VST3 file is just a copy of the Standalone file, never got around to
+        # making an actual version of it.
+        # bg_png_path = JUCE_FRONTEND_ROOT.joinpath('osx_stuff', 'bg.png')
+        # for source in [standalone_source, vst3_source, au_source]:
+        #     name = source.name
+        #     ds_store_path = JUCE_FRONTEND_ROOT.joinpath('osx_stuff', 'DS_Store_' + name)
+        #     mkdir(source.joinpath('.background'))
+        #     cp(bg_png_path, source.joinpath('.background', 'bg.png'))
+        #     cp(ds_store_path, source.joinpath('.DS_Store'))
+
+        # Convert everything to zips.
+        command(['zip', 'r', artifact_target.joinpath(
+            'Audiobench_MacOS_x64_Standalone.zip'), standalone_source])
+        command(['zip', 'r', artifact_target.joinpath(
+            'Audiobench_MacOS_x64_VST3.zip'), vst3_source])
+        command(['zip', 'r', artifact_target.joinpath(
+            'Audiobench_MacOS_x64_AU.zip'), au_source])
     else:
         cp(standalone_source, standalone_target)
         cp(vst3_source, vst3_target)
@@ -201,7 +191,8 @@ def run_benchmark():
 
 def check_version():
     import requests
-    latest = requests.get('https://joshua-maros.github.io/audiobench/latest.json').json()
+    latest = requests.get(
+        'https://joshua-maros.github.io/audiobench/latest.json').json()
     version = int(latest['version'])
     expected_version = version + 1
     good = True
@@ -213,16 +204,18 @@ def check_version():
     minor_version = int(cargo_version.split('.')[1].strip())
     if minor_version != expected_version:
         print('ERROR in components/audiobench/Cargo.toml:')
-        print('Expected minor version to be ' + str(expected_version) + ' but found ' + str(minor_version))
+        print('Expected minor version to be ' +
+              str(expected_version) + ' but found ' + str(minor_version))
         good = False
-    
+
     latest_json = open('docs/website/src/latest.json', 'r').read()
     version_start = latest_json.find('"version": ') + len('"version": ')
     version_end = latest_json.find(',', version_start)
     latest_version = int(latest_json[version_start:version_end].strip())
     if latest_version != expected_version:
         print('ERROR in docs/website/src/latest.json:')
-        print('Expected version to be ' + str(expected_version) + ' but found ' + str(latest_version))
+        print('Expected version to be ' + str(expected_version) +
+              ' but found ' + str(latest_version))
         good = False
 
     if not good:
