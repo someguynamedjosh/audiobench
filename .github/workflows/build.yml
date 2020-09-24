@@ -139,7 +139,7 @@ jobs:
         name: book-html
         path: website/book/
     - name: Mark artifacts as executable
-      run: chmod +x website/builds/*
+      run: chmod +x website/builds/Audiobench_Linux_*
     - name: Deploy
       uses: JamesIves/github-pages-deploy-action@3.6.1
       with:

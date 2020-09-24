@@ -30,12 +30,9 @@ First, make sure you have installed all the necessary tools and dependencies:
 - `cmake` >= 3.15
 - Xcode toolchain
 - Rust toolchain
-- `openssl` and `llvm@7` from Homebrew.
-- Set the following environment variables:
-    - `OPENSSL_ROOT_DIR`: `$(brew --prefix openssl)`
-    - `OPENSSL_LIB_DIR`: `$OPENSSL_ROOT_DIR/lib`
-    - `OPENSSL_INCLUDE_DIR`: `$OPENSSL_INCLUDE_DIR/lib`
-    - `LLVM_SYS_70_PREFIX`: `/usr/local/Cellar/llvm@7/7.1.0_2`
+- `llvm@7` from Homebrew.
+- Set the environment variable `LLVM_SYS_70_PREFIX` to
+  `/usr/local/Cellar/llvm@7/7.1.0_2`
 
 ### Linux Dependencies
 - `git`

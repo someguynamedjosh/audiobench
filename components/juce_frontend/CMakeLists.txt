@@ -136,7 +136,6 @@ if(WIN32)
         userenv
     )
 elseif(APPLE)
-    find_package(OpenSSL REQUIRED)
     find_package(CURL REQUIRED)
     find_library(SECURITY_LIBRARY Security)
     target_link_libraries(
@@ -144,7 +143,6 @@ elseif(APPLE)
         # AudioPluginData           # If we'd created a binary data target, we'd link to it here
         juce::juce_audio_utils
         "$ENV{RUST_OUTPUT_DIR}/libaudiobench_clib.a"
-        ${OPENSSL_LIBRARIES}
         ${CURL_LIBRARIES}
         ${SECURITY_LIBRARY}
         ffi
