@@ -141,13 +141,6 @@ def build_juce_frontend():
     if ON_MAC:
         vst3_source = artifact_source.joinpath('VST3')
         au_source = artifact_source.joinpath('AU')
-        # Add links to install directories.
-        command(['ln', '-s', '/Applications',
-                 standalone_source.joinpath('Applications')])
-        command(['ln', '-s', '/Library/Audio/Plug-Ins/VST3',
-                 vst3_source.joinpath('VST3')])
-        command(['ln', '-s', '/Library/Audio/Plug-Ins/Components',
-                 au_source.joinpath('Components')])
         # Add DS_Store and bg,png
         # NOTE: The DS_Store_VST3 file is just a copy of the Standalone file, never got around to
         # making an actual version of it.
@@ -160,11 +153,11 @@ def build_juce_frontend():
         #     cp(ds_store_path, source.joinpath('.DS_Store'))
 
         # Convert everything to zips.
-        command(['zip', 'r', artifact_target.joinpath(
+        command(['zip', '-r', artifact_target.joinpath(
             'Audiobench_MacOS_x64_Standalone.zip'), standalone_source])
-        command(['zip', 'r', artifact_target.joinpath(
+        command(['zip', '-r', artifact_target.joinpath(
             'Audiobench_MacOS_x64_VST3.zip'), vst3_source])
-        command(['zip', 'r', artifact_target.joinpath(
+        command(['zip', '-r', artifact_target.joinpath(
             'Audiobench_MacOS_x64_AU.zip'), au_source])
     else:
         cp(standalone_source, standalone_target)
