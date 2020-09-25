@@ -64,9 +64,9 @@ window.addEventListener('DOMContentLoaded', event => {
 
     makeDownloadButton('btn-windows-standalone', 'download-menu-windows', 'Audiobench_Windows_x64_Standalone.exe');
     makeDownloadButton('btn-windows-vst3', 'download-menu-windows', 'Audiobench_Windows_x64_VST3.vst3');
-    makeDownloadButton('btn-macos-standalone', 'download-menu-macos', 'Audiobench_MacOS_x64_Standalone.dmg');
-    makeDownloadButton('btn-macos-au', 'download-menu-macos', 'Audiobench_MacOS_x64_AU.dmg');
-    makeDownloadButton('btn-macos-vst3', 'download-menu-macos', 'Audiobench_MacOS_x64_VST3.dmg');
+    makeDownloadButton('btn-macos-standalone', 'download-menu-macos', 'Audiobench_MacOS_x64_Standalone.zip');
+    makeDownloadButton('btn-macos-au', 'download-menu-macos', 'Audiobench_MacOS_x64_AU.zip');
+    makeDownloadButton('btn-macos-vst3', 'download-menu-macos', 'Audiobench_MacOS_x64_VST3.zip');
     makeDownloadButton('btn-linux-standalone', 'download-menu-linux', 'Audiobench_Linux_x64_Standalone.bin');
     makeDownloadButton('btn-linux-vst3', 'download-menu-linux', 'Audiobench_Linux_x64_VST3.so');
 });

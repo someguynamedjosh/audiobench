@@ -154,11 +154,11 @@ def build_juce_frontend():
 
         # Convert everything to zips.
         command(['zip', '-r', artifact_target.joinpath(
-            'Audiobench_MacOS_x64_Standalone.zip'), standalone_source])
+            'Audiobench_MacOS_x64_Standalone.zip'), 'Audiobench.app'], working_dir=standalone_source)
         command(['zip', '-r', artifact_target.joinpath(
-            'Audiobench_MacOS_x64_VST3.zip'), vst3_source])
+            'Audiobench_MacOS_x64_VST3.zip'), 'Audiobench.vst3'], working_dir=vst3_source)
         command(['zip', '-r', artifact_target.joinpath(
-            'Audiobench_MacOS_x64_AU.zip'), au_source])
+            'Audiobench_MacOS_x64_AU.zip'), 'Audiobench.component'], working_dir=au_source)
     else:
         cp(standalone_source, standalone_target)
         cp(vst3_source, vst3_target)
