@@ -1,0 +1,10 @@
+[package]
+name = "nodespeak_cli"
+version = "0.1.0"
+authors = ["joshua-maros <60271685+joshua-maros@users.noreply.github.com>"]
+edition = "2018"
+
+[dependencies]
+nodespeak = { path = "../nodespeak" }
+terminal_size = "0.1"
+text_io = "0.1"

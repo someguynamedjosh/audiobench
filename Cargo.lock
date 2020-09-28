@@ -878,6 +878,13 @@ dependencies = [
  "pest_derive",
  "readonly",
  "snailquote",
+]
+
+[[package]]
+name = "nodespeak_cli"
+version = "0.1.0"
+dependencies = [
+ "nodespeak",
  "terminal_size",
  "text_io",
 ]

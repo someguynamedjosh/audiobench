@@ -146,8 +146,8 @@ elseif(APPLE)
         ${CURL_LIBRARIES}
         ${SECURITY_LIBRARY}
         ffi
+        tinfo
         z
-        curses
     )
 else()
     # The clipboard library I'm using uses a weird X11 wrapper to do its dirty work making this 
@@ -165,11 +165,11 @@ else()
         juce::juce_audio_utils
         "$ENV{RUST_OUTPUT_DIR}/libaudiobench_clib.a"
         z
-        curses
         ssl
         crypto
         ffi
         ${XCB_LIBRARIES}
+        tinfo
         Threads::Threads
     )
 endif()

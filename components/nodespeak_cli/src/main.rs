@@ -1,6 +1,3 @@
-extern crate nodespeak;
-extern crate text_io;
-
 use std::env;
 use std::process;
 
