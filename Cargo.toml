@@ -2,7 +2,7 @@
 
 members = [
     "components/audiobench",
-    "components/audiobench-clib",
+    "components/audiobench_clib",
     "components/benchmark",
     "components/nodespeak",
     "components/nodespeak_cli",

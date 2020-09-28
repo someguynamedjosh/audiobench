@@ -58,7 +58,7 @@ juce_add_plugin(
 
 target_include_directories(
     Audiobench PRIVATE
-    "$ENV{PROJECT_ROOT}/components/audiobench-clib/"
+    "$ENV{PROJECT_ROOT}/components/audiobench_clib/"
 )
 
 # `juce_generate_juce_header` will create a JuceHeader.h for a given target, which will be generated

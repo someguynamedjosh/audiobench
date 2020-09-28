@@ -87,7 +87,7 @@ def clean():
 
 
 def build_clib():
-    args = ['cargo', 'build', '-p', 'audiobench-clib']
+    args = ['cargo', 'build', '-p', 'audiobench_clib']
     if DO_RELEASE:
         args.append('--release')
     command(args)

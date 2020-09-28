@@ -67,7 +67,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "audiobench-clib"
+name = "audiobench_clib"
 version = "0.1.0"
 dependencies = [
  "audiobench",
