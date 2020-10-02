@@ -6,6 +6,7 @@ members = [
     "components/benchmark",
     "components/nodespeak",
     "components/nodespeak_cli",
+    "components/shared_util",
     "components/yaml_widget_boilerplate",
 ]
 

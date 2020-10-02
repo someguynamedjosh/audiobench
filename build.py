@@ -134,7 +134,7 @@ def build_juce_frontend():
         standalone_target = standalone_target.joinpath(
             'Audiobench_Linux_x64_Standalone.bin')
         vst3_source = vst3_source.joinpath('x86_64-linux', 'Audiobench.so')
-        vst3_target = vst3_target.joinpath('Audiobench_Linux_x64_VST3.so')
+        vst3_target = vst3_target.joinpath('Audiobench_Linux_x64_VST3.vst3')
 
     # Mac requires an extra packaging step whose output goes directly in artifacts/bin/. Other
     # platforms require copying the artifacts to the folder.

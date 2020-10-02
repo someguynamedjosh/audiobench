@@ -23,7 +23,7 @@ impl<T: Clone> NVec<T> {
         mut value_builder: impl FnMut(Vec<usize>) -> Result<T, E>,
     ) -> Result<NVec<T>, E> {
         let mut data = Vec::new();
-        for index in crate::util::nd_index_iter(dimensions.clone()) {
+        for index in nd_index_iter(dimensions.clone()) {
             data.push(value_builder(index)?);
         }
         Ok(Self::from_vec_and_dims(
@@ -37,7 +37,7 @@ impl<T: Clone> NVec<T> {
         mut value_builder: impl FnMut(Vec<usize>) -> T,
     ) -> NVec<T> {
         let mut data = Vec::new();
-        for index in crate::util::nd_index_iter(dimensions.clone()) {
+        for index in nd_index_iter(dimensions.clone()) {
             data.push(value_builder(index));
         }
         Self::from_vec_and_dims(
@@ -194,6 +194,46 @@ impl<T: Clone> NVec<T> {
 
     pub fn borrow_dimensions(&self) -> &[usize] {
         &self.dimensions
+    }
+}
+
+pub struct NdIndexIter {
+    // Dimensions are stored in reverse to make calculations easier.
+    dimensions: Vec<usize>,
+    next_index: usize,
+    total: usize,
+}
+
+impl Iterator for NdIndexIter {
+    type Item = Vec<usize>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.next_index == self.total {
+            return None;
+        }
+
+        let mut result = Vec::with_capacity(self.dimensions.len());
+        let mut counter = self.next_index;
+        for dimension in &self.dimensions {
+            result.push(counter % dimension);
+            counter /= dimension;
+        }
+        result.reverse();
+        self.next_index += 1;
+        Some(result)
+    }
+}
+
+pub fn nd_index_iter(mut dimensions: Vec<usize>) -> NdIndexIter {
+    dimensions.reverse();
+    let mut total = 1;
+    for dimension in &dimensions {
+        total *= dimension;
+    }
+    NdIndexIter {
+        dimensions,
+        next_index: 0,
+        total,
     }
 }
 

@@ -1,4 +1,4 @@
-use crate::util::*;
+use shared_util::prelude::*;
 
 #[inline]
 pub fn compose_u2(bit1: bool, bit0: bool) -> u8 {

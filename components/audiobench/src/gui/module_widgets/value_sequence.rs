@@ -7,7 +7,7 @@ use crate::gui::constants::*;
 use crate::gui::graphics::GrahpicsWrapper;
 use crate::gui::{InteractionHint, MouseMods, Tooltip};
 use crate::registry::Registry;
-use crate::util::*;
+use shared_util::prelude::*;
 
 yaml_widget_boilerplate::make_widget_outline! {
     widget_struct: ValueSequence,

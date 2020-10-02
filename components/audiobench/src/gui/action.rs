@@ -5,7 +5,7 @@ use crate::gui::module_widgets;
 use crate::gui::ui_widgets::TextField;
 use crate::gui::{GuiScreen, InteractionHint, MouseMods, Tooltip};
 use crate::registry::save_data::Patch;
-use crate::util::*;
+use shared_util::prelude::*;
 
 // Describes an action that should be performed on an instance level.
 pub enum InstanceAction {

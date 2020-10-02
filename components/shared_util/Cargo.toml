@@ -1,12 +1,10 @@
 [package]
-name = "audiobench_clib"
+name = "shared_util"
 version = "0.1.0"
 authors = ["joshua-maros <60271685+joshua-maros@users.noreply.github.com>"]
 edition = "2018"
 
-[lib]
-name = "audiobench_clib"
-crate-type = ["staticlib"]
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-audiobench = { path = "../audiobench" }
+num = "0.2"

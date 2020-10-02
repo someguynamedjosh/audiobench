@@ -1,20 +1,9 @@
-use const_env::from_env;
 use num::Float;
 use std::fmt::Display;
 
-#[from_env("CARGO_PKG_VERSION_MINOR")]
-pub const ENGINE_VERSION: u16 = 0xFFFF;
-pub const ENGINE_INFO: &'static str = concat!(
-    "Audiobench is free and open source software. You are free to do anything you want with it, ",
-    "including selling any audio, patches, or modules you make with or for it. If you make ",
-    "modifications to the source code you must make those changes freely available under the GNU ",
-    "General Public License, Version 3. Source code is available at ",
-    "https://gitlab.com/Code_Cube/audio-bench."
-);
-#[cfg(debug_assertions)]
-pub const ENGINE_UPDATE_URL: &'static str = "http://localhost:8000/latest.json";
-#[cfg(not(debug_assertions))]
-pub const ENGINE_UPDATE_URL: &'static str = "https://bit.ly/adb_update_check";
+mod nvec;
+pub mod prelude;
+pub use nvec::*;
 
 pub trait FloatUtil: Sized + Copy {
     /// Converts from the range [from_min,from_max] to [0,1]
@@ -93,7 +82,7 @@ impl<T: Float + Display> FloatUtil for T {
         if adjusted_value.abs() < one {
             // Keep using smaller prefixes until it looks nice.
             const PREFIXES: [&str; 9] = ["", "m", "u", "n", "p", "f", "a", "z", "y"];
-            for (index, prefix) in PREFIXES.iter().enumerate() {
+            for prefix in &PREFIXES {
                 if adjusted_value.abs() >= one {
                     return format!(
                         "{}{}{}",
@@ -109,7 +98,7 @@ impl<T: Float + Display> FloatUtil for T {
         } else {
             // Keep using bigger prefixes until it looks nice.
             const PREFIXES: [&str; 9] = ["", "k", "M", "G", "T", "P", "E", "Z", "Y"];
-            for (index, prefix) in PREFIXES.iter().enumerate() {
+            for prefix in &PREFIXES {
                 if adjusted_value.abs() <= thousand {
                     return format!(
                         "{}{}{}",
@@ -175,7 +164,7 @@ pub fn format_decimal(value: f32, digits: i32) -> String {
     format!("{:.*}", digits, value)
 }
 
-pub use std::{cell::RefCell, rc::Rc, sync::Arc};
+use std::{cell::RefCell, rc::Rc};
 
 pub type Rcrc<T> = Rc<RefCell<T>>;
 pub fn rcrc<T>(content: T) -> Rcrc<T> {

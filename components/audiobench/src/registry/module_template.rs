@@ -2,7 +2,7 @@ use super::yaml::YamlNode;
 use crate::engine::parts as ep;
 use crate::engine::static_controls as staticons;
 use crate::gui::module_widgets::WidgetOutline;
-use crate::util::*;
+use shared_util::prelude::*;
 use std::collections::{HashMap, HashSet};
 
 fn create_control_from_yaml(yaml: &YamlNode) -> Result<Rcrc<ep::Autocon>, String> {

@@ -2,7 +2,7 @@ use crate::gui::action::MouseAction;
 use crate::gui::constants::*;
 use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
 use crate::gui::MouseMods;
-use crate::util::*;
+use shared_util::prelude::*;
 
 pub struct TextField {
     pub text: String,

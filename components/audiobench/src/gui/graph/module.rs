@@ -6,7 +6,7 @@ use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
 use crate::gui::module_widgets::ModuleWidget;
 use crate::gui::{InteractionHint, MouseMods, Tooltip};
 use crate::registry::Registry;
-use crate::util::*;
+use shared_util::prelude::*;
 use std::f32::consts::PI;
 
 struct InputJack {

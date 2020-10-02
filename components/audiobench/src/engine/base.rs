@@ -6,7 +6,7 @@ use super::parts::ModuleGraph;
 use super::perf_counter::{sections, PerfCounter};
 use super::program_wrapper::{AudiobenchCompiler, AudiobenchProgram, NoteTracker};
 use crate::registry::{save_data::Patch, Registry};
-use crate::util::*;
+use shared_util::prelude::*;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 

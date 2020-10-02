@@ -4,7 +4,7 @@ use super::data_transfer::{DataFormat, HostFormat};
 use super::static_controls::Staticon;
 use crate::engine::parts::*;
 use crate::gui::module_widgets::FeedbackDataRequirement;
-use crate::util::*;
+use shared_util::prelude::*;
 
 pub(super) struct CodeGenResult {
     pub(super) code: String,

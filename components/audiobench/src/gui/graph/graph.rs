@@ -6,7 +6,7 @@ use crate::gui::graphics::GrahpicsWrapper;
 use crate::gui::module_widgets::PopupMenu;
 use crate::gui::{Gui, InteractionHint, MouseMods, Tooltip};
 use crate::registry::Registry;
-use crate::util::*;
+use shared_util::prelude::*;
 
 pub struct ModuleGraph {
     pub pos: (f32, f32),

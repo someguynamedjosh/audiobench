@@ -152,13 +152,13 @@ impl<'a> ScopeResolver<'a> {
                         lhs_indexes[index] = *value;
                     }
                     let num_indexes = indexes.len();
-                    for shared_indexes in crate::util::nd_index_iter(rhs_dims) {
+                    for shared_indexes in shared_util::nd_index_iter(rhs_dims) {
                         for (offset, value) in shared_indexes.iter().enumerate() {
                             lhs_indexes[num_indexes + offset] = *value;
                         }
                         let rhs_item = value_data.index(&shared_indexes[..]);
                         let rhs_pkd = PossiblyKnownData::from_known_data(rhs_item);
-                        for extra_indexes in crate::util::nd_index_iter(extra_dims.clone()) {
+                        for extra_indexes in shared_util::nd_index_iter(extra_dims.clone()) {
                             for (offset, value) in extra_indexes.iter().enumerate() {
                                 lhs_indexes[num_indexes + num_shared_dims + offset] = *value;
                             }

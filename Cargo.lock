@@ -54,11 +54,11 @@ dependencies = [
  "directories",
  "enumflags2",
  "nodespeak",
- "num",
  "rand",
  "reqwest",
  "serde",
  "serde_json",
+ "shared_util",
  "single_value_channel",
  "walkdir",
  "webbrowser",
@@ -877,6 +877,7 @@ dependencies = [
  "pest",
  "pest_derive",
  "readonly",
+ "shared_util",
  "snailquote",
 ]
 
@@ -1528,6 +1529,13 @@ dependencies = [
  "digest",
  "fake-simd",
  "opaque-debug",
+]
+
+[[package]]
+name = "shared_util"
+version = "0.1.0"
+dependencies = [
+ "num",
 ]
 
 [[package]]

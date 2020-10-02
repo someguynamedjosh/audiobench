@@ -5,7 +5,7 @@ use crate::gui::constants::*;
 use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
 use crate::gui::{InteractionHint, MouseMods, Tooltip};
 use crate::registry::Registry;
-use crate::util::*;
+use shared_util::prelude::*;
 
 #[derive(Clone)]
 pub struct IntBoxBase {

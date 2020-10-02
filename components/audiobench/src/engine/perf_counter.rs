@@ -1,4 +1,4 @@
-use crate::util::*;
+use shared_util::prelude::*;
 use std::time::{Duration, Instant};
 
 pub struct PerfCountSection {

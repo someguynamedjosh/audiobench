@@ -1,5 +1,5 @@
 use super::yaml;
-use crate::util::*;
+use crate::config::*;
 use std::fs::{self, File};
 use std::io::{Read, Seek};
 use std::path::{Path, PathBuf};

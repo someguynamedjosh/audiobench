@@ -5,7 +5,7 @@ use crate::gui::constants::*;
 use crate::gui::graph::{Module, WireTracker};
 use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
 use crate::gui::{InteractionHint, MouseMods, Tooltip};
-use crate::util::*;
+use shared_util::prelude::*;
 use std::f32::consts::PI;
 
 yaml_widget_boilerplate::make_widget_outline! {

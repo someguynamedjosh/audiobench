@@ -3,7 +3,7 @@ use crate::gui::constants::*;
 use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
 use crate::gui::{GuiScreen, InteractionHint, MouseMods, Status, Tooltip};
 use crate::registry::Registry;
-use crate::util::*;
+use shared_util::prelude::*;
 
 pub struct MenuBar {
     screens: Vec<GuiScreen>,

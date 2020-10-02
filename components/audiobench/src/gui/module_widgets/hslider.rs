@@ -5,7 +5,7 @@ use crate::gui::constants::*;
 use crate::gui::graph::{Module, WireTracker};
 use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
 use crate::gui::{InteractionHint, MouseMods, Tooltip};
-use crate::util::*;
+use shared_util::prelude::*;
 
 yaml_widget_boilerplate::make_widget_outline! {
     widget_struct: HSlider,

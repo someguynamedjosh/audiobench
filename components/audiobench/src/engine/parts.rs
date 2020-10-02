@@ -1,6 +1,6 @@
 use super::static_controls::Staticon;
 use crate::registry::module_template::ModuleTemplate;
-use crate::util::*;
+use shared_util::prelude::*;
 use std::collections::{HashMap, HashSet};
 
 #[derive(Clone, Debug)]

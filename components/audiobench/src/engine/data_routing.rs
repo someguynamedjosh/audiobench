@@ -1,7 +1,7 @@
 use super::data_format::OwnedIOData;
 use super::parts::{Autocon, Module};
 use super::static_controls::Staticon;
-use crate::util::*;
+use shared_util::prelude::*;
 
 // This packages changes made by the user to knobs and automation into a format that can be read
 // by the nodespeak parameter, so that trivial changes don't necessitate a recompile.

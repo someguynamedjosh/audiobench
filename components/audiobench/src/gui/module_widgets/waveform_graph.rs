@@ -1,7 +1,7 @@
 use super::ModuleWidget;
 use crate::gui::constants::*;
 use crate::gui::graphics::GrahpicsWrapper;
-use crate::util::*;
+use shared_util::prelude::*;
 
 yaml_widget_boilerplate::make_widget_outline! {
     widget_struct: WaveformGraph,

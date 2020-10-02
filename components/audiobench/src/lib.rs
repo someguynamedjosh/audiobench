@@ -1,11 +1,13 @@
+pub(crate) mod config;
 mod engine;
 mod gui;
 mod registry;
-mod util;
 
 use gui::graphics::GrahpicsWrapper;
 pub use gui::graphics::GraphicsFunctions;
 use gui::{Gui, MouseMods};
+
+use shared_util::prelude as util;
 
 pub struct Instance {
     engine: Option<engine::Engine>,
