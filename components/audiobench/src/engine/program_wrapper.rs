@@ -1,9 +1,9 @@
 use crate::engine::data_transfer::{DataFormat, HostData, InputPacker, NoteData, OutputUnpacker};
-use crate::engine::perf_counter::{PerfCounter, sections};
 use crate::registry::Registry;
 use array_macro::array;
 use nodespeak::llvmir::structure::{Program, StaticData};
 use nodespeak::Compiler;
+use shared_util::{perf_counter::sections, prelude::*};
 
 /// The MIDI protocol can provide notes at 128 different pitches.
 const NUM_MIDI_NOTES: usize = 128;
@@ -153,6 +153,35 @@ impl AudiobenchCompiler {
             program: self.compiler.compile("<note graph>")?,
         })
     }
+
+    pub(super) fn reset_performance_counters(&mut self) {
+        self.compiler.reset_performance_counters();
+    }
+
+    pub(super) fn tally_performance_counters(&mut self, global_counter: &mut impl PerfCounter) {
+        let compiler_counters = self.compiler.borrow_performance_counters();
+        global_counter.add_externally_timed_section(
+            &sections::COMPILER_AST_PHASE,
+            compiler_counters.ast.get_total_time().clone(),
+        );
+        global_counter.add_externally_timed_section(
+            &sections::COMPILER_VAGUE_PHASE,
+            compiler_counters.vague.get_total_time().clone(),
+        );
+        global_counter.add_externally_timed_section(
+            &sections::COMPILER_RESOLVED_PHASE,
+            compiler_counters.resolved.get_total_time().clone(),
+        );
+        global_counter.add_externally_timed_section(
+            &sections::COMPILER_TRIVIAL_PHASE,
+            compiler_counters.trivial.get_total_time().clone(),
+        );
+        global_counter.add_externally_timed_section(
+            &sections::COMPILER_LLVMIR_PHASE,
+            compiler_counters.llvmir.get_total_time().clone(),
+        );
+        self.compiler.reset_performance_counters();
+    }
 }
 
 pub struct AudiobenchProgram {
@@ -174,7 +203,7 @@ impl AudiobenchProgram {
         audio_output: &mut [f32],
         perf_counter: &mut impl PerfCounter,
     ) -> Result<bool, String> {
-        perf_counter.begin_section(&sections::GLOBAL_SETUP);
+        let section = perf_counter.begin_section(&sections::GLOBAL_SETUP);
         let data_format = input.borrow_data_format();
         let buf_len = data_format.host_format.buffer_len;
         let sample_rate = data_format.host_format.sample_rate;
@@ -191,14 +220,14 @@ impl AudiobenchProgram {
         } else {
             None
         };
-        perf_counter.end_section(&sections::GLOBAL_SETUP);
+        perf_counter.end_section(section);
 
         for (index, note) in notes.active_notes_mut().enumerate() {
-            perf_counter.begin_section(&sections::NOTE_SETUP);
+            let section = perf_counter.begin_section(&sections::NOTE_SETUP);
             input.set_note_data(&note.input_data, host_data, feedback_note == Some(index));
-            perf_counter.end_section(&sections::NOTE_SETUP);
+            perf_counter.end_section(section);
 
-            perf_counter.begin_section(&sections::NODESPEAK_EXEC);
+            let section = perf_counter.begin_section(&sections::NODESPEAK_EXEC);
             unsafe {
                 self.program.execute_raw(
                     input.borrow_packed_data_mut(),
@@ -206,9 +235,9 @@ impl AudiobenchProgram {
                     &mut note.static_data,
                 )?;
             }
-            perf_counter.end_section(&sections::NODESPEAK_EXEC);
+            perf_counter.end_section(section);
 
-            perf_counter.begin_section(&sections::NOTE_FINALIZE);
+            let section = perf_counter.begin_section(&sections::NOTE_FINALIZE);
             let mut silent = true;
             for i in 0..buf_len * 2 {
                 audio_output[i] += output.borrow_audio_out()[i];
@@ -219,14 +248,14 @@ impl AudiobenchProgram {
             } else {
                 note.silent_samples = 0;
             }
-            perf_counter.end_section(&sections::NOTE_FINALIZE);
+            perf_counter.end_section(section);
         }
 
-        perf_counter.begin_section(&sections::GLOBAL_FINALIZE);
+        let section = perf_counter.begin_section(&sections::GLOBAL_FINALIZE);
         notes.advance_all_notes(host_data);
         host_data.song_time += buf_time;
         host_data.song_beats += buf_time * host_data.bpm / 60.0;
-        perf_counter.end_section(&sections::GLOBAL_FINALIZE);
+        perf_counter.end_section(section);
         Ok(feedback_note.is_some())
     }
 }

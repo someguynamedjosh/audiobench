@@ -1,6 +1,6 @@
 use super::{problems, VagueIngester};
 use crate::ast::structure as i;
-use crate::high_level::problem::{CompileProblem, FilePosition};
+use crate::high_level::problem::{CompileProblem};
 use crate::vague::structure as o;
 
 impl<'a> VagueIngester<'a> {

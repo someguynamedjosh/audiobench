@@ -3,10 +3,9 @@ use super::data_format::OwnedIOData;
 use super::data_routing::{AutoconDynDataCollector, FeedbackDisplayer, StaticonDynDataCollector};
 use super::data_transfer::{DataFormat, HostData, HostFormat, InputPacker, OutputUnpacker};
 use super::parts::ModuleGraph;
-use super::perf_counter::{sections, PerfCounter};
 use super::program_wrapper::{AudiobenchCompiler, AudiobenchProgram, NoteTracker};
 use crate::registry::{save_data::Patch, Registry};
-use shared_util::prelude::*;
+use shared_util::{perf_counter::sections, prelude::*};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
@@ -14,7 +13,7 @@ const DEFAULT_BUFFER_LENGTH: usize = 512;
 const DEFAULT_SAMPLE_RATE: usize = 44100;
 const FEEDBACK_UPDATE_INTERVAL: Duration = Duration::from_millis(50);
 
-type PreferredPerfCounter = crate::engine::perf_counter::SimplePerfCounter;
+type PreferredPerfCounter = shared_util::perf_counter::SimplePerfCounter;
 
 struct UiThreadData {
     module_graph: Rcrc<ModuleGraph>,
@@ -221,22 +220,22 @@ impl Engine {
         let mut ctd = self.ctd_mux.lock().unwrap();
 
         let module_graph_ref = self.utd.module_graph.borrow();
-        ctd.perf_counter.begin_section(&sections::GENERATE_CODE);
+        let section = ctd.perf_counter.begin_section(&sections::GENERATE_CODE);
         let new_gen = codegen::generate_code(&*module_graph_ref, &ctd.host_format)
             .map_err(|_| format!("The note graph cannot contain feedback loops"))?;
-        ctd.perf_counter.end_section(&sections::GENERATE_CODE);
+        ctd.perf_counter.end_section(section);
         drop(module_graph_ref);
         ctd.new_source = Some((new_gen.code, new_gen.data_format.clone()));
-        ctd.perf_counter
+        let section = ctd
+            .perf_counter
             .begin_section(&sections::COLLECT_AUTOCON_DATA);
         ctd.new_autocon_dyn_data = Some(new_gen.autocon_dyn_data_collector.collect_data());
-        ctd.perf_counter
-            .end_section(&sections::COLLECT_AUTOCON_DATA);
-        ctd.perf_counter
+        ctd.perf_counter.end_section(section);
+        let section = ctd
+            .perf_counter
             .begin_section(&sections::COLLECT_STATICON_DATA);
         ctd.new_staticon_dyn_data = Some(new_gen.staticon_dyn_data_collector.collect_data());
-        ctd.perf_counter
-            .end_section(&sections::COLLECT_STATICON_DATA);
+        ctd.perf_counter.end_section(section);
         ctd.new_feedback_data = None;
         self.utd.autocon_dyn_data_collector = new_gen.autocon_dyn_data_collector;
         self.utd.staticon_dyn_data_collector = new_gen.staticon_dyn_data_collector;
@@ -247,21 +246,21 @@ impl Engine {
     pub fn reload_autocon_dyn_data(&mut self) {
         let mut ctd = self.ctd_mux.lock().unwrap();
 
-        ctd.perf_counter
+        let section = ctd
+            .perf_counter
             .begin_section(&sections::COLLECT_AUTOCON_DATA);
         ctd.new_autocon_dyn_data = Some(self.utd.autocon_dyn_data_collector.collect_data());
-        ctd.perf_counter
-            .end_section(&sections::COLLECT_AUTOCON_DATA);
+        ctd.perf_counter.end_section(section);
     }
 
     pub fn reload_staticon_dyn_data(&mut self) {
         let mut ctd = self.ctd_mux.lock().unwrap();
 
-        ctd.perf_counter
+        let section = ctd
+            .perf_counter
             .begin_section(&sections::COLLECT_STATICON_DATA);
         ctd.new_staticon_dyn_data = Some(self.utd.staticon_dyn_data_collector.collect_data());
-        ctd.perf_counter
-            .end_section(&sections::COLLECT_STATICON_DATA);
+        ctd.perf_counter.end_section(section);
     }
 
     /// Feedback data is generated on the audio thread. This method uses a mutex to retrieve that
@@ -344,12 +343,11 @@ impl Engine {
             self.atd.input.set_data_format(data_format.clone());
             self.atd.output.set_data_format(data_format.clone());
             ctd.notes.set_data_format(data_format.clone());
-            // Since we drop the mutex while compiling we can't use the performance counter because
-            // other threads might use it. TODO: Fix this.
-            // ctd.perf_counter.begin_section(&sections::COMPILE_CODE);
+            let section = ctd.perf_counter.begin_section(&sections::COMPILE_CODE);
             ctd.currently_compiling = true;
             // Compilation takes a while. Drop ctd so that other threads can use it.
             drop(ctd);
+            self.atd.compiler.reset_performance_counters();
             match self.atd.compiler.compile(code) {
                 Ok(program) => {
                     ctd = self.ctd_mux.lock().unwrap();
@@ -369,7 +367,10 @@ impl Engine {
                 }
             }
             ctd.currently_compiling = false;
-            // ctd.perf_counter.end_section(&sections::COMPILE_CODE);
+            ctd.perf_counter.end_section(section);
+            // The compiler has its own performance counters, this method adds anything they
+            // measure to our global performance counter.
+            self.atd.compiler.tally_performance_counters(&mut ctd.perf_counter);
         }
         if let Some(new_autocon_dyn_data) = ctd.new_autocon_dyn_data.take() {
             self.atd

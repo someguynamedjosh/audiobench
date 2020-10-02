@@ -327,7 +327,7 @@ impl<'a> VagueIngester<'a> {
                 }
             };
 
-            self.perf_counters.ast.time += timer.elapsed().as_millis();
+            self.perf_counters.ast.time += timer.elapsed();
             self.perf_counters.ast.num_invocations += 1;
 
             let old_file_id = self.current_file_id;

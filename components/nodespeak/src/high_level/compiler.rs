@@ -1,7 +1,7 @@
 use crate::high_level::problem::CompileProblem;
 use std::collections::HashMap;
 use std::fmt::{self, Display, Formatter};
-use std::time::Instant;
+use std::time::{Instant, Duration};
 
 pub const FAKE_BUILTIN_SOURCE: &str = r#"
 DATA_TYPE AUTO;
@@ -13,8 +13,19 @@ DATA_TYPE VOID;
 
 #[derive(Default)]
 pub struct PerformanceCounter {
-    pub time: u128,
-    pub num_invocations: u32,
+    pub(crate) time: Duration,
+    pub(crate) num_invocations: u32,
+}
+
+impl PerformanceCounter {
+    pub fn get_total_time(&self) -> &Duration {
+        &self.time
+    }
+
+    pub fn reset(&mut self) {
+        self.time = Duration::from_secs(0);
+        self.num_invocations = 0;
+    }
 }
 
 impl Display for PerformanceCounter {
@@ -22,18 +33,28 @@ impl Display for PerformanceCounter {
         write!(
             formatter,
             "{}ms ({} invocations)",
-            self.time, self.num_invocations
+            self.time.as_millis(), self.num_invocations
         )
     }
 }
 
 #[derive(Default)]
 pub struct PerformanceCounters {
-    pub(crate) ast: PerformanceCounter,
-    vague: PerformanceCounter,
-    resolved: PerformanceCounter,
-    trivial: PerformanceCounter,
-    llvmir: PerformanceCounter,
+    pub ast: PerformanceCounter,
+    pub vague: PerformanceCounter,
+    pub resolved: PerformanceCounter,
+    pub trivial: PerformanceCounter,
+    pub llvmir: PerformanceCounter,
+}
+
+impl PerformanceCounters {
+    pub fn reset(&mut self) {
+        self.ast.reset();
+        self.vague.reset();
+        self.resolved.reset();
+        self.trivial.reset();
+        self.llvmir.reset();
+    }
 }
 
 impl Display for PerformanceCounters {
@@ -128,6 +149,10 @@ impl Compiler {
         &self.performance_counters
     }
 
+    pub fn reset_performance_counters(&mut self) {
+        self.performance_counters.reset();
+    }
+
     fn format_error<T>(&self, result: Result<T, CompileProblem>) -> Result<T, String> {
         result.map_err(|e| e.format(self.error_width, &self.source_set))
     }
@@ -139,7 +164,7 @@ impl Compiler {
     ) -> Result<crate::ast::structure::Program<'a>, CompileProblem> {
         let timer = Instant::now();
         let result = crate::ast::ingest(source, file_id);
-        pc.ast.time += timer.elapsed().as_millis();
+        pc.ast.time += timer.elapsed();
         pc.ast.num_invocations += 1;
         result
     }
@@ -170,7 +195,7 @@ impl Compiler {
             &self.source_set,
             &mut self.performance_counters,
         );
-        self.performance_counters.vague.time += timer.elapsed().as_millis();
+        self.performance_counters.vague.time += timer.elapsed();
         self.performance_counters.vague.num_invocations += 1;
         self.format_error(result)
     }
@@ -183,7 +208,7 @@ impl Compiler {
         let mut source = self.compile_to_vague(source_name)?;
         let timer = Instant::now();
         let result = crate::resolved::ingest(&mut source);
-        self.performance_counters.resolved.time += timer.elapsed().as_millis();
+        self.performance_counters.resolved.time += timer.elapsed();
         self.performance_counters.resolved.num_invocations += 1;
         self.format_error(result)
     }
@@ -196,7 +221,7 @@ impl Compiler {
         let mut source = self.compile_to_resolved(source_name)?;
         let timer = Instant::now();
         let result = crate::trivial::ingest(&mut source, &self.source_set);
-        self.performance_counters.trivial.time += timer.elapsed().as_millis();
+        self.performance_counters.trivial.time += timer.elapsed();
         self.performance_counters.trivial.num_invocations += 1;
         self.format_error(result)
     }
@@ -209,7 +234,7 @@ impl Compiler {
         let mut source = self.compile_to_trivial(source_name)?;
         let timer = Instant::now();
         let result = crate::llvmir::ingest(&mut source);
-        self.performance_counters.llvmir.time += timer.elapsed().as_millis();
+        self.performance_counters.llvmir.time += timer.elapsed();
         self.performance_counters.llvmir.num_invocations += 1;
         Ok(result)
     }
