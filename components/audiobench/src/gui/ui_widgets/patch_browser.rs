@@ -43,8 +43,7 @@ impl PatchBrowser {
         let namew = hw - (CG + GRID_P) * NUM_ICONS;
         let patch_name = current_patch.borrow().borrow_name().to_owned();
         let save_icon = registry.lookup_icon("factory:save").unwrap();
-        let mut save_button =
-            IconButton::create((GRID_P, 0.0), CG, save_icon);
+        let mut save_button = IconButton::create((GRID_P, 0.0), CG, save_icon);
         let new_icon = registry.lookup_icon("factory:add").unwrap();
         let new_button =
             IconButton::create((GRID_P + hw - CG * 3.0 - GRID_P * 2.0, 0.0), CG, new_icon);

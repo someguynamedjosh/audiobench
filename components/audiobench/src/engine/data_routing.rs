@@ -53,14 +53,17 @@ impl StaticonDynDataCollector {
     }
 
     pub(super) fn collect_data(&self) -> Vec<OwnedIOData> {
-        self.ordered_controls.iter().filter_map(|staticon| {
-            let staticon = staticon.borrow();
-            if staticon.is_static_only() {
-                None
-            } else {
-                Some(staticon.borrow_data().package_dyn_data().to_owned())
-            }
-        }).collect()
+        self.ordered_controls
+            .iter()
+            .filter_map(|staticon| {
+                let staticon = staticon.borrow();
+                if staticon.is_static_only() {
+                    None
+                } else {
+                    Some(staticon.borrow_data().package_dyn_data().to_owned())
+                }
+            })
+            .collect()
     }
 }
 

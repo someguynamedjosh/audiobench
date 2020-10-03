@@ -5,8 +5,8 @@ use crate::gui::constants::*;
 use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
 use crate::registry::save_data::Patch;
 use crate::registry::Registry;
-use shared_util::prelude::*;
 use enumflags2::BitFlags;
+use shared_util::prelude::*;
 use std::time::{Duration, Instant};
 
 #[derive(BitFlags, Copy, Clone)]

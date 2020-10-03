@@ -370,7 +370,9 @@ impl Engine {
             ctd.perf_counter.end_section(section);
             // The compiler has its own performance counters, this method adds anything they
             // measure to our global performance counter.
-            self.atd.compiler.tally_performance_counters(&mut ctd.perf_counter);
+            self.atd
+                .compiler
+                .tally_performance_counters(&mut ctd.perf_counter);
         }
         if let Some(new_autocon_dyn_data) = ctd.new_autocon_dyn_data.take() {
             self.atd

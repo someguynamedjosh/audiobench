@@ -110,7 +110,8 @@ impl<'a> CodeGenerator<'a> {
                 self.staticon_dyn_data_control_order.len(),
             );
             let (input_code, body_code) = control_ref.generate_dynamic_code(&unique_input_name);
-            self.staticon_dyn_data_control_order.push(Rc::clone(control));
+            self.staticon_dyn_data_control_order
+                .push(Rc::clone(control));
             self.staticon_dyn_data_types.push(control_ref.get_io_type());
             self.staticon_input_code.push(input_code);
             format!("    {}\n", body_code)

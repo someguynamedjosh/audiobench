@@ -1,7 +1,7 @@
 use crate::high_level::problem::CompileProblem;
 use std::collections::HashMap;
 use std::fmt::{self, Display, Formatter};
-use std::time::{Instant, Duration};
+use std::time::{Duration, Instant};
 
 pub const FAKE_BUILTIN_SOURCE: &str = r#"
 DATA_TYPE AUTO;
@@ -33,7 +33,8 @@ impl Display for PerformanceCounter {
         write!(
             formatter,
             "{}ms ({} invocations)",
-            self.time.as_millis(), self.num_invocations
+            self.time.as_millis(),
+            self.num_invocations
         )
     }
 }

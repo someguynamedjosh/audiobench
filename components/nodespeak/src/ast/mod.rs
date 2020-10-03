@@ -95,11 +95,9 @@ pub(self) mod problems {
     };
 
     pub fn bad_syntax(pos: FilePosition, message: String) -> CompileProblem {
-        CompileProblem::from_descriptors(vec![ProblemDescriptor::new(
-            pos,
-            ProblemType::Error,
-            &format!("Bad Syntax\n{}", message),
-        )])
+        CompileProblem::from_descriptors(vec![
+            ProblemDescriptor::new(pos, ProblemType::Error, &format!("Bad Syntax\n{}", message)),
+        ])
     }
 }
 

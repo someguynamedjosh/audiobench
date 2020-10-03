@@ -79,7 +79,7 @@ const TESTS: [TestParameters; 2] = [
         num_notes: TYPICAL_NUM_NOTES,
         patch_name: "Pluck",
         patch_data: PATCH_PLUCK,
-    }
+    },
 ];
 
 fn main() {

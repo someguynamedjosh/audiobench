@@ -40,7 +40,9 @@ impl Debug for Program {
         for (code, description) in self.error_descriptions.iter().enumerate() {
             writeln!(formatter, "  {}: {}", code, description)?;
         }
-        let content = self.idata.with_module_contents(|module| module.print_to_string());
+        let content = self
+            .idata
+            .with_module_contents(|module| module.print_to_string());
         write!(formatter, "LLVM IR Code:\n{}", content.to_string())?;
         write!(formatter, "")
     }
@@ -55,7 +57,7 @@ impl Program {
         static_size: usize,
         error_descriptions: Vec<String>,
     ) -> Self {
-        let idata = IncestuousDataBuilder{
+        let idata = IncestuousDataBuilder {
             context: Box::new(context),
             module_builder: module_builder,
             execution_engine_builder: |module| {
@@ -65,13 +67,14 @@ impl Program {
                         .unwrap(),
                 )
             },
-            function_builder: |execution_engine| {
-                unsafe { execution_engine.get_function("main").unwrap() }
+            function_builder: |execution_engine| unsafe {
+                execution_engine.get_function("main").unwrap()
             },
-            static_init_builder: |execution_engine| {
-                unsafe { execution_engine.get_function("static_init").unwrap() }
+            static_init_builder: |execution_engine| unsafe {
+                execution_engine.get_function("static_init").unwrap()
             },
-        }.build();
+        }
+        .build();
         Self {
             idata,
             in_size,

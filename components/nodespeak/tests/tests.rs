@@ -100,7 +100,9 @@ fn assert_ok() {
             let mut static_data = program.create_static_data().unwrap();
             let mut in_dat = Vec::new();
             let mut out_dat = Vec::new();
-            program.execute_raw(&mut in_dat[..], &mut out_dat[..], &mut static_data).unwrap();
+            program
+                .execute_raw(&mut in_dat[..], &mut out_dat[..], &mut static_data)
+                .unwrap();
         }
     }
 }
