@@ -29,9 +29,7 @@ fn arithmetic() {
         "arithmetic.ns".to_owned(),
         include_str!("arithmetic.ns").to_owned(),
     );
-    let program = compiler.compile("arithmetic.ns").unwrap();
-    let mut inputs: Inputs = Default::default();
-    let mut outputs: Outputs = Default::default();
+    let mut program = compiler.compile("arithmetic.ns").unwrap();
     unsafe {
         let mut static_data = program.create_static_data().unwrap();
         for (a, b) in &[
@@ -43,23 +41,23 @@ fn arithmetic() {
             (-3e5, 10.0),
         ] {
             let (a, b) = (*a, *b);
-            inputs.a = a;
-            inputs.b = b;
-            program
-                .execute_data(&mut inputs, &mut outputs, &mut static_data)
-                .unwrap();
-            assert!(outputs.sum == a + b);
-            assert!(outputs.difference == a - b);
-            assert!(outputs.product == a * b);
-            assert!(outputs.fraction == a / b);
-            assert!(outputs.remainder == a % b);
-            assert!(outputs.sin == a.sin());
-            assert!(outputs.cos == a.cos());
+            let inputs = program.borrow_input_packer_mut();
+            inputs.set_argument(0, a.into());
+            inputs.set_argument(1, b.into());
+            program.execute(&mut static_data).unwrap();
+            let outputs = program.borrow_output_unpacker();
+            assert!(outputs.get_argument(0).unwrap_float() == a + b);
+            assert!(outputs.get_argument(1).unwrap_float() == a - b);
+            assert!(outputs.get_argument(2).unwrap_float() == a * b);
+            assert!(outputs.get_argument(3).unwrap_float() == a / b);
+            assert!(outputs.get_argument(4).unwrap_float() == a % b);
+            assert!(outputs.get_argument(5).unwrap_float() == a.sin());
+            assert!(outputs.get_argument(6).unwrap_float() == a.cos());
             if a > 0.0 {
-                assert!(outputs.sqrt == a.sqrt());
+                assert!(outputs.get_argument(7).unwrap_float() == a.sqrt());
             }
-            assert!(outputs.abs == a.abs());
-            assert!(outputs.floor == a.floor());
+            assert!(outputs.get_argument(8).unwrap_float() == a.abs());
+            assert!(outputs.get_argument(9).unwrap_float() == a.floor());
         }
     };
 }
@@ -92,17 +90,13 @@ fn assert_ok() {
         let name = path.to_str().unwrap().to_owned();
         let mut compiler = nodespeak::Compiler::new();
         compiler.add_source(name.clone(), std::fs::read_to_string(&name).unwrap());
-        let program = match compiler.compile(&name) {
+        let mut program = match compiler.compile(&name) {
             Ok(program) => program,
             Err(message) => panic!("Failed to compile {}:\n{}", &name, message),
         };
         unsafe {
             let mut static_data = program.create_static_data().unwrap();
-            let mut in_dat = Vec::new();
-            let mut out_dat = Vec::new();
-            program
-                .execute_raw(&mut in_dat[..], &mut out_dat[..], &mut static_data)
-                .unwrap();
+            program.execute(&mut static_data).unwrap();
         }
     }
 }

@@ -1,4 +1,4 @@
-use crate::engine::data_format::{DataPacker, DataUnpacker, IODataPtr, IOType, OwnedIOData};
+use nodespeak::llvmir::structure::{DataPacker, DataUnpacker, IODataPtr, IOType, OwnedIOData};
 
 #[derive(Clone, PartialEq, Eq)]
 pub struct HostFormat {
@@ -45,12 +45,12 @@ pub struct NoteData {
     pub release_trigger: bool,
 }
 
-pub struct InputPacker {
-    real_packer: DataPacker,
-    data_format: DataFormat,
+pub struct InputPacker<'a> {
+    real_packer: &'a mut DataPacker,
+    data_format: &'a DataFormat,
 }
 
-impl InputPacker {
+impl<'a> InputPacker<'a> {
     // If the pitch wheel is within the deadzone, it will read as zero instead of its actual value.
     // I added this because my pitch wheel is utter crap.
     const PITCH_WHEEL_DEADZONE: f32 = 0.1;
@@ -71,43 +71,12 @@ impl InputPacker {
     const GPI_MIDI_CONTROLS: usize = 9;
     const GPI_AUTOCON_DYN_DATA: usize = 10;
     const GPI_STATICON_DYN_DATA_START: usize = 11;
-    fn make_data_packer(data_format: &DataFormat) -> DataPacker {
-        let buf_len = data_format.host_format.buffer_len;
-        let mut parameters = vec![
-            IOType::Float,                                        // global_pitch
-            IOType::Float,                                        // global_velocity
-            IOType::Float,                                        // global_note_status
-            IOType::Float,                                        // global_should_update
-            IOType::Float,                                        // global_bpm
-            IOType::FloatArray(buf_len),                          // global_note_time
-            IOType::FloatArray(buf_len),                          // global_note_beats
-            IOType::FloatArray(buf_len),                          // global_song_time
-            IOType::FloatArray(buf_len),                          // global_song_beats
-            IOType::FloatArray(128),                              // global_midi_controls
-            IOType::FloatArray(data_format.autocon_dyn_data_len), // global_autocon_dyn_data
-        ];
-        parameters.append(&mut data_format.staticon_dyn_data_types.clone());
-        DataPacker::new(parameters)
-    }
 
-    pub fn new(data_format: DataFormat) -> Self {
+    pub fn new(real_packer: &'a mut DataPacker, data_format: &'a DataFormat) -> Self {
         Self {
-            real_packer: Self::make_data_packer(&data_format),
+            real_packer,
             data_format,
         }
-    }
-
-    pub fn set_data_format(&mut self, format: DataFormat) {
-        self.data_format = format;
-        self.real_packer = Self::make_data_packer(&self.data_format);
-    }
-
-    pub fn borrow_data_format(&self) -> &DataFormat {
-        &self.data_format
-    }
-
-    pub fn borrow_packed_data_mut(&mut self) -> &mut [u8] {
-        self.real_packer.borrow_packed_data()
     }
 
     fn set_timing_input(&mut self, index: usize, start: f32, increment: f32) {
@@ -115,12 +84,12 @@ impl InputPacker {
             .map(|index| start + increment * index as f32)
             .collect();
         self.real_packer
-            .set_parameter(index, IODataPtr::FloatArray(&data[..]));
+            .set_argument(index, IODataPtr::FloatArray(&data[..]));
     }
 
     pub fn set_host_data(&mut self, host_data: &HostData) {
         self.real_packer
-            .set_parameter(Self::GPI_BPM, IODataPtr::Float(host_data.bpm));
+            .set_argument(Self::GPI_BPM, IODataPtr::Float(host_data.bpm));
         self.set_timing_input(
             Self::GPI_SONG_TIME,
             host_data.song_time,
@@ -131,7 +100,7 @@ impl InputPacker {
             host_data.song_beats,
             host_data.bpm / 60.0 / self.data_format.host_format.sample_rate as f32,
         );
-        self.real_packer.set_parameter(
+        self.real_packer.set_argument(
             Self::GPI_MIDI_CONTROLS,
             IODataPtr::FloatArray(&host_data.controller_values[..]),
         );
@@ -158,13 +127,13 @@ impl InputPacker {
             };
             2.0f32.powf((host_data.pitch_wheel_value - wheel_offset) * Self::PITCH_WHEEL_RANGE)
         };
-        self.real_packer.set_parameter(
+        self.real_packer.set_argument(
             Self::GPI_PITCH,
             IODataPtr::Float(note_data.pitch * pitch_offset),
         );
         self.real_packer
-            .set_parameter(Self::GPI_VELOCITY, IODataPtr::Float(note_data.velocity));
-        self.real_packer.set_parameter(
+            .set_argument(Self::GPI_VELOCITY, IODataPtr::Float(note_data.velocity));
+        self.real_packer.set_argument(
             Self::GPI_NOTE_STATUS,
             IODataPtr::Float(if note_data.start_trigger {
                 2.0
@@ -174,7 +143,7 @@ impl InputPacker {
                 0.0
             }),
         );
-        self.real_packer.set_parameter(
+        self.real_packer.set_argument(
             Self::GPI_SHOULD_UPDATE,
             IODataPtr::Float(if update_feedback { 1.0 } else { 0.0 }),
         );
@@ -190,7 +159,7 @@ impl InputPacker {
 
     pub fn set_autocon_dyn_data(&mut self, data: &[f32]) {
         self.real_packer
-            .set_parameter(Self::GPI_AUTOCON_DYN_DATA, IODataPtr::FloatArray(data));
+            .set_argument(Self::GPI_AUTOCON_DYN_DATA, IODataPtr::FloatArray(data));
     }
 
     pub fn set_staticon_dyn_data(&mut self, data: &[OwnedIOData]) {
@@ -198,52 +167,29 @@ impl InputPacker {
         for (index, item) in data.iter().enumerate() {
             let item_ptr = item.borrow();
             self.real_packer
-                .set_parameter(Self::GPI_STATICON_DYN_DATA_START + index, item_ptr);
+                .set_argument(Self::GPI_STATICON_DYN_DATA_START + index, item_ptr);
         }
     }
 }
 
-pub struct OutputUnpacker {
-    real_unpacker: DataUnpacker,
-    data_format: DataFormat,
+pub struct OutputUnpacker<'a> {
+    real_unpacker: &'a DataUnpacker,
 }
 
-impl OutputUnpacker {
+impl<'a> OutputUnpacker<'a> {
     const GPI_AUDIO_OUT: usize = 0;
     const GPI_FEEDBACK_DATA: usize = 1;
-    fn make_data_unpacker(data_format: &DataFormat) -> DataUnpacker {
-        let buf_len = data_format.host_format.buffer_len;
-        let parameters = vec![
-            IOType::FloatArray(buf_len * 2),                   // global_audio_out
-            IOType::FloatArray(data_format.feedback_data_len), // global_feedback_data
-        ];
-        DataUnpacker::new(parameters)
-    }
 
-    pub fn new(data_format: DataFormat) -> Self {
+    pub fn new(real_unpacker: &'a DataUnpacker) -> Self {
         Self {
-            real_unpacker: Self::make_data_unpacker(&data_format),
-            data_format,
+            real_unpacker,
         }
-    }
-
-    pub fn set_data_format(&mut self, format: DataFormat) {
-        self.data_format = format;
-        self.real_unpacker = Self::make_data_unpacker(&self.data_format);
-    }
-
-    pub fn borrow_data_format(&self) -> &DataFormat {
-        &self.data_format
-    }
-
-    pub fn borrow_packed_data_mut(&mut self) -> &mut [u8] {
-        self.real_unpacker.borrow_packed_data()
     }
 
     pub fn borrow_audio_out(&self) -> &[f32] {
         unsafe {
             if let IODataPtr::FloatArray(arr) =
-                self.real_unpacker.get_parameter(Self::GPI_AUDIO_OUT)
+                self.real_unpacker.get_argument(Self::GPI_AUDIO_OUT)
             {
                 arr
             } else {
@@ -255,7 +201,7 @@ impl OutputUnpacker {
     pub fn borrow_feedback_data(&self) -> &[f32] {
         unsafe {
             if let IODataPtr::FloatArray(arr) =
-                self.real_unpacker.get_parameter(Self::GPI_FEEDBACK_DATA)
+                self.real_unpacker.get_argument(Self::GPI_FEEDBACK_DATA)
             {
                 arr
             } else {

@@ -1,4 +1,4 @@
-use super::data_format::OwnedIOData;
+use nodespeak::llvmir::structure::OwnedIOData;
 use super::parts::{Autocon, Module};
 use super::static_controls::Staticon;
 use shared_util::prelude::*;

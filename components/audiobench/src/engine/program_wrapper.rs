@@ -147,10 +147,15 @@ impl AudiobenchCompiler {
         Self { compiler }
     }
 
-    pub(super) fn compile(&mut self, source: String) -> Result<AudiobenchProgram, String> {
+    pub(super) fn compile(
+        &mut self,
+        source: String,
+        data_format: DataFormat,
+    ) -> Result<AudiobenchProgram, String> {
         self.compiler.add_source("<note graph>".to_owned(), source);
         Ok(AudiobenchProgram {
             program: self.compiler.compile("<note graph>")?,
+            data_format,
         })
     }
 
@@ -186,6 +191,7 @@ impl AudiobenchCompiler {
 
 pub struct AudiobenchProgram {
     program: Program,
+    data_format: DataFormat,
 }
 
 impl AudiobenchProgram {
@@ -193,28 +199,34 @@ impl AudiobenchProgram {
         unsafe { self.program.create_static_data().map_err(|e| e.to_owned()) }
     }
 
+    pub fn get_input_packer(&mut self) -> InputPacker {
+        InputPacker::new(self.program.borrow_input_packer_mut(), &self.data_format)
+    }
+
+    pub fn get_output_unpacker(&self) -> OutputUnpacker {
+        OutputUnpacker::new(self.program.borrow_output_unpacker())
+    }
+
+    /// This handles everything from global setup, note iteration, program execution, note teardown,
+    /// and finally global teardown. Returns true if feedback data was updated.
     pub fn execute(
         &mut self,
         update_feedback: bool,
-        input: &mut InputPacker,
-        output: &mut OutputUnpacker,
         host_data: &mut HostData,
         notes: &mut NoteTracker,
         audio_output: &mut [f32],
         perf_counter: &mut impl PerfCounter,
     ) -> Result<bool, String> {
         let section = perf_counter.begin_section(&sections::GLOBAL_SETUP);
-        let data_format = input.borrow_data_format();
-        let buf_len = data_format.host_format.buffer_len;
-        let sample_rate = data_format.host_format.sample_rate;
+        let buf_len = self.data_format.host_format.buffer_len;
+        let sample_rate = self.data_format.host_format.sample_rate;
         let buf_time = buf_len as f32 / sample_rate as f32;
-        assert!(data_format == output.borrow_data_format() && data_format == &notes.data_format);
         assert!(audio_output.len() == buf_len * 2);
 
         for i in 0..buf_len * 2 {
             audio_output[i] = 0.0;
         }
-        input.set_host_data(&host_data);
+        self.get_input_packer().set_host_data(&host_data);
         let feedback_note = if update_feedback {
             notes.recommend_note_for_feedback()
         } else {
@@ -224,24 +236,26 @@ impl AudiobenchProgram {
 
         for (index, note) in notes.active_notes_mut().enumerate() {
             let section = perf_counter.begin_section(&sections::NOTE_SETUP);
-            input.set_note_data(&note.input_data, host_data, feedback_note == Some(index));
+            self.get_input_packer().set_note_data(
+                &note.input_data,
+                host_data,
+                feedback_note == Some(index),
+            );
             perf_counter.end_section(section);
 
             let section = perf_counter.begin_section(&sections::NODESPEAK_EXEC);
             unsafe {
-                self.program.execute_raw(
-                    input.borrow_packed_data_mut(),
-                    output.borrow_packed_data_mut(),
-                    &mut note.static_data,
-                )?;
+                self.program.execute(&mut note.static_data)?;
             }
             perf_counter.end_section(section);
 
             let section = perf_counter.begin_section(&sections::NOTE_FINALIZE);
             let mut silent = true;
+            let output = self.get_output_unpacker();
+            let audio = output.borrow_audio_out();
             for i in 0..buf_len * 2 {
-                audio_output[i] += output.borrow_audio_out()[i];
-                silent &= output.borrow_audio_out()[i].abs() < SILENT_CUTOFF;
+                audio_output[i] += audio[i];
+                silent &= audio[i].abs() < SILENT_CUTOFF;
             }
             if silent {
                 note.silent_samples += buf_len;

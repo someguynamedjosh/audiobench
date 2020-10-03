@@ -256,15 +256,24 @@ fn create_module<'ctx>(source: &i::Program, context: &'ctx Context) -> Module<'c
     module
 }
 
+fn io_type_from_trivial(typ: &i::DataType) -> o::IOType {
+    match typ {
+        i::DataType::Array(len, etyp) => io_type_from_trivial(&etyp).wrap(*len),
+        i::DataType::B1 => o::IOType::Bool,
+        i::DataType::I32 => o::IOType::Int,
+        i::DataType::F32 => o::IOType::Float,
+    }
+}
+
 pub fn ingest(source: &i::Program) -> o::Program {
-    let mut input_len = 0;
-    let mut output_len = 0;
+    let mut input_types = Vec::new();
+    let mut output_types = Vec::new();
     let mut static_len = 0;
     for var in source.iterate_all_variables() {
         let typ = source[var].borrow_type();
         match source[var].get_location() {
-            i::StorageLocation::Input => input_len += typ.size(),
-            i::StorageLocation::Output => output_len += typ.size(),
+            i::StorageLocation::Input => input_types.push(io_type_from_trivial(typ)),
+            i::StorageLocation::Output => output_types.push(io_type_from_trivial(typ)),
             i::StorageLocation::Static => static_len += typ.size(),
             _ => (),
         }
@@ -274,8 +283,8 @@ pub fn ingest(source: &i::Program) -> o::Program {
     o::Program::new(
         context,
         |context| Box::new(create_module(source, context)),
-        input_len,
-        output_len,
+        o::DataPacker::new(input_types),
+        o::DataUnpacker::new(output_types),
         static_len,
         source.borrow_error_descriptions().clone(),
     )

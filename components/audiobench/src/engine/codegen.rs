@@ -1,4 +1,4 @@
-use super::data_format::IOType;
+use nodespeak::llvmir::structure::IOType;
 use super::data_routing::{AutoconDynDataCollector, FeedbackDisplayer, StaticonDynDataCollector};
 use super::data_transfer::{DataFormat, HostFormat};
 use super::static_controls::Staticon;

@@ -1,10 +1,10 @@
 use super::codegen::{self, CodeGenResult};
-use super::data_format::OwnedIOData;
 use super::data_routing::{AutoconDynDataCollector, FeedbackDisplayer, StaticonDynDataCollector};
-use super::data_transfer::{DataFormat, HostData, HostFormat, InputPacker, OutputUnpacker};
+use super::data_transfer::{DataFormat, HostData, HostFormat};
 use super::parts::ModuleGraph;
 use super::program_wrapper::{AudiobenchCompiler, AudiobenchProgram, NoteTracker};
 use crate::registry::{save_data::Patch, Registry};
+use nodespeak::llvmir::structure::OwnedIOData;
 use shared_util::{perf_counter::sections, prelude::*};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
@@ -38,8 +38,6 @@ struct CrossThreadData {
 struct AudioThreadData {
     compiler: AudiobenchCompiler,
     current_program: Option<AudiobenchProgram>,
-    input: InputPacker,
-    output: OutputUnpacker,
     host_data: HostData,
     audio_buffer: Vec<f32>,
     last_feedback_data_update: Instant,
@@ -103,7 +101,7 @@ impl Engine {
         };
 
         let mut compiler = AudiobenchCompiler::new(registry);
-        let program = compiler.compile(code).map_err(|err| {
+        let program = compiler.compile(code, data_format.clone()).map_err(|err| {
             format!(
                 concat!(
                     "Default patch failed to compile!\n",
@@ -116,8 +114,6 @@ impl Engine {
         let atd = AudioThreadData {
             compiler,
             current_program: Some(program),
-            input: InputPacker::new(data_format.clone()),
-            output: OutputUnpacker::new(data_format.clone()),
             host_data: HostData::new(),
             audio_buffer: vec![0.0; data_format.host_format.buffer_len * 2],
             last_feedback_data_update: Instant::now(),
@@ -340,15 +336,13 @@ impl Engine {
         let mut ctd = self.ctd_mux.lock().unwrap();
 
         if let Some((code, data_format)) = ctd.new_source.take() {
-            self.atd.input.set_data_format(data_format.clone());
-            self.atd.output.set_data_format(data_format.clone());
             ctd.notes.set_data_format(data_format.clone());
             let section = ctd.perf_counter.begin_section(&sections::COMPILE_CODE);
             ctd.currently_compiling = true;
             // Compilation takes a while. Drop ctd so that other threads can use it.
             drop(ctd);
             self.atd.compiler.reset_performance_counters();
-            match self.atd.compiler.compile(code) {
+            match self.atd.compiler.compile(code, data_format) {
                 Ok(program) => {
                     ctd = self.ctd_mux.lock().unwrap();
                     self.atd.current_program = Some(program);
@@ -374,15 +368,14 @@ impl Engine {
                 .compiler
                 .tally_performance_counters(&mut ctd.perf_counter);
         }
-        if let Some(new_autocon_dyn_data) = ctd.new_autocon_dyn_data.take() {
-            self.atd
-                .input
-                .set_autocon_dyn_data(&new_autocon_dyn_data[..]);
-        }
-        if let Some(new_staticon_dyn_data) = ctd.new_staticon_dyn_data.take() {
-            self.atd
-                .input
-                .set_staticon_dyn_data(&new_staticon_dyn_data[..]);
+        if let Some(program) = &mut self.atd.current_program {
+            let mut input_packer = program.get_input_packer();
+            if let Some(new_autocon_dyn_data) = ctd.new_autocon_dyn_data.take() {
+                input_packer.set_autocon_dyn_data(&new_autocon_dyn_data[..]);
+            }
+            if let Some(new_staticon_dyn_data) = ctd.new_staticon_dyn_data.take() {
+                input_packer.set_staticon_dyn_data(&new_staticon_dyn_data[..]);
+            }
         }
         let audio_buf_len = ctd.host_format.buffer_len * 2;
         if self.atd.audio_buffer.len() != audio_buf_len {
@@ -401,8 +394,6 @@ impl Engine {
             } = &mut *ctd;
             let result = program.execute(
                 update_feedback_data,
-                &mut self.atd.input,
-                &mut self.atd.output,
                 &mut self.atd.host_data,
                 notes,
                 &mut self.atd.audio_buffer[..],
@@ -413,7 +404,9 @@ impl Engine {
                 self.atd.current_program = None;
             } else if let Ok(true) = result {
                 // Returns true if new feedback data was written.
-                ctd.new_feedback_data = Some(Vec::from(self.atd.output.borrow_feedback_data()));
+                ctd.new_feedback_data = Some(Vec::from(
+                    program.get_output_unpacker().borrow_feedback_data(),
+                ));
             }
         }
         &self.atd.audio_buffer[..]

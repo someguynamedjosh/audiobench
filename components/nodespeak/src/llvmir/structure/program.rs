@@ -1,3 +1,4 @@
+use super::{DataPacker, DataUnpacker};
 use inkwell::{
     context::Context,
     execution_engine::{ExecutionEngine, JitFunction},
@@ -6,7 +7,6 @@ use inkwell::{
 };
 use ouroboros::self_referencing;
 use std::fmt::{self, Debug, Formatter};
-use std::mem;
 
 pub struct StaticData {
     data: Vec<u8>,
@@ -14,7 +14,7 @@ pub struct StaticData {
 
 // Disgusting, it's covered in references to itself.
 #[self_referencing(chain_hack)]
-pub struct IncestuousData {
+struct IncestuousData {
     context: Box<Context>,
     #[borrows(context)]
     module: Box<Module<'this>>,
@@ -28,8 +28,8 @@ pub struct IncestuousData {
 
 pub struct Program {
     idata: IncestuousData,
-    in_size: usize,
-    out_size: usize,
+    in_packer: DataPacker,
+    out_unpacker: DataUnpacker,
     static_size: usize,
     error_descriptions: Vec<String>,
 }
@@ -52,8 +52,8 @@ impl Program {
     pub fn new(
         context: Context,
         module_builder: impl for<'this> FnOnce(&'this Context) -> Box<Module<'this>>,
-        in_size: usize,
-        out_size: usize,
+        in_packer: DataPacker,
+        out_unpacker: DataUnpacker,
         static_size: usize,
         error_descriptions: Vec<String>,
     ) -> Self {
@@ -80,32 +80,11 @@ impl Program {
         .build();
         Self {
             idata,
-            in_size,
-            out_size,
+            in_packer,
+            out_unpacker,
             static_size,
             error_descriptions,
         }
-    }
-
-    fn assert_size(&self, in_size: usize, out_size: usize, static_size: usize) {
-        assert!(
-            self.in_size == in_size,
-            "Expected {}, got {}.",
-            self.in_size,
-            in_size
-        );
-        assert!(
-            self.out_size == out_size,
-            "Expected {}, got {}.",
-            self.out_size,
-            out_size
-        );
-        assert!(
-            self.static_size == static_size,
-            "Expected {}, got {}.",
-            self.static_size,
-            static_size
-        );
     }
 
     fn parse_error_code(&self, error_code: u32) -> Result<(), &str> {
@@ -116,6 +95,14 @@ impl Program {
         } else {
             Err("Invalid non-success error code")
         }
+    }
+
+    pub fn borrow_input_packer_mut(&mut self) -> &mut DataPacker {
+        &mut self.in_packer
+    }
+
+    pub fn borrow_output_unpacker(&self) -> &DataUnpacker {
+        &self.out_unpacker
     }
 
     pub unsafe fn create_static_data(&self) -> Result<StaticData, &str> {
@@ -142,34 +129,12 @@ impl Program {
         self.parse_error_code(error_code)
     }
 
-    pub unsafe fn execute_data<T: Sized, U: Sized>(
-        &self,
-        input_data: &mut T,
-        output_data: &mut U,
+    pub unsafe fn execute(
+        &mut self,
         static_data: &mut StaticData,
     ) -> Result<(), &str> {
-        self.assert_size(
-            mem::size_of::<T>(),
-            mem::size_of::<U>(),
-            static_data.data.len(),
-        );
-        let error_code = self.idata.with(|idata| {
-            idata.function.call(
-                input_data as *mut T as *mut u8,
-                static_data.data.as_mut_ptr(),
-                output_data as *mut U as *mut u8,
-            )
-        });
-        self.parse_error_code(error_code)
-    }
-
-    pub unsafe fn execute_raw(
-        &self,
-        input_data: &mut [u8],
-        output_data: &mut [u8],
-        static_data: &mut StaticData,
-    ) -> Result<(), &str> {
-        self.assert_size(input_data.len(), output_data.len(), static_data.data.len());
+        let input_data = self.in_packer.borrow_packed_data();
+        let output_data = self.out_unpacker.borrow_packed_data();
         let error_code = self.idata.with(|idata| {
             idata.function.call(
                 input_data.as_mut_ptr(),

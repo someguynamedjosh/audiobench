@@ -1,6 +1,5 @@
 mod base;
 mod codegen;
-mod data_format;
 mod data_routing;
 mod data_transfer;
 pub mod parts;
