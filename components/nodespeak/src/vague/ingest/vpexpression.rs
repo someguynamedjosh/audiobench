@@ -290,6 +290,32 @@ impl<'a> VagueIngester<'a> {
         Ok(o::VPExpression::Collect(values, position))
     }
 
+    pub(super) fn convert_build_type_bound(
+        &mut self,
+        node: i::Node,
+    ) -> Result<o::VPExpression, CompileProblem> {
+        debug_assert!(node.as_rule() == i::Rule::build_type_bound);
+        let position = self.make_position(&node);
+        let mut children = node.into_inner();
+        let first_value = children.next();
+        let second_value = children.next();
+        debug_assert!(children.next().is_none());
+        Ok(match (first_value, second_value) {
+            (None, None) => o::VPExpression::UnboundedTypeBound(position),
+            (Some(upper_bound), None) => o::VPExpression::TypeBound {
+                lower: None,
+                upper: Box::new(self.convert_vpe_part_3(upper_bound)?),
+                position,
+            },
+            (Some(lower_bound), Some(upper_bound)) => o::VPExpression::TypeBound {
+                lower: Some(Box::new(self.convert_vpe_part_3(lower_bound)?)),
+                upper: Box::new(self.convert_vpe_part_3(upper_bound)?),
+                position,
+            },
+            (None, Some(..)) => unreachable!("Encountered item after iterator ended."),
+        })
+    }
+
     pub(super) fn convert_vpe_part_1(
         &mut self,
         node: i::Node,
@@ -302,6 +328,7 @@ impl<'a> VagueIngester<'a> {
             i::Rule::vp_var => self.convert_vp_var(child),
             i::Rule::vpe => self.convert_vpe(child),
             i::Rule::build_array => self.convert_build_array(child),
+            i::Rule::build_type_bound => self.convert_build_type_bound(child),
             _ => unreachable!("bad AST"),
         }
     }

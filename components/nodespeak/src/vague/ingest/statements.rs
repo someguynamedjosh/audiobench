@@ -70,7 +70,7 @@ impl<'a> VagueIngester<'a> {
         self.add_statement(o::Statement::CreationPoint {
             var: var_id,
             var_type: Box::new(o::VPExpression::Literal(
-                o::KnownData::DataType(o::DataType::Macro),
+                o::KnownData::DataType(o::SpecificDataType::Macro.into()),
                 FilePosition::placeholder(),
             )),
             position,

@@ -11,18 +11,18 @@ impl<'a> ScopeResolver<'a> {
     ) -> Result<ResolvedVPExpression, CompileProblem> {
         let value = self.borrow_temporary_value(var_id);
         if let Ok(kvalue) = value.to_known_data() {
-            let typ = kvalue.get_data_type();
+            let typ = kvalue.get_specific_data_type();
             return Ok(ResolvedVPExpression::Interpreted(
                 kvalue,
                 position.clone(),
-                typ,
+                typ.into(),
             ));
         }
         let (resolved_id, dtype) = self
             .get_var_info(var_id)
             .expect("Variable used before defined, should have been caught by the previous phase.");
-        if dtype.is_automatic() {
-            return Err(problems::unresolved_auto_var(position.clone()));
+        if dtype.actual_type.is_none() {
+            return Err(problems::unresolved_bounded_var(position.clone()));
         }
         let resolved_id = if let Some(value) = resolved_id {
             *value
@@ -64,7 +64,10 @@ impl<'a> ScopeResolver<'a> {
             }
         }
 
-        let atype = i::DataType::Array(resolved_items.len(), Box::new(typ.clone()));
+        let atype = i::SpecificDataType::Array(
+            resolved_items.len(),
+            Box::new(typ.actual_type.as_ref().unwrap().clone()),
+        );
         Ok(if all_known {
             let mut data_items = Vec::new();
             for item in resolved_items {
@@ -77,7 +80,7 @@ impl<'a> ScopeResolver<'a> {
             ResolvedVPExpression::Interpreted(
                 i::KnownData::Array(data_items),
                 position.clone(),
-                atype,
+                atype.into(),
             )
         } else {
             let mut vp_exprs = Vec::new();
@@ -86,9 +89,59 @@ impl<'a> ScopeResolver<'a> {
             }
             ResolvedVPExpression::Modified(
                 o::VPExpression::Collect(vp_exprs, position.clone()),
-                atype,
+                atype.into(),
             )
         })
+    }
+
+    fn resolve_type_bound(
+        &mut self,
+        lower: &Option<Box<i::VPExpression>>,
+        upper: &Box<i::VPExpression>,
+        position: &FilePosition,
+    ) -> Result<ResolvedVPExpression, CompileProblem> {
+        let lower = if let Some(lower) = lower {
+            let result = self.resolve_vp_expression(lower)?;
+            if result.borrow_actual_data_type() != &i::SpecificDataType::DataType {
+                return Err(problems::not_data_type(
+                    result.clone_position(),
+                    result.borrow_data_type(),
+                ));
+            }
+            if let ResolvedVPExpression::Interpreted(i::KnownData::DataType(typ), ..) = result {
+                // TODO: Error for nested type bound.
+                Some(typ.actual_type.unwrap())
+            } else {
+                // Data types should only exist as ::Interpreted.
+                unreachable!("Data type at runtime")
+            }
+        } else {
+            None
+        };
+        let upper = {
+            let result = self.resolve_vp_expression(upper)?;
+            if result.borrow_actual_data_type() != &i::SpecificDataType::DataType {
+                return Err(problems::not_data_type(
+                    result.clone_position(),
+                    result.borrow_data_type(),
+                ));
+            }
+            if let ResolvedVPExpression::Interpreted(i::KnownData::DataType(typ), ..) = result {
+                // TODO: Error for nested type bound.
+                Some(typ.actual_type.unwrap())
+            } else {
+                // Data types should only exist as ::Interpreted.
+                unreachable!("Data type at runtime")
+            }
+        };
+        Ok(ResolvedVPExpression::Interpreted(
+            i::KnownData::DataType(i::DataType {
+                actual_type: None,
+                bounds: i::Bounds::from_tuple((lower, upper)),
+            }),
+            position.clone(),
+            i::SpecificDataType::DataType.into(),
+        ))
     }
 
     fn resolve_build_array_type(
@@ -108,14 +161,17 @@ impl<'a> ScopeResolver<'a> {
                     }
                     int_dims.push(value as usize);
                 } else {
-                    return Err(problems::array_size_not_int(rpos, &data.get_data_type()));
+                    return Err(problems::array_size_not_int(
+                        rpos,
+                        &data.get_specific_data_type(),
+                    ));
                 }
             } else {
                 return Err(problems::array_size_not_resolved(rpos));
             }
         }
         let resolved_base = self.resolve_vp_expression(base)?;
-        if resolved_base.borrow_data_type() != &i::DataType::DataType {
+        if resolved_base.borrow_actual_data_type() != &i::SpecificDataType::DataType {
             return Err(problems::array_base_not_data_type(
                 resolved_base.clone_position(),
                 resolved_base.borrow_data_type(),
@@ -125,12 +181,27 @@ impl<'a> ScopeResolver<'a> {
             if let i::KnownData::DataType(dtype, ..) = data {
                 let mut final_type = dtype.clone();
                 for dim in int_dims {
-                    final_type = i::DataType::Array(dim, Box::new(final_type));
+                    let bounds = final_type.bounds.as_tuple();
+                    let actual_type = final_type.actual_type.as_ref();
+                    // Add the index to the actual type (if there is one) and each of the bounds
+                    // (if they exist.)
+                    final_type = i::DataType {
+                        bounds: i::Bounds::from_tuple((
+                            bounds.0.map(|etype| {
+                                i::SpecificDataType::Array(dim, Box::new(etype.clone()))
+                            }),
+                            bounds.1.map(|etype| {
+                                i::SpecificDataType::Array(dim, Box::new(etype.clone()))
+                            }),
+                        )),
+                        actual_type: actual_type
+                            .map(|etype| i::SpecificDataType::Array(dim, Box::new(etype.clone()))),
+                    };
                 }
                 Ok(ResolvedVPExpression::Interpreted(
                     i::KnownData::DataType(final_type),
                     position.clone(),
-                    i::DataType::DataType,
+                    i::SpecificDataType::DataType.into(),
                 ))
             } else {
                 unreachable!("We already checked that the expr was a data type.")
@@ -148,24 +219,26 @@ impl<'a> ScopeResolver<'a> {
         full_expression: &FilePosition,
     ) -> Result<ResolvedVPExpression, CompileProblem> {
         let resolved_index = self.resolve_vp_expression(index)?;
-        let (array_length, etype) =
-            if let i::DataType::Array(len, dtype) = resolved_base.borrow_data_type() {
-                (*len, *(dtype.clone()))
+        let (array_length, etype) = if let i::SpecificDataType::Array(len, dtype) =
+            resolved_base.borrow_actual_data_type()
+        {
+            (*len, *(dtype.clone()))
+        } else {
+            if optional {
+                return Ok(resolved_base);
             } else {
-                if optional {
-                    return Ok(resolved_base);
-                } else {
-                    // TODO: Nicer error for this.
-                    return Err(problems::too_many_indexes(
-                        resolved_base.clone_position(),
-                        1,
-                        0,
-                        resolved_base.clone_position(),
-                        resolved_base.borrow_data_type(),
-                    ));
-                }
-            };
-        if resolved_index.borrow_data_type() != &i::DataType::Int {
+                // TODO: Nicer error for this.
+                return Err(problems::too_many_indexes(
+                    resolved_base.clone_position(),
+                    1,
+                    0,
+                    resolved_base.clone_position(),
+                    resolved_base.borrow_data_type(),
+                ));
+            }
+        };
+        // TODO: Check if bounds are also int, if they exist.
+        if resolved_index.borrow_actual_data_type() != &i::SpecificDataType::Int {
             return Err(problems::array_index_not_int(
                 index.clone_position(),
                 resolved_index.borrow_data_type(),
@@ -200,7 +273,7 @@ impl<'a> ScopeResolver<'a> {
                         let element = base_data.require_array()[value as usize].clone();
                         let mut pos = base_pos;
                         pos.include_other(&index_pos);
-                        ResolvedVPExpression::Interpreted(element, pos, etype)
+                        ResolvedVPExpression::Interpreted(element, pos, etype.into())
                     }
                     ResolvedVPExpression::Modified(base_expr, base_type) => {
                         let pos = FilePosition::union(&[&base_expr.clone_position(), &index_pos]);
@@ -227,7 +300,7 @@ impl<'a> ScopeResolver<'a> {
                                     position: pos,
                                 }
                             },
-                            etype,
+                            etype.into(),
                         )
                     }
                 })
@@ -279,7 +352,7 @@ impl<'a> ScopeResolver<'a> {
                         }
                     }
                 };
-                Ok(ResolvedVPExpression::Modified(expr, etype))
+                Ok(ResolvedVPExpression::Modified(expr, etype.into()))
             }
         }
     }
@@ -295,18 +368,19 @@ impl<'a> ScopeResolver<'a> {
             i::Property::Type => ResolvedVPExpression::Interpreted(
                 i::KnownData::DataType(res_rhs.borrow_data_type().clone()),
                 position.clone(),
-                i::DataType::DataType,
+                i::SpecificDataType::DataType.into(),
             ),
             i::Property::Dims => {
                 let dims =
                     if let ResolvedVPExpression::Interpreted(i::KnownData::DataType(typ), ..) =
                         res_rhs
                     {
-                        typ.collect_dims()
+                        // TODO: Nice error if typ is a type bound.
+                        typ.actual_type.as_ref().unwrap().collect_dims()
                     } else {
                         // We don't have to worry about an uninterpreted data type because there's
                         // no such thing.
-                        res_rhs.borrow_data_type().collect_dims()
+                        res_rhs.borrow_actual_data_type().collect_dims()
                     };
                 let kdims: Vec<_> = dims
                     .into_iter()
@@ -314,14 +388,14 @@ impl<'a> ScopeResolver<'a> {
                     .collect();
                 let len = kdims.len();
                 let (value, typ) = if len == 0 {
-                    (i::KnownData::Int(1), i::DataType::Int)
+                    (i::KnownData::Int(1), i::SpecificDataType::Int)
                 } else {
                     (
                         i::KnownData::Array(kdims),
-                        i::DataType::Array(len, Box::new(i::DataType::Int)),
+                        i::SpecificDataType::Array(len, Box::new(i::SpecificDataType::Int)),
                     )
                 };
-                ResolvedVPExpression::Interpreted(value, position.clone(), typ)
+                ResolvedVPExpression::Interpreted(value, position.clone(), typ.into())
             }
         })
     }
@@ -340,10 +414,10 @@ impl<'a> ScopeResolver<'a> {
         let result_type = match op {
             i::UnaryOperator::Ftoi => res_rhs
                 .borrow_data_type()
-                .with_different_base(i::DataType::Int),
+                .with_different_base(i::SpecificDataType::Int),
             i::UnaryOperator::Itof => res_rhs
                 .borrow_data_type()
-                .with_different_base(i::DataType::Float),
+                .with_different_base(i::SpecificDataType::Float),
             i::UnaryOperator::PropertyAccess(..) => unreachable!("Handled earlier."),
             i::UnaryOperator::BNot
             | i::UnaryOperator::Negate
@@ -432,7 +506,7 @@ impl<'a> ScopeResolver<'a> {
             | i::BinaryOperator::GreaterThan
             | i::BinaryOperator::GreaterThanOrEqual
             | i::BinaryOperator::Equal
-            | i::BinaryOperator::NotEqual => bct.with_different_base(i::DataType::Bool),
+            | i::BinaryOperator::NotEqual => bct.with_different_base(i::SpecificDataType::Bool),
             _ => bct,
         };
         if let (
@@ -441,7 +515,7 @@ impl<'a> ScopeResolver<'a> {
         ) = (&res_lhs, &res_rhs)
         {
             let result = Self::compute_binary_operation(lhs_data, operator, rhs_data);
-            debug_assert!(result.get_data_type() == bct);
+            debug_assert!(Some(result.get_specific_data_type()) == bct.actual_type);
             Ok(ResolvedVPExpression::Interpreted(
                 result,
                 position.clone(),
@@ -453,7 +527,7 @@ impl<'a> ScopeResolver<'a> {
                     lhs: Box::new(res_lhs.as_vp_expression()?),
                     op: Self::resolve_operator(operator),
                     rhs: Box::new(res_rhs.as_vp_expression()?),
-                    typ: Self::resolve_data_type(&bct).expect(
+                    typ: Self::resolve_data_type(bct.actual_type.as_ref().unwrap()).expect(
                         "Resolving lhs or rhs should have failed if the result is ct-only.",
                     ),
                     position: position.clone(),
@@ -487,7 +561,7 @@ impl<'a> ScopeResolver<'a> {
     ) -> Result<ResolvedVPExpression, CompileProblem> {
         // Find out what macro we are calling.
         let rmacro = self.resolve_vp_expression(mcro)?;
-        if rmacro.borrow_data_type() != &i::DataType::Macro {
+        if rmacro.borrow_actual_data_type() != &i::SpecificDataType::Macro {
             return Err(problems::not_macro(
                 rmacro.clone_position(),
                 rmacro.borrow_data_type(),
@@ -533,7 +607,7 @@ impl<'a> ScopeResolver<'a> {
             } else if let ResolvedVPExpression::Modified(rinput, dtype) = rinput {
                 let pos = rinput.clone_position();
                 // It is impossible to get a dynamic expression that returns compile time only data.
-                let odtype = Self::resolve_data_type(&dtype).unwrap();
+                let odtype = Self::resolve_data_type(dtype.actual_type.as_ref().unwrap()).unwrap();
                 let input_in_body = o::Variable::new(pos.clone(), odtype);
                 let input_in_body_id = self.target.adopt_variable(input_in_body);
                 self.set_var_info(macro_inputs[index], Some(input_in_body_id), dtype);
@@ -606,7 +680,7 @@ impl<'a> ScopeResolver<'a> {
             ResolvedVPExpression::Interpreted(
                 i::KnownData::Void,
                 position.clone(),
-                i::DataType::Void,
+                i::SpecificDataType::Void.into(),
             )
         };
 
@@ -626,11 +700,23 @@ impl<'a> ScopeResolver<'a> {
         input: &i::VPExpression,
     ) -> Result<ResolvedVPExpression, CompileProblem> {
         Ok(match input {
-            i::VPExpression::Literal(value, pos) => {
-                ResolvedVPExpression::Interpreted(value.clone(), pos.clone(), value.get_data_type())
-            }
+            i::VPExpression::Literal(value, pos) => ResolvedVPExpression::Interpreted(
+                value.clone(),
+                pos.clone(),
+                value.get_specific_data_type().into(),
+            ),
             i::VPExpression::Variable(id, position) => self.resolve_vp_variable(*id, position)?,
             i::VPExpression::Collect(items, position) => self.resolve_collect(items, position)?,
+            i::VPExpression::UnboundedTypeBound(position) => ResolvedVPExpression::Interpreted(
+                i::KnownData::DataType(i::DataType::unbounded()),
+                position.clone(),
+                i::SpecificDataType::DataType.into(),
+            ),
+            i::VPExpression::TypeBound {
+                lower,
+                upper,
+                position,
+            } => self.resolve_type_bound(lower, upper, position)?,
             i::VPExpression::BuildArrayType {
                 dimensions,
                 base,

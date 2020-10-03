@@ -53,14 +53,12 @@ pub fn ingest(program: &mut i::Program) -> Result<o::Program, CompileProblem> {
 #[derive(Clone, Debug)]
 pub(crate) struct ResolverTable {
     variables: HashMap<i::VariableId, (Option<o::VariableId>, i::DataType)>,
-    unresolved_auto_vars: HashSet<i::VariableId>,
 }
 
 impl ResolverTable {
     pub(crate) fn new() -> ResolverTable {
         ResolverTable {
             variables: HashMap::new(),
-            unresolved_auto_vars: HashSet::new(),
         }
     }
 }
@@ -134,9 +132,6 @@ impl<'a> ScopeResolver<'a> {
                 .iter()
                 .map(|(k, v)| (k.clone(), v.clone())),
         );
-        self.table
-            .unresolved_auto_vars
-            .union(&top_table.unresolved_auto_vars);
     }
 
     /// Any variables that are modified during this period will be marked as dirty. When
@@ -188,29 +183,28 @@ impl<'a> ScopeResolver<'a> {
         self.table.variables.get(&source)
     }
 
-    pub(super) fn add_unresolved_auto_var(&mut self, var: i::VariableId) {
-        self.table.unresolved_auto_vars.insert(var);
-    }
-
-    pub(super) fn resolve_auto_var(
+    pub(super) fn resolve_bounded_var(
         &mut self,
         var: i::VariableId,
         resolved_var: Option<o::VariableId>,
-        dtype: i::DataType,
-    ) {
-        self.table.unresolved_auto_vars.remove(&var);
+        dtype: i::SpecificDataType,
+    ) -> Result<(), CompileProblem> {
+        debug_assert!(self.table.variables.contains_key(&var));
         // Go back and resolve the var in any tables in the stack too in case we entered a scope
         // after the variable was first declared.
         for stack_index in (0..self.stack.len()).rev() {
-            if !self.stack[stack_index].unresolved_auto_vars.contains(&var) {
+            if !self.stack[stack_index].variables.contains_key(&var) {
                 break;
             }
-            self.stack[stack_index].unresolved_auto_vars.remove(&var);
-            self.stack[stack_index]
-                .variables
-                .insert(var, (resolved_var, dtype.clone()));
+            let entry = self.stack[stack_index].variables.get_mut(&var).unwrap();
+            entry.0 = resolved_var;
+            entry.1.actual_type = Some(dtype.clone());
         }
-        self.table.variables.insert(var, (resolved_var, dtype));
+        let entry = self.table.variables.get_mut(&var).unwrap();
+        entry.0 = resolved_var;
+        entry.1.actual_type = Some(dtype);
+        // TODO: Check that type is within bounds.
+        unimplemented!("Type check in bounds");
     }
 
     pub(super) fn set_temporary_value(&mut self, var: i::VariableId, value: PossiblyKnownData) {
@@ -243,7 +237,8 @@ impl<'a> ScopeResolver<'a> {
     pub(super) fn reset_temporary_value(&mut self, var: i::VariableId) {
         self.dirty_values.insert(var);
         let dims = if let Some((_, typ)) = self.get_var_info(var) {
-            typ.collect_dims()
+            debug_assert!(typ.actual_type.is_some());
+            typ.actual_type.as_ref().unwrap().collect_dims()
         } else {
             eprintln!("{:?}", var);
             unreachable!("Variable used before declared, should be handled elsewhere.");
@@ -254,7 +249,8 @@ impl<'a> ScopeResolver<'a> {
 
     pub(super) fn reset_temporary_range(&mut self, var: i::VariableId, indexes: &[usize]) {
         let dims = if let Some((_, typ)) = self.get_var_info(var) {
-            typ.collect_dims()
+            debug_assert!(typ.actual_type.is_some());
+            typ.actual_type.as_ref().unwrap().collect_dims()
         } else {
             unreachable!("Variable used before declared, should be handled elsewhere.");
         };
@@ -346,6 +342,14 @@ impl ResolvedVPExpression {
         }
     }
 
+    pub(super) fn borrow_actual_data_type(&self) -> &i::SpecificDataType {
+        // As soon as we have a resolved expression we should know the specific data type it is.
+        self.borrow_data_type()
+            .actual_type
+            .as_ref()
+            .expect("Resolved expression does not have a known data type")
+    }
+
     pub(super) fn clone_position(&self) -> FilePosition {
         match self {
             Self::Modified(expr, _) => expr.clone_position(),
@@ -395,6 +399,10 @@ impl ResolvedVCExpression {
             Self::Modified { typ, .. } => typ,
             Self::Specific { typ, .. } => typ,
         }
+    }
+
+    pub(super) fn borrow_actual_data_type(&self) -> Option<&i::SpecificDataType> {
+        self.borrow_data_type().actual_type.as_ref()
     }
 
     pub(super) fn clone_position(&self) -> FilePosition {

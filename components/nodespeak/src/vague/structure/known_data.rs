@@ -1,4 +1,4 @@
-use super::DataType;
+use super::{DataType, SpecificDataType};
 use crate::high_level::problem::FilePosition;
 use crate::vague::structure::ScopeId;
 
@@ -81,10 +81,10 @@ impl KnownData {
         debug_assert!(items.len() > 0);
         debug_assert!(
             {
-                let dtype = items[0].get_data_type();
+                let dtype = items[0].get_specific_data_type();
                 let mut matches = true;
                 for item in &items {
-                    if item.get_data_type() != dtype {
+                    if item.get_specific_data_type() != dtype {
                         matches = false;
                         break;
                     }
@@ -96,19 +96,19 @@ impl KnownData {
         KnownData::Array(items)
     }
 
-    pub fn get_data_type(&self) -> DataType {
+    pub fn get_specific_data_type(&self) -> SpecificDataType {
         match self {
             KnownData::Array(data) => {
                 assert!(data.len() > 0);
-                let first_type = data[0].get_data_type();
-                DataType::Array(data.len(), Box::new(first_type))
+                let first_type = data[0].get_specific_data_type();
+                SpecificDataType::Array(data.len(), Box::new(first_type))
             }
-            KnownData::Void => DataType::Void,
-            KnownData::Bool(..) => DataType::Bool,
-            KnownData::Int(..) => DataType::Int,
-            KnownData::Float(..) => DataType::Float,
-            KnownData::DataType(..) => DataType::DataType,
-            KnownData::Macro(..) => DataType::Macro,
+            KnownData::Void => SpecificDataType::Void,
+            KnownData::Bool(..) => SpecificDataType::Bool,
+            KnownData::Int(..) => SpecificDataType::Int,
+            KnownData::Float(..) => SpecificDataType::Float,
+            KnownData::DataType(..) => SpecificDataType::DataType,
+            KnownData::Macro(..) => SpecificDataType::Macro,
         }
     }
 
@@ -171,10 +171,10 @@ impl KnownData {
         }
     }
 
-    pub fn matches_data_type(&self, data_type: &DataType) -> bool {
+    pub fn matches_data_type(&self, data_type: &SpecificDataType) -> bool {
         match self {
             KnownData::Array(contents) => {
-                if let DataType::Array(len, etype) = data_type {
+                if let SpecificDataType::Array(len, etype) = data_type {
                     if len == &contents.len() {
                         assert!(contents.len() > 0);
                         return contents[0].matches_data_type(etype);
@@ -182,12 +182,12 @@ impl KnownData {
                 }
                 false
             }
-            KnownData::Bool(..) => data_type == &DataType::Bool,
-            KnownData::Int(..) => data_type == &DataType::Int,
-            KnownData::Float(..) => data_type == &DataType::Float,
-            KnownData::Macro(..) => data_type == &DataType::Macro,
-            KnownData::DataType(..) => data_type == &DataType::DataType,
-            KnownData::Void => data_type == &DataType::Void,
+            KnownData::Bool(..) => data_type == &SpecificDataType::Bool,
+            KnownData::Int(..) => data_type == &SpecificDataType::Int,
+            KnownData::Float(..) => data_type == &SpecificDataType::Float,
+            KnownData::Macro(..) => data_type == &SpecificDataType::Macro,
+            KnownData::DataType(..) => data_type == &SpecificDataType::DataType,
+            KnownData::Void => data_type == &SpecificDataType::Void,
         }
     }
 }

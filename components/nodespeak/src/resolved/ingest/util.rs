@@ -1,20 +1,18 @@
 use super::ScopeResolver;
-use crate::high_level::problem::CompileProblem;
 use crate::resolved::structure as o;
-use crate::shared as s;
 use crate::vague::structure as i;
 
 use std::convert::TryInto;
 
 impl<'a> ScopeResolver<'a> {
-    pub(super) fn resolve_data_type(dtype: &i::DataType) -> Option<o::DataType> {
+    pub(super) fn resolve_data_type(dtype: &i::SpecificDataType) -> Option<o::DataType> {
         match dtype {
-            i::DataType::Array(len, base) => {
+            i::SpecificDataType::Array(len, base) => {
                 Self::resolve_data_type(base).map(|base| o::DataType::Array(*len, Box::new(base)))
             }
-            i::DataType::Bool => Some(o::DataType::Bool),
-            i::DataType::Int => Some(o::DataType::Int),
-            i::DataType::Float => Some(o::DataType::Float),
+            i::SpecificDataType::Bool => Some(o::DataType::Bool),
+            i::SpecificDataType::Int => Some(o::DataType::Int),
+            i::SpecificDataType::Float => Some(o::DataType::Float),
             _ => None,
         }
     }
@@ -249,46 +247,73 @@ impl<'a> ScopeResolver<'a> {
 
     /// Returns Result::Err if there is no biggest type.
     pub(super) fn biggest_type(a: &i::DataType, b: &i::DataType) -> Result<i::DataType, ()> {
-        // BCT rule 1
-        if a == &i::DataType::Automatic {
-            Ok(b.clone())
-        } else if b == &i::DataType::Automatic {
-            Ok(a.clone())
+        fn biggest_option_type(
+            a: Option<&i::SpecificDataType>,
+            b: Option<&i::SpecificDataType>,
+        ) -> Result<Option<i::SpecificDataType>, ()> {
+            if a.is_none() {
+                Ok(b.cloned())
+            } else if b.is_none() {
+                Ok(a.cloned())
+            } else {
+                ScopeResolver::biggest_specific_type(a.unwrap(), b.unwrap()).map(|sdt| Some(sdt))
+            }
+        }
+        let (au, al) = a.bounds.as_tuple();
+        let (bu, bl) = b.bounds.as_tuple();
+        let u = biggest_option_type(au, bu)?;
+        let l = biggest_option_type(al, bl)?;
+        let actual_type = biggest_option_type(a.actual_type.as_ref(), b.actual_type.as_ref())?;
+        Ok(i::DataType {
+            actual_type,
+            bounds: i::Bounds::from_tuple((l, u)),
+        })
+    }
+
+    /// Returns Result::Err if there is no biggest type.
+    pub(super) fn biggest_specific_type(
+        a: &i::SpecificDataType,
+        b: &i::SpecificDataType,
+    ) -> Result<i::SpecificDataType, ()> {
         // BCT rule 2
-        } else if a == b {
+        if a == b {
             Ok(a.clone())
         // BCT rules 3 & 4
-        } else if let (i::DataType::Array(alen, abase), i::DataType::Array(blen, bbase)) = (a, b) {
+        } else if let (
+            i::SpecificDataType::Array(alen, abase),
+            i::SpecificDataType::Array(blen, bbase),
+        ) = (a, b)
+        {
             // BCT rule 3
             if alen == blen {
-                Ok(i::DataType::Array(
+                Ok(i::SpecificDataType::Array(
                     *alen,
-                    Box::new(Self::biggest_type(abase, bbase)?),
+                    Box::new(Self::biggest_specific_type(abase, bbase)?),
                 ))
             // BCT rule 4
             } else if *alen == 1 {
-                Ok(i::DataType::Array(
+                Ok(i::SpecificDataType::Array(
                     *blen,
-                    Box::new(Self::biggest_type(abase, bbase)?),
+                    Box::new(Self::biggest_specific_type(abase, bbase)?),
                 ))
             } else if *blen == 1 {
-                Ok(i::DataType::Array(
+                Ok(i::SpecificDataType::Array(
                     *alen,
-                    Box::new(Self::biggest_type(abase, bbase)?),
+                    Box::new(Self::biggest_specific_type(abase, bbase)?),
                 ))
             } else {
                 Err(())
             }
         // BCT rule 5
-        } else if let i::DataType::Array(alen, abase) = a {
-            Ok(i::DataType::Array(
+        } else if let i::SpecificDataType::Array(alen, abase) = a {
+            Ok(i::SpecificDataType::Array(
                 *alen,
-                Box::new(Self::biggest_type(abase, b)?),
+                Box::new(Self::biggest_specific_type(abase, b)?),
             ))
-        } else if let i::DataType::Array(blen, bbase) = b {
-            Ok(i::DataType::Array(
+        } else if let i::SpecificDataType::Array(blen, bbase) = b {
+            Ok(i::SpecificDataType::Array(
                 *blen,
-                Box::new(Self::biggest_type(a, bbase)?),
+                Box::new(Self::biggest_specific_type(a, bbase)?),
             ))
         } else {
             Err(())

@@ -139,6 +139,12 @@ pub enum VPExpression {
     Literal(KnownData, FilePosition),
     Variable(VariableId, FilePosition),
     Collect(Vec<VPExpression>, FilePosition),
+    UnboundedTypeBound(FilePosition),
+    TypeBound {
+        lower: Option<Box<VPExpression>>,
+        upper: Box<VPExpression>,
+        position: FilePosition,
+    },
     BuildArrayType {
         dimensions: Vec<VPExpression>,
         base: Box<VPExpression>,
@@ -176,6 +182,14 @@ impl Debug for VPExpression {
                     write!(formatter, "{:?}, ", value)?;
                 }
                 write!(formatter, "]")
+            }
+            Self::UnboundedTypeBound(..) => write!(formatter, "<>"),
+            Self::TypeBound { lower, upper, .. } => {
+                write!(formatter, "<")?;
+                if let Some(lower) = lower {
+                    write!(formatter, "{:?}, ", lower)?;
+                }
+                write!(formatter, "{:?}>", upper)
             }
             Self::BuildArrayType {
                 dimensions, base, ..
@@ -231,6 +245,8 @@ impl VPExpression {
             Self::Literal(_, position)
             | Self::Variable(_, position)
             | Self::Collect(_, position)
+            | Self::UnboundedTypeBound(position)
+            | Self::TypeBound { position, .. }
             | Self::BuildArrayType { position, .. }
             | Self::UnaryOperation(_, _, position)
             | Self::BinaryOperation(_, _, _, position)

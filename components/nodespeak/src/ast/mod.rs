@@ -32,7 +32,8 @@ pub mod structure {
             Rule::identifier => "identifier",
 
             Rule::vp_var => "variable",
-            Rule::build_array => "array data",
+            Rule::build_array => "array literal",
+            Rule::build_type_bound => "type bound",
             Rule::vpe_part_1 | Rule::vpe_part_2 | Rule::vpe_part_3 | Rule::vpe_part | Rule::vpe => {
                 "value-producing expression"
             }

@@ -14,7 +14,7 @@ impl<'a> ScopeResolver<'a> {
         position: &FilePosition,
     ) -> Result<ResolvedStatement, CompileProblem> {
         let resolved_dtype = self.resolve_vp_expression(dtype)?;
-        if resolved_dtype.borrow_data_type() != &i::DataType::DataType {
+        if resolved_dtype.borrow_actual_data_type() != &i::SpecificDataType::DataType {
             return Err(problems::not_data_type(
                 dtype.clone_position(),
                 resolved_dtype.borrow_data_type(),
@@ -29,15 +29,15 @@ impl<'a> ScopeResolver<'a> {
         } else {
             unreachable!("DATA_TYPE is ct-only, it cannot be a modified expression.");
         };
-        let resolved_id = if let Some(data_type) = Self::resolve_data_type(&data_type) {
-            let resolved_var = o::Variable::new(position.clone(), data_type);
-            Some(self.target.adopt_variable(resolved_var))
-        } else {
-            None
-        };
-        if data_type.is_automatic() {
-            self.add_unresolved_auto_var(old_var_id);
-        }
+        let resolved_id = data_type
+            .actual_type
+            .as_ref()
+            .map(Self::resolve_data_type)
+            .flatten()
+            .map(|resolved_type| {
+                let resolved_var = o::Variable::new(position.clone(), resolved_type);
+                self.target.adopt_variable(resolved_var)
+            });
         self.set_var_info(old_var_id, resolved_id, data_type);
         if let Some(data) = self.source[old_var_id].borrow_initial_value() {
             let mut pkd = PossiblyKnownData::from_known_data(data);
@@ -56,11 +56,11 @@ impl<'a> ScopeResolver<'a> {
         position: &FilePosition,
     ) -> Result<ResolvedStatement, CompileProblem> {
         let rcondition = self.resolve_vp_expression(condition)?;
-        if rcondition.borrow_data_type() != &i::DataType::Bool {
+        if rcondition.borrow_actual_data_type() != &i::SpecificDataType::Bool {
             return Err(problems::vpe_wrong_type(
                 rcondition.clone_position(),
-                &i::DataType::Bool,
-                rcondition.borrow_data_type(),
+                &i::SpecificDataType::Bool,
+                rcondition.borrow_actual_data_type(),
             ));
         }
         if let ResolvedVPExpression::Interpreted(data, ..) = &rcondition {
@@ -88,24 +88,14 @@ impl<'a> ScopeResolver<'a> {
         let lhs = self.resolve_vc_expression(target)?;
         let rhs = self.resolve_vp_expression(value)?;
         let mut resolved_out_type = None;
-        if lhs.borrow_data_type().is_automatic() {
-            let old_auto_type = &self.get_var_info(lhs.get_base()).unwrap().1;
-            let actual_type = old_auto_type.with_different_base(rhs.borrow_data_type().clone());
-            let resolved_var = if let Some(rtype) = Self::resolve_data_type(&actual_type) {
-                resolved_out_type = Some(rtype.clone());
-                let def_pos = self.source[lhs.get_base()].get_definition().clone();
-                let var = o::Variable::new(def_pos, rtype);
-                Some(self.target.adopt_variable(var))
-            } else {
-                None
-            };
-            self.resolve_auto_var(lhs.get_base(), resolved_var, actual_type);
-        } else {
-            resolved_out_type = Self::resolve_data_type(lhs.borrow_data_type());
-            let ok = match Self::biggest_type(lhs.borrow_data_type(), rhs.borrow_data_type()) {
-                Ok(bct) => &bct == lhs.borrow_data_type(),
-                Err(..) => false,
-            };
+        if let Some(specific_lhs_type) = lhs.borrow_actual_data_type() {
+            resolved_out_type = Self::resolve_data_type(specific_lhs_type);
+            let ok =
+                match Self::biggest_specific_type(specific_lhs_type, rhs.borrow_actual_data_type())
+                {
+                    Ok(bct) => &bct == specific_lhs_type,
+                    Err(..) => false,
+                };
             if !ok {
                 return Err(problems::mismatched_assign(
                     position.clone(),
@@ -115,6 +105,18 @@ impl<'a> ScopeResolver<'a> {
                     rhs.borrow_data_type(),
                 ));
             }
+        } else {
+            let actual_type = rhs.borrow_actual_data_type().clone();
+            let resolved_var = if let Some(rtype) = Self::resolve_data_type(&actual_type) {
+                resolved_out_type = Some(rtype.clone());
+                let def_pos = self.source[lhs.get_base()].get_definition().clone();
+                let var = o::Variable::new(def_pos, rtype);
+                Some(self.target.adopt_variable(var))
+            } else {
+                None
+            };
+            // This handles the error if the type is not within bounds.
+            self.resolve_bounded_var(lhs.get_base(), resolved_var, actual_type)?;
         }
         if let (
             ResolvedVCExpression::Specific {
@@ -126,44 +128,48 @@ impl<'a> ScopeResolver<'a> {
             ResolvedVPExpression::Interpreted(value_data, _, rhs_type),
         ) = (&lhs, &rhs)
         {
-            if lhs_type.is_automatic() {
-                self.set_temporary_value(*var, PossiblyKnownData::from_known_data(&value_data));
+            let rhs_type = rhs_type.actual_type.as_ref().unwrap();
+            // This is basically the same thing we do above. If the LHS type is an unresolved bound,
+            // then we set it to be the same type as the RHS.
+            let lhs_type = if let Some(lhs_type) = &lhs_type.actual_type {
+                lhs_type
             } else {
-                // lhs[indexes..][shared_indexes..][extra_indexes..] = rhs[shared_indexes..]
-                // shared indexes are the indexes that are the same between lhs and rhs
-                // extra indexes are extra dimensinos the lhs has. If there are none, then everything
-                // becomes much simpler: lhs[indexes..] = rhs, which is what the later if statement
-                // is for.
-                let lhs_dims = lhs_type.collect_dims();
-                let rhs_dims = rhs_type.collect_dims();
-                let num_shared_dims = rhs_dims.len();
-                let num_extra_dims = lhs_dims.len() - num_shared_dims;
-                let extra_dims = Vec::from(&lhs_dims[num_shared_dims..]);
+                rhs_type
+            };
+            // lhs[indexes..][shared_indexes..][extra_indexes..] = rhs[shared_indexes..]
+            // shared indexes are the indexes that are the same between lhs and rhs
+            // extra indexes are extra dimensions the lhs has. If there are none, then everything
+            // becomes much simpler: lhs[indexes..] = rhs, which is what the later if statement
+            // is for.
+            let lhs_dims = lhs_type.collect_dims();
+            let rhs_dims = rhs_type.collect_dims();
+            let num_shared_dims = rhs_dims.len();
+            let num_extra_dims = lhs_dims.len() - num_shared_dims;
+            let extra_dims = Vec::from(&lhs_dims[num_shared_dims..]);
 
-                if extra_dims.len() == 0 {
-                    self.set_temporary_item(
-                        *var,
-                        &indexes[..],
-                        PossiblyKnownData::from_known_data(value_data),
-                    );
-                } else {
-                    let mut lhs_indexes = vec![0; indexes.len() + num_shared_dims + num_extra_dims];
-                    for (index, value) in indexes.iter().enumerate() {
-                        lhs_indexes[index] = *value;
+            if extra_dims.len() == 0 {
+                self.set_temporary_item(
+                    *var,
+                    &indexes[..],
+                    PossiblyKnownData::from_known_data(value_data),
+                );
+            } else {
+                let mut lhs_indexes = vec![0; indexes.len() + num_shared_dims + num_extra_dims];
+                for (index, value) in indexes.iter().enumerate() {
+                    lhs_indexes[index] = *value;
+                }
+                let num_indexes = indexes.len();
+                for shared_indexes in shared_util::nd_index_iter(rhs_dims) {
+                    for (offset, value) in shared_indexes.iter().enumerate() {
+                        lhs_indexes[num_indexes + offset] = *value;
                     }
-                    let num_indexes = indexes.len();
-                    for shared_indexes in shared_util::nd_index_iter(rhs_dims) {
-                        for (offset, value) in shared_indexes.iter().enumerate() {
-                            lhs_indexes[num_indexes + offset] = *value;
+                    let rhs_item = value_data.index(&shared_indexes[..]);
+                    let rhs_pkd = PossiblyKnownData::from_known_data(rhs_item);
+                    for extra_indexes in shared_util::nd_index_iter(extra_dims.clone()) {
+                        for (offset, value) in extra_indexes.iter().enumerate() {
+                            lhs_indexes[num_indexes + num_shared_dims + offset] = *value;
                         }
-                        let rhs_item = value_data.index(&shared_indexes[..]);
-                        let rhs_pkd = PossiblyKnownData::from_known_data(rhs_item);
-                        for extra_indexes in shared_util::nd_index_iter(extra_dims.clone()) {
-                            for (offset, value) in extra_indexes.iter().enumerate() {
-                                lhs_indexes[num_indexes + num_shared_dims + offset] = *value;
-                            }
-                            self.set_temporary_item(*var, &lhs_indexes[..], rhs_pkd.clone());
-                        }
+                        self.set_temporary_item(*var, &lhs_indexes[..], rhs_pkd.clone());
                     }
                 }
             }
@@ -230,11 +236,11 @@ impl<'a> ScopeResolver<'a> {
         let mut rclauses = Vec::new();
         for (condition, body) in clauses {
             let rcond = self.resolve_vp_expression(condition)?;
-            if rcond.borrow_data_type() != &i::DataType::Bool {
+            if rcond.borrow_actual_data_type() != &i::SpecificDataType::Bool {
                 return Err(problems::vpe_wrong_type(
                     position.clone(),
-                    &i::DataType::Bool,
-                    rcond.borrow_data_type(),
+                    &i::SpecificDataType::Bool,
+                    rcond.borrow_actual_data_type(),
                 ));
             }
             if let ResolvedVPExpression::Interpreted(value, ..) = &rcond {
@@ -304,23 +310,23 @@ impl<'a> ScopeResolver<'a> {
         let counter_pos = self.source[counter].get_definition().clone();
         let rcounter = o::Variable::new(counter_pos, o::DataType::Int);
         let rcounter = self.target.adopt_variable(rcounter);
-        self.set_var_info(counter, Some(rcounter), i::DataType::Int);
+        self.set_var_info(counter, Some(rcounter), i::SpecificDataType::Int.into());
         let body = self.source[body].borrow_body().clone();
         let old_scope = self.current_scope;
         let rstart = self.resolve_vp_expression(start)?;
         let rend = self.resolve_vp_expression(end)?;
-        if rstart.borrow_data_type() != &i::DataType::Int {
+        if rstart.borrow_actual_data_type() != &i::SpecificDataType::Int {
             return Err(problems::vpe_wrong_type(
                 position.clone(),
-                &i::DataType::Int,
-                rstart.borrow_data_type(),
+                &i::SpecificDataType::Int,
+                rstart.borrow_actual_data_type(),
             ));
         }
-        if rend.borrow_data_type() != &i::DataType::Int {
+        if rend.borrow_actual_data_type() != &i::SpecificDataType::Int {
             return Err(problems::vpe_wrong_type(
                 position.clone(),
-                &i::DataType::Int,
-                rend.borrow_data_type(),
+                &i::SpecificDataType::Int,
+                rend.borrow_actual_data_type(),
             ));
         }
         if let (

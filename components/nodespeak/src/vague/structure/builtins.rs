@@ -1,7 +1,7 @@
 use crate::high_level::problem::FilePosition;
 use crate::vague::structure::{
-    DataType, KnownData, MacroData, Program, Statement, UnaryOperator, VCExpression, VPExpression,
-    Variable,
+    DataType, KnownData, MacroData, Program, SpecificDataType, Statement, UnaryOperator,
+    VCExpression, VPExpression, Variable,
 };
 
 fn add_data_type(program: &mut Program, name: &str, dtype: DataType) {
@@ -9,7 +9,7 @@ fn add_data_type(program: &mut Program, name: &str, dtype: DataType) {
     let var = Variable::data_type(FilePosition::placeholder(), dtype);
     let var_id = program.adopt_and_define_symbol(scope, name, var);
     let data_type_literal = Box::new(VPExpression::Literal(
-        KnownData::DataType(DataType::DataType),
+        KnownData::DataType(SpecificDataType::DataType.into()),
         FilePosition::placeholder(),
     ));
     program[scope].add_statement(Statement::CreationPoint {
@@ -21,11 +21,11 @@ fn add_data_type(program: &mut Program, name: &str, dtype: DataType) {
 
 fn add_constant(program: &mut Program, name: &str, data: KnownData) {
     let scope = program.get_builtins_scope();
-    let typ = data.get_data_type();
+    let typ = data.get_specific_data_type();
     let var = Variable::constant(FilePosition::placeholder(), data);
     let var_id = program.adopt_and_define_symbol(scope, name, var);
     let data_type_literal = Box::new(VPExpression::Literal(
-        KnownData::DataType(typ),
+        KnownData::DataType(typ.into()),
         FilePosition::placeholder(),
     ));
     program[scope].add_statement(Statement::CreationPoint {
@@ -51,7 +51,7 @@ fn add_unary_op_macro(
     let out_var = Variable::variable(FilePosition::placeholder(), None);
     let out_var_id = program.adopt_and_define_symbol(body, out_name, out_var);
     program[body].add_output(out_var_id);
-    let out_type = KnownData::DataType(DataType::Automatic);
+    let out_type = KnownData::DataType(DataType::unbounded());
     let out_type = VPExpression::Literal(out_type, FilePosition::placeholder());
     program[body].add_statement(Statement::CreationPoint {
         var: out_var_id,
@@ -73,7 +73,7 @@ fn add_unary_op_macro(
     let var = Variable::macro_def(MacroData::new(body, p.clone()));
     let var_id = program.adopt_and_define_symbol(root, name, var);
     let data_type_literal = Box::new(VPExpression::Literal(
-        KnownData::DataType(DataType::Macro),
+        KnownData::DataType(SpecificDataType::Macro.into()),
         FilePosition::placeholder(),
     ));
     program[root].add_statement(Statement::CreationPoint {
@@ -85,12 +85,11 @@ fn add_unary_op_macro(
 
 // Adds built-in methods to the root scope.
 pub fn add_builtins(program: &mut Program) {
-    add_data_type(program, "AUTO", DataType::Automatic);
-    add_data_type(program, "BOOL", DataType::Bool);
-    add_data_type(program, "INT", DataType::Int);
-    add_data_type(program, "FLOAT", DataType::Float);
-    add_data_type(program, "DATA_TYPE", DataType::DataType);
-    add_data_type(program, "MACRO", DataType::Macro);
+    add_data_type(program, "BOOL", SpecificDataType::Bool.into());
+    add_data_type(program, "INT", SpecificDataType::Int.into());
+    add_data_type(program, "FLOAT", SpecificDataType::Float.into());
+    add_data_type(program, "DATA_TYPE", SpecificDataType::DataType.into());
+    add_data_type(program, "MACRO", SpecificDataType::Macro.into());
 
     add_constant(program, "PI", KnownData::Float(std::f64::consts::PI));
     add_constant(program, "TAU", KnownData::Float(std::f64::consts::PI * 2.0));

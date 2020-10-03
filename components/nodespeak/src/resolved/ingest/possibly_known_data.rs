@@ -110,7 +110,7 @@ impl PossiblyKnownData {
         }
     }
 
-    pub fn get_data_type(&self) -> Option<i::DataType> {
+    pub fn get_data_type(&self) -> Option<i::SpecificDataType> {
         Some(match self {
             PossiblyKnownData::Array(data) => {
                 assert!(data.len() > 0);
@@ -118,14 +118,14 @@ impl PossiblyKnownData {
                     return None;
                 }
                 let first_type = data[0].get_data_type().unwrap();
-                i::DataType::Array(data.len(), Box::new(first_type))
+                i::SpecificDataType::Array(data.len(), Box::new(first_type))
             }
-            PossiblyKnownData::Void => i::DataType::Void,
-            PossiblyKnownData::Bool(..) => i::DataType::Bool,
-            PossiblyKnownData::Int(..) => i::DataType::Int,
-            PossiblyKnownData::Float(..) => i::DataType::Float,
-            PossiblyKnownData::DataType(..) => i::DataType::DataType,
-            PossiblyKnownData::Macro(..) => i::DataType::Macro,
+            PossiblyKnownData::Void => i::SpecificDataType::Void,
+            PossiblyKnownData::Bool(..) => i::SpecificDataType::Bool,
+            PossiblyKnownData::Int(..) => i::SpecificDataType::Int,
+            PossiblyKnownData::Float(..) => i::SpecificDataType::Float,
+            PossiblyKnownData::DataType(..) => i::SpecificDataType::DataType,
+            PossiblyKnownData::Macro(..) => i::SpecificDataType::Macro,
             PossiblyKnownData::Unknown => {
                 return None;
             }

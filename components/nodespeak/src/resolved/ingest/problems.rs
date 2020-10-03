@@ -191,7 +191,7 @@ pub fn array_size_less_than_one(size: FilePosition, value: i64) -> CompileProble
     )])
 }
 
-pub fn array_size_not_int(size: FilePosition, size_type: &i::DataType) -> CompileProblem {
+pub fn array_size_not_int(size: FilePosition, size_type: &i::SpecificDataType) -> CompileProblem {
     CompileProblem::from_descriptors(vec![ProblemDescriptor::new(
         size,
         Error,
@@ -362,8 +362,8 @@ pub fn too_many_indexes(
 
 pub fn vpe_wrong_type(
     vpe_pos: FilePosition,
-    expected: &i::DataType,
-    found: &i::DataType,
+    expected: &i::SpecificDataType,
+    found: &i::SpecificDataType,
 ) -> CompileProblem {
     CompileProblem::from_descriptors(vec![ProblemDescriptor::new(
         vpe_pos,
@@ -375,13 +375,13 @@ pub fn vpe_wrong_type(
     )])
 }
 
-pub fn unresolved_auto_var(var_pos: FilePosition) -> CompileProblem {
+pub fn unresolved_bounded_var(var_pos: FilePosition) -> CompileProblem {
     CompileProblem::from_descriptors(vec![ProblemDescriptor::new(
         var_pos,
         Error,
         concat!(
-            "Unresolved Auto Var\nThe highlighted variable was declared with an automatic data ",
-            "type. It has not been assigned any value before this point so its data type cannot ",
+            "Unresolved Bounded Var\nThe highlighted variable was declared with a bounded type. ",
+            "It has not been assigned any value before this point so its actual data type cannot ",
             "be determined. Assigning the variable a value somewhere earlier in the program will ",
             "fix this error."
         ),

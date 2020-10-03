@@ -1,8 +1,7 @@
-use super::{problems, util, ResolvedVCExpression, ResolvedVPExpression, ScopeResolver};
+use super::{problems, ResolvedVCExpression, ResolvedVPExpression, ScopeResolver};
 use crate::high_level::problem::{CompileProblem, FilePosition};
 use crate::resolved::structure as o;
 use crate::vague::structure as i;
-use std::borrow::Borrow;
 
 impl<'a> ScopeResolver<'a> {
     fn resolve_vc_variable(
@@ -31,9 +30,10 @@ impl<'a> ScopeResolver<'a> {
 
         let mut known_indexes = Vec::new();
         let mut all_indexes = Vec::new();
-        let mut etype = rbase.borrow_data_type();
+        // TODO: Propogate type bounds.
+        let mut etype = rbase.borrow_actual_data_type().unwrap();
         for (index, optional) in indexes {
-            let arr_len = if let i::DataType::Array(len, eetype) = etype {
+            let arr_len = if let i::SpecificDataType::Array(len, eetype) = etype {
                 etype = eetype;
                 *len
             } else if *optional {
@@ -48,7 +48,7 @@ impl<'a> ScopeResolver<'a> {
                 ));
             };
             let rindex = self.resolve_vp_expression(index)?;
-            if rindex.borrow_data_type() != &i::DataType::Int {
+            if rindex.borrow_actual_data_type() != &i::SpecificDataType::Int {
                 return Err(problems::array_index_not_int(
                     rindex.clone_position(),
                     rindex.borrow_data_type(),
@@ -84,7 +84,7 @@ impl<'a> ScopeResolver<'a> {
             all_indexes.push(rindex.as_vp_expression()?);
         }
 
-        let etype = etype.clone();
+        let etype = etype.clone().into();
         Ok(match rbase {
             ResolvedVCExpression::Modified {
                 mut vce,

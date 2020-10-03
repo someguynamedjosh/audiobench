@@ -25,8 +25,10 @@ identifier = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
 vp_var = { identifier }
 
 build_array = { "[" ~ (vpe ~ ("," ~ vpe)*)? ~ ","? ~ "]" }
+// We cannot use a whole VPE here because then the parser parses <A, B> as <(A), (B > )...
+build_type_bound = { "<" ~ (vpe_part ~ ("," ~ vpe_part)?)? ~ ">" }
 
-vpe_part_1 = { literal | macro_call | vp_var | "(" ~ vpe ~ ")" | build_array }
+vpe_part_1 = { literal | macro_call | vp_var | "(" ~ vpe ~ ")" | build_array | build_type_bound }
 
 build_array_type = { ("[" ~ vpe ~ "]")+ ~ vpe_part_1 }
 optional_index_indicator = { "?" }
