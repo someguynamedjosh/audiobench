@@ -61,6 +61,9 @@ impl Program {
             context: Box::new(context),
             module_builder: module_builder,
             execution_engine_builder: |module| {
+                // For some reason no matter how much I crank it up it doesn't go faster. I'm not
+                // sure if it is doing vectorization. It was the same level of performance before
+                // I implemented rolled-up array-wise operators.
                 Box::new(
                     module
                         .create_jit_execution_engine(OptimizationLevel::Less)

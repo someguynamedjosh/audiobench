@@ -1,5 +1,5 @@
 use crate::llvmir::structure as o;
-use crate::shared::{self, ProxyMode};
+use crate::shared::{ProxyMode};
 use crate::trivial::structure as i;
 use inkwell::{
     basic_block::BasicBlock,
@@ -7,9 +7,12 @@ use inkwell::{
     context::Context,
     module::Module,
     types::{BasicTypeEnum, PointerType},
-    values::{BasicValue, BasicValueEnum, FloatValue, FunctionValue, IntValue, PointerValue},
+    values::{
+        BasicValue, BasicValueEnum, FloatValue, FunctionValue, IntValue, PhiValue, PointerValue,
+    },
     AddressSpace, FloatPredicate, IntPredicate,
 };
+use shared_util::prelude::*;
 use std::collections::HashMap;
 
 const UNNAMED: &str = "";
@@ -73,9 +76,9 @@ impl<'ctx> Intrinsics<'ctx> {
 
 struct Converter<'i, 'ctx> {
     source: &'i i::Program,
-    input_pointer_type: PointerType<'ctx>,
-    output_pointer_type: PointerType<'ctx>,
-    static_pointer_type: PointerType<'ctx>,
+    main_fn: FunctionValue<'ctx>,
+    static_init_fn: FunctionValue<'ctx>,
+    current_fn: FunctionValue<'ctx>,
 
     context: &'ctx Context,
     module: &'i Module<'ctx>,
@@ -160,7 +163,7 @@ impl<'i, 'ctx> Converter<'i, 'ctx> {
         &mut self,
         value: &i::Value,
         content: TYP,
-        indexes: &mut [IntValue<'ctx>],
+        indexes: &[IntValue<'ctx>],
     ) {
         let indexes = self.apply_proxy_to_dyn_indexes(&value.dimensions, indexes);
         match &value.base {
@@ -183,7 +186,7 @@ impl<'i, 'ctx> Converter<'i, 'ctx> {
     fn load_value_dyn(
         &mut self,
         value: &i::Value,
-        indexes: &mut [IntValue<'ctx>],
+        indexes: &[IntValue<'ctx>],
     ) -> BasicValueEnum<'ctx> {
         let indexes = self.apply_proxy_to_dyn_indexes(&value.dimensions, indexes);
         match &value.base {
@@ -210,7 +213,13 @@ impl<'i, 'ctx> Converter<'i, 'ctx> {
                         unsafe { self.builder.build_gep(runtime_value, &indexes[..], UNNAMED) };
                     self.builder.build_load(value_ptr, UNNAMED)
                 } else {
-                    assert!(indexes.len() == 0, "Cannot index scalar data.");
+                    // LLVM requires the first index to be zero and that the actual indexes be
+                    // placed after that. Having just that first noop index means we are not
+                    // actually trying to index anything.
+                    assert!(
+                        indexes.len() == 0 || indexes.len() == 1,
+                        "Cannot index scalar data."
+                    );
                     match data {
                         i::KnownData::Array(..) => unreachable!("Handled above."),
                         i::KnownData::Bool(value) => self.b1_const(*value).into(),
@@ -313,18 +322,65 @@ impl<'i, 'ctx> Converter<'i, 'ctx> {
         self.label_blocks[id.raw()]
     }
 
-    fn usize_vec_to_u32(vec: Vec<usize>) -> Vec<u32> {
-        vec.into_iter().map(|i| i as u32).collect()
+    fn start_loop(&mut self) -> (BasicBlock<'ctx>, PhiValue<'ctx>, IntValue<'ctx>) {
+        assert!(!self.current_block_terminated);
+        let body_block = self
+            .context
+            .append_basic_block(self.current_fn, "loop_body");
+        let entry_block = self.builder.get_insert_block().unwrap();
+        self.builder.build_unconditional_branch(body_block);
+        self.builder.position_at_end(body_block);
+        let phi = self.builder.build_phi(self.context.i32_type(), UNNAMED);
+        phi.add_incoming(&[(&self.i32_const(0), entry_block)]);
+        self.current_block_terminated = false;
+        let int_value = phi.as_basic_value().into_int_value();
+        (body_block, phi, int_value)
+    }
+
+    fn end_loop(
+        &mut self,
+        num_iterations: i32,
+        loop_params: (BasicBlock<'ctx>, PhiValue<'ctx>, IntValue<'ctx>),
+    ) {
+        assert!(!self.current_block_terminated);
+        let loop_exit_block = self
+            .context
+            .append_basic_block(self.current_fn, "loop_exit");
+        let incremented_counter =
+            self.builder
+                .build_int_add(self.i32_const(1), loop_params.2, UNNAMED);
+        let current_block = self.builder.get_insert_block().unwrap();
+        loop_params
+            .1
+            .add_incoming(&[(&incremented_counter, current_block)]);
+        let repeat = self.builder.build_int_compare(
+            IntPredicate::ULT,
+            incremented_counter,
+            self.i32_const(num_iterations),
+            UNNAMED,
+        );
+        self.builder
+            .build_conditional_branch(repeat, loop_params.0, loop_exit_block);
+        self.builder.position_at_end(loop_exit_block);
+        self.current_block_terminated = false;
     }
 
     fn convert_unary_expression(&mut self, op: &i::UnaryOperator, a: &i::Value, x: &i::Value) {
-        let dimensions = x.dimensions.iter().map(|(len, _)| *len).collect();
-        for position in shared::NDIndexIter::new(dimensions) {
-            let coord = Self::usize_vec_to_u32(position);
-            let ar = self.load_value(a, &coord[..]);
-
+        let dimensions: Vec<_> = x.dimensions.iter().map(|(len, _)| *len).collect();
+        if dimensions.len() == 0 {
+            let ar = self.load_value(a, &[]);
             let xr = self.do_unary_op(op, ar);
-            self.store_value(x, xr, &coord[..]);
+            self.store_value(x, xr, &[]);
+        } else {
+            let loops: Vec<_> = dimensions.iter().map(|_| self.start_loop()).collect();
+            let mut loop_counters: Vec<_> = loops.iter().map(|(_, _, counter)| *counter).collect();
+            loop_counters.insert(0, self.i32_const(0));
+            let ar = self.load_value_dyn(a, &loop_counters[..]);
+            let xr = self.do_unary_op(op, ar);
+            self.store_value_dyn(x, xr, &loop_counters[..]);
+            for (size, loop_params) in dimensions.into_iter().zip(loops.into_iter()).rev() {
+                self.end_loop(size as i32, loop_params);
+            }
         }
     }
 
@@ -393,14 +449,23 @@ impl<'i, 'ctx> Converter<'i, 'ctx> {
         b: &i::Value,
         x: &i::Value,
     ) {
-        let dimensions = x.dimensions.iter().map(|(len, _)| *len).collect();
-        for position in shared::NDIndexIter::new(dimensions) {
-            let coord = Self::usize_vec_to_u32(position);
-            let ar = self.load_value(a, &coord[..]);
-            let br = self.load_value(b, &coord[..]);
-
+        let dimensions: Vec<_> = x.dimensions.iter().map(|(len, _)| *len).collect();
+        if dimensions.len() == 0 {
+            let ar = self.load_value(a, &[]);
+            let br = self.load_value(b, &[]);
             let xr = self.do_binary_op(op, ar, br);
-            self.store_value(x, xr, &coord[..]);
+            self.store_value(x, xr, &[]);
+        } else {
+            let loops: Vec<_> = dimensions.iter().map(|_| self.start_loop()).collect();
+            let mut loop_counters: Vec<_> = loops.iter().map(|(_, _, counter)| *counter).collect();
+            loop_counters.insert(0, self.i32_const(0));
+            let ar = self.load_value_dyn(a, &loop_counters[..]);
+            let br = self.load_value_dyn(b, &loop_counters[..]);
+            let xr = self.do_binary_op(op, ar, br);
+            self.store_value_dyn(x, xr, &loop_counters[..]);
+            for (size, loop_params) in dimensions.into_iter().zip(loops.into_iter()).rev() {
+                self.end_loop(size as i32, loop_params);
+            }
         }
     }
 
@@ -519,47 +584,64 @@ impl<'i, 'ctx> Converter<'i, 'ctx> {
     }
 
     fn convert_move(&mut self, from: &i::Value, to: &i::Value) {
-        let dimensions = to.dimensions.iter().map(|(len, _)| *len).collect();
-        for position in shared::NDIndexIter::new(dimensions) {
-            let coord = Self::usize_vec_to_u32(position);
-            let from = self.load_value(from, &coord[..]);
-            self.store_value(to, from, &coord[..]);
+        let dimensions: Vec<_> = to.dimensions.iter().map(|(len, _)| *len).collect();
+        if dimensions.len() == 0 {
+            let value = self.load_value(from, &[]);
+            self.store_value(to, value, &[]);
+        } else {
+            let loops: Vec<_> = dimensions.iter().map(|_| self.start_loop()).collect();
+            let mut loop_counters: Vec<_> = loops.iter().map(|(_, _, counter)| *counter).collect();
+            loop_counters.insert(0, self.i32_const(0));
+            let from = self.load_value_dyn(from, &loop_counters[..]);
+            self.store_value_dyn(to, from, &loop_counters[..]);
+            for (size, loop_params) in dimensions.into_iter().zip(loops.into_iter()).rev() {
+                self.end_loop(size as i32, loop_params);
+            }
         }
     }
 
     fn convert_store(&mut self, from: &i::Value, to: &i::Value, to_indexes: &Vec<i::Value>) {
-        let dimensions = from.dimensions.iter().map(|(len, _)| *len).collect();
-        let mut dyn_indexes: Vec<_> = to_indexes
-            .iter()
-            .map(|value| self.load_value(value, &[]).into_int_value())
-            .collect();
-        dyn_indexes.insert(0, self.u32_const(0));
-        for position in shared::NDIndexIter::new(dimensions) {
-            let coord = Self::usize_vec_to_u32(position);
-            let mut to_indexes = dyn_indexes.clone();
-            for static_index in &coord {
-                to_indexes.push(self.u32_const(*static_index));
+        let dimensions: Vec<_> = from.dimensions.iter().map(|(len, _)| *len).collect();
+        // Contains all of to_indexes followed by all the indexes that are iterated in the loop.
+        let mut to_indexes = to_indexes.imc(|value| self.load_value(value, &[]).into_int_value());
+        to_indexes.insert(0, self.i32_const(0));
+        if dimensions.len() == 0 {
+            let value = self.load_value(from, &[]);
+            self.store_value_dyn(to, value, &to_indexes[..]);
+        } else {
+            let loops: Vec<_> = dimensions.iter().map(|_| self.start_loop()).collect();
+            // Contains all the indexes that are iterated during the loop.
+            let mut from_indexes = loops.imc(|(_, _, counter)| *counter);
+            to_indexes.append(&mut from_indexes.clone());
+            from_indexes.insert(0, self.i32_const(0));
+            let value = self.load_value_dyn(from, &from_indexes[..]);
+            self.store_value_dyn(to, value, &to_indexes[..]);
+            for (size, loop_params) in dimensions.into_iter().zip(loops.into_iter()).rev() {
+                self.end_loop(size as i32, loop_params);
             }
-            let item = self.load_value(from, &coord[..]);
-            self.store_value_dyn(to, item, &mut to_indexes[..]);
         }
     }
 
     fn convert_load(&mut self, from: &i::Value, from_indexes: &Vec<i::Value>, to: &i::Value) {
-        let dimensions = to.dimensions.iter().map(|(len, _)| *len).collect();
-        let mut dyn_indexes: Vec<_> = from_indexes
-            .iter()
-            .map(|value| self.load_value(value, &[]).into_int_value())
-            .collect();
-        dyn_indexes.insert(0, self.u32_const(0));
-        for position in shared::NDIndexIter::new(dimensions) {
-            let coord = Self::usize_vec_to_u32(position);
-            let mut from_indexes = dyn_indexes.clone();
-            for static_index in &coord {
-                from_indexes.push(self.u32_const(*static_index));
+        let dimensions: Vec<_> = to.dimensions.iter().map(|(len, _)| *len).collect();
+        // Contains all of to_indexes followed by all the indexes that are iterated in the loop.
+        let mut from_indexes =
+            from_indexes.imc(|value| self.load_value(value, &[]).into_int_value());
+        from_indexes.insert(0, self.i32_const(0));
+        if dimensions.len() == 0 {
+            let value = self.load_value_dyn(from, &from_indexes[..]);
+            self.store_value(to, value, &[]);
+        } else {
+            let loops: Vec<_> = dimensions.iter().map(|_| self.start_loop()).collect();
+            // Contains all the indexes that are iterated during the loop.
+            let mut to_indexes = loops.imc(|(_, _, counter)| *counter);
+            from_indexes.append(&mut to_indexes.clone());
+            to_indexes.insert(0, self.i32_const(0));
+            let value = self.load_value_dyn(from, &from_indexes[..]);
+            self.store_value_dyn(to, value, &to_indexes[..]);
+            for (size, loop_params) in dimensions.into_iter().zip(loops.into_iter()).rev() {
+                self.end_loop(size as i32, loop_params);
             }
-            let item = self.load_value_dyn(from, &mut from_indexes[..]);
-            self.store_value(to, item, &coord[..]);
         }
     }
 
@@ -724,24 +806,17 @@ impl<'i, 'ctx> Converter<'i, 'ctx> {
 
     fn convert(&mut self) {
         // LLVM related setup for main function.
-        let i32t = self.context.i32_type();
-        let argts = [
-            self.input_pointer_type.into(),
-            self.static_pointer_type.into(),
-            self.output_pointer_type.into(),
-        ];
-        let function_type = i32t.fn_type(&argts[..], false);
-        let main_fn = self.module.add_function("main", function_type, None);
-        let entry_block = self.context.append_basic_block(main_fn, "entry");
+        let entry_block = self.context.append_basic_block(self.main_fn, "entry");
         self.builder.position_at_end(entry_block);
-        let input_pointer = main_fn.get_params()[0].into_pointer_value();
-        let static_pointer = main_fn.get_params()[1].into_pointer_value();
-        let output_pointer = main_fn.get_params()[2].into_pointer_value();
+        let input_pointer = self.main_fn.get_params()[0].into_pointer_value();
+        let static_pointer = self.main_fn.get_params()[1].into_pointer_value();
+        let output_pointer = self.main_fn.get_params()[2].into_pointer_value();
 
         // Self-related setup for main function.
         self.reset();
         self.create_variable_pointers_for_main_body(input_pointer, static_pointer, output_pointer);
-        self.create_blocks_for_main_body_labels(main_fn);
+        self.create_blocks_for_main_body_labels(self.main_fn);
+        self.current_fn = self.main_fn;
 
         // Convert instructions.
         for instruction in self.source.borrow_instructions().clone() {
@@ -754,17 +829,17 @@ impl<'i, 'ctx> Converter<'i, 'ctx> {
         }
 
         // LLVM related setup for static init function.
-        let argts = [self.static_pointer_type.into()];
-        let function_type = i32t.fn_type(&argts[..], false);
-        let static_init_fn = self.module.add_function("static_init", function_type, None);
-        let entry_block = self.context.append_basic_block(static_init_fn, "entry");
+        let entry_block = self
+            .context
+            .append_basic_block(self.static_init_fn, "entry");
         self.builder.position_at_end(entry_block);
-        let static_pointer = static_init_fn.get_params()[0].into_pointer_value();
+        let static_pointer = self.static_init_fn.get_params()[0].into_pointer_value();
 
         // Self-related setup for main function.
         self.reset();
         self.create_variable_pointers_for_static_body(static_pointer);
-        self.create_blocks_for_static_body_labels(static_init_fn);
+        self.create_blocks_for_static_body_labels(self.static_init_fn);
+        self.current_fn = self.static_init_fn;
 
         // Convert instructions.
         for instruction in self.source.borrow_static_init_instructions().clone() {
@@ -826,11 +901,24 @@ fn create_module<'ctx>(source: &i::Program, context: &'ctx Context) -> Module<'c
 
     let intrinsics = Intrinsics::new(&module, &*context);
 
+    let i32t = context.i32_type();
+    let argts = [
+        input_pointer_type.into(),
+        static_pointer_type.into(),
+        output_pointer_type.into(),
+    ];
+    let function_type = i32t.fn_type(&argts[..], false);
+    let main_fn = module.add_function("main", function_type, None);
+
+    let argts = [static_pointer_type.into()];
+    let function_type = i32t.fn_type(&argts[..], false);
+    let static_init_fn = module.add_function("static_init", function_type, None);
+
     let mut converter = Converter {
         source,
-        input_pointer_type,
-        output_pointer_type,
-        static_pointer_type,
+        main_fn,
+        static_init_fn,
+        current_fn: main_fn,
 
         context,
         module: &module,
