@@ -1,4 +1,4 @@
 mod ingest;
 pub mod structure;
 
-pub use ingest::ingest;
+pub use ingest::entry::ingest;
