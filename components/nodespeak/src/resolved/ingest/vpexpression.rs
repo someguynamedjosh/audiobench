@@ -235,6 +235,10 @@ impl<'a> ScopeResolver<'a> {
                 *len
             } else {
                 if optional {
+                    let mut resolved_base = resolved_base;
+                    // This should only change the upper type bound. The function will debug_assert
+                    // if the actual_type was changed.
+                    resolved_base.set_data_type(etype);
                     return Ok(resolved_base);
                 } else {
                     unreachable!("Cannot index should have been handled earlier.");

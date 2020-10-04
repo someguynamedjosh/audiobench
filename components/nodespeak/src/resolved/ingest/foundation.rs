@@ -353,6 +353,14 @@ impl ResolvedVPExpression {
             .expect("Resolved expression does not have a known data type")
     }
 
+    /// Use this carefully! Mainly it is used for resolving optional indexes.
+    pub(super) fn set_data_type(&mut self, data_type: i::DataType) {
+        debug_assert!(data_type.actual_type == self.borrow_data_type().actual_type);
+        match self {
+            Self::Modified(_, mytype) | Self::Interpreted(_, _, mytype) => *mytype = data_type,
+        }
+    }
+
     pub(super) fn clone_position(&self) -> FilePosition {
         match self {
             Self::Modified(expr, _) => expr.clone_position(),
