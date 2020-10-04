@@ -360,6 +360,28 @@ pub fn too_many_indexes(
     ])
 }
 
+pub fn cannot_index(
+    expr_pos: FilePosition,
+    specific_index: FilePosition,
+    smallest_type: &i::SpecificDataType,
+) -> CompileProblem {
+    CompileProblem::from_descriptors(vec![
+        ProblemDescriptor::new(
+            specific_index,
+            Error,
+            &format!(
+                concat!(
+                    "Cannot Index\nThe highlighted expression is indexing a value which may be ",
+                    "as small as {:?} according to its type bound. Try making it optional by ",
+                    "adding ? to the end."
+                ),
+                smallest_type
+            ),
+        ),
+        ProblemDescriptor::new(expr_pos, Hint, "Encountered while indexing this value:"),
+    ])
+}
+
 pub fn vpe_wrong_type(
     vpe_pos: FilePosition,
     expected: &i::SpecificDataType,
@@ -428,4 +450,62 @@ pub fn compile_time_output(output_decl_pos: FilePosition, typ: &i::DataType) -> 
             typ
         ),
     )])
+}
+
+pub fn value_too_big(
+    value_pos: FilePosition,
+    assign_to_pos: FilePosition,
+    bigger_type: &i::SpecificDataType,
+    upper_bound: &i::SpecificDataType,
+) -> CompileProblem {
+    CompileProblem::from_descriptors(vec![
+        ProblemDescriptor::new(
+            assign_to_pos,
+            Error,
+            &format!(
+                concat!(
+                    "Upper Bound Violation\nThe highlighted code can only accept a value with a ",
+                    "data type that can inflate to {:?}."
+                ),
+                upper_bound,
+            ),
+        ),
+        ProblemDescriptor::new(
+            value_pos,
+            Hint,
+            &format!(
+                "The upper bound of the highlighted value's type is {:?}.",
+                bigger_type
+            ),
+        ),
+    ])
+}
+
+pub fn value_too_small(
+    value_pos: FilePosition,
+    assign_to_pos: FilePosition,
+    smaller_type: &i::SpecificDataType,
+    lower_bound: &i::SpecificDataType,
+) -> CompileProblem {
+    CompileProblem::from_descriptors(vec![
+        ProblemDescriptor::new(
+            assign_to_pos,
+            Error,
+            &format!(
+                concat!(
+                    "Lower Bound Violation\nThe highlighted code can only accept a value with a ",
+                    "data type that {:?} can be inflated to."
+                ),
+                lower_bound,
+            ),
+        ),
+        ProblemDescriptor::new(
+            value_pos,
+            Hint,
+            &format!(
+                "The lower bound of the highlighted value's type is {:?}.",
+                smaller_type
+            ),
+        ),
+    ])
 }

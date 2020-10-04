@@ -87,6 +87,13 @@ impl<'a> ScopeResolver<'a> {
     ) -> Result<ResolvedStatement, CompileProblem> {
         let lhs = self.resolve_vc_expression(target)?;
         let rhs = self.resolve_vp_expression(value)?;
+        Self::value_bound_error_helper(
+            value.clone_position(),
+            target.clone_position(),
+            rhs.borrow_data_type(),
+            lhs.borrow_data_type(),
+        )?;
+
         let mut resolved_out_type = None;
         if let Some(specific_lhs_type) = lhs.borrow_actual_data_type() {
             resolved_out_type = Self::resolve_data_type(specific_lhs_type);
@@ -115,8 +122,8 @@ impl<'a> ScopeResolver<'a> {
             } else {
                 None
             };
-            // This handles the error if the type is not within bounds.
-            self.resolve_bounded_var(lhs.get_base(), resolved_var, actual_type)?;
+            // This does not check if the type is within bounds, we check that above.
+            self.resolve_bounded_var(lhs.get_base(), resolved_var, actual_type);
         }
         if let (
             ResolvedVCExpression::Specific {

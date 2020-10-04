@@ -9,23 +9,24 @@ impl<'a> ScopeResolver<'a> {
         var_id: i::VariableId,
         position: &FilePosition,
     ) -> Result<ResolvedVPExpression, CompileProblem> {
-        let value = self.borrow_temporary_value(var_id);
-        if let Ok(kvalue) = value.to_known_data() {
-            let typ = kvalue.get_specific_data_type();
-            return Ok(ResolvedVPExpression::Interpreted(
-                kvalue,
-                position.clone(),
-                typ.into(),
-            ));
-        }
         let (resolved_id, dtype) = self
             .get_var_info(var_id)
             .expect("Variable used before defined, should have been caught by the previous phase.");
         if dtype.actual_type.is_none() {
             return Err(problems::unresolved_bounded_var(position.clone()));
         }
+        let (resolved_id, dtype) = (resolved_id.clone(), dtype.clone());
+        let value = self.borrow_temporary_value(var_id);
+        if let Ok(kvalue) = value.to_known_data() {
+            let typ = kvalue.get_specific_data_type();
+            return Ok(ResolvedVPExpression::Interpreted(
+                kvalue,
+                position.clone(),
+                dtype,
+            ));
+        }
         let resolved_id = if let Some(value) = resolved_id {
-            *value
+            value
         } else {
             return Err(problems::value_not_run_time_compatible(
                 position.clone(),
@@ -219,25 +220,26 @@ impl<'a> ScopeResolver<'a> {
         full_expression: &FilePosition,
     ) -> Result<ResolvedVPExpression, CompileProblem> {
         let resolved_index = self.resolve_vp_expression(index)?;
-        let (array_length, etype) = if let i::SpecificDataType::Array(len, dtype) =
-            resolved_base.borrow_actual_data_type()
-        {
-            (*len, *(dtype.clone()))
+        let etype = resolved_base.borrow_data_type().indexed(optional);
+        let etype = if let Some(etype) = etype {
+            etype
         } else {
-            if optional {
-                return Ok(resolved_base);
-            } else {
-                // TODO: Nicer error for this.
-                return Err(problems::too_many_indexes(
-                    resolved_base.clone_position(),
-                    1,
-                    0,
-                    resolved_base.clone_position(),
-                    resolved_base.borrow_data_type(),
-                ));
-            }
+            return Err(problems::cannot_index(
+                full_expression.clone(),
+                index.clone_position(),
+                &resolved_base.borrow_data_type().min().unwrap(),
+            ));
         };
-        // TODO: Check if bounds are also int, if they exist.
+        let array_length =
+            if let i::SpecificDataType::Array(len, ..) = resolved_base.borrow_actual_data_type() {
+                *len
+            } else {
+                if optional {
+                    return Ok(resolved_base);
+                } else {
+                    unreachable!("Cannot index should have been handled earlier.");
+                }
+            };
         if resolved_index.borrow_actual_data_type() != &i::SpecificDataType::Int {
             return Err(problems::array_index_not_int(
                 index.clone_position(),
@@ -245,6 +247,12 @@ impl<'a> ScopeResolver<'a> {
                 full_expression.clone(),
             ));
         }
+        Self::value_bound_error_helper(
+            index.clone_position(),
+            index.clone_position(),
+            resolved_index.borrow_data_type(),
+            &(i::SpecificDataType::Int.into()),
+        )?;
 
         match resolved_index {
             // If the index is compile-time constant.
@@ -273,7 +281,7 @@ impl<'a> ScopeResolver<'a> {
                         let element = base_data.require_array()[value as usize].clone();
                         let mut pos = base_pos;
                         pos.include_other(&index_pos);
-                        ResolvedVPExpression::Interpreted(element, pos, etype.into())
+                        ResolvedVPExpression::Interpreted(element, pos, etype)
                     }
                     ResolvedVPExpression::Modified(base_expr, base_type) => {
                         let pos = FilePosition::union(&[&base_expr.clone_position(), &index_pos]);
@@ -300,7 +308,7 @@ impl<'a> ScopeResolver<'a> {
                                     position: pos,
                                 }
                             },
-                            etype.into(),
+                            etype,
                         )
                     }
                 })
@@ -352,7 +360,7 @@ impl<'a> ScopeResolver<'a> {
                         }
                     }
                 };
-                Ok(ResolvedVPExpression::Modified(expr, etype.into()))
+                Ok(ResolvedVPExpression::Modified(expr, etype))
             }
         }
     }

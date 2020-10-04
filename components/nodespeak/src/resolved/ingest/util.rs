@@ -1,10 +1,38 @@
 use super::ScopeResolver;
+use crate::high_level::problem::{CompileProblem, FilePosition};
 use crate::resolved::structure as o;
 use crate::vague::structure as i;
 
 use std::convert::TryInto;
 
 impl<'a> ScopeResolver<'a> {
+    pub fn value_bound_error_helper(
+        value_pos: FilePosition,
+        usage_pos: FilePosition,
+        value_type: &i::DataType,
+        must_fit_in: &i::DataType,
+    ) -> Result<(), CompileProblem> {
+        let lower_bound = must_fit_in.min();
+        let value_min = value_type.min();
+        if let (Some(bound), Some(min)) = (&lower_bound, &value_min) {
+            if Self::biggest_specific_type(bound, min).as_ref() != Ok(min) {
+                return Err(super::problems::value_too_small(
+                    value_pos, usage_pos, min, bound,
+                ));
+            }
+        }
+        let upper_bound = must_fit_in.max();
+        let value_max = value_type.max();
+        if let (Some(bound), Some(max)) = (upper_bound, value_max) {
+            if Self::biggest_specific_type(bound, max).as_ref() != Ok(bound) {
+                return Err(super::problems::value_too_big(
+                    value_pos, usage_pos, max, bound,
+                ));
+            }
+        }
+        Ok(())
+    }
+
     pub(super) fn resolve_data_type(dtype: &i::SpecificDataType) -> Option<o::DataType> {
         match dtype {
             i::SpecificDataType::Array(len, base) => {

@@ -172,8 +172,13 @@ impl<'a> ScopeResolver<'a> {
             !self.table.variables.contains_key(&var),
             "Cannot have multiple sets of info for a single variable."
         );
+        let resolved = dtype.actual_type.is_some();
         self.table.variables.insert(var, (resolved_var, dtype));
-        self.reset_temporary_value(var);
+        if resolved {
+            self.reset_temporary_value(var);
+        } else {
+            self.temp_values.insert(var, PossiblyKnownData::Unknown);
+        }
     }
 
     pub(super) fn get_var_info(
@@ -188,7 +193,7 @@ impl<'a> ScopeResolver<'a> {
         var: i::VariableId,
         resolved_var: Option<o::VariableId>,
         dtype: i::SpecificDataType,
-    ) -> Result<(), CompileProblem> {
+    ) {
         debug_assert!(self.table.variables.contains_key(&var));
         // Go back and resolve the var in any tables in the stack too in case we entered a scope
         // after the variable was first declared.
@@ -203,8 +208,6 @@ impl<'a> ScopeResolver<'a> {
         let entry = self.table.variables.get_mut(&var).unwrap();
         entry.0 = resolved_var;
         entry.1.actual_type = Some(dtype);
-        // TODO: Check that type is within bounds.
-        unimplemented!("Type check in bounds");
     }
 
     pub(super) fn set_temporary_value(&mut self, var: i::VariableId, value: PossiblyKnownData) {
