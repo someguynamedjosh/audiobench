@@ -71,7 +71,7 @@ macro_call = { identifier ~ macro_call_input_list ~ macro_call_output_list? }
 
 // Macro definitions (techincally part of statements.)
 
-macro_input = { build_type_bound ~ identifier }
+macro_input = { vpe_part ~ identifier }
 macro_inputs = { "(" ~ (
     macro_input ~ ("," ~ macro_input)* ~ ","?
 )? ~ ")" }
@@ -93,8 +93,8 @@ else_clause = { "else" ~ code_block }
 if_statement = { "if" ~ vpe ~ code_block ~ (else_if_clause)* ~ (else_clause)? }
 
 // For loop statements.
-no_unroll_keyword = { "no_unroll" }
-for_loop_statement = { "for" ~ identifier ~ "=" ~ vpe ~ "to" ~ vpe ~ no_unroll_keyword? ~ code_block }
+unroll_keyword = { "unroll" }
+for_loop_statement = { "for" ~ identifier ~ "=" ~ vpe ~ "to" ~ vpe ~ unroll_keyword? ~ code_block }
 
 // Strings (wip)
 raw_string = @{ (!("\\" | "\"") ~ ANY)+ }

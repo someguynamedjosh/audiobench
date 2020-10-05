@@ -1,4 +1,4 @@
-[BUFFER_LENGTH]FLOAT signal;
+MONO_BUFFER signal;
 
 static start, releasing, last_value {
     FLOAT start = 0.0;
@@ -6,20 +6,19 @@ static start, releasing, last_value {
     FLOAT last_value = 0.0;
 }
 
-AUTO timing = GetTiming(TIMING_MODE);
-assert timing:TYPE == [BUFFER_LENGTH]FLOAT;
-for i = 0 to BUFFER_LENGTH no_unroll {
+<MONO_BUFFER> timing = GetTiming(TIMING_MODE);
+for i = 0 to BUFFER_LENGTH {
     if !releasing {
         if reset_trigger[i?] {
-            start = timing[i];
+            start = timing[i?][0?];
         }
         if release_trigger[i?] {
-            start = timing[i];
+            start = timing[i?][0?];
             releasing = TRUE;
         }
     }
 
-    FLOAT now = timing[i] - start;
+    FLOAT now = timing[i?][0?] - start;
     FLOAT value;
     if releasing {
         if now < RELEASE_TIME {
@@ -41,11 +40,11 @@ for i = 0 to BUFFER_LENGTH no_unroll {
         last_value = value;
     }
 
-    signal[i] = value * 2.0 - 1.0;
+    signal[i][0] = value * 2.0 - 1.0;
 }
 
 if global_update_feedback_data {
-    FLOAT now_time = timing[0] - start;
+    FLOAT now_time = timing[0?][0?] - start;
     if releasing {
         now_time = now_time + ATTACK_TIME + DECAY_TIME;
         if now_time > ATTACK_TIME + DECAY_TIME + RELEASE_TIME {
@@ -64,6 +63,6 @@ if global_update_feedback_data {
         sustain[0?][0?],
         RELEASE_TIME * multiplier,
         now_time * multiplier,
-        signal[0][0?],
+        signal[0][0],
     ]);
 }

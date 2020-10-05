@@ -48,15 +48,15 @@ impl<'a> ScopeResolver<'a> {
         for item in items {
             resolved_items.push(self.resolve_vp_expression(item)?);
         }
-        let typ = resolved_items[0].borrow_data_type();
+        let typ = resolved_items[0].borrow_actual_data_type();
         let mut all_known = true;
         for item in &resolved_items {
-            if item.borrow_data_type() != typ {
+            if item.borrow_actual_data_type() != typ {
                 return Err(problems::bad_array_literal(
                     item.clone_position(),
-                    item.borrow_data_type(),
+                    item.borrow_actual_data_type(),
                     resolved_items[0].clone_position(),
-                    resolved_items[0].borrow_data_type(),
+                    resolved_items[0].borrow_actual_data_type(),
                 ));
             }
             if let ResolvedVPExpression::Modified(..) = item {
@@ -64,10 +64,7 @@ impl<'a> ScopeResolver<'a> {
             }
         }
 
-        let atype = i::SpecificDataType::Array(
-            resolved_items.len(),
-            Box::new(typ.actual_type.as_ref().unwrap().clone()),
-        );
+        let atype = i::SpecificDataType::Array(resolved_items.len(), Box::new(typ.clone()));
         Ok(if all_known {
             let mut data_items = Vec::new();
             for item in resolved_items {
@@ -292,9 +289,7 @@ impl<'a> ScopeResolver<'a> {
                         ResolvedVPExpression::Modified(
                             // Otherwise, if it's an index expression, add the new index to it.
                             if let o::VPExpression::Index {
-                                base,
-                                mut indexes,
-                                ..
+                                base, mut indexes, ..
                             } = base_expr
                             {
                                 indexes.push(index);
@@ -377,7 +372,7 @@ impl<'a> ScopeResolver<'a> {
         let res_rhs = self.resolve_vp_expression(rhs)?;
         Ok(match prop {
             i::Property::Type => ResolvedVPExpression::Interpreted(
-                i::KnownData::DataType(res_rhs.borrow_data_type().clone()),
+                i::KnownData::DataType(res_rhs.borrow_actual_data_type().clone().into()),
                 position.clone(),
                 i::SpecificDataType::DataType.into(),
             ),

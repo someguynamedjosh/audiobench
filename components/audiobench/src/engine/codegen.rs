@@ -1,9 +1,9 @@
-use nodespeak::llvmir::structure::IOType;
 use super::data_routing::{AutoconDynDataCollector, FeedbackDisplayer, StaticonDynDataCollector};
 use super::data_transfer::{DataFormat, HostFormat};
 use super::static_controls::Staticon;
 use crate::engine::parts::*;
 use crate::gui::module_widgets::FeedbackDataRequirement;
+use nodespeak::llvmir::structure::IOType;
 use shared_util::prelude::*;
 
 pub(super) struct CodeGenResult {
@@ -140,11 +140,18 @@ impl<'a> CodeGenerator<'a> {
         code.push_str(&format!("macro module_{}(\n", index));
         let template_ref = module_ref.template.borrow();
         for input in template_ref.inputs.iter() {
-            code.push_str(&format!("    {}, \n", input.borrow_code_name()));
+            code.push_str(&format!(
+                "    {} {}, \n",
+                input.get_type().ns_type(),
+                input.borrow_code_name()
+            ));
         }
         for control in module_ref.autocons.iter() {
             let control_ref = control.borrow();
-            code.push_str(&format!("    {}, \n", control_ref.code_name));
+            code.push_str(&format!(
+                "    <STEREO_BUFFER> {}, \n",
+                control_ref.code_name
+            ));
         }
         code.push_str("):(\n");
         for output in template_ref.outputs.iter() {
@@ -169,12 +176,14 @@ impl<'a> CodeGenerator<'a> {
                 FeedbackDataRequirement::Custom { code_name, size } => {
                     // TODO: Check for duplicate code names (preferably in registry code.)
                     let code_name = snake_case_to_pascal_case(&code_name);
-                    custom_feedback_code
-                        .push_str(&format!("    macro Set{}(data):() {{\n", code_name));
+                    custom_feedback_code.push_str(&format!(
+                        "    macro Set{}([{}]FLOAT data):() {{\n",
+                        code_name, size
+                    ));
                     // TODO: No loop for single items?
                     custom_feedback_code.push_str(&format!("        for i = 0 to {} {{\n", size));
                     custom_feedback_code.push_str(&format!(
-                        "            global_feedback_data[{} + i] = data[i?];\n",
+                        "            global_feedback_data[{} + i] = data[i];\n",
                         self.feedback_data_len
                     ));
                     custom_feedback_code.push_str("        }\n    }\n");
@@ -242,7 +251,7 @@ impl<'a> CodeGenerator<'a> {
             code.push_str("):(\n");
             for output_index in 0..template_ref.outputs.len() {
                 code.push_str(&format!(
-                    "    AUTO module_{}_output_{},\n",
+                    "    <> module_{}_output_{},\n",
                     index, output_index,
                 ));
             }

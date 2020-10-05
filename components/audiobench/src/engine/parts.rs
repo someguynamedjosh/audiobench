@@ -90,6 +90,15 @@ impl JackType {
         }
     }
 
+    pub fn ns_type(&self) -> &'static str {
+        match self {
+            Self::Pitch => "<STEREO_BUFFER>",
+            Self::Waveform => "MACRO",
+            Self::Audio => "<STEREO_BUFFER>",
+            Self::Trigger => "<TRIGGER_BUFFER>",
+        }
+    }
+
     fn default_option_descriptions(&self) -> &'static [DefaultInputDescription] {
         match self {
             Self::Pitch => &[DefaultInputDescription {

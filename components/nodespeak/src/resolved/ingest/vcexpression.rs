@@ -30,23 +30,25 @@ impl<'a> ScopeResolver<'a> {
 
         let mut known_indexes = Vec::new();
         let mut all_indexes = Vec::new();
-        // TODO: Propogate type bounds.
-        let mut etype = rbase.borrow_actual_data_type().unwrap();
+        let mut etype = rbase.borrow_data_type().clone();
         for (index, optional) in indexes {
-            let arr_len = if let i::SpecificDataType::Array(len, eetype) = etype {
+            let arr_len;
+            if let Some(eetype) = etype.indexed(*optional) {
+                if *optional {
+                    continue;
+                } else if let Some(i::SpecificDataType::Array(len, _)) = etype.max() {
+                    arr_len = *len;
+                } else {
+                    unreachable!()
+                }
                 etype = eetype;
-                *len
-            } else if *optional {
-                continue;
             } else {
-                return Err(problems::too_many_indexes(
+                return Err(problems::cannot_index(
                     position.clone(),
-                    indexes.len(),
-                    all_indexes.len(),
-                    base.clone_position(),
-                    rbase.borrow_data_type(),
+                    index.clone_position(),
+                    &etype.min().unwrap()
                 ));
-            };
+            }
             let rindex = self.resolve_vp_expression(index)?;
             if rindex.borrow_actual_data_type() != &i::SpecificDataType::Int {
                 return Err(problems::array_index_not_int(

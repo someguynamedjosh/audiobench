@@ -21,7 +21,7 @@ impl<'a> VagueIngester<'a> {
             debug_assert!(child.as_rule() == i::Rule::macro_input);
             let var = o::Variable::variable(self.make_position(&child), None);
             let mut children = child.into_inner();
-            let typ = self.convert_build_type_bound(children.next().expect("bad AST"))?;
+            let typ = self.convert_vpe_part_3(children.next().expect("bad AST"))?;
             let name = children.next().expect("bad AST").as_str();
             let id = self
                 .target
@@ -190,10 +190,10 @@ impl<'a> VagueIngester<'a> {
         self.current_scope = body_scope;
 
         let possibly_body = children.next().expect("bad AST");
-        let (body, allow_unroll) = if possibly_body.as_rule() == i::Rule::no_unroll_keyword {
-            (children.next().expect("bad AST"), false)
+        let (body, allow_unroll) = if possibly_body.as_rule() == i::Rule::unroll_keyword {
+            (children.next().expect("bad AST"), true)
         } else {
-            (possibly_body, true)
+            (possibly_body, false)
         };
         self.convert_code_block(body)?;
         self.current_scope = old_current_scope;

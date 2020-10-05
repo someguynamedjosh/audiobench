@@ -229,9 +229,9 @@ pub fn array_size_not_resolved(size: FilePosition) -> CompileProblem {
 
 pub fn bad_array_literal(
     bad_item_pos: FilePosition,
-    bad_item_type: &i::DataType,
+    bad_item_type: &i::SpecificDataType,
     first_item_pos: FilePosition,
-    first_item_type: &i::DataType,
+    first_item_type: &i::SpecificDataType,
 ) -> CompileProblem {
     CompileProblem::from_descriptors(vec![
         ProblemDescriptor::new(

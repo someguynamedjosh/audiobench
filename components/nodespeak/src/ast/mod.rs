@@ -66,7 +66,7 @@ pub mod structure {
             Rule::else_if_clause => "else if clause",
             Rule::else_clause => "else clause",
             Rule::if_statement => "if statement",
-            Rule::no_unroll_keyword => "no_unroll (keyword)",
+            Rule::unroll_keyword => "unroll (keyword)",
             Rule::for_loop_statement => "for loop",
 
             Rule::raw_string => "string segment",
