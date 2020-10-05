@@ -1,4 +1,4 @@
-TRIGGER out_trigger = FALSE;
+TRIGGER_BUFFER out_trigger = FALSE as TRIGGER_BUFFER;
 
 static base_time, last_step {
     FLOAT base_time = 0.0;
@@ -7,19 +7,18 @@ static base_time, last_step {
 
 INT NUM_STEPS = (SEQUENCE:DIMS)[0];
 assert SEQUENCE:TYPE == [NUM_STEPS]BOOL;
-AUTO timing = GetTiming(TIMING_MODE);
-assert timing:TYPE == [BUFFER_LENGTH]FLOAT;
+<MONO_BUFFER> timing = GetTiming(TIMING_MODE);
 
 if global_update_feedback_data {
-    FLOAT value = ((timing[0] - base_time) / STEP_TIME) % Itof(NUM_STEPS);
+    FLOAT value = ((timing[0?][0?] - base_time) / STEP_TIME) % Itof(NUM_STEPS);
     DisplayTriggerSequencePlayhead(SetPlayheadFeedback, value);
 }
 
-for i = 0 to BUFFER_LENGTH no_unroll {
+for i = 0 to BUFFER_LENGTH {
     if reset[i?] {
-        base_time = timing[i];
+        base_time = timing[i?][0?];
     }
-    INT step_now = Ftoi((timing[i] - base_time) / STEP_TIME) % NUM_STEPS;
+    INT step_now = Ftoi((timing[i?][0?] - base_time) / STEP_TIME) % NUM_STEPS;
     if last_step != step_now {
         last_step = step_now;
         out_trigger[i] = SEQUENCE[step_now];

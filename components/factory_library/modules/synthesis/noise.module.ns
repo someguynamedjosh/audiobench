@@ -1,6 +1,6 @@
 [BUFFER_LENGTH]FLOAT audio;
 
-AUTO delay = MAX_DELAY * delay_mul;
+<> delay = MAX_DELAY * delay_mul;
 
 static old_value, new_value, old_value_time {
     FLOAT old_value = 0.0;
@@ -8,7 +8,7 @@ static old_value, new_value, old_value_time {
     FLOAT old_value_time = 0.0;
 }
 
-for i = 0 to BUFFER_LENGTH no_unroll {
+for i = 0 to BUFFER_LENGTH {
     FLOAT delay_now = delay[i?][0?];
     FLOAT value_now;
     if delay_now <= 1.0 / SAMPLE_RATE {
@@ -44,7 +44,7 @@ if global_update_feedback_data {
         0.3350715841, 0.6044406241, 0.0164770681, 0.5227222970, 0.3939237240, 0.1516453785,
         0.7058609147, 0.4322837979, 0.3666769617, 0.9135396160, 0.7535281491, 0.1228587420, 
     ];
-    macro WaveformQuoteUnquote(buffer_pos, phase):(value) {
+    macro WaveformQuoteUnquote(INT buffer_pos, FLOAT phase):(value) {
         FLOAT waveform_pos = phase * 41.999 / (1.0 + 40.0 * delay_mul[buffer_pos?][0?]);
         FLOAT value;
         if SMOOTH_MODE == 0 {

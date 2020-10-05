@@ -1,4 +1,4 @@
-macro Waveform(buffer_pos, phase):(value) {
+macro Waveform(INT buffer_pos, ANY_SAMPLE phase):(value) {
     // Either a mono or stereo value.
     (phase:TYPE + duty[0?]:TYPE) value;
     for channel = 0 to (value:DIMS)[0?] {

@@ -1,8 +1,7 @@
-macro Waveform(buffer_pos, phase):(value) {
-    AUTO phase_offset = Modulator(buffer_pos, phase) * intensity[buffer_pos?];
-    // TODO: Half / full modulation.
-    AUTO real_phase = (phase + phase_offset + 1.0) % 1.0;
-    AUTO value = Carrier(buffer_pos, real_phase);
+macro Waveform(INT buffer_pos, ANY_SAMPLE phase):(value) {
+    <> phase_offset = Modulator(buffer_pos, phase) * intensity[buffer_pos?];
+    <> real_phase = (phase + phase_offset + 1.0) % 1.0;
+    <> value = Carrier(buffer_pos, real_phase);
 }
 
 if global_update_feedback_data {

@@ -1,5 +1,5 @@
-macro Waveform(buffer_pos, phase):(value) {
-    AUTO value = Sin(phase * TAU);
+macro Waveform(INT buffer_pos, ANY_SAMPLE phase):(value) {
+    ANY_SAMPLE value = Sin(phase * TAU);
 }
 
 if global_update_feedback_data {

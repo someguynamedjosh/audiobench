@@ -1,6 +1,6 @@
-macro Waveform(buffer_pos, phase):(value) {
-    AUTO amplitude = Modulator(buffer_pos, phase) * intensity[buffer_pos?] + (1.0 - intensity[buffer_pos?]);
-    AUTO value = Carrier(buffer_pos, phase) * amplitude;
+macro Waveform(INT buffer_pos, ANY_SAMPLE phase):(value) {
+    <> amplitude = Modulator(buffer_pos, phase) * intensity[buffer_pos?] + (1.0 - intensity[buffer_pos?]);
+    ANY_SAMPLE value = Carrier(buffer_pos, phase) * amplitude;
 }
 
 if global_update_feedback_data {

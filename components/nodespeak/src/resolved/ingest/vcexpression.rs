@@ -35,18 +35,19 @@ impl<'a> ScopeResolver<'a> {
             let arr_len;
             if let Some(eetype) = etype.indexed(*optional) {
                 if *optional {
+                    etype = eetype;
                     continue;
                 } else if let Some(i::SpecificDataType::Array(len, _)) = etype.max() {
                     arr_len = *len;
+                    etype = eetype;
                 } else {
                     unreachable!()
                 }
-                etype = eetype;
             } else {
                 return Err(problems::cannot_index(
                     position.clone(),
                     index.clone_position(),
-                    &etype.min().unwrap()
+                    &etype.min().unwrap(),
                 ));
             }
             let rindex = self.resolve_vp_expression(index)?;
@@ -86,7 +87,7 @@ impl<'a> ScopeResolver<'a> {
             all_indexes.push(rindex.as_vp_expression()?);
         }
 
-        let etype = etype.clone().into();
+        let etype = etype.clone();
         Ok(match rbase {
             ResolvedVCExpression::Modified {
                 mut vce,

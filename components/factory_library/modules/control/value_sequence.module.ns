@@ -6,19 +6,19 @@ static base_time {
 
 INT NUM_STEPS = (SEQUENCE:DIMS)[0];
 assert SEQUENCE:TYPE == [NUM_STEPS]FLOAT;
-AUTO timing = GetTiming(TIMING_MODE);
+<MONO_BUFFER> timing = GetTiming(TIMING_MODE);
 assert timing:TYPE == [BUFFER_LENGTH]FLOAT;
 
 if global_update_feedback_data {
-    FLOAT playhead_pos = ((timing[0] - base_time) / STEP_TIME) % Itof(NUM_STEPS);
+    FLOAT playhead_pos = ((timing[0?][0?] - base_time) / STEP_TIME) % Itof(NUM_STEPS);
     DisplayValueSequenceData(SetPlayheadFeedback, playhead_pos, ramping[0?][0?]);
 }
 
-for i = 0 to BUFFER_LENGTH no_unroll {
+for i = 0 to BUFFER_LENGTH {
     if reset[i?] {
-        base_time = timing[i];
+        base_time = timing[i?][0?];
     }
-    FLOAT step_now = ((timing[i] - base_time) / STEP_TIME) % Itof(NUM_STEPS);
+    FLOAT step_now = ((timing[i?][0?] - base_time) / STEP_TIME) % Itof(NUM_STEPS);
     INT step_index = Ftoi(step_now);
     FLOAT step_progress = step_now % 1.0;
     FLOAT ramp_start = (1.0 - ramping[i?][0?]);
