@@ -47,7 +47,13 @@ fn add_unary_op_macro(
 
     let in_var = Variable::variable(FilePosition::placeholder(), None);
     let in_var_id = program.adopt_and_define_symbol(body, in_name, in_var);
-    program[body].add_input(in_var_id);
+    program[body].add_input(
+        VPExpression::Literal(
+            KnownData::DataType(DataType::unbounded()),
+            FilePosition::placeholder(),
+        ),
+        in_var_id,
+    );
     let out_var = Variable::variable(FilePosition::placeholder(), None);
     let out_var_id = program.adopt_and_define_symbol(body, out_name, out_var);
     program[body].add_output(out_var_id);

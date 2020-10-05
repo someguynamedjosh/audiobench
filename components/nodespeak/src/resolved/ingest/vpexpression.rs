@@ -650,7 +650,7 @@ impl<'a> ScopeResolver<'a> {
 
         // Copy each input value to a new variable. If we know what the input value is at compile
         // time, then just set its temporary value without creating an actual variable for it.
-        let macro_inputs = self.source[body_scope].borrow_inputs().clone();
+        let macro_inputs = Vec::from(self.source[body_scope].borrow_inputs());
         if rinputs.len() != macro_inputs.len() {
             return Err(problems::wrong_number_of_inputs(
                 position.clone(),
@@ -660,17 +660,39 @@ impl<'a> ScopeResolver<'a> {
             ));
         }
         for (index, rinput) in rinputs.into_iter().enumerate() {
-            let input_id = macro_inputs[index];
-            if let ResolvedVPExpression::Interpreted(data, _, dtype) = rinput {
-                self.set_var_info(input_id, None, dtype);
+            let (ptype, input_id) = macro_inputs[index].clone();
+            let ptype = self.resolve_vp_expression(&ptype)?;
+            if ptype.borrow_actual_data_type() != &i::SpecificDataType::DataType {
+                return Err(problems::not_data_type_in_macro_def(
+                    ptype.clone_position(),
+                    ptype.borrow_data_type(),
+                ));
+            }
+            let ptype = if let ResolvedVPExpression::Interpreted(kdata, ..) = ptype {
+                kdata.require_data_type().clone()
+            } else {
+                unreachable!("Handled above.")
+            };
+            if let ResolvedVPExpression::Interpreted(data, pos, vtype) = rinput {
+                Self::value_bound_error_helper(pos.clone(), pos, &vtype, &ptype)?;
+                let typ = i::DataType {
+                    bounds: ptype.bounds.clone(),
+                    actual_type: vtype.actual_type.clone(),
+                };
+                self.set_var_info(input_id, None, typ.clone());
                 self.set_temporary_value(input_id, PossiblyKnownData::from_known_data(&data));
-            } else if let ResolvedVPExpression::Modified(rinput, dtype) = rinput {
+            } else if let ResolvedVPExpression::Modified(rinput, vtype) = rinput {
                 let pos = rinput.clone_position();
+                Self::value_bound_error_helper(pos.clone(), pos.clone(), &vtype, &ptype)?;
+                let typ = i::DataType {
+                    bounds: ptype.bounds.clone(),
+                    actual_type: vtype.actual_type.clone(),
+                };
                 // It is impossible to get a dynamic expression that returns compile time only data.
-                let odtype = Self::resolve_data_type(dtype.actual_type.as_ref().unwrap()).unwrap();
+                let odtype = Self::resolve_data_type(typ.actual_type.as_ref().unwrap()).unwrap();
                 let input_in_body = o::Variable::new(pos.clone(), odtype);
                 let input_in_body_id = self.target.adopt_variable(input_in_body);
-                self.set_var_info(macro_inputs[index], Some(input_in_body_id), dtype);
+                self.set_var_info(input_id, Some(input_in_body_id), typ.clone());
                 self.reset_temporary_value(input_id);
                 self.target[self.current_scope].add_statement(o::Statement::Assign {
                     target: Box::new(o::VCExpression::variable(input_in_body_id, pos.clone())),

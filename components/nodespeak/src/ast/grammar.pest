@@ -71,8 +71,9 @@ macro_call = { identifier ~ macro_call_input_list ~ macro_call_output_list? }
 
 // Macro definitions (techincally part of statements.)
 
+macro_input = { build_type_bound ~ identifier }
 macro_inputs = { "(" ~ (
-    identifier ~ ("," ~ identifier )* ~ ","?
+    macro_input ~ ("," ~ macro_input)* ~ ","?
 )? ~ ")" }
 macro_outputs = { ":" ~ "(" ~ (
     identifier ~ ("," ~ identifier)* ~ ","?

@@ -6,7 +6,7 @@ use std::collections::{HashMap, HashSet};
 
 pub fn ingest(program: &mut i::Program) -> Result<o::Program, CompileProblem> {
     let entry_point = program.get_entry_point();
-    let inputs = program[entry_point].borrow_inputs().clone();
+    let inputs = Vec::from(program[entry_point].borrow_inputs());
     let old_inputs = inputs.clone();
     let outputs = program[entry_point].borrow_outputs().clone();
     let old_outputs = outputs.clone();
@@ -14,7 +14,7 @@ pub fn ingest(program: &mut i::Program) -> Result<o::Program, CompileProblem> {
     resolver.entry_point(entry_point)?;
     let inputs: Vec<_> = inputs
         .into_iter()
-        .map(|id| {
+        .map(|(_typ, id)| {
             resolver
                 .get_var_info(id)
                 .expect("undefined input, should be caught in vague phase.")
@@ -35,7 +35,7 @@ pub fn ingest(program: &mut i::Program) -> Result<o::Program, CompileProblem> {
         if let Option::Some(var_id) = id {
             resolver.target.add_input(var_id);
         } else {
-            let pos = resolver.source[old_inputs[index]].get_definition().clone();
+            let pos = resolver.source[old_inputs[index].1].get_definition().clone();
             return Err(problems::compile_time_input(pos, &dtype));
         }
     }

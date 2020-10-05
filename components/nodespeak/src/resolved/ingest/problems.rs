@@ -85,6 +85,20 @@ pub fn not_data_type(expr_pos: FilePosition, typ: &i::DataType) -> CompileProble
     )])
 }
 
+pub fn not_data_type_in_macro_def(expr_pos: FilePosition, typ: &i::DataType) -> CompileProblem {
+    CompileProblem::from_descriptors(vec![ProblemDescriptor::new(
+        expr_pos,
+        Error,
+        &format!(
+            concat!(
+                "Incorrect Type\nThe highlighted expression should resolve to a data type or ",
+                "bound but it resolves to a {:?} instead.",
+            ),
+            typ
+        ),
+    )])
+}
+
 pub fn guaranteed_assert(assert_pos: FilePosition) -> CompileProblem {
     CompileProblem::from_descriptors(vec![ProblemDescriptor::new(
         assert_pos,

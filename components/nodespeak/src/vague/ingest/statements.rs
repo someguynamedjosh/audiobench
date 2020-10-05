@@ -8,7 +8,7 @@ impl<'a> VagueIngester<'a> {
     pub(super) fn convert_macro_signature<'n>(
         &mut self,
         node: i::Node<'n>,
-    ) -> Result<(Vec<o::VariableId>, Vec<i::Node<'n>>), CompileProblem> {
+    ) -> Result<(Vec<(o::VPExpression, o::VariableId)>, Vec<i::Node<'n>>), CompileProblem> {
         debug_assert!(node.as_rule() == i::Rule::macro_signature);
         let mut children = node.into_inner();
         let inputs_node = children.next().expect("bad AST");
@@ -16,17 +16,19 @@ impl<'a> VagueIngester<'a> {
         let outputs = outputs_node
             .map(|node| node.into_inner().collect())
             .unwrap_or_default();
-        let input_ids = inputs_node
-            .into_inner()
-            .map(|child| {
-                debug_assert!(child.as_rule() == i::Rule::identifier);
-                let name = child.as_str();
-                let var = o::Variable::variable(self.make_position(&child), None);
-                self.target
-                    .adopt_and_define_symbol(self.current_scope, name, var)
-            })
-            .collect();
-        Ok((input_ids, outputs))
+        let mut inputs = Vec::new();
+        for child in inputs_node.into_inner() {
+            debug_assert!(child.as_rule() == i::Rule::macro_input);
+            let var = o::Variable::variable(self.make_position(&child), None);
+            let mut children = child.into_inner();
+            let typ = self.convert_build_type_bound(children.next().expect("bad AST"))?;
+            let name = children.next().expect("bad AST").as_str();
+            let id = self
+                .target
+                .adopt_and_define_symbol(self.current_scope, name, var);
+            inputs.push((typ, id));
+        }
+        Ok((inputs, outputs))
     }
 
     pub(super) fn convert_macro_definition(&mut self, node: i::Node) -> Result<(), CompileProblem> {
@@ -46,9 +48,9 @@ impl<'a> VagueIngester<'a> {
         let old_current_scope = self.current_scope;
         self.current_scope = body_scope;
 
-        let (input_ids, output_nodes) = self.convert_macro_signature(signature_node)?;
-        for id in input_ids {
-            self.target[self.current_scope].add_input(id);
+        let (inputs, output_nodes) = self.convert_macro_signature(signature_node)?;
+        for (typ, id) in inputs {
+            self.target[self.current_scope].add_input(typ, id);
         }
         self.convert_code_block(body_node)?;
         let macro_name = macro_name_node.as_str();
@@ -220,7 +222,7 @@ impl<'a> VagueIngester<'a> {
             let pos = self.make_position(&child);
             let name = child.as_str();
             let var_id = self.create_variable(data_type.clone(), name, pos);
-            self.target[self.current_scope].add_input(var_id);
+            self.target[self.current_scope].add_input(data_type.clone(), var_id);
         }
         Ok(())
     }

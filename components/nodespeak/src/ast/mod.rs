@@ -56,6 +56,7 @@ pub mod structure {
             Rule::macro_call_output_list => "output list for macro call",
             Rule::macro_call => "single-output macro callession",
 
+            Rule::macro_input => "input for macro definition",
             Rule::macro_inputs => "input list for macro definition",
             Rule::macro_outputs => "output list for macro definition",
             Rule::single_macro_output => "single output for macro definition",

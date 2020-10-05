@@ -1,4 +1,4 @@
-use crate::vague::structure::{ScopeId, Statement, VariableId};
+use crate::vague::structure::{VPExpression, ScopeId, Statement, VariableId};
 use std::collections::HashMap;
 use std::fmt::{self, Debug, Formatter};
 
@@ -6,7 +6,7 @@ pub struct Scope {
     symbols: HashMap<String, VariableId>,
     intermediates: Vec<VariableId>,
     body: Vec<Statement>,
-    inputs: Vec<VariableId>,
+    inputs: Vec<(VPExpression, VariableId)>,
     outputs: Vec<VariableId>,
     parent: Option<ScopeId>,
 }
@@ -85,8 +85,8 @@ impl Scope {
         self.outputs.clear();
     }
 
-    pub fn add_input(&mut self, input: VariableId) {
-        self.inputs.push(input);
+    pub fn add_input(&mut self, bound: VPExpression, id: VariableId) {
+        self.inputs.push((bound, id));
     }
 
     pub fn add_output(&mut self, output: VariableId) {
@@ -105,12 +105,20 @@ impl Scope {
         &self.intermediates
     }
 
-    pub fn get_input(&self, index: usize) -> VariableId {
-        self.inputs[index]
+    pub fn borrow_input(&self, index: usize) -> &(VPExpression, VariableId) {
+        &self.inputs[index]
     }
 
-    pub fn borrow_inputs(&self) -> &Vec<VariableId> {
-        &self.inputs
+    pub fn borrow_input_type(&self, index: usize) -> &VPExpression {
+        &self.inputs[index].0
+    }
+
+    pub fn borrow_input_id(&self, index: usize) -> VariableId {
+        self.inputs[index].1
+    }
+
+    pub fn borrow_inputs(&self) -> &[(VPExpression, VariableId)] {
+        &self.inputs[..]
     }
 
     pub fn get_output(&self, index: usize) -> VariableId {
