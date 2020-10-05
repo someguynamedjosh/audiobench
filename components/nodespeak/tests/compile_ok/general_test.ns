@@ -8,8 +8,8 @@ ofloat = tempf;
 INT tempi = iint;
 ofloat = Itof(tempi);
 
-macro Macro(min):(mout) {
-    AUTO mout = min + 12;
+macro Macro(<> min):(mout) {
+    <> mout = min + 12;
 }
 
 ofloat = Itof(Macro(iint) / 3);
