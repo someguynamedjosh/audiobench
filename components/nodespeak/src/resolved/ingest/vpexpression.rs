@@ -499,12 +499,59 @@ impl<'a> ScopeResolver<'a> {
         // TODO: Check that the operand has a data type compatible with the operator.
         let res_lhs = self.resolve_vp_expression(lhs)?;
         let res_rhs = self.resolve_vp_expression(rhs)?;
+        // This operator works differently from all the otehrs. The RHS must be a data type and the
+        // LHS can be anything.
+        if operator == i::BinaryOperator::As {
+            if res_rhs.borrow_actual_data_type() != &i::SpecificDataType::DataType {
+                return Err(problems::bad_type_for_operator(
+                    rhs.clone_position(),
+                    "as operator",
+                    "a DATA_TYPE",
+                    res_rhs.borrow_actual_data_type(),
+                ));
+            }
+            let as_type: i::DataType = if let ResolvedVPExpression::Interpreted(data, ..) = res_rhs
+            {
+                let type_bound = data.require_data_type();
+                let value = if let Some(as_type) = type_bound.actual_type.as_ref() {
+                    as_type.clone().into()
+                } else {
+                    return Err(problems::as_type_bound(rhs.clone_position()));
+                };
+                // If the LHS is already interpreted don't bother with the rest of this stuff just
+                // interpret the value and return it.
+                if let ResolvedVPExpression::Interpreted(lhsv, _, _) = res_lhs {
+                    let inflated = Self::compute_binary_operation(&lhsv, operator, &data);
+                    let typ = inflated.get_specific_data_type().into();
+                    return Ok(ResolvedVPExpression::Interpreted(
+                        inflated,
+                        position.clone(),
+                        typ,
+                    ));
+                }
+                value
+            } else {
+                unreachable!("Handled above");
+            };
+            if Self::biggest_type(res_lhs.borrow_data_type(), &as_type).as_ref() != Ok(&as_type) {
+                return Err(problems::cannot_inflate(
+                    position.clone(),
+                    res_lhs.borrow_data_type(),
+                    &as_type.actual_type.unwrap(),
+                ));
+            }
+            // The trivial phase handles the actual inflation logic.
+            return Ok(match res_lhs {
+                ResolvedVPExpression::Interpreted(..) => unreachable!("Handled earlier."),
+                ResolvedVPExpression::Modified(e, _) => ResolvedVPExpression::Modified(e, as_type),
+            });
+        }
         let bct = if let Ok(bct) =
             Self::biggest_type(res_lhs.borrow_data_type(), res_rhs.borrow_data_type())
         {
             bct
         } else {
-            return Err(problems::no_bct(
+            return Err(problems::no_bct_binop(
                 position.clone(),
                 lhs.clone_position(),
                 res_lhs.borrow_data_type(),
@@ -518,7 +565,8 @@ impl<'a> ScopeResolver<'a> {
             | i::BinaryOperator::GreaterThan
             | i::BinaryOperator::GreaterThanOrEqual
             | i::BinaryOperator::Equal
-            | i::BinaryOperator::NotEqual => bct.with_different_base(i::SpecificDataType::Bool),
+            | i::BinaryOperator::NotEqual
+            | i::BinaryOperator::In => bct.with_different_base(i::SpecificDataType::Bool),
             _ => bct,
         };
         if let (

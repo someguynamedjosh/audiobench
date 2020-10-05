@@ -113,7 +113,12 @@ impl<'a> ScopeResolver<'a> {
         operator: i::BinaryOperator,
         b: &i::KnownData,
     ) -> i::KnownData {
-        if let i::KnownData::Array(array_a) = a {
+        if operator == i::BinaryOperator::As {
+            // All these checks should be handled earlier.
+            let target_type = b.require_data_type().actual_type.clone().unwrap();
+            let target_dims = target_type.collect_dims();
+            a.inflate(&target_dims[..])
+        } else if let i::KnownData::Array(array_a) = a {
             if let i::KnownData::Array(array_b) = b {
                 let a_size = array_a.len();
                 let b_size = array_b.len();
@@ -177,6 +182,22 @@ impl<'a> ScopeResolver<'a> {
         b: &i::KnownData,
     ) -> i::KnownData {
         match operator {
+            i::BinaryOperator::As => unreachable!("Should be handled in compute_binary_operation"),
+            i::BinaryOperator::In => {
+                let a = a.require_data_type();
+                let b = b.require_data_type();
+                // This is kind of hacky but since we won't be doing it too often it's not a 
+                // performance concern.
+                i::KnownData::Bool(
+                    Self::value_bound_error_helper(
+                        FilePosition::placeholder(),
+                        FilePosition::placeholder(),
+                        a,
+                        b,
+                    )
+                    .is_ok(),
+                )
+            }
             i::BinaryOperator::Add => match a {
                 i::KnownData::Bool(..) => unimplemented!(),
                 i::KnownData::Int(value) => i::KnownData::Int(value + b.require_int()),
@@ -368,6 +389,8 @@ impl<'a> ScopeResolver<'a> {
 
     pub(super) fn resolve_operator(operator: i::BinaryOperator) -> o::BinaryOperator {
         match operator {
+            i::BinaryOperator::As => unreachable!("as operator should not exist in resolved code."),
+            i::BinaryOperator::In => unreachable!("in operator should not exist in resolved code."),
             i::BinaryOperator::Add => o::BinaryOperator::Add,
             i::BinaryOperator::And => o::BinaryOperator::And,
             i::BinaryOperator::BAnd => o::BinaryOperator::BAnd,

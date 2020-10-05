@@ -6,6 +6,8 @@ use crate::vague::structure as o;
 
 #[derive(Clone)]
 enum Operator {
+    As,
+    In,
     Sentinel,
     Power,
     Multiply,
@@ -32,6 +34,8 @@ enum Operator {
 impl Operator {
     fn precedence(&self) -> u32 {
         match self {
+            Self::As => 23,
+            Self::In => 19,
             Self::Power => 22,
             Self::Multiply => 21,
             Self::Divide => 21,
@@ -65,6 +69,8 @@ impl Operator {
 
     fn bin_op(&self) -> o::BinaryOperator {
         match self {
+            Self::As => o::BinaryOperator::As,
+            Self::In => o::BinaryOperator::In,
             Self::Power => o::BinaryOperator::Power,
             Self::Multiply => o::BinaryOperator::Multiply,
             Self::Divide => o::BinaryOperator::Divide,
@@ -94,6 +100,8 @@ impl Operator {
 
 fn op_str_to_operator(op_str: &str) -> Operator {
     match op_str {
+        "as" => Operator::As,
+        "in" => Operator::In,
         "**" => Operator::Power,
         "+" => Operator::Add,
         "-" => Operator::Subtract,

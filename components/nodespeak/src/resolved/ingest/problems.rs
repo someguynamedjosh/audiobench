@@ -239,7 +239,7 @@ pub fn bad_array_literal(
     ])
 }
 
-pub fn no_bct(
+pub fn no_bct_binop(
     expression: FilePosition,
     op1: FilePosition,
     op1_type: &i::DataType,
@@ -266,6 +266,29 @@ pub fn no_bct(
             &format!("But the second operand has data type {:?}:", op2_type),
         ),
     ])
+}
+
+pub fn cannot_inflate(
+    expression: FilePosition,
+    expr_type: &i::DataType,
+    as_type: &i::SpecificDataType,
+) -> CompileProblem {
+    CompileProblem::from_descriptors(vec![ProblemDescriptor::new(
+        expression,
+        Error,
+        &format!(
+            "Cannot Inflate\nCannot inflate a value of type {:?} to type {:?}:",
+            expr_type, as_type
+        ),
+    )])
+}
+
+pub fn as_type_bound(type_bound: FilePosition) -> CompileProblem {
+    CompileProblem::from_descriptors(vec![ProblemDescriptor::new(
+        type_bound,
+        Error,
+        "Unresolved type bounds cannot be used in an 'as' expression.",
+    )])
 }
 
 pub fn mismatched_assign(
@@ -393,6 +416,25 @@ pub fn vpe_wrong_type(
         &format!(
             "Wrong Data Type\nExpected a {:?}, found a {:?}.",
             expected, found
+        ),
+    )])
+}
+
+pub fn bad_type_for_operator(
+    operand_pos: FilePosition,
+    operator_name: &str,
+    operator_usage: &str,
+    found: &i::SpecificDataType,
+) -> CompileProblem {
+    CompileProblem::from_descriptors(vec![ProblemDescriptor::new(
+        operand_pos,
+        Error,
+        &format!(
+            concat!(
+                "Bad Type For Operator\nThe {} operator requires {}, but a value of type {:?} was ",
+                "found instead."
+            ),
+            operator_name, operator_usage, found
         ),
     )])
 }

@@ -81,6 +81,9 @@ impl Debug for UnaryOperator {
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum BinaryOperator {
+    As,
+    In,
+
     Add,
     Subtract,
     Multiply,
@@ -108,6 +111,9 @@ pub enum BinaryOperator {
 impl Debug for BinaryOperator {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
         match self {
+            BinaryOperator::As => write!(formatter, "as"),
+            BinaryOperator::In => write!(formatter, "in"),
+
             BinaryOperator::Add => write!(formatter, "+"),
             BinaryOperator::Subtract => write!(formatter, "-"),
             BinaryOperator::Multiply => write!(formatter, "*"),

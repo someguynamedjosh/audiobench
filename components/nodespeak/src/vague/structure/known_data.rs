@@ -1,6 +1,7 @@
 use super::{DataType, SpecificDataType};
 use crate::high_level::problem::FilePosition;
 use crate::vague::structure::ScopeId;
+use shared_util::prelude::*;
 
 use std::fmt::{self, Debug, Formatter};
 
@@ -119,6 +120,30 @@ impl KnownData {
             items[indexes[0]].index(&indexes[1..])
         } else {
             panic!("Cannot index non-array data. (Too many indexes?)")
+        }
+    }
+
+    /// Panics if inflation is invalid.
+    pub fn inflate(&self, dimensions: &[usize]) -> KnownData {
+        match self {
+            Self::Array(items) => {
+                assert!(dimensions.len() > 0);
+                if items.len() == dimensions[0] {
+                    KnownData::Array(items.imc(|x| x.inflate(&dimensions[1..])))
+                } else {
+                    assert!(items.len() == 1);
+                    let item = items[0].inflate(&dimensions[1..]);
+                    KnownData::Array((0..dimensions[0]).map(|_| item.clone()).collect())
+                }
+            }
+            _ => {
+                if dimensions.len() == 0 {
+                    self.clone()
+                } else {
+                    let item = self.inflate(&dimensions[1..]);
+                    KnownData::Array((0..dimensions[0]).map(|_| item.clone()).collect())
+                }
+            }
         }
     }
 

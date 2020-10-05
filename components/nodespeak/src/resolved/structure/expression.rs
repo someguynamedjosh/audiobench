@@ -145,7 +145,7 @@ impl Debug for VPExpression {
             }
             Self::BinaryOperation {
                 lhs, op, rhs, typ, ..
-            } => write!(formatter, "({:?} {:?} {:?} as {:?})", lhs, op, rhs, typ),
+            } => write!(formatter, "({:?} {:?} {:?}) as {:?}", lhs, op, rhs, typ),
             Self::Index { base, indexes, .. } => {
                 write!(formatter, "{:?}", base)?;
                 for index in indexes.iter() {

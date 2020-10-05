@@ -48,6 +48,7 @@ operator = {
     "**" | "*" | "//" | "/" | "%" | "+" | "-"
     | "<<" | ">>"
     | "<=" | ">=" | "<" | ">" | "==" | "!="
+    | "as" | "in"
     | "band" | "bnand" | "bor" | "bnor" | "bxor" | "bxnor"
     | "and" | "nand" | "or" | "nor" | "xor" | "xnor"
 }
