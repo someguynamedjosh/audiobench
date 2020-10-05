@@ -308,8 +308,8 @@ impl<'a> ScopeResolver<'a> {
                 ScopeResolver::biggest_specific_type(a.unwrap(), b.unwrap()).map(|sdt| Some(sdt))
             }
         }
-        let (au, al) = a.bounds.as_tuple();
-        let (bu, bl) = b.bounds.as_tuple();
+        let (al, au) = a.bounds.as_tuple();
+        let (bl, bu) = b.bounds.as_tuple();
         let u = biggest_option_type(au, bu)?;
         let l = biggest_option_type(al, bl)?;
         let actual_type = biggest_option_type(a.actual_type.as_ref(), b.actual_type.as_ref())?;

@@ -35,7 +35,9 @@ pub fn ingest(program: &mut i::Program) -> Result<o::Program, CompileProblem> {
         if let Option::Some(var_id) = id {
             resolver.target.add_input(var_id);
         } else {
-            let pos = resolver.source[old_inputs[index].1].get_definition().clone();
+            let pos = resolver.source[old_inputs[index].1]
+                .get_definition()
+                .clone();
             return Err(problems::compile_time_input(pos, &dtype));
         }
     }
@@ -193,6 +195,8 @@ impl<'a> ScopeResolver<'a> {
         var: i::VariableId,
         resolved_var: Option<o::VariableId>,
         dtype: i::SpecificDataType,
+        // Used for full auto bounds (<>) which have no bounds before being resolved.
+        restrict_bounds: Option<i::Bounds>,
     ) {
         debug_assert!(self.table.variables.contains_key(&var));
         // Go back and resolve the var in any tables in the stack too in case we entered a scope
@@ -204,10 +208,16 @@ impl<'a> ScopeResolver<'a> {
             let entry = self.stack[stack_index].variables.get_mut(&var).unwrap();
             entry.0 = resolved_var;
             entry.1.actual_type = Some(dtype.clone());
+            if let Some(bounds) = restrict_bounds.clone() {
+                entry.1.bounds = bounds;
+            }
         }
         let entry = self.table.variables.get_mut(&var).unwrap();
         entry.0 = resolved_var;
         entry.1.actual_type = Some(dtype);
+        if let Some(bounds) = restrict_bounds.clone() {
+            entry.1.bounds = bounds;
+        }
     }
 
     pub(super) fn set_temporary_value(&mut self, var: i::VariableId, value: PossiblyKnownData) {

@@ -122,8 +122,13 @@ impl<'a> ScopeResolver<'a> {
             } else {
                 None
             };
+            let new_bounds = if lhs.borrow_data_type().bounds == i::Bounds::Unbounded {
+                Some(rhs.borrow_data_type().bounds.clone())
+            } else {
+                None
+            };
             // This does not check if the type is within bounds, we check that above.
-            self.resolve_bounded_var(lhs.get_base(), resolved_var, actual_type);
+            self.resolve_bounded_var(lhs.get_base(), resolved_var, actual_type, new_bounds);
         }
         if let (
             ResolvedVCExpression::Specific {
