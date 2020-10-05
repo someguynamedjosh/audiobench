@@ -6,8 +6,6 @@ use crate::trivial::structure as o;
 use std::borrow::Borrow;
 use std::collections::{HashMap, HashSet};
 
-mod problems;
-
 pub fn ingest(program: &i::Program, sources: &SourceSet) -> Result<o::Program, CompileProblem> {
     let mut trivializer = Trivializer::new(program, sources);
     trivializer.entry_point()?;
@@ -450,7 +448,7 @@ impl<'a> Trivializer<'a> {
 
     fn trivialize_assignment(
         &mut self,
-        statement: &i::Statement,
+        _statement: &i::Statement,
         target: &i::VCExpression,
         value: &i::VPExpression,
     ) -> Result<(), CompileProblem> {

@@ -1,4 +1,3 @@
-use crate::resolved::structure as o;
 use crate::vague::structure as i;
 use std::fmt::{self, Debug, Formatter};
 
@@ -25,25 +24,6 @@ impl PossiblyKnownData {
                     .collect(),
             )
         }
-    }
-
-    pub fn collect(items: Vec<PossiblyKnownData>) -> PossiblyKnownData {
-        debug_assert!(items.len() > 0);
-        debug_assert!(
-            {
-                let dtype = items[0].get_data_type();
-                let mut matches = true;
-                for item in &items {
-                    if item.get_data_type() != dtype {
-                        matches = false;
-                        break;
-                    }
-                }
-                matches
-            },
-            "known data array items are incompatible."
-        );
-        PossiblyKnownData::Array(items)
     }
 
     pub fn from_known_data(kd: &i::KnownData) -> Self {
@@ -76,108 +56,6 @@ impl PossiblyKnownData {
                 }
                 Ok(i::KnownData::Array(kitems))
             }
-        }
-    }
-
-    pub fn to_resolved_data(&self) -> Result<o::KnownData, ()> {
-        match self {
-            Self::Bool(value) => Ok(o::KnownData::Bool(*value)),
-            Self::Int(value) => Ok(o::KnownData::Int(*value)),
-            Self::Float(value) => Ok(o::KnownData::Float(*value)),
-            Self::Array(items) => {
-                let mut ritems = Vec::with_capacity(items.len());
-                for item in items {
-                    ritems.push(item.to_resolved_data()?);
-                }
-                Ok(o::KnownData::Array(ritems))
-            }
-            _ => Err(()),
-        }
-    }
-
-    pub fn is_known(&self) -> bool {
-        match self {
-            Self::Unknown => false,
-            Self::Array(items) => {
-                for item in items {
-                    if !item.is_known() {
-                        return false;
-                    }
-                }
-                true
-            }
-            _ => true,
-        }
-    }
-
-    pub fn get_data_type(&self) -> Option<i::SpecificDataType> {
-        Some(match self {
-            PossiblyKnownData::Array(data) => {
-                assert!(data.len() > 0);
-                if !self.is_known() {
-                    return None;
-                }
-                let first_type = data[0].get_data_type().unwrap();
-                i::SpecificDataType::Array(data.len(), Box::new(first_type))
-            }
-            PossiblyKnownData::Void => i::SpecificDataType::Void,
-            PossiblyKnownData::Bool(..) => i::SpecificDataType::Bool,
-            PossiblyKnownData::Int(..) => i::SpecificDataType::Int,
-            PossiblyKnownData::Float(..) => i::SpecificDataType::Float,
-            PossiblyKnownData::DataType(..) => i::SpecificDataType::DataType,
-            PossiblyKnownData::Macro(..) => i::SpecificDataType::Macro,
-            PossiblyKnownData::Unknown => {
-                return None;
-            }
-        })
-    }
-
-    pub fn require_bool(&self) -> bool {
-        match self {
-            PossiblyKnownData::Bool(value) => *value,
-            _ => panic!("Expected data to be a bool."),
-        }
-    }
-
-    pub fn require_int(&self) -> i64 {
-        match self {
-            PossiblyKnownData::Int(value) => *value,
-            _ => panic!("Expected data to be an int."),
-        }
-    }
-
-    pub fn require_float(&self) -> f64 {
-        match self {
-            PossiblyKnownData::Float(value) => *value,
-            _ => panic!("Expected data to be a float."),
-        }
-    }
-
-    pub fn require_data_type(&self) -> &i::DataType {
-        match self {
-            PossiblyKnownData::DataType(value) => value,
-            _ => panic!("Expected data to be a data type."),
-        }
-    }
-
-    pub fn require_macro(&self) -> &i::MacroData {
-        match self {
-            PossiblyKnownData::Macro(value) => value,
-            _ => panic!("Expected data to be a macro."),
-        }
-    }
-
-    pub fn require_array(&self) -> &Vec<PossiblyKnownData> {
-        match self {
-            PossiblyKnownData::Array(value) => value,
-            _ => panic!("Expected data to be an array."),
-        }
-    }
-
-    pub fn require_array_mut(&mut self) -> &mut Vec<PossiblyKnownData> {
-        match self {
-            PossiblyKnownData::Array(value) => value,
-            _ => panic!("Expected data to be an array."),
         }
     }
 }

@@ -18,7 +18,6 @@ impl<'a> ScopeResolver<'a> {
         let (resolved_id, dtype) = (resolved_id.clone(), dtype.clone());
         let value = self.borrow_temporary_value(var_id);
         if let Ok(kvalue) = value.to_known_data() {
-            let typ = kvalue.get_specific_data_type();
             return Ok(ResolvedVPExpression::Interpreted(
                 kvalue,
                 position.clone(),
@@ -260,7 +259,7 @@ impl<'a> ScopeResolver<'a> {
 
         match resolved_index {
             // If the index is compile-time constant.
-            ResolvedVPExpression::Interpreted(data, index_pos, dtype) => {
+            ResolvedVPExpression::Interpreted(data, index_pos, ..) => {
                 // Safe because we already checked that it was an int.
                 let value = data.require_int();
                 // Check that the index is in bounds.
@@ -281,13 +280,13 @@ impl<'a> ScopeResolver<'a> {
                 }
                 Ok(match resolved_base {
                     // If the base is also compile-time constant, return a new constant value.
-                    ResolvedVPExpression::Interpreted(base_data, base_pos, base_type) => {
+                    ResolvedVPExpression::Interpreted(base_data, base_pos, ..) => {
                         let element = base_data.require_array()[value as usize].clone();
                         let mut pos = base_pos;
                         pos.include_other(&index_pos);
                         ResolvedVPExpression::Interpreted(element, pos, etype)
                     }
-                    ResolvedVPExpression::Modified(base_expr, base_type) => {
+                    ResolvedVPExpression::Modified(base_expr, ..) => {
                         let pos = FilePosition::union(&[&base_expr.clone_position(), &index_pos]);
                         let index = Self::int_literal(value, index_pos);
                         ResolvedVPExpression::Modified(
@@ -295,7 +294,7 @@ impl<'a> ScopeResolver<'a> {
                             if let o::VPExpression::Index {
                                 base,
                                 mut indexes,
-                                position,
+                                ..
                             } = base_expr
                             {
                                 indexes.push(index);
@@ -342,7 +341,7 @@ impl<'a> ScopeResolver<'a> {
                             position: pos,
                         }
                     }
-                    ResolvedVPExpression::Modified(base_expr, base_type) => {
+                    ResolvedVPExpression::Modified(base_expr, _typ) => {
                         // Otherwise, if it's an index expression, add the new index to it.
                         if let o::VPExpression::Index {
                             base, mut indexes, ..

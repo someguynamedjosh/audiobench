@@ -1,5 +1,4 @@
-use crate::resolved::structure::{ScopeId, Statement, VariableId};
-use std::collections::HashMap;
+use crate::resolved::structure::Statement;
 use std::fmt::{self, Debug, Formatter};
 
 pub struct Scope {

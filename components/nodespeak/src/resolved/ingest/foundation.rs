@@ -289,14 +289,6 @@ impl<'a> ScopeResolver<'a> {
         self.temp_values.get_mut(&var).unwrap() // We just populated the value.
     }
 
-    pub(super) fn borrow_temporary_item(
-        &mut self,
-        var: i::VariableId,
-        indexes: &[usize],
-    ) -> &PossiblyKnownData {
-        self.borrow_temporary_item_mut(var, indexes)
-    }
-
     pub(super) fn borrow_temporary_item_mut(
         &mut self,
         var: i::VariableId,
@@ -424,13 +416,6 @@ impl ResolvedVCExpression {
 
     pub(super) fn borrow_actual_data_type(&self) -> Option<&i::SpecificDataType> {
         self.borrow_data_type().actual_type.as_ref()
-    }
-
-    pub(super) fn clone_position(&self) -> FilePosition {
-        match self {
-            Self::Modified { vce, .. } => vce.position.clone(),
-            Self::Specific { pos, .. } => pos.clone(),
-        }
     }
 
     /// If the result is already an expression, returns that. If the result is specific, returns

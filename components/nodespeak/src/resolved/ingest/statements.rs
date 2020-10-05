@@ -402,7 +402,7 @@ impl<'a> ScopeResolver<'a> {
         &mut self,
         body: i::ScopeId,
         exports: &Vec<i::VariableId>,
-        position: &FilePosition,
+        _position: &FilePosition,
     ) -> Result<ResolvedStatement, CompileProblem> {
         let old_scope = self.current_scope;
         self.current_scope = self.target.get_static_init();
@@ -419,7 +419,8 @@ impl<'a> ScopeResolver<'a> {
             let info = self.get_var_info(*export);
             if let Some((Some(id), typ)) = info {
                 exported_var_info.push((*export, *id, typ.clone()));
-                self.target.add_static_var(*id);
+                let id = *id;
+                self.target.add_static_var(id);
             } else {
                 panic!("TODO: Nice error, cannot export ct-only variable.");
             }
