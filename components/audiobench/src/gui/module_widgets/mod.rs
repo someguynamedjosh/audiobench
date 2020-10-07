@@ -1,5 +1,6 @@
 mod duration_box;
 mod envelope_graph;
+mod frequency_box;
 mod hslider;
 mod int_box;
 mod knob;
@@ -13,6 +14,7 @@ mod waveform_graph;
 
 pub use duration_box::*;
 pub use envelope_graph::*;
+pub use frequency_box::*;
 pub use hslider::*;
 pub use int_box::*;
 pub use knob::*;

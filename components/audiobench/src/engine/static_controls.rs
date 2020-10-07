@@ -579,6 +579,84 @@ impl ControlledData for ControlledOptionChoice {
     }
 }
 
+#[derive(Clone, Debug)]
+pub struct ControlledFrequency {
+    require_static_only: bool,
+    value: f32,
+}
+
+impl ControlledFrequency {
+    pub const MIN_FREQUENCY: f32 = 0.0003;
+    pub const MAX_FREQUENCY: f32 = 99_999.999;
+
+    fn from_yaml(yaml: &YamlNode) -> Result<Self, String> {
+        let value = if let Ok(child) = yaml.unique_child("default") {
+            child.parse_ranged(Some(Self::MIN_FREQUENCY), None)?
+        } else {
+            1.0
+        };
+        Ok(Self {
+            require_static_only: require_static_only_boilerplate!(yaml),
+            value,
+        })
+    }
+
+    pub fn get_value(&self) -> f32 {
+        self.value
+    }
+
+    pub fn set_value(&mut self, value: f32) -> StaticonUpdateRequest {
+        assert!(value >= Self::MIN_FREQUENCY);
+        assert!(value <= Self::MAX_FREQUENCY);
+        if value == self.value {
+            return StaticonUpdateRequest::Nothing;
+        }
+        self.value = value;
+        StaticonUpdateRequest::dyn_update_if_allowed(self)
+    }
+
+    pub fn get_formatted_value(&self) -> String {
+        let value = self.value;
+        let (decimals, kilo) = if value < 10.0 - 0.005 {
+            (2, false)
+        } else if value < 100.0 - 0.05 {
+            (1, false)
+        } else if value < 1_000.0 - 0.5 {
+            (0, false)
+        } else if value < 10_000.0 - 5.0 {
+            (1, true)
+        } else {
+            // if value < 100_000.0
+            (0, true)
+        };
+        if kilo {
+            format!("{:.1$}kHz", value / 1000.0, decimals)
+        } else {
+            format!("{:.1$}Hz", value, decimals)
+        }
+    }
+}
+
+#[rustfmt::skip]
+impl ControlledData for ControlledFrequency {
+    fn is_static_only(&self) -> bool { self.require_static_only }
+    fn get_data_type(&self) -> String { "FLOAT".to_owned() }
+    fn get_io_type(&self) -> IOType { IOType::Float }
+    fn generate_static_code(&self) -> String { self.value.to_string() }
+    fn package_dyn_data(&self) -> IODataPtr { IODataPtr::Float(self.value) }
+    fn serialize(&self, buffer: &mut Vec<u8>) { 
+        mini_bin::ser_f32(buffer, self.value);
+    }
+    fn deserialize(&mut self, slice: &mut &[u8]) -> Result<(), ()> { 
+        self.value = mini_bin::des_f32(slice)?;
+        if self.value >= Self::MIN_FREQUENCY && self.value <= Self::MAX_FREQUENCY {
+            Ok(())
+        } else {
+            Err(())
+        }
+    }
+}
+
 #[derive(Debug)]
 pub enum ArbitraryStaticonData {
     Int(Rcrc<ControlledInt>),
@@ -587,6 +665,7 @@ pub enum ArbitraryStaticonData {
     TriggerSequence(Rcrc<ControlledTriggerSequence>),
     ValueSequence(Rcrc<ControlledValueSequence>),
     OptionChoice(Rcrc<ControlledOptionChoice>),
+    Frequency(Rcrc<ControlledFrequency>),
 }
 
 impl ArbitraryStaticonData {
@@ -598,6 +677,7 @@ impl ArbitraryStaticonData {
             Self::TriggerSequence(ptr) => Rc::clone(ptr) as _,
             Self::ValueSequence(ptr) => Rc::clone(ptr) as _,
             Self::OptionChoice(ptr) => Rc::clone(ptr) as _,
+            Self::Frequency(ptr) => Rc::clone(ptr) as _,
         }
     }
 
@@ -609,6 +689,7 @@ impl ArbitraryStaticonData {
             Self::TriggerSequence(ptr) => Self::TriggerSequence(rcrc((*ptr.borrow()).clone())),
             Self::ValueSequence(ptr) => Self::ValueSequence(rcrc((*ptr.borrow()).clone())),
             Self::OptionChoice(ptr) => Self::OptionChoice(rcrc((*ptr.borrow()).clone())),
+            Self::Frequency(ptr) => Self::Frequency(rcrc((*ptr.borrow()).clone())),
         }
     }
 }
@@ -630,6 +711,9 @@ pub fn from_yaml(yaml: &YamlNode) -> Result<Staticon, String> {
         }
         "OptionChoice" => {
             ArbitraryStaticonData::OptionChoice(rcrc(ControlledOptionChoice::from_yaml(yaml)?))
+        }
+        "Frequency" => {
+            ArbitraryStaticonData::Frequency(rcrc(ControlledFrequency::from_yaml(yaml)?))
         }
         _ => {
             return Err(format!(

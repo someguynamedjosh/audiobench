@@ -1,0 +1,24 @@
+save_id: 19
+inputs:
+outputs:
+  frequency:
+    type: pitch
+    label: Frequency
+    tooltip: The selected frequency
+autocons:
+staticons:
+  FREQUENCY: Frequency
+    default: 10.0
+gui:
+  label: Fixed Frequency
+  category: Utility
+  tooltip: Outputs a selectable, unchanging frequency (aka pitch).
+  width: 2
+  height: 2
+  widgets:
+    frequency_box:
+      x: 0
+      y: 0
+      control: FREQUENCY
+      label: Frequency
+      tooltip: The frequency to output.

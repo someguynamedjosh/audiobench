@@ -19,6 +19,7 @@ impl FeedbackDataRequirement {
 yaml_widget_boilerplate::make_widget_outline_enum![
     DurationBox,
     EnvelopeGraph,
+    FrequencyBox,
     HSlider,
     IntBox,
     Knob,

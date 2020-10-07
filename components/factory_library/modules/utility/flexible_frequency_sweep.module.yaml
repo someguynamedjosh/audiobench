@@ -1,0 +1,34 @@
+save_id: 21
+inputs:
+  start:
+    type: pitch
+    label: Start
+    tooltip: The frequency to output when the knob is all the way to the left.
+  end:
+    type: pitch
+    label: End
+    tooltip: The frequency to output when the knob is all the way to the right.
+outputs:
+  frequency:
+    type: pitch
+    label: Frequency
+    tooltip: The swept frequency
+autocons:
+  sweep:
+    min: 0.0
+    max: 1.0
+    default: 0.5
+staticons:
+gui:
+  label: Flexible Frequency Sweep
+  category: Utility
+  tooltip: Like the regular Frequency Sweep module, but uses wires instead of fixed frequencies.
+  width: 2
+  height: 2
+  widgets:
+    knob:
+      x: 0
+      y: 0
+      control: sweep
+      label: Sweep
+      tooltip: Controls the position of the sweep between the start and the end.
