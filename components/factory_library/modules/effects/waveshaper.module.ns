@@ -1,0 +1,31 @@
+DATA_TYPE SAMPLE = Waveform(0, audio[0?]):TYPE;
+<STEREO_BUFFER> result = 0.0 as [BUFFER_LENGTH]SAMPLE;
+
+macro WaveformAfterSymmetry(INT buffer_pos, ANY_SAMPLE phase):(sample) {
+    <> sample;
+    if SYMMETRY == 0 { // No symmetry
+        Waveform(buffer_pos, phase):(sample);
+    } else if SYMMETRY == 1 { // Mirrored
+        <> mirrored_phase = 2.0 * Abs(phase - 0.5);
+        Waveform(buffer_pos, mirrored_phase):(sample);
+    } else if SYMMETRY == 2 { // Rotated
+        <> mirrored_phase = 2.0 * Abs(phase - 0.5);
+        sample = Waveform(buffer_pos, mirrored_phase);
+        for channel = 0 to (phase:DIMS)[0?] {
+            if phase[channel?] < 0.5 {
+                sample[channel?] = sample[channel?] * -0.5 - 0.5;
+            } else {
+                sample[channel?] = sample[channel?] * 0.5 + 0.5;
+            }
+        }
+    }
+}
+
+for i = 0 to BUFFER_LENGTH {
+    result[i?] = WaveformAfterSymmetry(i, audio[i?] * 0.5 + 0.5);
+}
+
+if global_update_feedback_data {
+    FLOAT cursor_phase = audio[0?][0?] * 0.5 + 0.5;
+    DisplayWaveformWithCursor(SetGraphFeedback, WaveformAfterSymmetry, cursor_phase);
+}
