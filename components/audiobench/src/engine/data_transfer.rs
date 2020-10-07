@@ -181,15 +181,12 @@ impl<'a> OutputUnpacker<'a> {
     const GPI_FEEDBACK_DATA: usize = 1;
 
     pub fn new(real_unpacker: &'a DataUnpacker) -> Self {
-        Self {
-            real_unpacker,
-        }
+        Self { real_unpacker }
     }
 
     pub fn borrow_audio_out(&self) -> &[f32] {
         unsafe {
-            if let IODataPtr::FloatArray(arr) =
-                self.real_unpacker.get_argument(Self::GPI_AUDIO_OUT)
+            if let IODataPtr::FloatArray(arr) = self.real_unpacker.get_argument(Self::GPI_AUDIO_OUT)
             {
                 arr
             } else {

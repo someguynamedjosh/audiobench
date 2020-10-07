@@ -1,6 +1,6 @@
-use nodespeak::llvmir::structure::OwnedIOData;
 use super::parts::{Autocon, Module};
 use super::static_controls::Staticon;
+use nodespeak::llvmir::structure::OwnedIOData;
 use shared_util::prelude::*;
 
 // This packages changes made by the user to knobs and automation into a format that can be read

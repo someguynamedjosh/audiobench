@@ -129,10 +129,7 @@ impl Program {
         self.parse_error_code(error_code)
     }
 
-    pub unsafe fn execute(
-        &mut self,
-        static_data: &mut StaticData,
-    ) -> Result<(), &str> {
+    pub unsafe fn execute(&mut self, static_data: &mut StaticData) -> Result<(), &str> {
         let input_data = self.in_packer.borrow_packed_data();
         let output_data = self.out_unpacker.borrow_packed_data();
         let error_code = self.idata.with(|idata| {

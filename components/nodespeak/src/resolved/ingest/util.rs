@@ -186,7 +186,7 @@ impl<'a> ScopeResolver<'a> {
             i::BinaryOperator::In => {
                 let a = a.require_data_type();
                 let b = b.require_data_type();
-                // This is kind of hacky but since we won't be doing it too often it's not a 
+                // This is kind of hacky but since we won't be doing it too often it's not a
                 // performance concern.
                 i::KnownData::Bool(
                     Self::value_bound_error_helper(
