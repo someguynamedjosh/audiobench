@@ -34,12 +34,12 @@ impl<'a> ScopeResolver<'a> {
         for (index, optional) in indexes {
             let arr_len;
             if let Some(eetype) = etype.indexed(*optional) {
-                if *optional {
-                    etype = eetype;
-                    continue;
-                } else if let Some(i::SpecificDataType::Array(len, _)) = etype.max() {
+                if let Some(i::SpecificDataType::Array(len, _)) = &etype.actual_type {
                     arr_len = *len;
                     etype = eetype;
+                } else if *optional {
+                    etype = eetype;
+                    continue;
                 } else {
                     unreachable!()
                 }
