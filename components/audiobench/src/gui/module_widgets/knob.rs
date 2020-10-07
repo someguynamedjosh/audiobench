@@ -200,7 +200,7 @@ pub struct KnobEditor {
 }
 
 impl KnobEditor {
-    fn create(
+    pub(super) fn create(
         control: Rcrc<ep::Autocon>,
         value: Rcrc<f32>,
         center_pos: (f32, f32),

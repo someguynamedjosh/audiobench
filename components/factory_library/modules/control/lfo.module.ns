@@ -1,7 +1,7 @@
 DATA_TYPE SAMPLE = strength[0?]:TYPE + offset[0?]:TYPE + Waveform(0, 0.0):TYPE;
 ANY_AUDIO_BUFFER audio = 0.0 as [BUFFER_LENGTH]SAMPLE;
 
-macro ApplyStrength(SAMPLE sample, INT buffer_pos):(adjusted) {
+macro ApplyStrength(ANY_SAMPLE sample, INT buffer_pos):(adjusted) {
     ANY_SAMPLE adjusted;
     if STRENGTH_MODE == 0 { // Max
         adjusted = sample * strength[buffer_pos?] + (1.0 - strength[buffer_pos?]);
@@ -14,7 +14,7 @@ macro ApplyStrength(SAMPLE sample, INT buffer_pos):(adjusted) {
 
 <MONO_BUFFER> timing = GetTiming(TIMING_MODE);
 for i = 0 to BUFFER_LENGTH {
-    SAMPLE sample = Waveform(i, (timing[i?][0?] / CYCLE_TIME + offset[i?] + 1.0) % 1.0);
+    ANY_SAMPLE sample = Waveform(i, (timing[i?][0?] / CYCLE_TIME + offset[i?] + 1.0) % 1.0);
     audio[i] = ApplyStrength(sample, i);
 }
 

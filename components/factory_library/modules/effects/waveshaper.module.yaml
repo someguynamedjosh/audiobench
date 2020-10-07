@@ -21,7 +21,7 @@ staticons:
       None:
       Mirror:
       Rotate:
-    default: 2
+    default: 0
 gui:
   label: Waveshaper
   category: Effects

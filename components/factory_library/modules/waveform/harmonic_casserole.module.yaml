@@ -1,0 +1,197 @@
+save_id: 86
+inputs:
+  Base:
+    type: waveform
+    label: Base Waveform
+    tooltip: The waveform to generate the harmonics from
+    default: 3
+outputs:
+  Casserole:
+    type: waveform
+    label: Casserole
+    tooltip: The combination of all the selected harmonics
+autocons:
+  amp1:
+    min: 0
+    max: 1
+    default: 0.75
+  amp2:
+    min: 0
+    max: 1
+    default: 0.25
+  amp3:
+    min: 0
+    max: 1
+    default: 0
+  amp4:
+    min: 0
+    max: 1
+    default: 0
+  amp5:
+    min: 0
+    max: 1
+    default: 0
+  amp6:
+    min: 0
+    max: 1
+    default: 0
+  amp7:
+    min: 0
+    max: 1
+    default: 0
+  amp8:
+    min: 0
+    max: 1
+    default: 0
+  phase1:
+    min: -1
+    max: 1
+    default: 0
+  phase2:
+    min: -1
+    max: 1
+    default: 0
+  phase3:
+    min: -1
+    max: 1
+    default: 0
+  phase4:
+    min: -1
+    max: 1
+    default: 0
+  phase5:
+    min: -1
+    max: 1
+    default: 0
+  phase6:
+    min: -1
+    max: 1
+    default: 0
+  phase7:
+    min: -1
+    max: 1
+    default: 0
+  phase8:
+    min: -1
+    max: 1
+    default: 0
+  final_amp:
+    min: 0
+    max: 1
+    default: 1
+staticons:
+gui:
+  label: Harmonic Casserole
+  category: Waveform
+  tooltip: Easily combine multiple harmonics of a base waveform to make a more interesting waveform
+  width: 12
+  height: 2
+  widgets:
+    mini_knob:
+      x: 0
+      y: 0
+      control: amp1
+      label: Amplitude 1
+      tooltip: How loud harmonic 1 should be
+    mini_knob:
+      x: 0
+      y: 1
+      control: phase1
+      label: Phase 1
+      tooltip: How much harmonic 1 should be shifted by
+    mini_knob:
+      x: 1
+      y: 0
+      control: amp2
+      label: Amplitude 2
+      tooltip: How loud harmonic 2 should be
+    mini_knob:
+      x: 1
+      y: 1
+      control: phase2
+      label: Phase 2
+      tooltip: How much harmonic 2 should be shifted by
+    mini_knob:
+      x: 2
+      y: 0
+      control: amp3
+      label: Amplitude 3
+      tooltip: How loud harmonic 3 should be
+    mini_knob:
+      x: 2
+      y: 1
+      control: phase3
+      label: Phase 3
+      tooltip: How much harmonic 3 should be shifted by
+    mini_knob:
+      x: 3
+      y: 0
+      control: amp4
+      label: Amplitude 4
+      tooltip: How loud harmonic 4 should be
+    mini_knob:
+      x: 3
+      y: 1
+      control: phase4
+      label: Phase 4
+      tooltip: How much harmonic 4 should be shifted by
+    mini_knob:
+      x: 4
+      y: 0
+      control: amp5
+      label: Amplitude 5
+      tooltip: How loud harmonic 5 should be
+    mini_knob:
+      x: 4
+      y: 1
+      control: phase5
+      label: Phase 5
+      tooltip: How much harmonic 5 should be shifted by
+    mini_knob:
+      x: 5
+      y: 0
+      control: amp6
+      label: Amplitude 6
+      tooltip: How loud harmonic 6 should be
+    mini_knob:
+      x: 5
+      y: 1
+      control: phase6
+      label: Phase 6
+      tooltip: How much harmonic 6 should be shifted by
+    mini_knob:
+      x: 6
+      y: 0
+      control: amp7
+      label: Amplitude 7
+      tooltip: How loud harmonic 7 should be
+    mini_knob:
+      x: 6
+      y: 1
+      control: phase7
+      label: Phase 7
+      tooltip: How much harmonic 7 should be shifted by
+    mini_knob:
+      x: 7
+      y: 0
+      control: amp8
+      label: Amplitude 8
+      tooltip: How loud harmonic 8 should be
+    mini_knob:
+      x: 7
+      y: 1
+      control: phase8
+      label: Phase 8
+      tooltip: How much harmonic 8 should be shifted by
+    waveform_graph:
+      x: 8
+      y: 0
+      w: 3
+      h: 2
+      feedback_name: graph_feedback
+    mini_knob:
+      x: 11
+      y: 0
+      control: final_amp
+      label: Final Amplitude
+      tooltip: Controls the overall amplitude of the final waveform

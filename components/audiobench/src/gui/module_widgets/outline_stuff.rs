@@ -23,6 +23,7 @@ yaml_widget_boilerplate::make_widget_outline_enum![
     HSlider,
     IntBox,
     Knob,
+    MiniKnob,
     OptionBox,
     TimingSelector,
     TriggerSequence,

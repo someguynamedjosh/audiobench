@@ -18,11 +18,11 @@ gui:
   height: 2
   widgets:
     knob:
+      x: 0
+      y: 0
       control: shape
       label: Shape
       tooltip: How sharply the waveform should bend and in what direction
-      x: 0
-      y: 0
     waveform_graph:
       x: 2
       y: 0
