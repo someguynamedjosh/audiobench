@@ -1,6 +1,9 @@
 use super::{ModuleWidget, PopupMenu};
 use crate::engine::parts as ep;
-use crate::gui::action::{DropTarget, MouseAction};
+use crate::gui::action::{
+    DropTarget, GuiRequest, InstanceRequest, ManipulateControl, ManipulateLane, MouseAction,
+    SubmitRequestsOnClick,
+};
 use crate::gui::constants::*;
 use crate::gui::graph::{Module, WireTracker};
 use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
@@ -63,13 +66,13 @@ impl ModuleWidget for HSlider {
         _local_pos: (f32, f32),
         mods: &MouseMods,
         parent_pos: (f32, f32),
-    ) -> MouseAction {
+    ) -> Option<Box<dyn MouseAction>> {
         if mods.right_click {
             let pos = (
                 self.pos.0 + parent_pos.0,
                 self.pos.1 + parent_pos.1 + grid(1),
             );
-            MouseAction::OpenMenu(Box::new(HSliderEditor::create(
+            GuiRequest::OpenMenu(Box::new(HSliderEditor::create(
                 Rc::clone(&self.control),
                 Rc::clone(&self.value),
                 pos,
@@ -77,8 +80,9 @@ impl ModuleWidget for HSlider {
                 self.label.clone(),
                 self.tooltip.clone(),
             )))
+            .into()
         } else {
-            MouseAction::ManipulateControl(Rc::clone(&self.control), self.control.borrow().value)
+            Some(Box::new(ManipulateControl::new(Rc::clone(&self.control))))
         }
     }
 
@@ -236,7 +240,11 @@ impl PopupMenu for HSliderEditor {
         self.size
     }
 
-    fn respond_to_mouse_press(&self, local_pos: (f32, f32), mods: &MouseMods) -> MouseAction {
+    fn respond_to_mouse_press(
+        &self,
+        local_pos: (f32, f32),
+        mods: &MouseMods,
+    ) -> Option<Box<dyn MouseAction>> {
         const GP: f32 = GRID_P;
         const GAP: f32 = KNOB_MENU_LANE_GAP;
         const LS: f32 = KNOB_MENU_LANE_SIZE;
@@ -244,7 +252,7 @@ impl PopupMenu for HSliderEditor {
         let control_ref = self.control.borrow();
         if row >= control_ref.automation.len() {
             // Clicked the actual control...
-            return MouseAction::ManipulateControl(Rc::clone(&self.control), control_ref.value);
+            return Some(Box::new(ManipulateControl::new(Rc::clone(&self.control))));
         }
         // Lanes are rendered backwards, flip it back around.
         let lane = control_ref.automation.len() - row - 1;
@@ -259,18 +267,28 @@ impl PopupMenu for HSliderEditor {
             max_point = tmp;
         }
         if point > min_point && point < max_point {
-            return if mods.right_click {
-                MouseAction::RemoveLane(Rc::clone(&self.control), lane)
+            if mods.right_click {
+                let control = Rc::clone(&self.control);
+                return SubmitRequestsOnClick::wrap(vec![
+                    InstanceRequest::SimpleCallback(Box::new(move || {
+                        control.borrow_mut().automation.remove(lane);
+                    }))
+                    .into(),
+                    InstanceRequest::ReloadStructure.into(),
+                ]);
             } else {
-                MouseAction::ManipulateLane(Rc::clone(&self.control), lane)
+                return Some(Box::new(ManipulateLane::new(
+                    Rc::clone(&self.control),
+                    lane,
+                )));
             };
         }
         // xor
-        return if (point < min_point) != ends_flipped {
-            MouseAction::ManipulateLaneStart(Rc::clone(&self.control), lane, lane_range.0)
+        return Some(Box::new(if (point < min_point) != ends_flipped {
+            ManipulateLane::start_only(Rc::clone(&self.control), lane)
         } else {
-            MouseAction::ManipulateLaneEnd(Rc::clone(&self.control), lane, lane_range.1)
-        };
+            ManipulateLane::end_only(Rc::clone(&self.control), lane)
+        }));
     }
 
     fn get_tooltip_at(&self, local_pos: (f32, f32)) -> Option<Tooltip> {

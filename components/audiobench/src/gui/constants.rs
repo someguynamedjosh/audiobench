@@ -66,10 +66,12 @@ pub const DISCRETE_STEP_PIXELS: f32 = 12.0;
 pub const DRAG_DEADZONE: f32 = 4.0;
 /// The maximum amount of time between two clicks for the event to be considered a double-click.
 pub const DOUBLE_CLICK_TIME: Duration = Duration::from_millis(500);
-/// When holding Shift, how many steps should be snapped to.
+/// When holding SnappingModifier, how many steps should be snapped to.
 pub const SNAP_STEPS: f32 = 12.0;
-/// When holding Shift and Alt, how many steps should be snapped to.
+/// When holding SnappingModifier and PrecisionModifier, how many steps should be snapped to.
 pub const PRECISE_SNAP_STEPS: f32 = 72.0;
+/// What to multiply input values by when holding PrecisionModifier.
+pub const PRECISION_MULTIPLIER: f32 = 0.2;
 
 const fn hex_color(hex: u32) -> (u8, u8, u8) {
     (

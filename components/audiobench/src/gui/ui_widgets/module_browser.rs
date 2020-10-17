@@ -1,5 +1,5 @@
 use crate::engine::parts as ep;
-use crate::gui::action::MouseAction;
+use crate::gui::action::{GuiRequest, MouseAction};
 use crate::gui::constants::*;
 use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
 use crate::gui::{InteractionHint, MouseMods, Tooltip};
@@ -191,11 +191,11 @@ impl ModuleBrowser {
         &mut self,
         mouse_pos: (f32, f32),
         _mods: &MouseMods,
-    ) -> MouseAction {
+    ) -> Option<Box<dyn MouseAction>> {
         if let Some(entry) = self.get_entry_at(mouse_pos) {
-            MouseAction::AddModule(entry.prototype.clone())
+            GuiRequest::AddModule(entry.prototype.clone()).into()
         } else {
-            MouseAction::None
+            None
         }
     }
 

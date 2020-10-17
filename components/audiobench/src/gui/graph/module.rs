@@ -1,6 +1,8 @@
 use super::WireTracker;
 use crate::engine::parts as ep;
-use crate::gui::action::{DropTarget, MouseAction};
+use crate::gui::action::{
+    ConnectInput, ConnectOutput, DragModule, DropTarget, GuiRequest, MouseAction,
+};
 use crate::gui::constants::*;
 use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
 use crate::gui::module_widgets::ModuleWidget;
@@ -298,11 +300,15 @@ impl Module {
         (pos.0 as f32, pos.1 as f32)
     }
 
-    pub fn respond_to_mouse_press(&self, mouse_pos: (f32, f32), mods: &MouseMods) -> MouseAction {
+    pub fn respond_to_mouse_press(
+        &self,
+        mouse_pos: (f32, f32),
+        mods: &MouseMods,
+    ) -> Option<Box<dyn MouseAction>> {
         let pos = self.get_pos();
         let mouse_pos = (mouse_pos.0 - pos.0, mouse_pos.1 - pos.1);
         if !mouse_pos.inside(self.size) {
-            return MouseAction::None;
+            return None;
         }
         for (widget, _) in &self.widgets {
             let wpos = widget.get_position();
@@ -316,18 +322,18 @@ impl Module {
         }
         for (index, input) in self.inputs.iter().enumerate() {
             if input.mouse_in_bounds(mouse_pos) {
-                return MouseAction::ConnectInput(Rc::clone(&self.module), index);
+                return Some(Box::new(ConnectInput::new(Rc::clone(&self.module), index)));
             }
         }
         for (index, output) in self.outputs.iter().enumerate() {
             if output.mouse_in_bounds(mouse_pos) {
-                return MouseAction::ConnectOutput(Rc::clone(&self.module), index);
+                return Some(Box::new(ConnectOutput::new(Rc::clone(&self.module), index)));
             }
         }
         if mods.right_click {
-            MouseAction::RemoveModule(Rc::clone(&self.module))
+            GuiRequest::RemoveModule(Rc::clone(&self.module)).into()
         } else {
-            MouseAction::MoveModule(Rc::clone(&self.module), self.module.borrow().pos)
+            Some(Box::new(DragModule::new(Rc::clone(&self.module))))
         }
     }
 

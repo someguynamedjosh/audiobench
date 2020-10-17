@@ -1,7 +1,7 @@
 use super::ModuleWidget;
 use super::{IntBoxBase, IntBoxImpl};
 use crate::engine::static_controls as staticons;
-use crate::gui::action::MouseAction;
+use crate::gui::action::{MouseAction, MutateStaticon};
 use crate::gui::constants::*;
 use crate::gui::graphics::GrahpicsWrapper;
 use crate::gui::{InteractionHint, MouseMods, Tooltip};
@@ -62,14 +62,12 @@ impl ModuleWidget for TriggerSequence {
         local_pos: (f32, f32),
         _mods: &MouseMods,
         _parent_pos: (f32, f32),
-    ) -> MouseAction {
+    ) -> Option<Box<dyn MouseAction>> {
         let num_steps = self.sequence_control.borrow().get_len();
         let step_width = (self.width + TriggerSequence::STEP_GAP) / num_steps as f32;
         let clicked_step = (local_pos.0 / step_width) as usize;
         let cref = Rc::clone(&self.sequence_control);
-        MouseAction::MutateStaticon(Box::new(move || {
-            cref.borrow_mut().toggle_trigger(clicked_step)
-        }))
+        MutateStaticon::wrap(move || cref.borrow_mut().toggle_trigger(clicked_step))
     }
 
     fn get_tooltip_at(&self, _local_pos: (f32, f32)) -> Option<Tooltip> {

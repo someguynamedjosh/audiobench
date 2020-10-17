@@ -19,8 +19,8 @@ pub trait ModuleWidget {
         _local_pos: (f32, f32),
         _mods: &MouseMods,
         _parent_pos: (f32, f32),
-    ) -> MouseAction {
-        MouseAction::None
+    ) -> Option<Box<dyn MouseAction>> {
+        None
     }
     fn get_drop_target_at(&self, _local_pos: (f32, f32)) -> DropTarget {
         DropTarget::None
@@ -36,8 +36,12 @@ pub trait PopupMenu {
     fn get_bounds(&self) -> (f32, f32);
     fn draw(&self, g: &mut GrahpicsWrapper);
 
-    fn respond_to_mouse_press(&self, _local_pos: (f32, f32), _mods: &MouseMods) -> MouseAction {
-        MouseAction::None
+    fn respond_to_mouse_press(
+        &self,
+        _local_pos: (f32, f32),
+        _mods: &MouseMods,
+    ) -> Option<Box<dyn MouseAction>> {
+        None
     }
     fn get_tooltip_at(&self, _local_pos: (f32, f32)) -> Option<Tooltip> {
         None

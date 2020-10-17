@@ -1,5 +1,5 @@
 use crate::config::*;
-use crate::gui::action::{GuiAction, MouseAction};
+use crate::gui::action::{GuiRequest, MouseAction};
 use crate::gui::constants::*;
 use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
 use crate::gui::{InteractionHint, MouseMods, Tooltip};
@@ -87,24 +87,24 @@ impl LibraryBrowser {
         &mut self,
         mouse_pos: (f32, f32),
         _mods: &MouseMods,
-    ) -> MouseAction {
+    ) -> Option<Box<dyn MouseAction>> {
         let mouse_pos = mouse_pos.sub(self.pos);
         for (end_y, action) in self.mouse_actions.iter() {
             if mouse_pos.1 + self.scroll_offset <= *end_y {
                 return match action {
-                    LibraryBrowserMouseAction::None => MouseAction::None,
+                    LibraryBrowserMouseAction::None => None,
                     LibraryBrowserMouseAction::OpenWebpage(url) => {
-                        MouseAction::OpenWebpage(url.clone())
+                        GuiRequest::OpenWebpage(url.clone()).into()
                     }
                 };
             }
         }
-        MouseAction::None
+        None
     }
 
-    pub fn on_scroll(&mut self, delta: f32) -> Option<GuiAction> {
+    pub fn on_scroll(&mut self, delta: f32) -> Vec<GuiRequest> {
         self.scroll_offset = (self.scroll_offset - delta * 100.0).clam(0.0, self.max_scroll_offset);
-        None
+        Vec::new()
     }
 
     fn draw_library_entry(

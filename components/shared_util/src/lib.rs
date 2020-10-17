@@ -123,6 +123,10 @@ pub trait TupleUtil: Sized + Copy {
     fn inside(self, bounds: Self) -> bool;
 }
 
+pub trait TupleScale<E>: Sized + Copy {
+    fn scale(self, factor: E) -> Self;
+}
+
 impl TupleUtil for (i32, i32) {
     #[inline]
     fn add(self, other: Self) -> Self {
@@ -140,6 +144,13 @@ impl TupleUtil for (i32, i32) {
     }
 }
 
+impl TupleScale<i32> for (i32, i32) {
+    #[inline]
+    fn scale(self, factor: i32) -> Self {
+        (self.0 * factor, self.1 * factor)
+    }
+}
+
 impl TupleUtil for (f32, f32) {
     #[inline]
     fn add(self, other: Self) -> Self {
@@ -154,6 +165,13 @@ impl TupleUtil for (f32, f32) {
     #[inline]
     fn inside(self, bounds: Self) -> bool {
         self.0 >= 0.0 && self.1 >= 0.0 && self.0 <= bounds.0 && self.1 <= bounds.1
+    }
+}
+
+impl TupleScale<f32> for (f32, f32) {
+    #[inline]
+    fn scale(self, factor: f32) -> Self {
+        (self.0 * factor, self.1 * factor)
     }
 }
 

@@ -20,7 +20,7 @@ dump-llvmir=[]
 [dependencies]
 inkwell = { git = "https://github.com/TheDan64/inkwell", branch = "master", features = ["llvm7-0"] }
 libc = "0.2"
-ouroboros = "0.2"
+ouroboros = "0.4"
 pest = "2.1"
 pest_derive = "2.1"
 readonly = "0.1"

@@ -1,6 +1,6 @@
 use crate::engine::parts as ep;
 use crate::gui;
-use crate::gui::action::{GuiAction, InstanceAction, MouseAction};
+use crate::gui::action::{GuiRequest, InstanceRequest, MouseAction};
 use crate::gui::constants::*;
 use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
 use crate::registry::save_data::Patch;
@@ -17,8 +17,8 @@ pub enum InteractionHint {
     Scroll = 0x40,
     LeftClickAndDrag = 0x4,
     DoubleClick = 0x8,
-    Alt = 0x10,
-    Shift = 0x20,
+    PrecisionModifier = 0x10,
+    SnappingModifier = 0x20,
 }
 
 #[derive(Clone)]
@@ -60,7 +60,7 @@ impl Status {
 
 pub struct MouseMods {
     pub right_click: bool,
-    pub shift: bool,
+    pub snap: bool,
     pub precise: bool,
 }
 
@@ -112,7 +112,7 @@ pub struct Gui {
     graph: gui::graph::ModuleGraph,
     module_browser: gui::ui_widgets::ModuleBrowser,
 
-    mouse_action: MouseAction,
+    mouse_action: Option<Box<dyn MouseAction>>,
     click_position: (f32, f32),
     mouse_pos: (f32, f32),
     mouse_down: bool,
@@ -150,7 +150,7 @@ impl Gui {
             graph,
             module_browser,
 
-            mouse_action: MouseAction::None,
+            mouse_action: None,
             click_position: (0.0, 0.0),
             mouse_pos: (0.0, 0.0),
             mouse_down: false,
@@ -231,13 +231,12 @@ impl Gui {
         registry: &Registry,
         pos: (f32, f32),
         mods: &MouseMods,
-    ) -> Option<InstanceAction> {
+    ) -> Vec<InstanceRequest> {
         self.menu_bar.clear_status();
-        let mut ret = None;
+        let mut ret = Vec::new();
         if let Some(field) = self.focused_text_field.take() {
-            if let Some(action) = field.borrow_mut().defocus().on_click() {
-                ret = self.perform_action(registry, action);
-            }
+            let requests = field.borrow_mut().defocus();
+            self.do_requests(registry, requests, &mut ret);
         };
         if pos.1 <= gui::ui_widgets::MenuBar::HEIGHT {
             self.mouse_action = self.menu_bar.respond_to_mouse_press(pos, mods);
@@ -259,10 +258,9 @@ impl Gui {
         registry: &Registry,
         new_pos: (f32, f32),
         mods: &MouseMods,
-    ) -> Option<InstanceAction> {
-        let mut retval = None;
+    ) -> Vec<InstanceRequest> {
+        let mut ret = Vec::new();
         self.mouse_pos = new_pos;
-        let mut new_tooltip = None;
         if self.mouse_down {
             let delta = (
                 new_pos.0 - self.click_position.0,
@@ -276,118 +274,111 @@ impl Gui {
             }
             if self.dragged {
                 let fdelta = (delta.0 as f32, delta.1 as f32);
-                let (gui_action, tooltip) = self.mouse_action.on_drag(fdelta, mods);
-                new_tooltip = tooltip;
-                self.click_position = new_pos;
-                retval = gui_action
-                    .map(|action| self.perform_action(registry, action))
-                    .flatten();
+                if let Some(ma) = &mut self.mouse_action {
+                    let requests = ma.on_drag(fdelta, mods);
+                    self.click_position = new_pos;
+                    self.do_requests(registry, requests, &mut ret);
+                }
             }
-        }
-        if new_tooltip.is_none() {
-            new_tooltip = self.menu_bar.get_tooltip_at(new_pos);
-        }
-        if new_tooltip.is_none() {
-            new_tooltip = match self.current_screen {
+        } else {
+            let tooltip = match self.current_screen {
                 GuiScreen::LibraryBrowser => self.library_browser.get_tooltip_at(new_pos),
                 GuiScreen::PatchBrowser => self.patch_browser.get_tooltip_at(new_pos),
                 GuiScreen::NoteGraph => self.graph.get_tooltip_at(new_pos),
                 GuiScreen::ModuleBrowser => self.module_browser.get_tooltip_at(new_pos),
+            };
+            if let Some(tooltip) = tooltip {
+                self.menu_bar.set_tooltip(tooltip);
+            } else if let Some(tooltip) = self.menu_bar.get_tooltip_at(new_pos) {
+                self.menu_bar.set_tooltip(tooltip);
+            } else {
+                self.menu_bar.set_tooltip(Default::default());
             }
         }
-        if let Some(tooltip) = new_tooltip {
-            self.menu_bar.set_tooltip(tooltip);
-        } else {
-            self.menu_bar.set_tooltip(Tooltip::default());
-        }
-        retval
+        ret
     }
 
-    fn perform_action(&mut self, registry: &Registry, action: GuiAction) -> Option<InstanceAction> {
-        match action {
-            GuiAction::Sequence(actions) => {
-                return Some(InstanceAction::Sequence(
-                    actions
-                        .into_iter()
-                        .filter_map(|action| self.perform_action(registry, action))
-                        .collect(),
-                ));
-            }
-            GuiAction::OpenMenu(menu) => self.graph.open_menu(menu),
-            GuiAction::SwitchScreen(new_index) => self.current_screen = new_index,
-            GuiAction::AddModule(module) => {
-                self.graph.add_module(registry, module);
-                self.current_screen = GuiScreen::NoteGraph;
-                return Some(InstanceAction::ReloadStructure);
-            }
-            GuiAction::RemoveModule(module) => {
-                self.graph.remove_module(&module);
-                return Some(InstanceAction::ReloadStructure);
-            }
-            GuiAction::FocusTextField(field) => {
-                field.borrow_mut().focus();
-                self.focused_text_field = Some(field);
-            }
-            GuiAction::Elevate(action) => return Some(action),
-            GuiAction::OpenWebpage(url) => {
-                if let Err(err) = webbrowser::open(&url) {
-                    self.display_error(format!("Failed to open webpage, see console for details."));
-                    eprintln!(
-                        "WARNING: Failed to open web browser, caused by:\nERROR: {}",
-                        err
-                    );
+    fn do_requests(
+        &mut self,
+        registry: &Registry,
+        requests: Vec<GuiRequest>,
+        output: &mut Vec<InstanceRequest>,
+    ) {
+        for request in requests {
+            match request {
+                GuiRequest::ShowTooltip(tooltip) => self.menu_bar.set_tooltip(tooltip),
+                GuiRequest::OpenMenu(menu) => self.graph.open_menu(menu),
+                GuiRequest::SwitchScreen(new_index) => self.current_screen = new_index,
+                GuiRequest::AddModule(module) => {
+                    self.graph.add_module(registry, module);
+                    self.current_screen = GuiScreen::NoteGraph;
+                    output.push(InstanceRequest::ReloadStructure);
+                }
+                GuiRequest::RemoveModule(module) => {
+                    self.graph.remove_module(&module);
+                    output.push(InstanceRequest::ReloadStructure);
+                }
+                GuiRequest::FocusTextField(field) => {
+                    field.borrow_mut().focus();
+                    self.focused_text_field = Some(field);
+                }
+                GuiRequest::Elevate(request) => output.push(request),
+                GuiRequest::OpenWebpage(url) => {
+                    if let Err(err) = webbrowser::open(&url) {
+                        self.display_error(format!(
+                            "Failed to open webpage, see console for details."
+                        ));
+                        eprintln!(
+                            "WARNING: Failed to open web browser, caused by:\nERROR: {}",
+                            err
+                        );
+                    }
                 }
             }
         }
-        None
     }
 
-    pub fn on_mouse_up(&mut self, registry: &Registry) -> Option<InstanceAction> {
-        let mouse_action = std::mem::replace(&mut self.mouse_action, MouseAction::None);
-        let gui_action = if self.dragged {
-            let drop_target = self.graph.get_drop_target_at(self.mouse_pos);
-            mouse_action.on_drop(drop_target)
-        } else {
-            if self.last_click.elapsed() < DOUBLE_CLICK_TIME {
-                mouse_action.on_double_click()
-            } else {
-                self.last_click = Instant::now();
-                mouse_action.on_click()
-            }
-        };
+    pub fn on_mouse_up(&mut self, registry: &Registry) -> Vec<InstanceRequest> {
+        let mouse_action = self.mouse_action.take();
+        let mut ret = Vec::new();
         self.dragged = false;
         self.mouse_down = false;
-        gui_action
-            .map(|action| self.perform_action(registry, action))
-            .flatten()
-    }
-
-    pub fn on_scroll(&mut self, registry: &Registry, delta: f32) -> Option<InstanceAction> {
-        if let GuiScreen::NoteGraph = self.current_screen {
-            return self
-                .graph
-                .on_scroll(delta)
-                .map(|a| self.perform_action(registry, a))
-                .flatten();
-        } else if let GuiScreen::PatchBrowser = self.current_screen {
-            return self
-                .patch_browser
-                .on_scroll(self.mouse_pos, delta)
-                .map(|a| self.perform_action(registry, a))
-                .flatten();
-        } else if let GuiScreen::LibraryBrowser = self.current_screen {
-            return self
-                .library_browser
-                .on_scroll(delta)
-                .map(|a| self.perform_action(registry, a))
-                .flatten();
+        if let Some(ma) = mouse_action {
+            let requests = if self.dragged {
+                let drop_target = self.graph.get_drop_target_at(self.mouse_pos);
+                ma.on_drop(drop_target)
+            } else {
+                if self.last_click.elapsed() < DOUBLE_CLICK_TIME {
+                    ma.on_double_click()
+                } else {
+                    self.last_click = Instant::now();
+                    ma.on_click()
+                }
+            };
+            self.do_requests(registry, requests, &mut ret);
         }
-        None
+        ret
     }
 
-    pub fn on_key_press(&mut self, registry: &Registry, key: u8) -> Option<InstanceAction> {
+    pub fn on_scroll(&mut self, registry: &Registry, delta: f32) -> Vec<InstanceRequest> {
+        let requests = if let GuiScreen::NoteGraph = self.current_screen {
+            self.graph.on_scroll(delta)
+        } else if let GuiScreen::PatchBrowser = self.current_screen {
+            self.patch_browser.on_scroll(self.mouse_pos, delta)
+        } else if let GuiScreen::LibraryBrowser = self.current_screen {
+            self.library_browser.on_scroll(delta)
+        } else {
+            Vec::new()
+        };
+        let mut ret = Vec::new();
+        self.do_requests(registry, requests, &mut ret);
+        ret
+    }
+
+    pub fn on_key_press(&mut self, registry: &Registry, key: u8) -> Vec<InstanceRequest> {
         // For some reason JUCE gives CR for enter instead of LF.
         let key = if key == 13 { 10 } else { key };
+        let mut ret = Vec::new();
         if let Some(field) = &self.focused_text_field {
             let mut field = field.borrow_mut();
             match key {
@@ -400,27 +391,17 @@ impl Gui {
                 }
                 0x1B | 0xA => {
                     // Esc / Enter
-                    let action = field.defocus();
+                    let requests = field.defocus();
                     drop(field);
                     self.focused_text_field = None;
-                    if let Some(action) = action.on_click() {
-                        return self.perform_action(registry, action);
-                    }
+                    self.do_requests(registry, requests, &mut ret);
                 }
                 _ => {
                     field.text.push(key as char);
                 }
             }
         }
-        None
-    }
-
-    pub(super) fn is_dragging(&self) -> bool {
-        self.dragged
-    }
-
-    pub(super) fn borrow_current_mouse_action(&self) -> &MouseAction {
-        &self.mouse_action
+        ret
     }
 
     pub(super) fn get_current_mouse_pos(&self) -> (f32, f32) {

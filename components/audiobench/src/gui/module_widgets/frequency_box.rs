@@ -1,6 +1,6 @@
 use super::ModuleWidget;
 use crate::engine::static_controls as staticons;
-use crate::gui::action::MouseAction;
+use crate::gui::action::{ContinuouslyMutateStaticon, MouseAction};
 use crate::gui::constants::*;
 use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
 use crate::gui::{InteractionHint, MouseMods, Tooltip};
@@ -56,20 +56,16 @@ impl ModuleWidget for FrequencyBox {
         _local_pos: (f32, f32),
         _mods: &MouseMods,
         _parent_pos: (f32, f32),
-    ) -> MouseAction {
+    ) -> Option<Box<dyn MouseAction>> {
         let frequency = self.control.borrow();
         let cref = Rc::clone(&self.control);
         let mut float_value = frequency.get_value();
-        let mutator = Box::new(move |delta, _steps| {
+        ContinuouslyMutateStaticon::wrap(move |delta, _steps| {
             float_value *= (2.0f32).powf(delta / LOG_OCTAVE_PIXELS);
             float_value = float_value.clam(staticons::ControlledFrequency::MIN_FREQUENCY, 99_000.0);
             let update = cref.borrow_mut().set_value(float_value);
             (update, None)
-        });
-        MouseAction::ContinuouslyMutateStaticon {
-            mutator,
-            code_reload_requested: false,
-        }
+        })
     }
 
     fn get_tooltip_at(&self, _local_pos: (f32, f32)) -> Option<Tooltip> {

@@ -1,6 +1,6 @@
 use super::ModuleWidget;
 use crate::engine::static_controls as staticons;
-use crate::gui::action::MouseAction;
+use crate::gui::action::{MouseAction, MutateStaticon};
 use crate::gui::constants::*;
 use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
 use crate::gui::{InteractionHint, MouseMods, Tooltip};
@@ -65,12 +65,12 @@ impl ModuleWidget for TimingSelector {
         local_pos: (f32, f32),
         _mods: &MouseMods,
         _parent_pos: (f32, f32),
-    ) -> MouseAction {
+    ) -> Option<Box<dyn MouseAction>> {
         let cref = Rc::clone(&self.control);
         if local_pos.0 < grid(2) / 2.0 {
-            MouseAction::MutateStaticon(Box::new(move || cref.borrow_mut().toggle_source()))
+            MutateStaticon::wrap(move || cref.borrow_mut().toggle_source())
         } else {
-            MouseAction::MutateStaticon(Box::new(move || cref.borrow_mut().toggle_units()))
+            MutateStaticon::wrap(move || cref.borrow_mut().toggle_units())
         }
     }
 

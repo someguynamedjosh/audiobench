@@ -1,5 +1,5 @@
 use super::{IconButton, TextBox, TextField};
-use crate::gui::action::{GuiAction, MouseAction};
+use crate::gui::action::{GuiRequest, InstanceRequest, MouseAction};
 use crate::gui::constants::*;
 use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
 use crate::gui::{InteractionHint, MouseMods, Tooltip};
@@ -78,10 +78,13 @@ impl PatchBrowser {
             patch_name,
             Box::new(move |text| {
                 let (entries3, order3) = (Rc::clone(&entries2), Rc::clone(&order2));
-                MouseAction::Sequence(vec![
-                    MouseAction::RenamePatch(text.to_owned()),
-                    MouseAction::SimpleCallback(Box::new(move || Self::sort(&entries3, &order3))),
-                ])
+                vec![
+                    InstanceRequest::RenamePatch(text.to_owned()).into(),
+                    InstanceRequest::SimpleCallback(Box::new(move || {
+                        Self::sort(&entries3, &order3)
+                    }))
+                    .into(),
+                ]
             }),
         );
         // Extra +GRID_P because the padding under the last patch in the list shouldn't be
@@ -185,7 +188,7 @@ impl PatchBrowser {
         &mut self,
         mouse_pos: (f32, f32),
         mods: &MouseMods,
-    ) -> MouseAction {
+    ) -> Option<Box<dyn MouseAction>> {
         let mouse_pos = mouse_pos.sub(self.pos);
         // Only enabled if we can modify the current patch.
         if self.save_button.borrow().enabled {
@@ -221,20 +224,21 @@ impl PatchBrowser {
                 patch_already_existed_on_disk =
                     self.entries.borrow()[index].borrow().exists_on_disk();
             }
-            return MouseAction::SavePatch(if patch_already_existed_on_disk {
+            return InstanceRequest::SavePatch(if patch_already_existed_on_disk {
                 Box::new(|_patch| {})
             } else {
                 new_patch_callback
-            });
+            })
+            .into();
         }
         if self.new_button.mouse_in_bounds(mouse_pos) {
-            return MouseAction::NewPatch(new_patch_callback);
+            return InstanceRequest::NewPatch(new_patch_callback).into();
         }
         if self.paste_button.mouse_in_bounds(mouse_pos) {
-            return MouseAction::PastePatchFromClipboard(new_patch_callback);
+            return InstanceRequest::PastePatchFromClipboard(new_patch_callback).into();
         }
         if self.copy_button.mouse_in_bounds(mouse_pos) {
-            return MouseAction::CopyPatchToClipboard;
+            return InstanceRequest::CopyPatchToClipboard.into();
         }
 
         // How large each half of the GUI takes.
@@ -282,14 +286,14 @@ impl PatchBrowser {
                         *current_entry_index.borrow_mut() = Some(entry_index);
                         Self::update_on_patch_change(&patch2, &name_box_field, &save_button);
                     };
-                    return MouseAction::LoadPatch(patch, Box::new(callback));
+                    return InstanceRequest::LoadPatch(patch, Box::new(callback)).into();
                 }
             }
         }
-        MouseAction::None
+        None
     }
 
-    pub fn on_scroll(&mut self, mouse_pos: (f32, f32), delta: f32) -> Option<GuiAction> {
+    pub fn on_scroll(&mut self, mouse_pos: (f32, f32), delta: f32) -> Vec<GuiRequest> {
         let hw = (self.size.0 - GRID_P * 3.0) / 2.0;
         if mouse_pos.0 <= hw && mouse_pos.1 > self.name_box.size.1 + GRID_P {
             if delta > 0.0 {
@@ -304,7 +308,7 @@ impl PatchBrowser {
                 }
             }
         }
-        None
+        vec![]
     }
 
     pub fn draw(&self, g: &mut GrahpicsWrapper) {

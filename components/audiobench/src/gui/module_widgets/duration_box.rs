@@ -1,6 +1,6 @@
 use super::ModuleWidget;
 use crate::engine::static_controls as staticons;
-use crate::gui::action::MouseAction;
+use crate::gui::action::{ContinuouslyMutateStaticon, MouseAction, MutateStaticon};
 use crate::gui::constants::*;
 use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
 use crate::gui::{InteractionHint, MouseMods, Tooltip};
@@ -60,19 +60,17 @@ impl ModuleWidget for DurationBox {
         local_pos: (f32, f32),
         mods: &MouseMods,
         _parent_pos: (f32, f32),
-    ) -> MouseAction {
+    ) -> Option<Box<dyn MouseAction>> {
         let duration = self.duration_control.borrow();
         let cref = Rc::clone(&self.duration_control);
         if mods.right_click {
-            MouseAction::MutateStaticon(Box::new(move || cref.borrow_mut().toggle_mode()))
+            MutateStaticon::wrap(move || cref.borrow_mut().toggle_mode())
         } else if duration.is_using_fractional_mode() {
             let (num, den) = duration.get_fractional_value();
             let use_denominator = local_pos.0 >= Self::WIDTH / 2.0;
-            let mutator: Box<
-                dyn FnMut(f32, Option<f32>) -> (staticons::StaticonUpdateRequest, Option<Tooltip>),
-            > = if use_denominator {
+            if use_denominator {
                 let mut float_value = den as f32;
-                Box::new(move |delta, _steps| {
+                ContinuouslyMutateStaticon::wrap(move |delta, _steps| {
                     float_value += delta / 12.0;
                     float_value = float_value.clam(1.0, 99.0);
                     let update = cref
@@ -82,7 +80,7 @@ impl ModuleWidget for DurationBox {
                 })
             } else {
                 let mut float_value = num as f32;
-                Box::new(move |delta, _steps| {
+                ContinuouslyMutateStaticon::wrap(move |delta, _steps| {
                     float_value += delta / 12.0;
                     float_value = float_value.clam(1.0, 99.0);
                     let update = cref
@@ -90,23 +88,15 @@ impl ModuleWidget for DurationBox {
                         .set_fractional_value((float_value as u8, den));
                     (update, None)
                 })
-            };
-            MouseAction::ContinuouslyMutateStaticon {
-                mutator,
-                code_reload_requested: false,
             }
         } else {
             let mut float_value = duration.get_decimal_value();
-            let mutator = Box::new(move |delta, _steps| {
+            ContinuouslyMutateStaticon::wrap(move |delta, _steps| {
                 float_value *= (2.0f32).powf(delta / LOG_OCTAVE_PIXELS);
                 float_value = float_value.clam(0.0003, 99.8);
                 let update = cref.borrow_mut().set_decimal_value(float_value);
                 (update, None)
-            });
-            MouseAction::ContinuouslyMutateStaticon {
-                mutator,
-                code_reload_requested: false,
-            }
+            })
         }
     }
 

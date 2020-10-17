@@ -2,7 +2,7 @@ use super::ModuleWidget;
 use super::{IntBoxBase, IntBoxImpl};
 use crate::engine::parts as ep;
 use crate::engine::static_controls as staticons;
-use crate::gui::action::MouseAction;
+use crate::gui::action::{MouseAction, ContinuouslyMutateStaticon};
 use crate::gui::constants::*;
 use crate::gui::graphics::GrahpicsWrapper;
 use crate::gui::{InteractionHint, MouseMods, Tooltip};
@@ -66,14 +66,14 @@ impl ModuleWidget for ValueSequence {
         local_pos: (f32, f32),
         _mods: &MouseMods,
         _parent_pos: (f32, f32),
-    ) -> MouseAction {
+    ) -> Option<Box<dyn MouseAction>> {
         let borrowed = self.sequence_control.borrow();
         let num_steps = borrowed.get_len();
         let step_width = self.width / num_steps as f32;
         let clicked_step = (local_pos.0 / step_width) as usize;
         let mut float_value = borrowed.get_value(clicked_step);
         let cref = Rc::clone(&self.sequence_control);
-        let mutator = Box::new(move |delta, steps| {
+        ContinuouslyMutateStaticon::wrap(move |delta, steps| {
             float_value += delta / 100.0;
             float_value = float_value.clam(-1.0, 1.0);
             let final_value = if let Some(steps) = steps {
@@ -83,15 +83,11 @@ impl ModuleWidget for ValueSequence {
             };
             let update = cref.borrow_mut().set_value(clicked_step, final_value);
             let tooltip = Tooltip {
-                interaction: InteractionHint::Shift | InteractionHint::Alt,
+                interaction: InteractionHint::SnappingModifier | InteractionHint::PrecisionModifier,
                 text: format!("{:.3}", final_value),
             };
             (update, Some(tooltip))
-        });
-        MouseAction::ContinuouslyMutateStaticon {
-            mutator,
-            code_reload_requested: false,
-        }
+        })
     }
 
     fn get_tooltip_at(&self, _local_pos: (f32, f32)) -> Option<Tooltip> {

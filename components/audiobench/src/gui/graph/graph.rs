@@ -1,7 +1,6 @@
 use super::Module;
 use crate::engine::parts as ep;
-use crate::gui::action::{DropTarget, GuiAction, MouseAction};
-use crate::gui::constants::*;
+use crate::gui::action::{DropTarget, GuiRequest, MouseAction, PanOffset, ScaledMouseAction};
 use crate::gui::graphics::GrahpicsWrapper;
 use crate::gui::module_widgets::PopupMenu;
 use crate::gui::{Gui, InteractionHint, MouseMods, Tooltip};
@@ -15,7 +14,6 @@ pub struct ModuleGraph {
     zoom: Rcrc<f32>,
     graph: Rcrc<ep::ModuleGraph>,
     modules: Vec<Module>,
-    // Box because eventually this is going to be dyn.
     detail_menu_widget: Option<Box<dyn PopupMenu>>,
 }
 
@@ -126,34 +124,37 @@ impl ModuleGraph {
         &mut self,
         mouse_pos: (f32, f32),
         mods: &MouseMods,
-    ) -> MouseAction {
+    ) -> Option<Box<dyn MouseAction>> {
         let mouse_pos = self.translate_mouse_pos(mouse_pos);
         if let Some(widget) = &self.detail_menu_widget {
             let local_pos = mouse_pos.sub(widget.get_pos());
             if local_pos.inside(widget.get_bounds()) {
                 return widget
                     .respond_to_mouse_press(local_pos, mods)
-                    .scaled(Rc::clone(&self.zoom));
+                    .map(|action| ScaledMouseAction::new(action, Rc::clone(&self.zoom)));
             } else {
                 self.detail_menu_widget = None;
             }
         }
         for module in self.modules.iter().rev() {
             let action = module.respond_to_mouse_press(mouse_pos, mods);
-            if !action.is_none() {
-                return action.scaled(Rc::clone(&self.zoom));
+            if let Some(action) = action {
+                return Some(ScaledMouseAction::new(action, Rc::clone(&self.zoom)));
             }
         }
-        MouseAction::PanOffset(Rc::clone(&self.offset)).scaled(Rc::clone(&self.zoom))
+        Some(ScaledMouseAction::new(
+            Box::new(PanOffset::new(Rc::clone(&self.offset))),
+            Rc::clone(&self.zoom),
+        ))
     }
 
-    pub fn on_scroll(&mut self, delta: f32) -> Option<GuiAction> {
+    pub fn on_scroll(&mut self, delta: f32) -> Vec<GuiRequest> {
         let mut offset = self.offset.borrow_mut();
         let mut zoom = self.zoom.borrow_mut();
         *offset = offset.sub((self.size.0 / *zoom / 2.0, self.size.1 / *zoom / 2.0));
         *zoom *= f32::exp(delta / 3.0);
         *offset = offset.add((self.size.0 / *zoom / 2.0, self.size.1 / *zoom / 2.0));
-        None
+        Vec::new()
     }
 
     pub fn get_drop_target_at(&self, mouse_pos: (f32, f32)) -> DropTarget {
@@ -193,6 +194,8 @@ impl ModuleGraph {
         g.apply_scale(*self.zoom.borrow());
         g.apply_offset(offset.0 + self.pos.0, offset.1 + self.pos.1);
         let (mx, my) = self.translate_mouse_pos(gui_state.get_current_mouse_pos());
+        // TODO: Add highlights back.
+        /*
         let highlight = if gui_state.is_dragging() {
             let cma = gui_state.borrow_current_mouse_action();
             if let MouseAction::ConnectInput(module, index) = cma {
@@ -209,6 +212,8 @@ impl ModuleGraph {
         } else {
             None
         };
+        */
+        let highlight = None;
         for layer in 0..4 {
             for module in &self.modules {
                 module.draw(g, (mx, my), highlight, layer);
@@ -217,6 +222,8 @@ impl ModuleGraph {
         if let Some(widget) = &self.detail_menu_widget {
             widget.draw(g);
         }
+        // TODO: Add temp wire back.
+        /*
         if gui_state.is_dragging() {
             let cma = gui_state.borrow_current_mouse_action();
             if let MouseAction::ConnectInput(module, index) = cma {
@@ -231,6 +238,7 @@ impl ModuleGraph {
                 g.stroke_line(sx, sy, mx, my, 2.0);
             }
         }
+        */
         g.pop_state();
     }
 

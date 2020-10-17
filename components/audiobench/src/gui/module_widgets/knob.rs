@@ -1,6 +1,9 @@
 use super::{ModuleWidget, PopupMenu};
 use crate::engine::parts as ep;
-use crate::gui::action::{DropTarget, MouseAction};
+use crate::gui::action::{
+    DropTarget, GuiRequest, InstanceRequest, ManipulateControl, ManipulateLane, MouseAction,
+    SubmitRequestsOnClick,
+};
 use crate::gui::constants::*;
 use crate::gui::graph::{Module, WireTracker};
 use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
@@ -60,21 +63,22 @@ impl ModuleWidget for Knob {
         _local_pos: (f32, f32),
         mods: &MouseMods,
         parent_pos: (f32, f32),
-    ) -> MouseAction {
+    ) -> Option<Box<dyn MouseAction>> {
         if mods.right_click {
             let pos = (
                 self.pos.0 + parent_pos.0 + grid(2) / 2.0,
                 self.pos.1 + parent_pos.1 + grid(2) / 2.0,
             );
-            MouseAction::OpenMenu(Box::new(KnobEditor::create(
+            GuiRequest::OpenMenu(Box::new(KnobEditor::create(
                 Rc::clone(&self.control),
                 Rc::clone(&self.value),
                 pos,
                 self.label.clone(),
                 self.tooltip.clone(),
             )))
+            .into()
         } else {
-            MouseAction::ManipulateControl(Rc::clone(&self.control), self.control.borrow().value)
+            Some(Box::new(ManipulateControl::new(Rc::clone(&self.control))))
         }
     }
 
@@ -231,7 +235,11 @@ impl PopupMenu for KnobEditor {
         self.size
     }
 
-    fn respond_to_mouse_press(&self, local_pos: (f32, f32), mods: &MouseMods) -> MouseAction {
+    fn respond_to_mouse_press(
+        &self,
+        local_pos: (f32, f32),
+        mods: &MouseMods,
+    ) -> Option<Box<dyn MouseAction>> {
         // Yes, the last 0 is intentional. The center of the knob is not vertically centered.
         let (cx, cy) = (
             local_pos.0 - self.size.0 / 2.0,
@@ -248,10 +256,7 @@ impl PopupMenu for KnobEditor {
             if radius < KNOB_MENU_KNOB_IR {
                 // Nothing interactable inside the knob.
             } else if radius < KNOB_MENU_KNOB_OR {
-                return MouseAction::ManipulateControl(
-                    Rc::clone(&self.control),
-                    self.control.borrow().value,
-                );
+                return Some(Box::new(ManipulateControl::new(Rc::clone(&self.control))));
             } else {
                 let radius = radius - KNOB_MENU_KNOB_OR;
                 let lane = (radius / (KNOB_MENU_LANE_SIZE + KNOB_MENU_LANE_GAP)) as usize;
@@ -270,22 +275,28 @@ impl PopupMenu for KnobEditor {
                         max_angle = tmp;
                     }
                     if angle < min_angle && angle > max_angle {
-                        return if mods.right_click {
-                            MouseAction::RemoveLane(Rc::clone(&self.control), lane)
+                        if mods.right_click {
+                            let control = Rc::clone(&self.control);
+                            return SubmitRequestsOnClick::wrap(vec![
+                                InstanceRequest::SimpleCallback(Box::new(move || {
+                                    control.borrow_mut().automation.remove(lane);
+                                }))
+                                .into(),
+                                InstanceRequest::ReloadStructure.into(),
+                            ]);
                         } else {
-                            MouseAction::ManipulateLane(Rc::clone(&self.control), lane)
+                            return Some(Box::new(ManipulateLane::new(
+                                Rc::clone(&self.control),
+                                lane,
+                            )));
                         };
                     }
                     // xor
-                    return if (angle > min_angle) != ends_flipped {
-                        MouseAction::ManipulateLaneStart(
-                            Rc::clone(&self.control),
-                            lane,
-                            lane_range.0,
-                        )
+                    return Some(Box::new(if (angle > min_angle) != ends_flipped {
+                        ManipulateLane::start_only(Rc::clone(&self.control), lane)
                     } else {
-                        MouseAction::ManipulateLaneEnd(Rc::clone(&self.control), lane, lane_range.1)
-                    };
+                        ManipulateLane::end_only(Rc::clone(&self.control), lane)
+                    }));
                 }
             }
         } else {
@@ -295,21 +306,21 @@ impl PopupMenu for KnobEditor {
                     / (KNOB_MENU_LANE_SIZE + KNOB_MENU_LANE_GAP))
                     as usize;
                 if lane >= auto_lanes {
-                    return MouseAction::None;
+                    return None;
                 }
                 // Lanes are shown in reverse order.
                 let lane = auto_lanes - lane - 1;
                 let lane_range = control.automation[lane].range;
                 let ends_flipped = lane_range.0 > lane_range.1;
                 // xor
-                return if (fcx > 0.0) != ends_flipped {
-                    MouseAction::ManipulateLaneEnd(Rc::clone(&self.control), lane, lane_range.1)
+                return Some(Box::new(if (fcx > 0.0) != ends_flipped {
+                    ManipulateLane::end_only(Rc::clone(&self.control), lane)
                 } else {
-                    MouseAction::ManipulateLaneStart(Rc::clone(&self.control), lane, lane_range.0)
-                };
+                    ManipulateLane::end_only(Rc::clone(&self.control), lane)
+                }));
             }
         }
-        MouseAction::None
+        None
     }
 
     fn get_tooltip_at(&self, local_pos: (f32, f32)) -> Option<Tooltip> {

@@ -1,4 +1,4 @@
-use crate::gui::action::MouseAction;
+use crate::gui::action::{GuiRequest, MouseAction};
 use crate::gui::constants::*;
 use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
 use crate::gui::MouseMods;
@@ -7,15 +7,18 @@ use shared_util::prelude::*;
 pub struct TextField {
     pub text: String,
     focused: bool,
-    defocus_action: Box<dyn Fn(&str) -> MouseAction>,
+    defocus_action: Box<dyn Fn(&str) -> Vec<GuiRequest>>,
 }
 
 impl TextField {
-    fn new(start_value: String, defocus_action: Box<dyn Fn(&str) -> MouseAction>) -> Self {
+    fn new(
+        start_value: String,
+        defocus_action: Box<dyn Fn(&str) -> Vec<GuiRequest>>,
+    ) -> Self {
         Self {
             text: start_value,
             focused: false,
-            defocus_action: Box::new(defocus_action),
+            defocus_action,
         }
     }
 
@@ -24,7 +27,7 @@ impl TextField {
         self.focused = true;
     }
 
-    pub fn defocus(&mut self) -> MouseAction {
+    pub fn defocus(&mut self) -> Vec<GuiRequest> {
         debug_assert!(self.focused);
         self.focused = false;
         (self.defocus_action)(&self.text)
@@ -43,7 +46,7 @@ impl TextBox {
         pos: (f32, f32),
         size: (f32, f32),
         start_value: String,
-        defocus_action: Box<dyn Fn(&str) -> MouseAction>,
+        defocus_action: Box<dyn Fn(&str) -> Vec<GuiRequest>>,
     ) -> Self {
         Self {
             pos,
@@ -57,9 +60,9 @@ impl TextBox {
         &mut self,
         _mouse_pos: (f32, f32),
         _mods: &MouseMods,
-    ) -> MouseAction {
+    ) -> Option<Box<dyn MouseAction>> {
         self.blink_timer = std::time::Instant::now();
-        MouseAction::FocusTextField(Rc::clone(&self.field))
+        GuiRequest::FocusTextField(Rc::clone(&self.field)).into()
     }
 
     pub fn draw(&self, g: &mut GrahpicsWrapper) {

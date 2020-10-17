@@ -1,6 +1,6 @@
 use super::ModuleWidget;
 use crate::engine::static_controls as staticons;
-use crate::gui::action::MouseAction;
+use crate::gui::action::{ManipulateIntBox, MouseAction};
 use crate::gui::constants::*;
 use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
 use crate::gui::{InteractionHint, MouseMods, Tooltip};
@@ -62,20 +62,19 @@ impl<T: IntBoxImpl> ModuleWidget for T {
         local_pos: (f32, f32),
         _mods: &MouseMods,
         _parent_pos: (f32, f32),
-    ) -> MouseAction {
+    ) -> Option<Box<dyn MouseAction>> {
         let click_delta = if local_pos.1 > IntBoxBase::HEIGHT / 2.0 {
             -1
         } else {
             1
         };
-        MouseAction::ManipulateIntBox {
-            callback: self.make_callback(),
-            min: self.get_base().range.0,
-            max: self.get_base().range.1,
+        Some(Box::new(ManipulateIntBox::new(
+            self.make_callback(),
+            self.get_base().range.0,
+            self.get_base().range.1,
             click_delta,
-            float_value: self.get_current_value() as f32,
-            code_reload_requested: false,
-        }
+            self.get_current_value(),
+        )))
     }
 
     fn get_tooltip_at(&self, _local_pos: (f32, f32)) -> Option<Tooltip> {

@@ -1,9 +1,9 @@
-use super::{ModuleWidget, KnobEditor};
+use super::{KnobEditor, ModuleWidget};
 use crate::engine::parts as ep;
-use crate::gui::action::{DropTarget, MouseAction};
+use crate::gui::action::{DropTarget, MouseAction, GuiRequest, ManipulateControl};
 use crate::gui::constants::*;
 use crate::gui::graph::{Module, WireTracker};
-use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
+use crate::gui::graphics::{GrahpicsWrapper};
 use crate::gui::{InteractionHint, MouseMods, Tooltip};
 use shared_util::prelude::*;
 use std::f32::consts::PI;
@@ -60,21 +60,22 @@ impl ModuleWidget for MiniKnob {
         _local_pos: (f32, f32),
         mods: &MouseMods,
         parent_pos: (f32, f32),
-    ) -> MouseAction {
+    ) -> Option<Box<dyn MouseAction>> {
         if mods.right_click {
             let pos = (
                 self.pos.0 + parent_pos.0 + grid(1) / 2.0,
                 self.pos.1 + parent_pos.1 + grid(1) / 2.0,
             );
-            MouseAction::OpenMenu(Box::new(KnobEditor::create(
+            GuiRequest::OpenMenu(Box::new(KnobEditor::create(
                 Rc::clone(&self.control),
                 Rc::clone(&self.value),
                 pos,
                 self.label.clone(),
                 self.tooltip.clone(),
             )))
+            .into()
         } else {
-            MouseAction::ManipulateControl(Rc::clone(&self.control), self.control.borrow().value)
+            Some(Box::new(ManipulateControl::new(Rc::clone(&self.control))))
         }
     }
 
@@ -126,14 +127,7 @@ impl ModuleWidget for MiniKnob {
         } else {
             g.set_color(&COLOR_BG0);
         }
-        g.fill_pie(
-            0.0,
-            0.0,
-            grid(1),
-            KNOB_INSIDE_SPACE,
-            MIN_ANGLE,
-            MAX_ANGLE,
-        );
+        g.fill_pie(0.0, 0.0, grid(1), KNOB_INSIDE_SPACE, MIN_ANGLE, MAX_ANGLE);
         g.set_color(&COLOR_EDITABLE);
         if highlight {
             g.set_alpha(0.5);

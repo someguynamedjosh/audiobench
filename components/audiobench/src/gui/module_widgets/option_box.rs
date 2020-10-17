@@ -1,6 +1,6 @@
 use super::ModuleWidget;
 use crate::engine::static_controls as staticons;
-use crate::gui::action::MouseAction;
+use crate::gui::action::{MouseAction, MutateStaticon};
 use crate::gui::constants::*;
 use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
 use crate::gui::{InteractionHint, MouseMods, Tooltip};
@@ -58,17 +58,15 @@ impl ModuleWidget for OptionBox {
         local_pos: (f32, f32),
         _mods: &MouseMods,
         _parent_pos: (f32, f32),
-    ) -> MouseAction {
+    ) -> Option<Box<dyn MouseAction>> {
         let num_options = self.control.borrow().get_options().len();
         let height_per_option = (self.size.1 - FONT_SIZE - GRID_P / 2.0) / num_options as f32;
         let option = (local_pos.1 / height_per_option) as usize;
         if option < num_options {
             let cref = Rc::clone(&self.control);
-            MouseAction::MutateStaticon(Box::new(move || {
-                cref.borrow_mut().set_selected_option(option)
-            }))
+            MutateStaticon::wrap(move || cref.borrow_mut().set_selected_option(option))
         } else {
-            MouseAction::None
+            None
         }
     }
 

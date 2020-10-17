@@ -88,20 +88,22 @@ impl Instance {
         ));
     }
 
-    fn perform_action(&mut self, action: gui::action::InstanceAction) {
-        match action {
-            gui::action::InstanceAction::Sequence(actions) => {
-                for action in actions {
-                    self.perform_action(action);
-                }
-            }
-            gui::action::InstanceAction::ReloadAutoconDynData => {
+    fn do_requests(&mut self, requests: Vec<gui::action::InstanceRequest>) {
+        for request in requests {
+            self.do_request(request);
+        }
+    }
+
+    fn do_request(&mut self, request: gui::action::InstanceRequest) {
+        use gui::action::InstanceRequest;
+        match request {
+            InstanceRequest::ReloadAutoconDynData => {
                 self.engine.as_mut().map(|e| e.reload_autocon_dyn_data());
             }
-            gui::action::InstanceAction::ReloadStaticonDynData => {
+            InstanceRequest::ReloadStaticonDynData => {
                 self.engine.as_mut().map(|e| e.reload_staticon_dyn_data());
             }
-            gui::action::InstanceAction::ReloadStructure => {
+            InstanceRequest::ReloadStructure => {
                 if let Some(e) = self.engine.as_mut() {
                     let res = e.recompile();
                     if let Err(err) = res {
@@ -117,10 +119,10 @@ impl Instance {
                     }
                 }
             }
-            gui::action::InstanceAction::RenamePatch(name) => {
+            InstanceRequest::RenamePatch(name) => {
                 self.engine.as_mut().map(|e| e.rename_current_patch(name));
             }
-            gui::action::InstanceAction::SavePatch(mut callback) => {
+            InstanceRequest::SavePatch(mut callback) => {
                 if let Some(engine) = self.engine.as_mut() {
                     engine.save_current_patch(&self.registry);
                     callback(engine.borrow_current_patch());
@@ -129,12 +131,12 @@ impl Instance {
                     .as_mut()
                     .map(|g| g.display_success("Saved successfully!".to_owned()));
             }
-            gui::action::InstanceAction::NewPatch(mut callback) => {
+            InstanceRequest::NewPatch(mut callback) => {
                 if let Some(e) = self.engine.as_mut() {
                     callback(e.new_patch(&mut self.registry));
                 }
             }
-            gui::action::InstanceAction::LoadPatch(patch, mut callback) => {
+            InstanceRequest::LoadPatch(patch, mut callback) => {
                 if let Some(e) = self.engine.as_mut() {
                     let res = e.load_patch(&self.registry, patch);
                     if res.is_ok() {
@@ -148,10 +150,10 @@ impl Instance {
                     }
                 }
             }
-            gui::action::InstanceAction::SimpleCallback(mut callback) => {
+            InstanceRequest::SimpleCallback(mut callback) => {
                 (callback)();
             }
-            gui::action::InstanceAction::CopyPatchToClipboard => {
+            InstanceRequest::CopyPatchToClipboard => {
                 if let Some(e) = self.engine.as_mut() {
                     use clipboard::ClipboardProvider;
                     let patch_data = e.serialize_current_patch(&self.registry);
@@ -163,7 +165,7 @@ impl Instance {
                     }
                 }
             }
-            gui::action::InstanceAction::PastePatchFromClipboard(mut callback) => {
+            InstanceRequest::PastePatchFromClipboard(mut callback) => {
                 if let Some(e) = self.engine.as_mut() {
                     use clipboard::ClipboardProvider;
                     let mut clipboard: clipboard::ClipboardContext =
@@ -351,34 +353,34 @@ impl Instance {
         }
     }
 
-    pub fn mouse_down(&mut self, x: f32, y: f32, right_click: bool, shift: bool, precise: bool) {
+    pub fn mouse_down(&mut self, x: f32, y: f32, right_click: bool, snap: bool, precise: bool) {
         if let Some(gui) = &mut self.gui {
             let mods = MouseMods {
                 right_click,
-                shift,
+                snap,
                 precise,
             };
-            let action = gui.on_mouse_down(&self.registry, (x, y), &mods);
+            let requests = gui.on_mouse_down(&self.registry, (x, y), &mods);
             // This is a pretty hacky way of keeping the error on the screen but it works.
             if let Some(err) = &self.structure_error {
                 gui.display_error(err.to_owned());
             }
-            action.map(|a| self.perform_action(a));
+            self.do_requests(requests);
         } else if self.critical_error.is_none() {
             debug_assert!(false, "mouse_down called, but no GUI exists.");
             eprintln!("WARNING: mouse_down called, but no GUI exists.");
         }
     }
 
-    pub fn mouse_move(&mut self, x: f32, y: f32, right_click: bool, shift: bool, precise: bool) {
+    pub fn mouse_move(&mut self, x: f32, y: f32, right_click: bool, snap: bool, precise: bool) {
         if let Some(gui) = &mut self.gui {
             let mods = MouseMods {
                 right_click,
-                shift,
+                snap,
                 precise,
             };
-            let action = gui.on_mouse_move(&self.registry, (x, y), &mods);
-            action.map(|a| self.perform_action(a));
+            let requests = gui.on_mouse_move(&self.registry, (x, y), &mods);
+            self.do_requests(requests);
         } else if self.critical_error.is_none() {
             debug_assert!(false, "mouse_move called, but no GUI exists.");
             eprintln!("WARNING: mouse_move called, but no GUI exists.");
@@ -387,8 +389,8 @@ impl Instance {
 
     pub fn mouse_up(&mut self) {
         if let Some(gui) = &mut self.gui {
-            let action = gui.on_mouse_up(&self.registry);
-            action.map(|a| self.perform_action(a));
+            let requests = gui.on_mouse_up(&self.registry);
+            self.do_requests(requests);
         } else if self.critical_error.is_none() {
             debug_assert!(false, "mouse_up called, but no GUI exists.");
             eprintln!("WARNING: mouse_up called, but no GUI exists.");
@@ -397,8 +399,8 @@ impl Instance {
 
     pub fn scroll(&mut self, delta: f32) {
         if let Some(gui) = &mut self.gui {
-            let action = gui.on_scroll(&self.registry, delta);
-            action.map(|a| self.perform_action(a));
+            let requests = gui.on_scroll(&self.registry, delta);
+            self.do_requests(requests);
         } else if self.critical_error.is_none() {
             debug_assert!(false, "mouse_up called, but no GUI exists.");
             eprintln!("WARNING: mouse_up called, but no GUI exists.");
@@ -407,8 +409,8 @@ impl Instance {
 
     pub fn key_press(&mut self, key: u8) {
         if let Some(gui) = &mut self.gui {
-            let action = gui.on_key_press(&self.registry, key);
-            action.map(|a| self.perform_action(a));
+            let requests = gui.on_key_press(&self.registry, key);
+            self.do_requests(requests);
         } else if self.critical_error.is_none() {
             debug_assert!(false, "mouse_up called, but no GUI exists.");
             eprintln!("WARNING: mouse_up called, but no GUI exists.");

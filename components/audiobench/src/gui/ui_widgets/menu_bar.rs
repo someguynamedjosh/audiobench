@@ -1,4 +1,4 @@
-use crate::gui::action::MouseAction;
+use crate::gui::action::{GuiRequest, MouseAction};
 use crate::gui::constants::*;
 use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
 use crate::gui::{GuiScreen, InteractionHint, MouseMods, Status, Tooltip};
@@ -65,15 +65,19 @@ impl MenuBar {
         self.status = None;
     }
 
-    pub fn respond_to_mouse_press(&self, mouse_pos: (f32, f32), _mods: &MouseMods) -> MouseAction {
+    pub fn respond_to_mouse_press(
+        &self,
+        mouse_pos: (f32, f32),
+        _mods: &MouseMods,
+    ) -> Option<Box<dyn MouseAction>> {
         if !mouse_pos.inside((99999.0, Self::HEIGHT)) {
-            return MouseAction::None;
+            return None;
         }
         let new_screen = ((mouse_pos.0 - GRID_P) / (GRID_P + grid(1))) as usize;
         if new_screen < self.screens.len() {
-            MouseAction::SwitchScreen(self.screens[new_screen])
+            GuiRequest::SwitchScreen(self.screens[new_screen]).into()
         } else {
-            MouseAction::None
+            None
         }
     }
 
@@ -169,8 +173,8 @@ impl MenuBar {
         g.set_color(&COLOR_BG0);
         let mut x = width + GP2;
         let hints = [
-            (InteractionHint::Alt, vec![self.alt]),
-            (InteractionHint::Shift, vec![self.shift]),
+            (InteractionHint::PrecisionModifier, vec![self.alt]),
+            (InteractionHint::SnappingModifier, vec![self.shift]),
             (
                 InteractionHint::LeftClickAndDrag,
                 vec![self.lclick, self.drag],
