@@ -11,10 +11,7 @@ pub struct TextField {
 }
 
 impl TextField {
-    fn new(
-        start_value: String,
-        defocus_action: Box<dyn Fn(&str) -> Vec<GuiRequest>>,
-    ) -> Self {
+    fn new(start_value: String, defocus_action: Box<dyn Fn(&str) -> Vec<GuiRequest>>) -> Self {
         Self {
             text: start_value,
             focused: false,

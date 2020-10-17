@@ -1,9 +1,9 @@
 use super::{KnobEditor, ModuleWidget};
 use crate::engine::parts as ep;
-use crate::gui::action::{DropTarget, MouseAction, GuiRequest, ManipulateControl};
+use crate::gui::action::{DropTarget, GuiRequest, ManipulateControl, MouseAction};
 use crate::gui::constants::*;
 use crate::gui::graph::{Module, WireTracker};
-use crate::gui::graphics::{GrahpicsWrapper};
+use crate::gui::graphics::GrahpicsWrapper;
 use crate::gui::{InteractionHint, MouseMods, Tooltip};
 use shared_util::prelude::*;
 use std::f32::consts::PI;

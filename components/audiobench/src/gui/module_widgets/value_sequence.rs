@@ -2,7 +2,7 @@ use super::ModuleWidget;
 use super::{IntBoxBase, IntBoxImpl};
 use crate::engine::parts as ep;
 use crate::engine::static_controls as staticons;
-use crate::gui::action::{MouseAction, ContinuouslyMutateStaticon};
+use crate::gui::action::{ContinuouslyMutateStaticon, MouseAction};
 use crate::gui::constants::*;
 use crate::gui::graphics::GrahpicsWrapper;
 use crate::gui::{InteractionHint, MouseMods, Tooltip};
