@@ -218,8 +218,9 @@ impl Engine {
         let module_graph_ref = self.utd.module_graph.borrow();
         let section = ctd.perf_counter.begin_section(&sections::GENERATE_CODE);
         let new_gen = codegen::generate_code(&*module_graph_ref, &ctd.host_format)
-            .map_err(|_| format!("The note graph cannot contain feedback loops"))?;
+            .map_err(|_| format!("The note graph cannot contain feedback loops"));
         ctd.perf_counter.end_section(section);
+        let new_gen = new_gen?;
         drop(module_graph_ref);
         ctd.new_source = Some((new_gen.code, new_gen.data_format.clone()));
         let section = ctd

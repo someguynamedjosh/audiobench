@@ -1,11 +1,23 @@
 use super::Module;
 use crate::engine::parts as ep;
 use crate::gui::action::{DropTarget, GuiRequest, MouseAction, PanOffset, ScaledMouseAction};
+use crate::gui::constants::*;
 use crate::gui::graphics::GrahpicsWrapper;
 use crate::gui::module_widgets::PopupMenu;
 use crate::gui::{Gui, InteractionHint, MouseMods, Tooltip};
 use crate::registry::Registry;
 use shared_util::prelude::*;
+
+pub enum HighlightMode {
+    None,
+    Inputs(ep::JackType),
+    Outputs(ep::JackType),
+}
+
+pub struct GraphHints {
+    pub draw_wire_from: Option<(f32, f32)>,
+    pub highlight: HighlightMode,
+}
 
 pub struct ModuleGraph {
     pub pos: (f32, f32),
@@ -13,6 +25,7 @@ pub struct ModuleGraph {
     offset: Rcrc<(f32, f32)>,
     zoom: Rcrc<f32>,
     graph: Rcrc<ep::ModuleGraph>,
+    hints: Rcrc<GraphHints>,
     modules: Vec<Module>,
     detail_menu_widget: Option<Box<dyn PopupMenu>>,
 }
@@ -31,6 +44,10 @@ impl ModuleGraph {
             zoom: rcrc(1.0),
             offset: rcrc((0.0, 0.0)),
             graph,
+            hints: rcrc(GraphHints {
+                draw_wire_from: None,
+                highlight: HighlightMode::None,
+            }),
             modules,
             detail_menu_widget: None,
         };
@@ -137,9 +154,8 @@ impl ModuleGraph {
             }
         }
         for module in self.modules.iter().rev() {
-            let action = module.respond_to_mouse_press(mouse_pos, mods);
+            let action = module.respond_to_mouse_press(mouse_pos, mods, &self.hints);
             if let Some(action) = action {
-                println!("Action!");
                 return Some(ScaledMouseAction::new(action, Rc::clone(&self.zoom)));
             }
         }
@@ -195,51 +211,18 @@ impl ModuleGraph {
         g.apply_scale(*self.zoom.borrow());
         g.apply_offset(offset.0 + self.pos.0, offset.1 + self.pos.1);
         let (mx, my) = self.translate_mouse_pos(gui_state.get_current_mouse_pos());
-        // TODO: Add highlights back.
-        /*
-        let highlight = if gui_state.is_dragging() {
-            let cma = gui_state.borrow_current_mouse_action();
-            if let MouseAction::ConnectInput(module, index) = cma {
-                let typ = module.borrow().template.borrow().inputs[*index].get_type();
-                // Highlight outputs with typ.
-                Some((true, typ))
-            } else if let MouseAction::ConnectOutput(module, index) = cma {
-                let typ = module.borrow().template.borrow().outputs[*index].get_type();
-                // Highlight inputs with typ.
-                Some((false, typ))
-            } else {
-                None
-            }
-        } else {
-            None
-        };
-        */
-        let highlight = None;
         for layer in 0..4 {
             for module in &self.modules {
-                module.draw(g, (mx, my), highlight, layer);
+                module.draw(g, (mx, my), &self.hints, layer);
             }
         }
         if let Some(widget) = &self.detail_menu_widget {
             widget.draw(g);
         }
-        // TODO: Add temp wire back.
-        /*
-        if gui_state.is_dragging() {
-            let cma = gui_state.borrow_current_mouse_action();
-            if let MouseAction::ConnectInput(module, index) = cma {
-                let module_ref = module.borrow();
-                let (sx, sy) = Module::input_position(&*module_ref, *index as i32);
-                g.set_color(&COLOR_FG1);
-                g.stroke_line(sx, sy, mx, my, 2.0);
-            } else if let MouseAction::ConnectOutput(module, index) = cma {
-                let module_ref = module.borrow();
-                let (sx, sy) = Module::output_position(&*module_ref, *index as i32);
-                g.set_color(&COLOR_FG1);
-                g.stroke_line(sx, sy, mx, my, 2.0);
-            }
+        if let Some(coord) = self.hints.borrow().draw_wire_from {
+            g.set_color(&COLOR_FG1);
+            g.stroke_line(coord.0, coord.1, mx, my, 2.0);
         }
-        */
         g.pop_state();
     }
 

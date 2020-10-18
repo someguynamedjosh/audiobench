@@ -4,6 +4,7 @@ use crate::gui::action::{
     ConnectInput, ConnectOutput, DragModule, DropTarget, GuiRequest, MouseAction,
 };
 use crate::gui::constants::*;
+use crate::gui::graph::{GraphHints, HighlightMode};
 use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
 use crate::gui::module_widgets::ModuleWidget;
 use crate::gui::{InteractionHint, MouseMods, Tooltip};
@@ -215,11 +216,11 @@ impl Drop for Module {
 }
 
 impl Module {
-    fn jack_y(index: i32) -> f32 {
-        coord(index) + JACK_SIZE / 2.0
+    fn jack_y(index: usize) -> f32 {
+        coord(index as i32) + JACK_SIZE / 2.0
     }
 
-    pub fn input_position(module: &ep::Module, input_index: i32) -> (f32, f32) {
+    pub fn input_position(module: &ep::Module, input_index: usize) -> (f32, f32) {
         let module_pos = (module.pos.0 as f32, module.pos.1 as f32);
         (
             module_pos.0 + JACK_SIZE,
@@ -227,7 +228,7 @@ impl Module {
         )
     }
 
-    pub fn output_position(module: &ep::Module, output_index: i32) -> (f32, f32) {
+    pub fn output_position(module: &ep::Module, output_index: usize) -> (f32, f32) {
         let module_pos = (module.pos.0 as f32, module.pos.1 as f32);
         let module_size = module.template.borrow().size;
         let module_width = fatgrid(module_size.0) + MODULE_IO_WIDTH * 2.0 + JACK_SIZE;
@@ -304,6 +305,7 @@ impl Module {
         &self,
         mouse_pos: (f32, f32),
         mods: &MouseMods,
+        hints: &Rcrc<GraphHints>,
     ) -> Option<Box<dyn MouseAction>> {
         let pos = self.get_pos();
         let mouse_pos = (mouse_pos.0 - pos.0, mouse_pos.1 - pos.1);
@@ -322,12 +324,30 @@ impl Module {
         }
         for (index, input) in self.inputs.iter().enumerate() {
             if input.mouse_in_bounds(mouse_pos) {
-                return Some(Box::new(ConnectInput::new(Rc::clone(&self.module), index)));
+                let mut hmut = hints.borrow_mut();
+                let module = self.module.borrow();
+                hmut.draw_wire_from = Some(Self::input_position(&module, index));
+                hmut.highlight =
+                    HighlightMode::Outputs(module.template.borrow().inputs[index].get_type());
+                return Some(Box::new(ConnectInput::new(
+                    Rc::clone(&self.module),
+                    index,
+                    Rc::clone(&hints),
+                )));
             }
         }
         for (index, output) in self.outputs.iter().enumerate() {
             if output.mouse_in_bounds(mouse_pos) {
-                return Some(Box::new(ConnectOutput::new(Rc::clone(&self.module), index)));
+                let mut hmut = hints.borrow_mut();
+                let module = self.module.borrow();
+                hmut.draw_wire_from = Some(Self::output_position(&module, index));
+                hmut.highlight =
+                    HighlightMode::Inputs(module.template.borrow().outputs[index].get_type());
+                return Some(Box::new(ConnectOutput::new(
+                    Rc::clone(&self.module),
+                    index,
+                    Rc::clone(&hints),
+                )));
             }
         }
         if mods.right_click {
@@ -408,9 +428,8 @@ impl Module {
         for (index, jack) in self.module.borrow().inputs.iter().enumerate() {
             let y = coord(index as i32) + grid(1) / 2.0;
             if let ep::InputConnection::Wire(module, output_index) = jack {
-                let output_index = *output_index as i32;
                 let module_ref = module.borrow();
-                let (ox, oy) = Self::output_position(&*module_ref, output_index);
+                let (ox, oy) = Self::output_position(&*module_ref, *output_index);
                 super::draw_io_wire(g, pos.0 + JACK_SIZE, pos.1 + y, ox, oy);
             }
         }
@@ -420,10 +439,11 @@ impl Module {
         &self,
         g: &mut GrahpicsWrapper,
         mouse_pos: (f32, f32),
-        highlight: Option<(bool, ep::JackType)>,
+        hints: &Rcrc<GraphHints>,
         layer_index: usize,
     ) {
         let pos = self.get_pos();
+        let href = hints.borrow();
 
         if layer_index == 0 {
             g.draw_inset_box_shadow(
@@ -470,8 +490,10 @@ impl Module {
             for input_index in 0..self.inputs.len() {
                 let input = &self.inputs[input_index];
                 let jack = &template_ref.inputs[input_index];
-                let mute = if let Some((outs, typ)) = highlight {
-                    outs || typ != jack.get_type()
+                let mute = if let HighlightMode::Inputs(typ) = &href.highlight {
+                    *typ != jack.get_type()
+                } else if let HighlightMode::Outputs(..) = &href.highlight {
+                    true
                 } else {
                     false
                 };
@@ -490,8 +512,10 @@ impl Module {
             for output_index in 0..self.outputs.len() {
                 let output = &self.outputs[output_index];
                 let jack = &template_ref.outputs[output_index];
-                let mute = if let Some((outs, typ)) = highlight {
-                    !outs || typ != jack.get_type()
+                let mute = if let HighlightMode::Outputs(typ) = &href.highlight {
+                    *typ != jack.get_type()
+                } else if let HighlightMode::Inputs(..) = &href.highlight {
+                    true
                 } else {
                     false
                 };
@@ -500,7 +524,11 @@ impl Module {
             let feedback_data_ref = module_ref.feedback_data.as_ref().unwrap().borrow();
             let feedback_data = &feedback_data_ref[..];
             let mut fdi = 0;
-            let highlight = highlight == Some((false, ep::JackType::Audio));
+            let highlight = if let HighlightMode::Inputs(typ) = &href.highlight {
+                *typ == ep::JackType::Audio
+            } else {
+                false
+            };
             for (widget, segment_len) in &self.widgets {
                 widget.draw(g, highlight, pos, &feedback_data[fdi..fdi + segment_len]);
                 fdi += segment_len;

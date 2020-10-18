@@ -82,10 +82,7 @@ impl Instance {
             return;
         }
         copy_to_clipboard(error.clone());
-        self.structure_error = Some(format!(
-            "The following error report has been copied to your clipboard:\n\n{}",
-            error
-        ));
+        self.structure_error = Some(error);
     }
 
     fn do_requests(&mut self, requests: Vec<gui::action::InstanceRequest>) {

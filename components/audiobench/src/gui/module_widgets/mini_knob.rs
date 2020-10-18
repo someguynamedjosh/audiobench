@@ -96,9 +96,8 @@ impl ModuleWidget for MiniKnob {
         let (cx, cy) = (self.pos.0 + grid(1) / 2.0, self.pos.1 + grid(1) / 2.0);
         for lane in self.control.borrow().automation.iter() {
             let (module, output_index) = &lane.connection;
-            let output_index = *output_index as i32;
             let module_ref = module.borrow();
-            let (ox, oy) = Module::output_position(&*module_ref, output_index);
+            let (ox, oy) = Module::output_position(&*module_ref, *output_index);
             wire_tracker.add_wire((ox, oy), (cx, cy));
         }
     }

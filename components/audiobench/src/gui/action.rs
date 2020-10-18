@@ -1,6 +1,7 @@
 use crate::engine::parts as ep;
 use crate::engine::static_controls as staticons;
 use crate::gui::constants::*;
+use crate::gui::graph::{GraphHints, HighlightMode};
 use crate::gui::module_widgets;
 use crate::gui::ui_widgets::TextField;
 use crate::gui::{GuiScreen, InteractionHint, MouseMods, Tooltip};
@@ -408,25 +409,30 @@ impl MouseAction for PanOffset {
 pub struct ConnectInput {
     module: Rcrc<ep::Module>,
     index: usize,
+    graph_hints: Rcrc<GraphHints>,
 }
 
 impl MouseAction for ConnectInput {
     fn on_drop(self: Box<Self>, target: DropTarget) -> Vec<GuiRequest> {
-        println!("{:#?}", target);
         let mut in_ref = self.module.borrow_mut();
         let template_ref = in_ref.template.borrow();
         let in_type = template_ref.inputs[self.index].get_type();
         drop(template_ref);
         if let DropTarget::Output(out_module, out_index) = target {
-            let out_type = out_module.borrow().template.borrow().outputs[out_index].get_type();
-            if in_type == out_type {
-                in_ref.inputs[self.index] = ep::InputConnection::Wire(out_module, out_index);
+            if !Rc::ptr_eq(&out_module, &self.module) {
+                let out_type = out_module.borrow().template.borrow().outputs[out_index].get_type();
+                if in_type == out_type {
+                    in_ref.inputs[self.index] = ep::InputConnection::Wire(out_module, out_index);
+                }
             }
         // Only change to a default if it used to be connected.
         } else if let ep::InputConnection::Wire(..) = &in_ref.inputs[self.index] {
             let default = in_ref.template.borrow().default_inputs[self.index];
             in_ref.inputs[self.index] = ep::InputConnection::Default(default);
         }
+        let mut ghm = self.graph_hints.borrow_mut();
+        ghm.draw_wire_from = None;
+        ghm.highlight = HighlightMode::None;
         vec![InstanceRequest::ReloadStructure.into()]
     }
 
@@ -439,6 +445,9 @@ impl MouseAction for ConnectInput {
             *index += 1;
             *index %= num_options;
         }
+        let mut ghm = self.graph_hints.borrow_mut();
+        ghm.draw_wire_from = None;
+        ghm.highlight = HighlightMode::None;
         vec![InstanceRequest::ReloadStructure.into()]
     }
 }
@@ -447,16 +456,19 @@ impl MouseAction for ConnectInput {
 pub struct ConnectOutput {
     module: Rcrc<ep::Module>,
     index: usize,
+    graph_hints: Rcrc<GraphHints>,
 }
 
 impl MouseAction for ConnectOutput {
     fn on_drop(self: Box<Self>, target: DropTarget) -> Vec<GuiRequest> {
         let out_type = self.module.borrow().template.borrow().outputs[self.index].get_type();
         if let DropTarget::Input(in_module, in_index) = target {
-            let mut in_ref = in_module.borrow_mut();
-            let in_type = in_ref.template.borrow().inputs[in_index].get_type();
-            if in_type == out_type {
-                in_ref.inputs[in_index] = ep::InputConnection::Wire(self.module, self.index);
+            if !Rc::ptr_eq(&in_module, &self.module) {
+                let mut in_ref = in_module.borrow_mut();
+                let in_type = in_ref.template.borrow().inputs[in_index].get_type();
+                if in_type == out_type {
+                    in_ref.inputs[in_index] = ep::InputConnection::Wire(self.module, self.index);
+                }
             }
         } else if let DropTarget::Autocon(control) = target {
             if out_type == ep::JackType::Audio {
@@ -468,7 +480,17 @@ impl MouseAction for ConnectOutput {
                 });
             }
         }
+        let mut ghm = self.graph_hints.borrow_mut();
+        ghm.draw_wire_from = None;
+        ghm.highlight = HighlightMode::None;
         vec![InstanceRequest::ReloadStructure.into()]
+    }
+
+    fn on_click(self: Box<Self>) -> Vec<GuiRequest> {
+        let mut ghm = self.graph_hints.borrow_mut();
+        ghm.draw_wire_from = None;
+        ghm.highlight = HighlightMode::None;
+        Vec::new()
     }
 }
 
