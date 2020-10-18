@@ -341,8 +341,6 @@ impl Gui {
     pub fn on_mouse_up(&mut self, registry: &Registry) -> Vec<InstanceRequest> {
         let mouse_action = self.mouse_action.take();
         let mut ret = Vec::new();
-        self.dragged = false;
-        self.mouse_down = false;
         if let Some(ma) = mouse_action {
             let requests = if self.dragged {
                 let drop_target = self.graph.get_drop_target_at(self.mouse_pos);
@@ -357,6 +355,8 @@ impl Gui {
             };
             self.do_requests(registry, requests, &mut ret);
         }
+        self.dragged = false;
+        self.mouse_down = false;
         ret
     }
 

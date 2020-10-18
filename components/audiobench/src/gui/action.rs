@@ -366,6 +366,10 @@ impl DragModule {
 }
 
 impl MouseAction for DragModule {
+    fn allow_scaled(&self) -> bool {
+        true
+    }
+
     fn on_drag(&mut self, delta: (f32, f32), mods: &MouseMods) -> Vec<GuiRequest> {
         self.pos = self.pos.add(delta);
         let mut module_ref = self.module.borrow_mut();
@@ -389,6 +393,10 @@ pub struct PanOffset {
 }
 
 impl MouseAction for PanOffset {
+    fn allow_scaled(&self) -> bool {
+        true
+    }
+
     fn on_drag(&mut self, delta: (f32, f32), _mods: &MouseMods) -> Vec<GuiRequest> {
         let mut offset_ref = self.offset.borrow_mut();
         *offset_ref = offset_ref.add(delta);
@@ -404,6 +412,7 @@ pub struct ConnectInput {
 
 impl MouseAction for ConnectInput {
     fn on_drop(self: Box<Self>, target: DropTarget) -> Vec<GuiRequest> {
+        println!("{:#?}", target);
         let mut in_ref = self.module.borrow_mut();
         let template_ref = in_ref.template.borrow();
         let in_type = template_ref.inputs[self.index].get_type();
@@ -417,6 +426,18 @@ impl MouseAction for ConnectInput {
         } else if let ep::InputConnection::Wire(..) = &in_ref.inputs[self.index] {
             let default = in_ref.template.borrow().default_inputs[self.index];
             in_ref.inputs[self.index] = ep::InputConnection::Default(default);
+        }
+        vec![InstanceRequest::ReloadStructure.into()]
+    }
+
+    fn on_click(self: Box<Self>) -> Vec<GuiRequest> {
+        let mut module_ref = self.module.borrow_mut();
+        let num_options = module_ref.template.borrow().inputs[self.index]
+            .borrow_default_options()
+            .len();
+        if let ep::InputConnection::Default(index) = &mut module_ref.inputs[self.index] {
+            *index += 1;
+            *index %= num_options;
         }
         vec![InstanceRequest::ReloadStructure.into()]
     }
@@ -533,7 +554,7 @@ fn range_value_tooltip(value: f32, suffix: &str) -> GuiRequest {
     .into()
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum DropTarget {
     None,
     Autocon(Rcrc<ep::Autocon>),

@@ -139,6 +139,7 @@ impl ModuleGraph {
         for module in self.modules.iter().rev() {
             let action = module.respond_to_mouse_press(mouse_pos, mods);
             if let Some(action) = action {
+                println!("Action!");
                 return Some(ScaledMouseAction::new(action, Rc::clone(&self.zoom)));
             }
         }
