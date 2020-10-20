@@ -113,7 +113,7 @@ impl Parse for WidgetInfo {
                 ));
             }
         }
-        let gui_interface = quote! { crate::GuiInterface<crate::PlaceholderGuiState> };
+        let gui_interface = quote! { ::scui::GuiInterface<crate::scui_config::GuiState> };
         let parent_types: Vec<_> = parents
             .fields
             .iter()
@@ -125,7 +125,7 @@ impl Parse for WidgetInfo {
         ));
         state.fields.push(PartField(
             parse_quote! { pos },
-            parse_quote! { crate::Pos2D },
+            parse_quote! { ::scui::Pos2D },
         ));
         parents.name = format_ident!("{}Parents", name);
         children.name = format_ident!("{}Children", name);
@@ -169,14 +169,11 @@ impl ToTokens for WidgetInfo {
         let parent_types = &self.parent_types;
 
         let gui_interface_provider =
-            quote! { crate::GuiInterfaceProvider<crate::PlaceholderGuiState> };
+            quote! { ::scui::GuiInterfaceProvider<crate::scui_config::GuiState> };
+        let renderer = quote! { crate::scui_config::Renderer };
         let widget_provider_bounds = quote! {
             #gui_interface_provider +
-            #(crate::WidgetProvider<crate::PlaceholderRenderer, ::std::rc::Rc<#parent_types>>)+*
-        };
-        let renderer = quote! { crate::PlaceholderRenderer };
-        let dyn_mouse_behavior = quote! {
-            ::core::option::Option<::std::boxed::Box<dyn crate::MouseBehavior>>
+            #(::scui::WidgetProvider<#renderer, ::std::rc::Rc<#parent_types>>)+*
         };
         let self_ptr = quote! { ::std::rc::Rc<#name> };
         let ref_cell = quote! { ::std::cell::RefCell };
@@ -225,19 +222,27 @@ impl ToTokens for WidgetInfo {
                 }
             }
             #(
-                impl crate::WidgetProvider<#renderer, ::std::rc::Rc<#parent_types>> for #self_ptr {
+                impl ::scui::WidgetProvider<#renderer, ::std::rc::Rc<#parent_types>> for #self_ptr {
                     fn provide(&self) -> ::std::rc::Rc<#parent_types> {
                         ::std::rc::Rc::clone(&self.parents.#parent_names)
                     }
                 }
             )*
 
-            impl crate::Widget<#renderer> for #self_ptr {
-                fn get_pos(&self) -> crate::Pos2D {
+            impl ::scui::Widget<#renderer> for #self_ptr {
+                fn get_pos(&self) -> ::scui::Pos2D {
                     self.state.borrow().pos
                 }
 
-                fn get_mouse_behavior(&self, pos: crate::Pos2D) -> #dyn_mouse_behavior {
+                fn get_mouse_behavior(&self, pos: ::scui::Pos2D) -> ::scui::MaybeMouseBehavior {
+                    {
+                        let children = self.children.borrow();
+                        #(for child in &children.#child_names {
+                            if let Some(behavior) = child.get_mouse_behavior(pos) {
+                                return Some(behavior);
+                            }
+                        })*
+                    }
                     #name::get_mouse_behavior(self, pos)
                 }
 

@@ -1,5 +1,5 @@
 [package]
-name = "hui_macros"
+name = "scui_macros"
 version = "0.1.0"
 authors = ["Joshua Maros <60271685+joshua-maros@users.noreply.github.com>"]
 edition = "2018"

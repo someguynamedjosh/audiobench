@@ -2,6 +2,8 @@ use std::cell::RefCell;
 use std::marker::PhantomData;
 use std::rc::Rc;
 
+pub use scui_macros::*;
+
 #[derive(Clone, Copy)]
 pub struct Pos2D {
     pub x: f32,
@@ -57,18 +59,20 @@ pub struct PlaceholderRenderer;
 impl Renderer for PlaceholderRenderer {
     fn push_state(&mut self) {}
     fn pop_state(&mut self) {}
-    fn translate(&mut self, offset: Pos2D) {}
+    fn translate(&mut self, _offset: Pos2D) {}
 }
 
 pub struct PlaceholderGuiState;
 
 pub struct GuiInterface<State> {
-    state: State,
+    pub state: RefCell<State>,
 }
 
 impl<State> GuiInterface<State> {
     fn new(state: State) -> Self {
-        Self { state }
+        Self {
+            state: RefCell::new(state),
+        }
     }
 }
 
@@ -85,17 +89,14 @@ pub struct Gui<State, R: Renderer, RootWidget: Widget<R>> {
 }
 
 impl<State, R: Renderer, RW: Widget<R>> Gui<State, R, RW> {
-    pub fn new(
-        state: State,
-        root_builder: impl FnOnce(&Rc<GuiInterface<State>>) -> RW,
-    ) -> Rc<Self> {
+    pub fn new(state: State, root_builder: impl FnOnce(&Rc<GuiInterface<State>>) -> RW) -> Self {
         let interface = Rc::new(GuiInterface::new(state));
         let root = root_builder(&interface);
-        Rc::new(Self {
+        Self {
             interface,
             root: RefCell::new(root),
             _r: PhantomData,
-        })
+        }
     }
 }
 
@@ -103,30 +104,4 @@ impl<State, R: Renderer, RW: Widget<R>> Drop for Gui<State, R, RW> {
     fn drop(&mut self) {
         self.root.borrow_mut().on_removed();
     }
-}
-
-hui_macros::widget! {
-    pub Test
-}
-
-impl Test {
-    fn new(parent: &impl TestParent, pos: Pos2D) -> Rc<Self> {
-        Rc::new(Self::create(parent, TestState { pos }))
-    }
-
-    fn get_mouse_behavior(self: &Rc<Self>, pos: Pos2D) -> MaybeMouseBehavior {
-        // let child = Self::new(self, Pos2D::new(0.0, 0.0));
-        None
-    }
-
-    fn draw(self: &Rc<Self>, renderer: &mut PlaceholderRenderer) {
-        self.draw_children(renderer);
-    }
-}
-
-fn test() {
-    let gui = Gui::new(
-        PlaceholderGuiState,
-        |gui| Test::new(gui, Pos2D::new(0.0, 0.0))
-    );
 }

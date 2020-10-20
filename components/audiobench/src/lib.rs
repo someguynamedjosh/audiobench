@@ -2,6 +2,7 @@ pub(crate) mod config;
 mod engine;
 mod gui;
 mod registry;
+mod scui_config;
 
 use gui::graphics::GrahpicsWrapper;
 pub use gui::graphics::GraphicsFunctions;
