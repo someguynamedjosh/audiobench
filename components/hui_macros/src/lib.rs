@@ -113,15 +113,16 @@ impl Parse for WidgetInfo {
                 ));
             }
         }
-        let parent_types = parents
+        let gui_interface = quote! { crate::GuiInterface<crate::PlaceholderGuiState> };
+        let parent_types: Vec<_> = parents
             .fields
             .iter()
             .map(|PartField(_name, ty)| rc_type_as_target(ty))
             .collect();
-        // parents.fields.push(PartField(
-        //     parse_quote! { gui },
-        //     parse_quote! { Rc<()> },
-        // ));
+        parents.fields.push(PartField(
+            parse_quote! { gui },
+            parse_quote! { ::std::rc::Rc<#gui_interface> },
+        ));
         state.fields.push(PartField(
             parse_quote! { pos },
             parse_quote! { crate::Pos2D },
@@ -158,15 +159,19 @@ impl ToTokens for WidgetInfo {
         let state = &self.state;
         let state_type = &state.name;
         let parent_trait_name = format_ident!("{}Parent", name);
-        let parent_types = &self.parent_types;
-        let parent_names: Vec<_> = self
+        let mut parent_names: Vec<_> = self
             .parents
             .fields
             .iter()
             .map(|PartField(name, _ty)| name)
             .collect();
+        parent_names.pop().unwrap(); // We will deal with the GUI parent manually.
+        let parent_types = &self.parent_types;
 
+        let gui_interface_provider =
+            quote! { crate::GuiInterfaceProvider<crate::PlaceholderGuiState> };
         let widget_provider_bounds = quote! {
+            #gui_interface_provider +
             #(crate::WidgetProvider<crate::PlaceholderRenderer, ::std::rc::Rc<#parent_types>>)+*
         };
         let renderer = quote! { crate::PlaceholderRenderer };
@@ -195,6 +200,7 @@ impl ToTokens for WidgetInfo {
             impl #parents_type {
                 fn new<P: #parent_trait_name>(parent: &P) -> Self {
                     Self {
+                        gui: parent.provide_gui_interface(),
                         #(#parent_names: parent.provide()),*
                     }
                 }

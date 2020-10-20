@@ -1,4 +1,5 @@
 use std::cell::RefCell;
+use std::marker::PhantomData;
 use std::rc::Rc;
 
 #[derive(Clone, Copy)]
@@ -39,7 +40,11 @@ pub trait Widget<R: Renderer> {
 }
 
 pub trait WidgetProvider<R: Renderer, W: Widget<R>> {
-    fn provide(self: &Self) -> W;
+    fn provide(&self) -> W;
+}
+
+pub trait GuiInterfaceProvider<State> {
+    fn provide_gui_interface(&self) -> Rc<GuiInterface<State>>;
 }
 
 pub trait Renderer {
@@ -50,54 +55,78 @@ pub trait Renderer {
 
 pub struct PlaceholderRenderer;
 impl Renderer for PlaceholderRenderer {
-    fn push_state(&mut self) { }
-    fn pop_state(&mut self) { }
-    fn translate(&mut self, offset: Pos2D) { }
+    fn push_state(&mut self) {}
+    fn pop_state(&mut self) {}
+    fn translate(&mut self, offset: Pos2D) {}
+}
+
+pub struct PlaceholderGuiState;
+
+pub struct GuiInterface<State> {
+    state: State,
+}
+
+impl<State> GuiInterface<State> {
+    fn new(state: State) -> Self {
+        Self { state }
+    }
+}
+
+impl<State> GuiInterfaceProvider<State> for Rc<GuiInterface<State>> {
+    fn provide_gui_interface(&self) -> Rc<GuiInterface<State>> {
+        Rc::clone(self)
+    }
+}
+
+pub struct Gui<State, R: Renderer, RootWidget: Widget<R>> {
+    interface: Rc<GuiInterface<State>>,
+    root: RefCell<RootWidget>,
+    _r: PhantomData<R>,
+}
+
+impl<State, R: Renderer, RW: Widget<R>> Gui<State, R, RW> {
+    pub fn new(
+        state: State,
+        root_builder: impl FnOnce(&Rc<GuiInterface<State>>) -> RW,
+    ) -> Rc<Self> {
+        let interface = Rc::new(GuiInterface::new(state));
+        let root = root_builder(&interface);
+        Rc::new(Self {
+            interface,
+            root: RefCell::new(root),
+            _r: PhantomData,
+        })
+    }
+}
+
+impl<State, R: Renderer, RW: Widget<R>> Drop for Gui<State, R, RW> {
+    fn drop(&mut self) {
+        self.root.borrow_mut().on_removed();
+    }
 }
 
 hui_macros::widget! {
-    pub BoxWidget
-    Children {
-        c: Option<Rc<Asdf>>
-    }
+    pub Test
 }
 
-impl BoxWidget {
-    fn new(parent: &impl BoxWidgetParent, pos: Pos2D) -> Rc<Self> {
-        Rc::new(Self::create(parent, BoxWidgetState { pos }))
+impl Test {
+    fn new(parent: &impl TestParent, pos: Pos2D) -> Rc<Self> {
+        Rc::new(Self::create(parent, TestState { pos }))
     }
 
     fn get_mouse_behavior(self: &Rc<Self>, pos: Pos2D) -> MaybeMouseBehavior {
-        None
-    }
-
-    fn draw(self: &Rc<Self>, renderer: &mut PlaceholderRenderer) {
-
-    }
-}
-
-hui_macros::widget! {
-    pub Asdf
-    Parents {
-        asdf: Rc<Asdf>,
-        parent2: Rc<BoxWidget>,
-    }
-    Children {
-        c: Vec<Rc<Asdf>>,
-    }
-}
-
-impl Asdf {
-    fn new(parent: &impl AsdfParent, pos: Pos2D) -> Rc<Self> {
-        Rc::new(Self::create(parent, AsdfState { pos }))
-    }
-
-    fn get_mouse_behavior(self: &Rc<Self>, pos: Pos2D) -> MaybeMouseBehavior {
-        let child = Self::new(self, Pos2D::new(0.0, 0.0));
+        // let child = Self::new(self, Pos2D::new(0.0, 0.0));
         None
     }
 
     fn draw(self: &Rc<Self>, renderer: &mut PlaceholderRenderer) {
         self.draw_children(renderer);
     }
+}
+
+fn test() {
+    let gui = Gui::new(
+        PlaceholderGuiState,
+        |gui| Test::new(gui, Pos2D::new(0.0, 0.0))
+    );
 }
