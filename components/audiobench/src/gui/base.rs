@@ -3,6 +3,7 @@ use crate::gui;
 use crate::gui::action::{GuiRequest, InstanceRequest, MouseAction};
 use crate::gui::constants::*;
 use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
+use crate::gui::ui_widgets::UiTab;
 use crate::registry::save_data::Patch;
 use crate::registry::Registry;
 use enumflags2::BitFlags;
@@ -109,7 +110,7 @@ pub struct Gui {
     menu_bar: gui::ui_widgets::MenuBar,
     library_browser: gui::ui_widgets::LibraryBrowser,
     patch_browser: gui::ui_widgets::PatchBrowser,
-    graph: gui::graph::ModuleGraph,
+    graph: Rcrc<gui::graph::ModuleGraph>,
     module_browser: gui::ui_widgets::ModuleBrowser,
 
     mouse_action: Option<Box<dyn MouseAction>>,
@@ -138,6 +139,7 @@ impl Gui {
             gui::ui_widgets::PatchBrowser::create(current_patch, registry, (0.0, y), screen_size);
         let mut graph = gui::graph::ModuleGraph::create(registry, graph_ref, screen_size);
         graph.pos.1 = y;
+        let graph = rcrc(graph);
         let module_browser =
             gui::ui_widgets::ModuleBrowser::create(registry, (0.0, y), (size.0, size.1 - y));
 
@@ -223,7 +225,7 @@ impl Gui {
     }
 
     pub fn on_patch_change(&mut self, registry: &Registry) {
-        self.graph.rebuild(registry);
+        self.graph.borrow_mut().rebuild(registry);
     }
 
     pub fn on_mouse_down(
@@ -307,15 +309,15 @@ impl Gui {
         for request in requests {
             match request {
                 GuiRequest::ShowTooltip(tooltip) => self.menu_bar.set_tooltip(tooltip),
-                GuiRequest::OpenMenu(menu) => self.graph.open_menu(menu),
+                GuiRequest::OpenMenu(..) => unreachable!(),
                 GuiRequest::SwitchScreen(new_index) => self.current_screen = new_index,
                 GuiRequest::AddModule(module) => {
-                    self.graph.add_module(registry, module);
+                    self.graph.borrow_mut().add_module(registry, module);
                     self.current_screen = GuiScreen::NoteGraph;
                     output.push(InstanceRequest::ReloadStructure);
                 }
                 GuiRequest::RemoveModule(module) => {
-                    self.graph.remove_module(&module);
+                    self.graph.borrow_mut().remove_module(&module);
                     output.push(InstanceRequest::ReloadStructure);
                 }
                 GuiRequest::FocusTextField(field) => {

@@ -1,9 +1,12 @@
 use super::Module;
 use crate::engine::parts as ep;
-use crate::gui::action::{DropTarget, GuiRequest, MouseAction, PanOffset, ScaledMouseAction};
+use crate::gui::action::{
+    DropTarget, GuiRequest, MouseAction, PanOffset, ScaledMouseAction, SnoopingMouseAction,
+};
 use crate::gui::constants::*;
 use crate::gui::graphics::GrahpicsWrapper;
 use crate::gui::module_widgets::PopupMenu;
+use crate::gui::ui_widgets::UiTab;
 use crate::gui::{Gui, InteractionHint, MouseMods, Tooltip};
 use crate::registry::Registry;
 use shared_util::prelude::*;
@@ -228,5 +231,44 @@ impl ModuleGraph {
 
     pub fn open_menu(&mut self, menu: Box<dyn PopupMenu>) {
         self.detail_menu_widget = Some(menu);
+    }
+}
+
+impl UiTab for RefCell<ModuleGraph> {
+    fn respond_to_mouse_press(
+        self: &Rc<Self>,
+        mouse_pos: (f32, f32),
+        mods: &MouseMods,
+    ) -> Option<Box<dyn MouseAction>> {
+        let action = self.borrow_mut().respond_to_mouse_press(mouse_pos, mods);
+        let this = Rc::clone(self);
+        action.map(|action| {
+            let action = SnoopingMouseAction::new(action, move |request| {
+                if let GuiRequest::OpenMenu(menu) = request {
+                    this.borrow_mut().open_menu(menu);
+                    None
+                } else {
+                    Some(request)
+                }
+            });
+            let boxed: Box<dyn MouseAction> = Box::new(action);
+            boxed
+        })
+    }
+
+    fn on_scroll(self: &Rc<Self>, delta: f32) -> Vec<GuiRequest> {
+        self.borrow_mut().on_scroll(delta)
+    }
+
+    fn get_drop_target_at(self: &Rc<Self>, mouse_pos: (f32, f32)) -> DropTarget {
+        self.borrow().get_drop_target_at(mouse_pos)
+    }
+
+    fn get_tooltip_at(self: &Rc<Self>, mouse_pos: (f32, f32)) -> Option<Tooltip> {
+        self.borrow().get_tooltip_at(mouse_pos)
+    }
+
+    fn draw(self: &Rc<Self>, g: &mut GrahpicsWrapper, gui_state: &Gui) {
+        self.borrow().draw(g, gui_state)
     }
 }

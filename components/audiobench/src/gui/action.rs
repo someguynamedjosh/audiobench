@@ -108,6 +108,43 @@ impl MouseAction for ScaledMouseAction {
     }
 }
 
+pub struct SnoopingMouseAction<S: FnMut(GuiRequest) -> Option<GuiRequest>> {
+    action: Box<dyn MouseAction>,
+    snooper: S,
+}
+
+impl<S: FnMut(GuiRequest) -> Option<GuiRequest>> SnoopingMouseAction<S> {
+    pub fn new(action: Box<dyn MouseAction>, snooper: S) -> Self {
+        Self { action, snooper }
+    }
+
+    fn process(snooper: &mut S, r: Vec<GuiRequest>) -> Vec<GuiRequest> {
+        r.into_iter().filter_map(|item| (snooper)(item)).collect()
+    }
+}
+
+impl<S: FnMut(GuiRequest) -> Option<GuiRequest>> MouseAction for SnoopingMouseAction<S> {
+    fn on_drag(&mut self, delta: (f32, f32), mods: &MouseMods) -> Vec<GuiRequest> {
+        let r = self.action.on_drag(delta, mods);
+        Self::process(&mut self.snooper, r)
+    }
+
+    fn on_drop(mut self: Box<Self>, target: DropTarget) -> Vec<GuiRequest> {
+        let r = self.action.on_drop(target);
+        Self::process(&mut self.snooper, r)
+    }
+
+    fn on_click(mut self: Box<Self>) -> Vec<GuiRequest> {
+        let r = self.action.on_click();
+        Self::process(&mut self.snooper, r)
+    }
+
+    fn on_double_click(mut self: Box<Self>) -> Vec<GuiRequest> {
+        let r = self.action.on_double_click();
+        Self::process(&mut self.snooper, r)
+    }
+}
+
 pub struct ManipulateControl {
     current_value: f32,
     control: Rcrc<ep::Autocon>,
