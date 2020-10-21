@@ -2,7 +2,7 @@ use scui::{Gui, MaybeMouseBehavior, MouseMods, Pos2D, WidgetImpl};
 use std::rc::Rc;
 
 pub use crate::gui::graphics::GrahpicsWrapper as Renderer;
-pub use scui::PlaceholderGuiState as GuiState;
+pub use crate::gui::GuiState;
 
 scui::widget! {
     pub Test
