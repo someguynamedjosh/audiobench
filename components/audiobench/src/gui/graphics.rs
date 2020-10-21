@@ -305,7 +305,7 @@ impl<'r> scui::Renderer<'r> for GrahpicsWrapper<'r> {
         GrahpicsWrapper::pop_state(self)
     }
 
-    fn translate(&mut self, offset: scui::Pos2D) {
+    fn translate(&mut self, offset: scui::Vec2D) {
         GrahpicsWrapper::apply_offset(self, offset.x, offset.y)
     }
 }

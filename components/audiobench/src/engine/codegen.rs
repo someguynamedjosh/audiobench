@@ -2,7 +2,7 @@ use super::data_routing::{AutoconDynDataCollector, FeedbackDisplayer, StaticonDy
 use super::data_transfer::{DataFormat, HostFormat};
 use super::static_controls::Staticon;
 use crate::engine::parts::*;
-use crate::gui::module_widgets::FeedbackDataRequirement;
+// use crate::gui::module_widgets::FeedbackDataRequirement;
 use nodespeak::llvmir::structure::IOType;
 use shared_util::prelude::*;
 
@@ -162,35 +162,35 @@ impl<'a> CodeGenerator<'a> {
         let template_ref = module_ref.template.borrow();
         let mut control_feedback_code = "".to_owned();
         let mut custom_feedback_code = "".to_owned();
-        for wo in &template_ref.widget_outlines {
-            match wo.get_feedback_data_requirement() {
-                FeedbackDataRequirement::None => (),
-                FeedbackDataRequirement::Autocon { control_index } => {
-                    control_feedback_code.push_str(&format!(
-                        "        global_feedback_data[{}] = {}[0?][0?];\n",
-                        self.feedback_data_len,
-                        &module_ref.autocons[control_index].borrow().code_name
-                    ));
-                    self.feedback_data_len += 1;
-                }
-                FeedbackDataRequirement::Custom { code_name, size } => {
-                    // TODO: Check for duplicate code names (preferably in registry code.)
-                    let code_name = snake_case_to_pascal_case(&code_name);
-                    custom_feedback_code.push_str(&format!(
-                        "    macro Set{}([{}]FLOAT data):() {{\n",
-                        code_name, size
-                    ));
-                    // TODO: No loop for single items?
-                    custom_feedback_code.push_str(&format!("        for i = 0 to {} {{\n", size));
-                    custom_feedback_code.push_str(&format!(
-                        "            global_feedback_data[{} + i] = data[i];\n",
-                        self.feedback_data_len
-                    ));
-                    custom_feedback_code.push_str("        }\n    }\n");
-                    self.feedback_data_len += size;
-                }
-            }
-        }
+        // for wo in &template_ref.widget_outlines {
+        //     match wo.get_feedback_data_requirement() {
+        //         FeedbackDataRequirement::None => (),
+        //         FeedbackDataRequirement::Autocon { control_index } => {
+        //             control_feedback_code.push_str(&format!(
+        //                 "        global_feedback_data[{}] = {}[0?][0?];\n",
+        //                 self.feedback_data_len,
+        //                 &module_ref.autocons[control_index].borrow().code_name
+        //             ));
+        //             self.feedback_data_len += 1;
+        //         }
+        //         FeedbackDataRequirement::Custom { code_name, size } => {
+        //             // TODO: Check for duplicate code names (preferably in registry code.)
+        //             let code_name = snake_case_to_pascal_case(&code_name);
+        //             custom_feedback_code.push_str(&format!(
+        //                 "    macro Set{}([{}]FLOAT data):() {{\n",
+        //                 code_name, size
+        //             ));
+        //             // TODO: No loop for single items?
+        //             custom_feedback_code.push_str(&format!("        for i = 0 to {} {{\n", size));
+        //             custom_feedback_code.push_str(&format!(
+        //                 "            global_feedback_data[{} + i] = data[i];\n",
+        //                 self.feedback_data_len
+        //             ));
+        //             custom_feedback_code.push_str("        }\n    }\n");
+        //             self.feedback_data_len += size;
+        //         }
+        //     }
+        // }
         if control_feedback_code.len() > 0 {
             code.push_str("    if global_update_feedback_data {\n");
             code.push_str(&control_feedback_code);

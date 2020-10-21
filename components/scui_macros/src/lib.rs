@@ -125,7 +125,7 @@ impl Parse for WidgetInfo {
         ));
         state.fields.push(PartField(
             parse_quote! { pos },
-            parse_quote! { ::scui::Pos2D },
+            parse_quote! { ::scui::Vec2D },
         ));
         parents.name = format_ident!("{}Parents", name);
         children.name = format_ident!("{}Children", name);
@@ -231,11 +231,15 @@ impl ToTokens for WidgetInfo {
             )*
 
             impl<'r> ::scui::Widget<'r, #renderer<'r>> for #self_ptr {
-                fn get_pos(&self) -> ::scui::Pos2D {
+                fn get_pos(&self) -> ::scui::Vec2D {
                     self.state.borrow().pos
                 }
 
-                fn get_mouse_behavior(&self, pos: ::scui::Pos2D, mods: &::scui::MouseMods) -> ::scui::MaybeMouseBehavior {
+                fn get_size(&self) -> ::scui::Vec2D {
+                    <#name as #widget_impl_trait>::get_size(self)
+                }
+
+                fn get_mouse_behavior(&self, pos: ::scui::Vec2D, mods: &::scui::MouseMods) -> ::scui::MaybeMouseBehavior {
                     {
                         let children = self.children.borrow();
                         #(for child in &children.#child_names {

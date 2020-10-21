@@ -86,118 +86,6 @@ impl Instance {
         self.structure_error = Some(error);
     }
 
-    fn do_requests(&mut self, requests: Vec<gui::action::InstanceRequest>) {
-        for request in requests {
-            self.do_request(request);
-        }
-    }
-
-    fn do_request(&mut self, request: gui::action::InstanceRequest) {
-        use gui::action::InstanceRequest;
-        match request {
-            InstanceRequest::ReloadAutoconDynData => {
-                self.engine.as_mut().map(|e| e.reload_autocon_dyn_data());
-            }
-            InstanceRequest::ReloadStaticonDynData => {
-                self.engine.as_mut().map(|e| e.reload_staticon_dyn_data());
-            }
-            InstanceRequest::ReloadStructure => {
-                if let Some(e) = self.engine.as_mut() {
-                    let res = e.recompile();
-                    if let Err(err) = res {
-                        if let Some(gui) = &mut self.gui {
-                            gui.display_error(err.clone());
-                        }
-                        self.set_structure_error(err);
-                    } else {
-                        if let Some(gui) = &mut self.gui {
-                            gui.clear_status();
-                        }
-                        self.structure_error = None;
-                    }
-                }
-            }
-            InstanceRequest::RenamePatch(name) => {
-                self.engine.as_mut().map(|e| e.rename_current_patch(name));
-            }
-            InstanceRequest::SavePatch(mut callback) => {
-                if let Some(engine) = self.engine.as_mut() {
-                    engine.save_current_patch(&self.registry);
-                    callback(engine.borrow_current_patch());
-                }
-                self.gui
-                    .as_mut()
-                    .map(|g| g.display_success("Saved successfully!".to_owned()));
-            }
-            InstanceRequest::NewPatch(mut callback) => {
-                if let Some(e) = self.engine.as_mut() {
-                    callback(e.new_patch(&mut self.registry));
-                }
-            }
-            InstanceRequest::LoadPatch(patch, mut callback) => {
-                if let Some(e) = self.engine.as_mut() {
-                    let res = e.load_patch(&self.registry, patch);
-                    if res.is_ok() {
-                        callback();
-                    }
-                    if let Some(gui) = &mut self.gui {
-                        if let Err(err) = res {
-                            gui.display_error(err);
-                        }
-                        gui.on_patch_change(&self.registry);
-                    }
-                }
-            }
-            InstanceRequest::SimpleCallback(mut callback) => {
-                (callback)();
-            }
-            InstanceRequest::CopyPatchToClipboard => {
-                if let Some(e) = self.engine.as_mut() {
-                    use clipboard::ClipboardProvider;
-                    let patch_data = e.serialize_current_patch(&self.registry);
-                    let mut clipboard: clipboard::ClipboardContext =
-                        clipboard::ClipboardProvider::new().unwrap();
-                    clipboard.set_contents(patch_data).unwrap();
-                    if let Some(gui) = &mut self.gui {
-                        gui.display_success("Patch data copied to clipboard!".to_owned());
-                    }
-                }
-            }
-            InstanceRequest::PastePatchFromClipboard(mut callback) => {
-                if let Some(e) = self.engine.as_mut() {
-                    use clipboard::ClipboardProvider;
-                    let mut clipboard: clipboard::ClipboardContext =
-                        clipboard::ClipboardProvider::new().unwrap();
-                    let data = clipboard.get_contents().unwrap();
-                    // We use the URL-safe dataset, so letters, numbers, - and _.
-                    // is_digit(36) checks for numbers and a-z case insensitive.
-                    let data: String = data
-                        .chars()
-                        .filter(|character| {
-                            character.is_digit(36) || *character == '-' || *character == '_'
-                        })
-                        .collect();
-                    let err = match e.new_patch_from_clipboard(&mut self.registry, data.as_bytes())
-                    {
-                        Ok(patch) => {
-                            callback(patch);
-                            None
-                        }
-                        Err(err) => Some(err),
-                    };
-                    if let Some(gui) = &mut self.gui {
-                        if let Some(err) = err {
-                            gui.display_error(err);
-                        } else {
-                            gui.display_success("Patch data loaded from clipboard! (Click the save button if you want to keep it)".to_owned());
-                        }
-                        gui.on_patch_change(&self.registry);
-                    }
-                }
-            }
-        }
-    }
-
     pub fn perf_report(&self) -> String {
         self.engine
             .as_ref()
@@ -253,7 +141,7 @@ impl Instance {
             }
         }
         if let Some(gui) = &mut self.gui {
-            gui.on_patch_change(&self.registry);
+            // gui.on_patch_change(&self.registry);
         }
     }
 
@@ -301,11 +189,7 @@ impl Instance {
             eprintln!("WARNING: create_gui called when GUI was already created!");
         } else if let Some(engine) = self.engine.as_ref() {
             let graph = util::Rc::clone(engine.borrow_module_graph_ref());
-            self.gui = Some(Gui::new(
-                &self.registry,
-                engine.borrow_current_patch(),
-                graph,
-            ));
+            self.gui = Some(gui::new_gui());
         }
     }
 
@@ -333,7 +217,7 @@ impl Instance {
             g.set_color(&gui::constants::COLOR_BG0);
             g.clear();
             if let Some(gui) = &mut self.gui {
-                gui.draw(&mut g, &mut self.registry, is_compiling);
+                gui.draw(&mut g);
             } else {
                 panic!("draw_ui called before GUI was created!");
             }
@@ -358,12 +242,11 @@ impl Instance {
                 snap,
                 precise,
             };
-            let requests = gui.on_mouse_down(&self.registry, (x, y), &mods);
+            let requests = gui.on_mouse_down(&mods);
             // This is a pretty hacky way of keeping the error on the screen but it works.
             if let Some(err) = &self.structure_error {
-                gui.display_error(err.to_owned());
+                // gui.display_error(err.to_owned());
             }
-            self.do_requests(requests);
         } else if self.critical_error.is_none() {
             debug_assert!(false, "mouse_down called, but no GUI exists.");
             eprintln!("WARNING: mouse_down called, but no GUI exists.");
@@ -377,8 +260,7 @@ impl Instance {
                 snap,
                 precise,
             };
-            let requests = gui.on_mouse_move(&self.registry, (x, y), &mods);
-            self.do_requests(requests);
+            gui.on_mouse_move((x, y).into(), &mods);
         } else if self.critical_error.is_none() {
             debug_assert!(false, "mouse_move called, but no GUI exists.");
             eprintln!("WARNING: mouse_move called, but no GUI exists.");
@@ -387,8 +269,7 @@ impl Instance {
 
     pub fn mouse_up(&mut self) {
         if let Some(gui) = &mut self.gui {
-            let requests = gui.on_mouse_up(&self.registry);
-            self.do_requests(requests);
+            let requests = gui.on_mouse_up();
         } else if self.critical_error.is_none() {
             debug_assert!(false, "mouse_up called, but no GUI exists.");
             eprintln!("WARNING: mouse_up called, but no GUI exists.");
@@ -397,8 +278,7 @@ impl Instance {
 
     pub fn scroll(&mut self, delta: f32) {
         if let Some(gui) = &mut self.gui {
-            let requests = gui.on_scroll(&self.registry, delta);
-            self.do_requests(requests);
+            gui.on_scroll(delta);
         } else if self.critical_error.is_none() {
             debug_assert!(false, "mouse_up called, but no GUI exists.");
             eprintln!("WARNING: mouse_up called, but no GUI exists.");
@@ -407,8 +287,7 @@ impl Instance {
 
     pub fn key_press(&mut self, key: u8) {
         if let Some(gui) = &mut self.gui {
-            let requests = gui.on_key_press(&self.registry, key);
-            self.do_requests(requests);
+            // gui.on_key_press(&self.registry, key);
         } else if self.critical_error.is_none() {
             debug_assert!(false, "mouse_up called, but no GUI exists.");
             eprintln!("WARNING: mouse_up called, but no GUI exists.");

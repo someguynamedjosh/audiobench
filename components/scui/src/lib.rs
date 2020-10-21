@@ -12,12 +12,12 @@ pub const DRAG_DEADZONE: f32 = 4.0;
 pub const DOUBLE_CLICK_TIME: Duration = Duration::from_millis(500);
 
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
-pub struct Pos2D {
+pub struct Vec2D {
     pub x: f32,
     pub y: f32,
 }
 
-impl Pos2D {
+impl Vec2D {
     pub fn new(x: f32, y: f32) -> Self {
         Self { x, y }
     }
@@ -37,9 +37,13 @@ impl Pos2D {
     pub fn length(self) -> f32 {
         (self.x * self.x + self.y * self.y).sqrt()
     }
+
+    pub fn inside(self, other: Self) -> bool {
+        self.x <= other.x && self.y <= other.y
+    }
 }
 
-impl Add for Pos2D {
+impl Add for Vec2D {
     type Output = Self;
 
     fn add(self: Self, other: Self) -> Self {
@@ -50,7 +54,7 @@ impl Add for Pos2D {
     }
 }
 
-impl Sub for Pos2D {
+impl Sub for Vec2D {
     type Output = Self;
 
     fn sub(self: Self, other: Self) -> Self {
@@ -61,8 +65,8 @@ impl Sub for Pos2D {
     }
 }
 
-impl From<(f32, f32)> for Pos2D {
-    fn from(other: (f32, f32)) -> Pos2D {
+impl From<(f32, f32)> for Vec2D {
+    fn from(other: (f32, f32)) -> Vec2D {
         Self {
             x: other.0,
             y: other.1,
@@ -70,8 +74,8 @@ impl From<(f32, f32)> for Pos2D {
     }
 }
 
-impl From<(i32, i32)> for Pos2D {
-    fn from(other: (i32, i32)) -> Pos2D {
+impl From<(i32, i32)> for Vec2D {
+    fn from(other: (i32, i32)) -> Vec2D {
         Self {
             x: other.0 as f32,
             y: other.1 as f32,
@@ -80,7 +84,7 @@ impl From<(i32, i32)> for Pos2D {
 }
 
 pub trait MouseBehavior {
-    fn on_drag(&mut self, delta: Pos2D, mods: &MouseMods);
+    fn on_drag(&mut self, delta: Vec2D, mods: &MouseMods);
     fn on_drop(self: Box<Self>);
     fn on_click(self: Box<Self>);
     fn on_double_click(self: Box<Self>);
@@ -95,8 +99,9 @@ pub struct MouseMods {
 }
 
 pub trait Widget<'r, R: Renderer<'r>> {
-    fn get_pos(&self) -> Pos2D;
-    fn get_mouse_behavior(&self, pos: Pos2D, mods: &MouseMods) -> Option<Box<dyn MouseBehavior>>;
+    fn get_pos(&self) -> Vec2D;
+    fn get_size(&self) -> Vec2D;
+    fn get_mouse_behavior(&self, pos: Vec2D, mods: &MouseMods) -> Option<Box<dyn MouseBehavior>>;
     fn draw(&self, renderer: &mut R);
     fn on_scroll(&self, delta: f32);
     fn on_removed(&self);
@@ -105,11 +110,21 @@ pub trait Widget<'r, R: Renderer<'r>> {
 /// This is the trait that should be implemented by people creating widgets. It is a way to provide
 /// default implementations while still letting the programmer override them.
 pub trait WidgetImpl<'r, R: Renderer<'r>> {
-    fn get_mouse_behavior(self: &Rc<Self>, _pos: Pos2D, _mods: &MouseMods) -> Option<Box<dyn MouseBehavior>> {
+    fn get_size(self: &Rc<Self>) -> Vec2D {
+        Vec2D::zero()
+    }
+
+    fn get_mouse_behavior(
+        self: &Rc<Self>,
+        _pos: Vec2D,
+        _mods: &MouseMods,
+    ) -> Option<Box<dyn MouseBehavior>> {
         None
     }
-    fn draw(self: &Rc<Self>, _renderer: &mut R) { }
-    fn on_scroll(&self, _delta: f32) { }
+
+    fn draw(self: &Rc<Self>, _renderer: &mut R) {}
+
+    fn on_scroll(self: &Rc<Self>, _delta: f32) {}
 }
 
 pub trait WidgetProvider<'r, R: Renderer<'r>, W: Widget<'r, R>> {
@@ -123,14 +138,14 @@ pub trait GuiInterfaceProvider<State> {
 pub trait Renderer<'r> {
     fn push_state(&mut self);
     fn pop_state(&mut self);
-    fn translate(&mut self, offset: Pos2D);
+    fn translate(&mut self, offset: Vec2D);
 }
 
 pub struct PlaceholderRenderer;
 impl<'r> Renderer<'r> for PlaceholderRenderer {
     fn push_state(&mut self) {}
     fn pop_state(&mut self) {}
-    fn translate(&mut self, _offset: Pos2D) {}
+    fn translate(&mut self, _offset: Vec2D) {}
 }
 
 pub struct PlaceholderGuiState;
@@ -143,8 +158,8 @@ pub struct GuiInterface<State> {
 // Stuff that the GUI keeps track of for normal operations, e.g. when the last mouse press was.
 struct InternalGuiState {
     mouse_behavior: MaybeMouseBehavior,
-    click_pos: Pos2D,
-    mouse_pos: Pos2D,
+    click_pos: Vec2D,
+    mouse_pos: Vec2D,
     mouse_down: bool,
     dragged: bool,
     last_click: Instant,
@@ -157,8 +172,8 @@ impl<State> GuiInterface<State> {
             state: RefCell::new(state),
             internal_state: RefCell::new(InternalGuiState {
                 mouse_behavior: None,
-                click_pos: Pos2D::zero(),
-                mouse_pos: Pos2D::zero(),
+                click_pos: Vec2D::zero(),
+                mouse_pos: Vec2D::zero(),
                 mouse_down: false,
                 dragged: false,
                 last_click: Instant::now(),
@@ -173,24 +188,28 @@ impl<State> GuiInterfaceProvider<State> for Rc<GuiInterface<State>> {
     }
 }
 
-pub struct Gui<'r, State, R: Renderer<'r>, RootWidget: Widget<'r, R>> {
+pub struct Gui<State, RootWidget> {
     interface: Rc<GuiInterface<State>>,
     root: RootWidget,
-    _r: PhantomData<&'r R>,
 }
 
-impl<'r, State, R: Renderer<'r>, RW: Widget<'r, R>> Gui<'r, State, R, RW> {
-    pub fn new(state: State, root_builder: impl FnOnce(&Rc<GuiInterface<State>>) -> RW) -> Self {
+impl<State, RW> Gui<State, RW> {
+    pub fn new<'r, R, B>(state: State, root_builder: B) -> Self
+    where
+        R: Renderer<'r>,
+        RW: Widget<'r, R>,
+        B: FnOnce(&Rc<GuiInterface<State>>) -> RW,
+    {
         let interface = Rc::new(GuiInterface::new(state));
         let root = root_builder(&interface);
-        Self {
-            interface,
-            root,
-            _r: PhantomData,
-        }
+        Self { interface, root }
     }
 
-    pub fn on_mouse_down(&self, mods: &MouseMods) {
+    pub fn on_mouse_down<'r, R>(&self, mods: &MouseMods)
+    where
+        R: Renderer<'r>,
+        RW: Widget<'r, R>,
+    {
         let mut internal = self.interface.internal_state.borrow_mut();
         internal.mouse_down = true;
         let mouse_pos = internal.mouse_pos;
@@ -198,7 +217,11 @@ impl<'r, State, R: Renderer<'r>, RW: Widget<'r, R>> Gui<'r, State, R, RW> {
         internal.mouse_behavior = self.root.get_mouse_behavior(mouse_pos, mods);
     }
 
-    pub fn on_mouse_move(&self, new_pos: Pos2D, mods: &MouseMods) {
+    pub fn on_mouse_move<'r, R>(&self, new_pos: Vec2D, mods: &MouseMods)
+    where
+        R: Renderer<'r>,
+        RW: Widget<'r, R>,
+    {
         let mut internal = self.interface.internal_state.borrow_mut();
         internal.mouse_pos = new_pos;
         if internal.mouse_down {
@@ -217,7 +240,11 @@ impl<'r, State, R: Renderer<'r>, RW: Widget<'r, R>> Gui<'r, State, R, RW> {
         }
     }
 
-    pub fn on_mouse_up(&self) {
+    pub fn on_mouse_up<'r, R>(&self)
+    where
+        R: Renderer<'r>,
+        RW: Widget<'r, R>,
+    {
         let mut internal = self.interface.internal_state.borrow_mut();
         if let Some(behavior) = internal.mouse_behavior.take() {
             if internal.dragged {
@@ -235,15 +262,28 @@ impl<'r, State, R: Renderer<'r>, RW: Widget<'r, R>> Gui<'r, State, R, RW> {
         }
     }
 
-    pub fn on_scroll(&self, delta: f32) {
+    pub fn on_scroll<'r, R>(&self, delta: f32)
+    where
+        R: Renderer<'r>,
+        RW: Widget<'r, R>,
+    {
         self.root.on_scroll(delta);
     }
-    
     // pub fn on_key_press()
-}
 
-impl<'r, State, R: Renderer<'r>, RW: Widget<'r, R>> Drop for Gui<'r, State, R, RW> {
-    fn drop(&mut self) {
+    pub fn on_removed<'r, R>(&self)
+    where
+        R: Renderer<'r>,
+        RW: Widget<'r, R>,
+    {
         self.root.on_removed();
+    }
+
+    pub fn draw<'r, R>(&self, renderer: &mut R)
+    where
+        R: Renderer<'r>,
+        RW: Widget<'r, R>,
+    {
+        self.root.draw(renderer);
     }
 }

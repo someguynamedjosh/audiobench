@@ -1,13 +1,144 @@
 use crate::engine::parts as ep;
 use crate::engine::static_controls as staticons;
 use crate::gui::constants::*;
-use crate::gui::module_widgets;
+use crate::gui::{InteractionHint, MouseMods, Tooltip};
 use crate::registry::save_data::Patch;
 use scones::make_constructor;
-use scui::{MouseBehavior, MouseMods, Vec2D};
 use shared_util::prelude::*;
 
-/*
+// Describes an action that should be performed on an instance level.
+pub enum InstanceRequest {
+    /// Indicates the structure of the graph has changed and it should be reloaded.
+    ReloadStructure,
+    /// Indicates a value has changed, so the aux input data should be recollected.
+    ReloadAutoconDynData,
+    ReloadStaticonDynData,
+    /// Changes the name of the current patch. Asserts if the current patch is not writable.
+    RenamePatch(String),
+    SavePatch(Box<dyn FnMut(&Rcrc<Patch>)>),
+    NewPatch(Box<dyn FnMut(&Rcrc<Patch>)>),
+    LoadPatch(Rcrc<Patch>, Box<dyn FnMut()>),
+    SimpleCallback(Box<dyn FnMut()>),
+    CopyPatchToClipboard,
+    PastePatchFromClipboard(Box<dyn FnMut(&Rcrc<Patch>)>),
+}
+
+// Describes an action the GUI object should perform. Prevents passing a bunch of arguments to
+// MouseAction functions for each action that needs to modify something in the GUI.
+pub enum GuiRequest {
+    ShowTooltip(Tooltip),
+    AddModule(ep::Module),
+    RemoveModule(Rcrc<ep::Module>),
+    Elevate(InstanceRequest),
+    OpenWebpage(String),
+}
+
+impl From<Tooltip> for GuiRequest {
+    fn from(other: Tooltip) -> Self {
+        Self::ShowTooltip(other)
+    }
+}
+
+impl From<InstanceRequest> for GuiRequest {
+    fn from(other: InstanceRequest) -> Self {
+        Self::Elevate(other)
+    }
+}
+
+pub trait MouseAction {
+    fn allow_scaled(&self) -> bool {
+        false
+    }
+
+    fn on_drag(&mut self, _delta: (f32, f32), _mods: &MouseMods) -> Vec<GuiRequest> {
+        vec![]
+    }
+
+    fn on_drop(self: Box<Self>, _target: DropTarget) -> Vec<GuiRequest> {
+        vec![]
+    }
+
+    fn on_click(self: Box<Self>) -> Vec<GuiRequest> {
+        vec![]
+    }
+
+    fn on_double_click(self: Box<Self>) -> Vec<GuiRequest> {
+        vec![]
+    }
+}
+
+pub struct ScaledMouseAction {
+    action: Box<dyn MouseAction>,
+    scale: Rcrc<f32>,
+}
+
+impl ScaledMouseAction {
+    /// This will return action if !action.allow_scaled()
+    pub fn new(action: Box<dyn MouseAction>, scale: Rcrc<f32>) -> Box<dyn MouseAction> {
+        if action.allow_scaled() {
+            Box::new(ScaledMouseAction { action, scale })
+        } else {
+            action
+        }
+    }
+}
+
+impl MouseAction for ScaledMouseAction {
+    fn on_drag(&mut self, delta: (f32, f32), mods: &MouseMods) -> Vec<GuiRequest> {
+        let delta = delta.scale(1.0 / *self.scale.borrow());
+        self.action.on_drag(delta, mods)
+    }
+
+    fn on_drop(self: Box<Self>, target: DropTarget) -> Vec<GuiRequest> {
+        self.action.on_drop(target)
+    }
+
+    fn on_click(self: Box<Self>) -> Vec<GuiRequest> {
+        self.action.on_click()
+    }
+
+    fn on_double_click(self: Box<Self>) -> Vec<GuiRequest> {
+        self.action.on_double_click()
+    }
+}
+
+pub struct SnoopingMouseAction<S: FnMut(GuiRequest) -> Option<GuiRequest>> {
+    action: Box<dyn MouseAction>,
+    snooper: S,
+}
+
+impl<S: FnMut(GuiRequest) -> Option<GuiRequest>> SnoopingMouseAction<S> {
+    pub fn new(action: Box<dyn MouseAction>, snooper: S) -> Self {
+        Self { action, snooper }
+    }
+
+    fn process(snooper: &mut S, r: Vec<GuiRequest>) -> Vec<GuiRequest> {
+        r.into_iter().filter_map(|item| (snooper)(item)).collect()
+    }
+}
+
+impl<S: FnMut(GuiRequest) -> Option<GuiRequest>> MouseAction for SnoopingMouseAction<S> {
+    fn on_drag(&mut self, delta: (f32, f32), mods: &MouseMods) -> Vec<GuiRequest> {
+        let r = self.action.on_drag(delta, mods);
+        Self::process(&mut self.snooper, r)
+    }
+
+    fn on_drop(mut self: Box<Self>, target: DropTarget) -> Vec<GuiRequest> {
+        let r = self.action.on_drop(target);
+        Self::process(&mut self.snooper, r)
+    }
+
+    fn on_click(mut self: Box<Self>) -> Vec<GuiRequest> {
+        let r = self.action.on_click();
+        Self::process(&mut self.snooper, r)
+    }
+
+    fn on_double_click(mut self: Box<Self>) -> Vec<GuiRequest> {
+        let r = self.action.on_double_click();
+        Self::process(&mut self.snooper, r)
+    }
+}
+
 pub struct ManipulateControl {
     current_value: f32,
     control: Rcrc<ep::Autocon>,
@@ -23,8 +154,8 @@ impl ManipulateControl {
     }
 }
 
-impl MouseBehavior for ManipulateControl {
-    fn on_drag(&mut self, delta: Vec2D, mods: &MouseMods) {
+impl MouseAction for ManipulateControl {
+    fn on_drag(&mut self, delta: (f32, f32), mods: &MouseMods) -> Vec<GuiRequest> {
         let delta = range_drag_delta(delta, mods);
         let mut control_ref = self.control.borrow_mut();
         let range = control_ref.range;
@@ -62,8 +193,8 @@ pub struct ManipulateLane {
     end: bool,
 }
 
-impl MouseBehavior for ManipulateLane {
-    fn on_drag(&mut self, delta: Vec2D, mods: &MouseMods) -> Vec<GuiRequest> {
+impl MouseAction for ManipulateLane {
+    fn on_drag(&mut self, delta: (f32, f32), mods: &MouseMods) -> Vec<GuiRequest> {
         let delta = range_drag_delta(delta, mods);
         let mut control_ref = self.control.borrow_mut();
         let range = control_ref.range;
@@ -123,8 +254,8 @@ pub struct ManipulateIntBox {
     code_reload_requested: bool,
 }
 
-impl MouseBehavior for ManipulateIntBox {
-    fn on_drag(&mut self, delta: Vec2D, mods: &MouseMods) -> Vec<GuiRequest> {
+impl MouseAction for ManipulateIntBox {
+    fn on_drag(&mut self, delta: (f32, f32), mods: &MouseMods) -> Vec<GuiRequest> {
         let delta = delta.0 - delta.1;
         let mut delta = delta as f32 / DISCRETE_STEP_PIXELS;
         if mods.precise {
@@ -188,7 +319,7 @@ pub struct MutateStaticon {
 }
 
 impl MutateStaticon {
-    pub fn wrap<M>(mutator: M) -> Option<Box<dyn MouseBehavior>>
+    pub fn wrap<M>(mutator: M) -> Option<Box<dyn MouseAction>>
     where
         M: FnOnce() -> staticons::StaticonUpdateRequest + 'static,
     {
@@ -196,7 +327,7 @@ impl MutateStaticon {
     }
 }
 
-impl MouseBehavior for MutateStaticon {
+impl MouseAction for MutateStaticon {
     fn on_click(self: Box<Self>) -> Vec<GuiRequest> {
         let update = (self.mutator)();
         let mut ret = Vec::new();
@@ -222,7 +353,7 @@ pub struct ContinuouslyMutateStaticon {
 }
 
 impl ContinuouslyMutateStaticon {
-    pub fn wrap<M>(mutator: M) -> Option<Box<dyn MouseBehavior>>
+    pub fn wrap<M>(mutator: M) -> Option<Box<dyn MouseAction>>
     where
         M: 'static + FnMut(f32, Option<f32>) -> (staticons::StaticonUpdateRequest, Option<Tooltip>),
     {
@@ -230,8 +361,8 @@ impl ContinuouslyMutateStaticon {
     }
 }
 
-impl MouseBehavior for ContinuouslyMutateStaticon {
-    fn on_drag(&mut self, delta: Vec2D, mods: &MouseMods) -> Vec<GuiRequest> {
+impl MouseAction for ContinuouslyMutateStaticon {
+    fn on_drag(&mut self, delta: (f32, f32), mods: &MouseMods) -> Vec<GuiRequest> {
         let mut delta = delta.0 - delta.1;
         if mods.precise {
             delta *= PRECISION_MULTIPLIER;
@@ -255,7 +386,7 @@ impl MouseBehavior for ContinuouslyMutateStaticon {
 }
 
 pub struct DragModule {
-    pos: Vec2D,
+    pos: (f32, f32),
     module: Rcrc<ep::Module>,
 }
 
@@ -266,12 +397,12 @@ impl DragModule {
     }
 }
 
-impl MouseBehavior for DragModule {
+impl MouseAction for DragModule {
     fn allow_scaled(&self) -> bool {
         true
     }
 
-    fn on_drag(&mut self, delta: Vec2D, mods: &MouseMods) -> Vec<GuiRequest> {
+    fn on_drag(&mut self, delta: (f32, f32), mods: &MouseMods) -> Vec<GuiRequest> {
         self.pos = self.pos.add(delta);
         let mut module_ref = self.module.borrow_mut();
         if mods.snap {
@@ -290,15 +421,15 @@ impl MouseBehavior for DragModule {
 
 #[make_constructor]
 pub struct PanOffset {
-    offset: Rcrc<Vec2D>,
+    offset: Rcrc<(f32, f32)>,
 }
 
-impl MouseBehavior for PanOffset {
+impl MouseAction for PanOffset {
     fn allow_scaled(&self) -> bool {
         true
     }
 
-    fn on_drag(&mut self, delta: Vec2D, _mods: &MouseMods) -> Vec<GuiRequest> {
+    fn on_drag(&mut self, delta: (f32, f32), _mods: &MouseMods) -> Vec<GuiRequest> {
         let mut offset_ref = self.offset.borrow_mut();
         *offset_ref = offset_ref.add(delta);
         vec![]
@@ -309,10 +440,10 @@ impl MouseBehavior for PanOffset {
 pub struct ConnectInput {
     module: Rcrc<ep::Module>,
     index: usize,
-    graph_hints: Rcrc<GraphHints>,
+    // graph_hints: Rcrc<GraphHints>,
 }
 
-impl MouseBehavior for ConnectInput {
+impl MouseAction for ConnectInput {
     fn on_drop(self: Box<Self>, target: DropTarget) -> Vec<GuiRequest> {
         let mut in_ref = self.module.borrow_mut();
         let template_ref = in_ref.template.borrow();
@@ -330,9 +461,9 @@ impl MouseBehavior for ConnectInput {
             let default = in_ref.template.borrow().default_inputs[self.index];
             in_ref.inputs[self.index] = ep::InputConnection::Default(default);
         }
-        let mut ghm = self.graph_hints.borrow_mut();
-        ghm.draw_wire_from = None;
-        ghm.highlight = HighlightMode::None;
+        // let mut ghm = self.graph_hints.borrow_mut();
+        // ghm.draw_wire_from = None;
+        // ghm.highlight = HighlightMode::None;
         vec![InstanceRequest::ReloadStructure.into()]
     }
 
@@ -345,9 +476,9 @@ impl MouseBehavior for ConnectInput {
             *index += 1;
             *index %= num_options;
         }
-        let mut ghm = self.graph_hints.borrow_mut();
-        ghm.draw_wire_from = None;
-        ghm.highlight = HighlightMode::None;
+        // let mut ghm = self.graph_hints.borrow_mut();
+        // ghm.draw_wire_from = None;
+        // ghm.highlight = HighlightMode::None;
         vec![InstanceRequest::ReloadStructure.into()]
     }
 }
@@ -356,10 +487,10 @@ impl MouseBehavior for ConnectInput {
 pub struct ConnectOutput {
     module: Rcrc<ep::Module>,
     index: usize,
-    graph_hints: Rcrc<GraphHints>,
+    // graph_hints: Rcrc<GraphHints>,
 }
 
-impl MouseBehavior for ConnectOutput {
+impl MouseAction for ConnectOutput {
     fn on_drop(self: Box<Self>, target: DropTarget) -> Vec<GuiRequest> {
         let out_type = self.module.borrow().template.borrow().outputs[self.index].get_type();
         if let DropTarget::Input(in_module, in_index) = target {
@@ -380,16 +511,16 @@ impl MouseBehavior for ConnectOutput {
                 });
             }
         }
-        let mut ghm = self.graph_hints.borrow_mut();
-        ghm.draw_wire_from = None;
-        ghm.highlight = HighlightMode::None;
+        // let mut ghm = self.graph_hints.borrow_mut();
+        // ghm.draw_wire_from = None;
+        // ghm.highlight = HighlightMode::None;
         vec![InstanceRequest::ReloadStructure.into()]
     }
 
     fn on_click(self: Box<Self>) -> Vec<GuiRequest> {
-        let mut ghm = self.graph_hints.borrow_mut();
-        ghm.draw_wire_from = None;
-        ghm.highlight = HighlightMode::None;
+        // let mut ghm = self.graph_hints.borrow_mut();
+        // ghm.draw_wire_from = None;
+        // ghm.highlight = HighlightMode::None;
         Vec::new()
     }
 }
@@ -402,12 +533,12 @@ pub struct SubmitRequestsOnClick {
 }
 
 impl SubmitRequestsOnClick {
-    pub fn wrap(requests: Vec<GuiRequest>) -> Option<Box<dyn MouseBehavior>> {
+    pub fn wrap(requests: Vec<GuiRequest>) -> Option<Box<dyn MouseAction>> {
         Some(Box::new(Self::new(requests)))
     }
 }
 
-impl MouseBehavior for SubmitRequestsOnClick {
+impl MouseAction for SubmitRequestsOnClick {
     fn on_click(self: Box<Self>) -> Vec<GuiRequest> {
         self.requests
     }
@@ -425,14 +556,14 @@ impl From<Vec<GuiRequest>> for SubmitRequestsOnClick {
     }
 }
 
-impl Into<Option<Box<dyn MouseBehavior>>> for GuiRequest {
-    fn into(self: Self) -> Option<Box<dyn MouseBehavior>> {
+impl Into<Option<Box<dyn MouseAction>>> for GuiRequest {
+    fn into(self: Self) -> Option<Box<dyn MouseAction>> {
         Some(Box::new(SubmitRequestsOnClick::from(self)))
     }
 }
 
-impl Into<Option<Box<dyn MouseBehavior>>> for InstanceRequest {
-    fn into(self: Self) -> Option<Box<dyn MouseBehavior>> {
+impl Into<Option<Box<dyn MouseAction>>> for InstanceRequest {
+    fn into(self: Self) -> Option<Box<dyn MouseAction>> {
         GuiRequest::from(self).into()
     }
 }
@@ -449,7 +580,7 @@ fn get_snap_steps(mods: &MouseMods) -> Option<f32> {
     }
 }
 
-fn maybe_snap_value(value: f32, range: Vec2D, mods: &MouseMods) -> f32 {
+fn maybe_snap_value(value: f32, range: (f32, f32), mods: &MouseMods) -> f32 {
     if let Some(steps) = get_snap_steps(mods) {
         value.snap(range.0, range.1, steps)
     } else {
@@ -457,7 +588,7 @@ fn maybe_snap_value(value: f32, range: Vec2D, mods: &MouseMods) -> f32 {
     }
 }
 
-fn range_drag_delta(delta: Vec2D, mods: &MouseMods) -> f32 {
+fn range_drag_delta(delta: (f32, f32), mods: &MouseMods) -> f32 {
     let res = (delta.0 - delta.1) / RANGE_DRAG_PIXELS;
     if mods.precise {
         res * PRECISION_MULTIPLIER
@@ -493,4 +624,3 @@ impl DropTarget {
         }
     }
 }
-*/

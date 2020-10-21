@@ -1,16 +1,15 @@
 use crate::engine::parts as ep;
 use crate::gui;
-use crate::gui::action::{GuiRequest, InstanceRequest, MouseAction};
 use crate::gui::constants::*;
 use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
-use crate::gui::ui_widgets::UiTab;
 use crate::registry::save_data::Patch;
 use crate::registry::Registry;
 use crate::scui_config::Renderer;
 use enumflags2::BitFlags;
-use scui::{Pos2D, WidgetImpl};
+use scui::{Vec2D, WidgetImpl};
 use shared_util::prelude::*;
-use std::time::{Duration, Instant};
+
+pub use scui::MouseMods;
 
 #[derive(BitFlags, Copy, Clone)]
 #[repr(u8)]
@@ -61,51 +60,8 @@ impl Status {
     }
 }
 
-pub use scui::MouseMods;
-
-#[derive(Eq, PartialEq, Clone, Copy)]
-pub enum GuiScreen {
-    LibraryBrowser,
-    PatchBrowser,
-    NoteGraph,
-    ModuleBrowser,
-}
-
-impl GuiScreen {
-    fn all() -> Vec<GuiScreen> {
-        vec![
-            Self::LibraryBrowser,
-            Self::PatchBrowser,
-            Self::NoteGraph,
-            Self::ModuleBrowser,
-        ]
-    }
-
-    pub fn get_icon_name(&self) -> &'static str {
-        match self {
-            Self::LibraryBrowser => "factory:library",
-            Self::PatchBrowser => "factory:patch_browser",
-            Self::NoteGraph => "factory:note",
-            Self::ModuleBrowser => "factory:add",
-        }
-    }
-
-    pub fn get_tooltip_text(&self) -> &'static str {
-        match self {
-            Self::LibraryBrowser => {
-                "Info/Library Browser: View current Audiobench version and installed libraries"
-            }
-            Self::PatchBrowser => "Patch Browser: Save and load patches",
-            Self::NoteGraph => "Note Graph: Edit the module graph used to synthesize notes",
-            Self::ModuleBrowser => "Module Browser: Add new modules to the current graph",
-        }
-    }
-}
-
 pub struct GuiState {
-    size: Pos2D,
-    current_screen: GuiScreen,
-    pub registry: Rcrc<Registry>,
+    // pub registry: Rcrc<Registry>,
     pub status: Option<Status>,
     pub tooltip: Tooltip,
 }
@@ -113,10 +69,36 @@ pub struct GuiState {
 scui::widget! {
     pub Root
     Children {
-        menu_bar: Option<Rc<gui::ui_widgets::MenuBar>>,
+        // menu_bar: Option<Rc<gui::ui_widgets::MenuBar>>,
+    }
+}
+
+impl Root {
+    fn new(parent: &impl RootParent) -> Rc<Self> {
+        Rc::new(Self::create(parent, RootState { pos: Vec2D::zero() }))
     }
 }
 
 impl<'r> WidgetImpl<'r, Renderer<'r>> for Root {
+    fn get_size(self: &Rc<Self>) -> Vec2D {
+        (ROOT_WIDTH, ROOT_HEIGHT).into()
+    }
 
+    fn draw(self: &Rc<Self>, renderer: &mut Renderer<'r>) {
+        renderer.set_color(&COLOR_BG0);
+        renderer.fill_rect(0.0, 0.0, ROOT_WIDTH, ROOT_HEIGHT);
+    }
+}
+
+pub type Gui = scui::Gui<GuiState, Rc<Root>>;
+
+pub fn new_gui() -> Gui {
+    Gui::new(
+        GuiState {
+            // registry,
+            status: None,
+            tooltip: Tooltip::default(),
+        },
+        |gui| Root::new(gui),
+    )
 }

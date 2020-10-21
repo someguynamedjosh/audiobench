@@ -23,6 +23,11 @@ pub const fn coord(index: i32) -> f32 {
     (GRID_1 * index + GRID_P_INT * (index + 1)) as f32
 }
 
+/// How wide the root window is.
+pub const ROOT_WIDTH: f32 = 640.0;
+/// How tall the root window is.
+pub const ROOT_HEIGHT: f32 = 480.0;
+
 pub const KNOB_OUTSIDE_SPACE: f32 = 1.0;
 pub const KNOB_INSIDE_SPACE: f32 = 6.0;
 pub const KNOB_AUTOMATION_SPACE: f32 = grid(2) / 2.0 - KNOB_OUTSIDE_SPACE - KNOB_INSIDE_SPACE;
