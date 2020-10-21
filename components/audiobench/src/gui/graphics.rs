@@ -295,3 +295,17 @@ impl<'a> GrahpicsWrapper<'a> {
         self.draw_box_shadow(x, y, w, h, radius);
     }
 }
+
+impl<'r> scui::Renderer<'r> for GrahpicsWrapper<'r> {
+    fn push_state(&mut self) {
+        GrahpicsWrapper::push_state(self)
+    }
+
+    fn pop_state(&mut self) {
+        GrahpicsWrapper::pop_state(self)
+    }
+
+    fn translate(&mut self, offset: scui::Pos2D) {
+        GrahpicsWrapper::apply_offset(self, offset.x, offset.y)
+    }
+}

@@ -178,6 +178,7 @@ impl ToTokens for WidgetInfo {
         let self_ptr = quote! { ::std::rc::Rc<#name> };
         let ref_cell = quote! { ::std::cell::RefCell };
         let default = quote! { ::core::default::Default::default() };
+        let widget_impl_trait = quote! { ::scui::WidgetImpl<'r, #renderer<'r>> };
 
         let content = quote! {
             #parents
@@ -229,30 +230,36 @@ impl ToTokens for WidgetInfo {
                 }
             )*
 
-            impl ::scui::Widget<#renderer> for #self_ptr {
+            impl<'r> ::scui::Widget<'r, #renderer<'r>> for #self_ptr {
                 fn get_pos(&self) -> ::scui::Pos2D {
                     self.state.borrow().pos
                 }
 
-                fn get_mouse_behavior(&self, pos: ::scui::Pos2D) -> ::scui::MaybeMouseBehavior {
+                fn get_mouse_behavior(&self, pos: ::scui::Pos2D, mods: &::scui::MouseMods) -> ::scui::MaybeMouseBehavior {
                     {
                         let children = self.children.borrow();
                         #(for child in &children.#child_names {
-                            if let Some(behavior) = child.get_mouse_behavior(pos) {
+                            if let Some(behavior) = child.get_mouse_behavior(pos, mods) {
                                 return Some(behavior);
                             }
                         })*
                     }
-                    #name::get_mouse_behavior(self, pos)
+                    <#name as #widget_impl_trait>::get_mouse_behavior(self, pos, mods)
                 }
 
-                fn draw(&self, renderer: &mut #renderer) {
+                fn draw(&self, renderer: &mut #renderer<'r>) {
+                    use ::scui::Renderer;
+
                     renderer.push_state();
                     renderer.translate(self.get_pos());
 
-                    #name::draw(self, renderer);
+                    <#name as #widget_impl_trait>::draw(self, renderer);
 
                     renderer.pop_state();
+                }
+
+                fn on_scroll(&self, delta: f32) {
+                    <#name as #widget_impl_trait>::on_scroll(self, delta);
                 }
 
                 fn on_removed(&self) {
