@@ -120,15 +120,15 @@ pub enum VAlign {
     Bottom = 2,
 }
 
-pub struct GrahpicsWrapper<'a> {
-    graphics_fns: &'a GraphicsFunctions,
+pub struct GrahpicsWrapper {
+    graphics_fns: std::rc::Rc<GraphicsFunctions>,
     aux_data: *mut i8,
     icon_store: *mut i8,
 }
 
-impl<'a> GrahpicsWrapper<'a> {
+impl<'a> GrahpicsWrapper {
     pub fn new(
-        graphics_fns: &GraphicsFunctions,
+        graphics_fns: std::rc::Rc<GraphicsFunctions>,
         aux_data: *mut i8,
         icon_store: *mut i8,
     ) -> GrahpicsWrapper {
@@ -296,7 +296,7 @@ impl<'a> GrahpicsWrapper<'a> {
     }
 }
 
-impl<'r> scui::Renderer<'r> for GrahpicsWrapper<'r> {
+impl scui::Renderer for GrahpicsWrapper {
     fn push_state(&mut self) {
         GrahpicsWrapper::push_state(self)
     }

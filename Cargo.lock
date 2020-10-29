@@ -73,6 +73,7 @@ name = "audiobench_clib"
 version = "0.1.0"
 dependencies = [
  "audiobench",
+ "shared_util",
 ]
 
 [[package]]

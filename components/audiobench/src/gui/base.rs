@@ -6,7 +6,7 @@ use crate::registry::save_data::Patch;
 use crate::registry::Registry;
 use crate::scui_config::Renderer;
 use enumflags2::BitFlags;
-use scui::{Vec2D, WidgetImpl};
+use scui::{Vec2D, Widget, WidgetImpl};
 use shared_util::prelude::*;
 
 pub use scui::MouseMods;
@@ -64,6 +64,7 @@ pub struct GuiState {
     // pub registry: Rcrc<Registry>,
     pub status: Option<Status>,
     pub tooltip: Tooltip,
+    pub tabs: Vec<Box<dyn GuiTab>>,
 }
 
 scui::widget! {
@@ -75,20 +76,65 @@ scui::widget! {
 
 impl Root {
     fn new(parent: &impl RootParent) -> Rc<Self> {
-        Rc::new(Self::create(parent, RootState { pos: Vec2D::zero() }))
+        let state = RootState { pos: Vec2D::zero() };
+        let this = Rc::new(Self::create(parent, state));
+        let tab = TestTab::new(&this);
+        this.with_gui_state_mut(|state| {
+            state.tabs.push(Box::new(tab));
+        });
+        this
     }
 }
 
-impl<'r> WidgetImpl<'r, Renderer<'r>> for Root {
+impl WidgetImpl<Renderer> for Root {
     fn get_size(self: &Rc<Self>) -> Vec2D {
         (ROOT_WIDTH, ROOT_HEIGHT).into()
     }
 
-    fn draw(self: &Rc<Self>, renderer: &mut Renderer<'r>) {
+    fn draw(self: &Rc<Self>, renderer: &mut Renderer) {
         renderer.set_color(&COLOR_BG0);
         renderer.fill_rect(0.0, 0.0, ROOT_WIDTH, ROOT_HEIGHT);
+        renderer.push_state();
+        renderer.apply_offset(0.0, 100.0);
+        self.with_gui_state(|state| {
+            for tab in &state.tabs {
+                tab.draw(renderer);
+            }
+        });
+        renderer.pop_state();
     }
 }
+
+scui::widget! {
+    pub TestTab
+}
+
+pub trait GuiTab: Widget<Renderer> {
+    fn get_name(self: &Self) -> String {
+        "Unnamed".to_owned()
+    }
+
+    fn is_pinned(self: &Self) -> bool {
+        false
+    }
+}
+
+impl TestTab {
+    fn new(parent: &impl TestTabParent) -> Rc<Self> {
+        let state = TestTabState { pos: Vec2D::zero() };
+        let this = Rc::new(Self::create(parent, state));
+        this
+    }
+}
+
+impl WidgetImpl<Renderer> for TestTab {
+    fn draw(self: &Rc<Self>, renderer: &mut Renderer) {
+        renderer.set_color(&COLOR_BG1);
+        renderer.fill_rect(0.0, 0.0, 100.0, 100.0);
+    }
+}
+
+impl GuiTab for Rc<TestTab> {}
 
 pub type Gui = scui::Gui<GuiState, Rc<Root>>;
 
@@ -98,6 +144,7 @@ pub fn new_gui() -> Gui {
             // registry,
             status: None,
             tooltip: Tooltip::default(),
+            tabs: Vec::new(),
         },
         |gui| Root::new(gui),
     )

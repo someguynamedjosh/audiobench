@@ -168,8 +168,8 @@ impl ToTokens for WidgetInfo {
         parent_names.pop().unwrap(); // We will deal with the GUI parent manually.
         let parent_types = &self.parent_types;
 
-        let gui_interface_provider =
-            quote! { ::scui::GuiInterfaceProvider<crate::scui_config::GuiState> };
+        let gui_state = quote! { crate::scui_config::GuiState };
+        let gui_interface_provider = quote! { ::scui::GuiInterfaceProvider<#gui_state> };
         let renderer = quote! { crate::scui_config::Renderer };
         let widget_provider_bounds = quote! {
             #gui_interface_provider +
@@ -178,7 +178,7 @@ impl ToTokens for WidgetInfo {
         let self_ptr = quote! { ::std::rc::Rc<#name> };
         let ref_cell = quote! { ::std::cell::RefCell };
         let default = quote! { ::core::default::Default::default() };
-        let widget_impl_trait = quote! { ::scui::WidgetImpl<'r, #renderer<'r>> };
+        let widget_impl_trait = quote! { ::scui::WidgetImpl<#renderer> };
 
         let content = quote! {
             #parents
@@ -221,6 +221,19 @@ impl ToTokens for WidgetInfo {
                         }
                     )*
                 }
+
+                fn with_gui_state<R>(self: &::std::rc::Rc<Self>, func: impl FnOnce(&#gui_state) -> R) -> R {
+                    func(&*self.parents.gui.state.borrow())
+                }
+
+                fn with_gui_state_mut<R>(self: &::std::rc::Rc<Self>, func: impl FnOnce(&mut #gui_state) -> R) -> R {
+                    func(&mut *self.parents.gui.state.borrow_mut())
+                }
+            }
+            impl #gui_interface_provider for #self_ptr {
+                fn provide_gui_interface(&self) -> ::std::rc::Rc<::scui::GuiInterface<#gui_state>> {
+                    ::std::rc::Rc::clone(&self.parents.gui)
+                }
             }
             #(
                 impl ::scui::WidgetProvider<#renderer, ::std::rc::Rc<#parent_types>> for #self_ptr {
@@ -230,7 +243,7 @@ impl ToTokens for WidgetInfo {
                 }
             )*
 
-            impl<'r> ::scui::Widget<'r, #renderer<'r>> for #self_ptr {
+            impl ::scui::Widget<#renderer> for #self_ptr {
                 fn get_pos(&self) -> ::scui::Vec2D {
                     self.state.borrow().pos
                 }
@@ -251,7 +264,7 @@ impl ToTokens for WidgetInfo {
                     <#name as #widget_impl_trait>::get_mouse_behavior(self, pos, mods)
                 }
 
-                fn draw(&self, renderer: &mut #renderer<'r>) {
+                fn draw(&self, renderer: &mut #renderer) {
                     use ::scui::Renderer;
 
                     renderer.push_state();

@@ -1,5 +1,4 @@
 use std::cell::RefCell;
-use std::marker::PhantomData;
 use std::ops::{Add, Sub};
 use std::rc::Rc;
 use std::time::{Duration, Instant};
@@ -98,7 +97,7 @@ pub struct MouseMods {
     pub precise: bool,
 }
 
-pub trait Widget<'r, R: Renderer<'r>> {
+pub trait Widget<R: Renderer> {
     fn get_pos(&self) -> Vec2D;
     fn get_size(&self) -> Vec2D;
     fn get_mouse_behavior(&self, pos: Vec2D, mods: &MouseMods) -> Option<Box<dyn MouseBehavior>>;
@@ -109,7 +108,7 @@ pub trait Widget<'r, R: Renderer<'r>> {
 
 /// This is the trait that should be implemented by people creating widgets. It is a way to provide
 /// default implementations while still letting the programmer override them.
-pub trait WidgetImpl<'r, R: Renderer<'r>> {
+pub trait WidgetImpl<R: Renderer> {
     fn get_size(self: &Rc<Self>) -> Vec2D {
         Vec2D::zero()
     }
@@ -127,7 +126,7 @@ pub trait WidgetImpl<'r, R: Renderer<'r>> {
     fn on_scroll(self: &Rc<Self>, _delta: f32) {}
 }
 
-pub trait WidgetProvider<'r, R: Renderer<'r>, W: Widget<'r, R>> {
+pub trait WidgetProvider<R: Renderer, W: Widget<R>> {
     fn provide(&self) -> W;
 }
 
@@ -135,14 +134,14 @@ pub trait GuiInterfaceProvider<State> {
     fn provide_gui_interface(&self) -> Rc<GuiInterface<State>>;
 }
 
-pub trait Renderer<'r> {
+pub trait Renderer {
     fn push_state(&mut self);
     fn pop_state(&mut self);
     fn translate(&mut self, offset: Vec2D);
 }
 
 pub struct PlaceholderRenderer;
-impl<'r> Renderer<'r> for PlaceholderRenderer {
+impl Renderer for PlaceholderRenderer {
     fn push_state(&mut self) {}
     fn pop_state(&mut self) {}
     fn translate(&mut self, _offset: Vec2D) {}
@@ -194,10 +193,10 @@ pub struct Gui<State, RootWidget> {
 }
 
 impl<State, RW> Gui<State, RW> {
-    pub fn new<'r, R, B>(state: State, root_builder: B) -> Self
+    pub fn new<R, B>(state: State, root_builder: B) -> Self
     where
-        R: Renderer<'r>,
-        RW: Widget<'r, R>,
+        R: Renderer,
+        RW: Widget<R>,
         B: FnOnce(&Rc<GuiInterface<State>>) -> RW,
     {
         let interface = Rc::new(GuiInterface::new(state));
@@ -205,10 +204,10 @@ impl<State, RW> Gui<State, RW> {
         Self { interface, root }
     }
 
-    pub fn on_mouse_down<'r, R>(&self, mods: &MouseMods)
+    pub fn on_mouse_down<R>(&self, mods: &MouseMods)
     where
-        R: Renderer<'r>,
-        RW: Widget<'r, R>,
+        R: Renderer,
+        RW: Widget<R>,
     {
         let mut internal = self.interface.internal_state.borrow_mut();
         internal.mouse_down = true;
@@ -217,10 +216,10 @@ impl<State, RW> Gui<State, RW> {
         internal.mouse_behavior = self.root.get_mouse_behavior(mouse_pos, mods);
     }
 
-    pub fn on_mouse_move<'r, R>(&self, new_pos: Vec2D, mods: &MouseMods)
+    pub fn on_mouse_move<R>(&self, new_pos: Vec2D, mods: &MouseMods)
     where
-        R: Renderer<'r>,
-        RW: Widget<'r, R>,
+        R: Renderer,
+        RW: Widget<R>,
     {
         let mut internal = self.interface.internal_state.borrow_mut();
         internal.mouse_pos = new_pos;
@@ -240,10 +239,10 @@ impl<State, RW> Gui<State, RW> {
         }
     }
 
-    pub fn on_mouse_up<'r, R>(&self)
+    pub fn on_mouse_up<R>(&self)
     where
-        R: Renderer<'r>,
-        RW: Widget<'r, R>,
+        R: Renderer,
+        RW: Widget<R>,
     {
         let mut internal = self.interface.internal_state.borrow_mut();
         if let Some(behavior) = internal.mouse_behavior.take() {
@@ -262,27 +261,27 @@ impl<State, RW> Gui<State, RW> {
         }
     }
 
-    pub fn on_scroll<'r, R>(&self, delta: f32)
+    pub fn on_scroll<R>(&self, delta: f32)
     where
-        R: Renderer<'r>,
-        RW: Widget<'r, R>,
+        R: Renderer,
+        RW: Widget<R>,
     {
         self.root.on_scroll(delta);
     }
     // pub fn on_key_press()
 
-    pub fn on_removed<'r, R>(&self)
+    pub fn on_removed<R>(&self)
     where
-        R: Renderer<'r>,
-        RW: Widget<'r, R>,
+        R: Renderer,
+        RW: Widget<R>,
     {
         self.root.on_removed();
     }
 
-    pub fn draw<'r, R>(&self, renderer: &mut R)
+    pub fn draw<R>(&self, renderer: &mut R)
     where
-        R: Renderer<'r>,
-        RW: Widget<'r, R>,
+        R: Renderer,
+        RW: Widget<R>,
     {
         self.root.draw(renderer);
     }

@@ -1,4 +1,5 @@
 use audiobench::*;
+use shared_util::prelude::*;
 
 #[no_mangle]
 pub unsafe extern "C" fn ABCreateInstance() -> *mut Instance {
@@ -114,7 +115,7 @@ pub unsafe extern "C" fn ABSetGraphicsFunctions(
     instance: *mut Instance,
     graphics_fns: GraphicsFunctions,
 ) {
-    (*instance).graphics_fns = graphics_fns;
+    (*instance).graphics_fns = Rc::new(graphics_fns);
 }
 
 #[no_mangle]

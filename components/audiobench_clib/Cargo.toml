@@ -10,3 +10,4 @@ crate-type = ["staticlib"]
 
 [dependencies]
 audiobench = { path = "../audiobench" }
+shared_util = { path = "../shared_util" }

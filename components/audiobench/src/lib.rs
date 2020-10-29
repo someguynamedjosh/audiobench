@@ -13,7 +13,7 @@ use shared_util::prelude as util;
 pub struct Instance {
     engine: Option<engine::Engine>,
     registry: registry::Registry,
-    pub graphics_fns: GraphicsFunctions,
+    pub graphics_fns: util::Rc<GraphicsFunctions>,
     gui: Option<Gui>,
     critical_error: Option<String>,
     structure_error: Option<String>,
@@ -57,7 +57,7 @@ impl Instance {
         Self {
             engine,
             registry,
-            graphics_fns: GraphicsFunctions::placeholders(),
+            graphics_fns: util::Rc::new(GraphicsFunctions::placeholders()),
             gui: None,
             critical_error,
             structure_error: None,
@@ -194,7 +194,7 @@ impl Instance {
     }
 
     pub fn draw_ui(&mut self, data: *mut i8, icon_store: *mut i8) {
-        let mut g = GrahpicsWrapper::new(&self.graphics_fns, data, icon_store);
+        let mut g = GrahpicsWrapper::new(util::Rc::clone(&self.graphics_fns), data, icon_store);
         if let Some(err) = &self.critical_error {
             g.set_color(&(0, 0, 0));
             g.fill_rect(0.0, 0.0, 640.0, 480.0);
