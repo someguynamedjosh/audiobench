@@ -197,15 +197,15 @@ impl Instance {
         let mut g = GrahpicsWrapper::new(util::Rc::clone(&self.graphics_fns), data, icon_store);
         if let Some(err) = &self.critical_error {
             g.set_color(&(0, 0, 0));
-            g.fill_rect(0.0, 0.0, 640.0, 480.0);
+            g.fill_rect(0, (640, 480));
             g.set_color(&(255, 255, 255));
-            g.write_console_text(640.0, 480.0, err);
+            g.write_console_text((640, 480), err);
         // If there is no critical error, then the engine initialized successfully.
         } else if let Some(err) = self.engine.as_ref().unwrap().clone_critical_error() {
             g.set_color(&(0, 0, 0));
-            g.fill_rect(0.0, 0.0, 640.0, 480.0);
+            g.fill_rect(0, (640, 480));
             g.set_color(&(255, 255, 255));
-            g.write_console_text(640.0, 480.0, &err);
+            g.write_console_text((640, 480), &err);
             // This way we don't have to copy it in the future.
             self.set_critical_error(err.clone());
         } else {

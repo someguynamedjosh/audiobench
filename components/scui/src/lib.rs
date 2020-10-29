@@ -1,5 +1,5 @@
 use std::cell::RefCell;
-use std::ops::{Add, Sub};
+use std::ops::{Add, Sub, Mul, Div};
 use std::rc::Rc;
 use std::time::{Duration, Instant};
 
@@ -42,10 +42,11 @@ impl Vec2D {
     }
 }
 
-impl Add for Vec2D {
+impl<T: Into<Vec2D>> Add<T> for Vec2D {
     type Output = Self;
 
-    fn add(self: Self, other: Self) -> Self {
+    fn add(self: Self, other: T) -> Self {
+        let other = other.into();
         Self {
             x: self.x + other.x,
             y: self.y + other.y,
@@ -53,14 +54,45 @@ impl Add for Vec2D {
     }
 }
 
-impl Sub for Vec2D {
+impl<T: Into<Vec2D>> Sub<T> for Vec2D {
     type Output = Self;
 
-    fn sub(self: Self, other: Self) -> Self {
+    fn sub(self: Self, other: T) -> Self {
+        let other = other.into();
         Self {
             x: self.x - other.x,
             y: self.y - other.y,
         }
+    }
+}
+
+impl<T: Into<Vec2D>> Mul<T> for Vec2D {
+    type Output = Self;
+
+    fn mul(self: Self, other: T) -> Self {
+        let other = other.into();
+        Self {
+            x: self.x * other.x,
+            y: self.y * other.y,
+        }
+    }
+}
+
+impl<T: Into<Vec2D>> Div<T> for Vec2D {
+    type Output = Self;
+
+    fn div(self: Self, other: T) -> Self {
+        let other = other.into();
+        Self {
+            x: self.x / other.x,
+            y: self.y / other.y,
+        }
+    }
+}
+
+impl From<f32> for Vec2D {
+    fn from(other: f32) -> Vec2D {
+        Self { x: other, y: other }
     }
 }
 
@@ -69,6 +101,15 @@ impl From<(f32, f32)> for Vec2D {
         Self {
             x: other.0,
             y: other.1,
+        }
+    }
+}
+
+impl From<i32> for Vec2D {
+    fn from(other: i32) -> Vec2D {
+        Self {
+            x: other as f32,
+            y: other as f32,
         }
     }
 }

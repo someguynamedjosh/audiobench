@@ -178,6 +178,7 @@ impl ToTokens for WidgetInfo {
         let self_ptr = quote! { ::std::rc::Rc<#name> };
         let ref_cell = quote! { ::std::cell::RefCell };
         let default = quote! { ::core::default::Default::default() };
+        let widget_trait_turbo = quote! { ::scui::Widget::<#renderer> };
         let widget_impl_trait = quote! { ::scui::WidgetImpl<#renderer> };
 
         let content = quote! {
@@ -217,7 +218,7 @@ impl ToTokens for WidgetInfo {
                     let children = self.children.borrow();
                     #(
                         for child in &children.#child_names {
-                            child.draw(renderer);
+                            #widget_trait_turbo::draw(child, renderer);
                         }
                     )*
                 }
@@ -256,7 +257,7 @@ impl ToTokens for WidgetInfo {
                     {
                         let children = self.children.borrow();
                         #(for child in &children.#child_names {
-                            if let Some(behavior) = child.get_mouse_behavior(pos, mods) {
+                            if let Some(behavior) = #widget_trait_turbo::get_mouse_behavior(child, pos, mods) {
                                 return Some(behavior);
                             }
                         })*

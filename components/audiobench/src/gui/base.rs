@@ -2,6 +2,7 @@ use crate::engine::parts as ep;
 use crate::gui;
 use crate::gui::constants::*;
 use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
+use crate::gui::top_level::*;
 use crate::registry::save_data::Patch;
 use crate::registry::Registry;
 use crate::scui_config::Renderer;
@@ -70,7 +71,7 @@ pub struct GuiState {
 scui::widget! {
     pub Root
     Children {
-        // menu_bar: Option<Rc<gui::ui_widgets::MenuBar>>,
+        header: Option<Rc<Header>>,
     }
 }
 
@@ -82,6 +83,8 @@ impl Root {
         this.with_gui_state_mut(|state| {
             state.tabs.push(Box::new(tab));
         });
+        let header = Header::new(&this);
+        this.children.borrow_mut().header = Some(header);
         this
     }
 }
@@ -93,15 +96,13 @@ impl WidgetImpl<Renderer> for Root {
 
     fn draw(self: &Rc<Self>, renderer: &mut Renderer) {
         renderer.set_color(&COLOR_BG0);
-        renderer.fill_rect(0.0, 0.0, ROOT_WIDTH, ROOT_HEIGHT);
-        renderer.push_state();
-        renderer.apply_offset(0.0, 100.0);
+        renderer.fill_rect(0, (ROOT_WIDTH, ROOT_HEIGHT));
         self.with_gui_state(|state| {
             for tab in &state.tabs {
                 tab.draw(renderer);
             }
         });
-        renderer.pop_state();
+        self.draw_children(renderer);
     }
 }
 
@@ -121,16 +122,22 @@ pub trait GuiTab: Widget<Renderer> {
 
 impl TestTab {
     fn new(parent: &impl TestTabParent) -> Rc<Self> {
-        let state = TestTabState { pos: Vec2D::zero() };
+        let state = TestTabState {
+            pos: (0.0, HEADER_HEIGHT).into(),
+        };
         let this = Rc::new(Self::create(parent, state));
         this
     }
 }
 
 impl WidgetImpl<Renderer> for TestTab {
+    fn get_size(self: &Rc<Self>) -> Vec2D {
+        (TAB_BODY_WIDTH, TAB_BODY_HEIGHT).into()
+    }
+
     fn draw(self: &Rc<Self>, renderer: &mut Renderer) {
         renderer.set_color(&COLOR_BG1);
-        renderer.fill_rect(0.0, 0.0, 100.0, 100.0);
+        renderer.fill_rect(0, (TAB_BODY_WIDTH, TAB_BODY_HEIGHT));
     }
 }
 
