@@ -96,7 +96,7 @@ impl WidgetImpl<Renderer> for Root {
 
     fn draw(self: &Rc<Self>, renderer: &mut Renderer) {
         renderer.set_color(&COLOR_BG0);
-        renderer.fill_rect(0, (ROOT_WIDTH, ROOT_HEIGHT));
+        renderer.draw_rect(0, (ROOT_WIDTH, ROOT_HEIGHT));
         self.with_gui_state(|state| {
             for tab in &state.tabs {
                 tab.draw(renderer);
@@ -137,7 +137,7 @@ impl WidgetImpl<Renderer> for TestTab {
 
     fn draw(self: &Rc<Self>, renderer: &mut Renderer) {
         renderer.set_color(&COLOR_BG1);
-        renderer.fill_rect(0, (TAB_BODY_WIDTH, TAB_BODY_HEIGHT));
+        renderer.draw_rect(0, (TAB_BODY_WIDTH, TAB_BODY_HEIGHT));
     }
 }
 

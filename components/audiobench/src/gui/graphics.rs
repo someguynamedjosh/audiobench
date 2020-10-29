@@ -169,19 +169,19 @@ impl<'a> GrahpicsWrapper {
         (self.graphics_fns.clear)(self.aux_data);
     }
 
-    pub fn stroke_line<T: Into<Vec2D>, U: Into<Vec2D>>(&mut self, p1: T, p2: U, weight: f32) {
+    pub fn draw_line<T: Into<Vec2D>, U: Into<Vec2D>>(&mut self, p1: T, p2: U, weight: f32) {
         let p1 = p1.into();
         let p2 = p2.into();
         (self.graphics_fns.stroke_line)(self.aux_data, p1.x, p1.y, p2.x, p2.y, weight);
     }
 
-    pub fn fill_rect<T: Into<Vec2D>, U: Into<Vec2D>>(&mut self, top_right: T, size: U) {
+    pub fn draw_rect<T: Into<Vec2D>, U: Into<Vec2D>>(&mut self, top_right: T, size: U) {
         let top_right = top_right.into();
         let size = size.into();
         (self.graphics_fns.fill_rect)(self.aux_data, top_right.x, top_right.y, size.x, size.y);
     }
 
-    pub fn fill_rounded_rect<T: Into<Vec2D>, U: Into<Vec2D>>(
+    pub fn draw_rounded_rect<T: Into<Vec2D>, U: Into<Vec2D>>(
         &mut self,
         top_right: T,
         size: U,
@@ -199,7 +199,7 @@ impl<'a> GrahpicsWrapper {
         );
     }
 
-    pub fn fill_pie<T: Into<Vec2D>>(
+    pub fn draw_pie<T: Into<Vec2D>>(
         &mut self,
         center: T,
         diameter: f32,
@@ -219,8 +219,8 @@ impl<'a> GrahpicsWrapper {
         );
     }
 
-    pub fn write_label<T: Into<Vec2D>>(&mut self, center: T, w: f32, text: &str) {
-        self.write_text(
+    pub fn draw_label<T: Into<Vec2D>>(&mut self, center: T, w: f32, text: &str) {
+        self.draw_text(
             FONT_SIZE,
             center,
             (w, 30.0),
@@ -230,7 +230,7 @@ impl<'a> GrahpicsWrapper {
         )
     }
 
-    pub fn write_text<T: Into<Vec2D>, U: Into<Vec2D>>(
+    pub fn draw_text<T: Into<Vec2D>, U: Into<Vec2D>>(
         &mut self,
         font_size: f32,
         top_left: T,
@@ -259,7 +259,7 @@ impl<'a> GrahpicsWrapper {
         );
     }
 
-    pub fn write_console_text<T: Into<Vec2D>>(&mut self, size: T, text: &str) {
+    pub fn draw_console_text<T: Into<Vec2D>>(&mut self, size: T, text: &str) {
         let size = size.into();
         // TODO: Assert that text is ASCII.
         let raw_text = text.as_bytes();

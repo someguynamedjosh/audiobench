@@ -25,9 +25,13 @@ impl WidgetImpl<Renderer> for Header {
         const GP: f32 = GRID_P;
 
         renderer.set_color(&COLOR_BG2);
-        renderer.fill_rect(0, (ROOT_WIDTH, HEADER_HEIGHT));
+        renderer.draw_rect(0, (ROOT_WIDTH, HEADER_HEIGHT));
+
+        let tooltip_size: Vec2D = (ROOT_WIDTH - GP * 2.0, TOOLTIP_HEIGHT).into();
         renderer.set_color(&COLOR_BG0);
-        let bar_size = (ROOT_WIDTH - GP * 2.0, grid(1));
-        renderer.fill_rounded_rect(GP, bar_size, CS);
+        renderer.draw_rounded_rect(GP, tooltip_size, CS);
+        let textbox_size = tooltip_size - GP * 2.0;
+        renderer.set_color(&COLOR_FG1);
+        renderer.draw_
     }
 }

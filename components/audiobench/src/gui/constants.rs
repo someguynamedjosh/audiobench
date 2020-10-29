@@ -27,8 +27,10 @@ pub const fn coord(index: i32) -> f32 {
 pub const ROOT_WIDTH: f32 = 640.0;
 /// How tall the root window is.
 pub const ROOT_HEIGHT: f32 = 480.0;
+/// How tall the tooltip box should be.
+pub const TOOLTIP_HEIGHT: f32 = fatgrid(1);
 /// How tall the bars at the top of the screen are.
-pub const HEADER_HEIGHT: f32 = GRID_P * 2.0 + (GRID_1 * 2) as f32;
+pub const HEADER_HEIGHT: f32 = GRID_P + TOOLTIP_HEIGHT + GRID_P + grid(1);
 /// How wide tab windows are.
 pub const TAB_BODY_WIDTH: f32 = ROOT_WIDTH;
 /// How tall tab windows are.
