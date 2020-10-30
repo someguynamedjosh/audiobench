@@ -174,6 +174,6 @@ pub unsafe extern "C" fn ABUIScroll(instance: *mut Instance, delta: f32) {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ABUIKeyPress(instance: *mut Instance, key: u8) {
-    (*instance).key_press(key);
+pub unsafe extern "C" fn ABUIKeyPress(instance: *mut Instance, key: u32) {
+    (*instance).key_press(key as char);
 }

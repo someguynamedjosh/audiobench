@@ -1,3 +1,4 @@
+use shared_util::prelude::*;
 use std::cell::RefCell;
 use std::ops::{Add, Div, Mul, Sub};
 use std::rc::Rc;
@@ -215,11 +216,6 @@ impl Renderer for PlaceholderRenderer {
 
 pub struct PlaceholderGuiState;
 
-pub struct GuiInterface<State> {
-    pub state: RefCell<State>,
-    internal_state: RefCell<InternalGuiState>,
-}
-
 // Stuff that the GUI keeps track of for normal operations, e.g. when the last mouse press was.
 struct InternalGuiState {
     mouse_behavior: MaybeMouseBehavior,
@@ -229,7 +225,23 @@ struct InternalGuiState {
     dragged: bool,
     last_click: Instant,
     last_click_pos: Vec2D,
-    // focused_text_field: Option<Rcrc<gui::ui_widgets::TextField>>,
+    focused_text_field: Option<Rcrc<TextField>>,
+}
+
+impl InternalGuiState {
+    // Defocuses the current text field, if one is focused.
+    fn defocus_text_field(&mut self) {
+        if let Some(field) = self.focused_text_field.take() {
+            let mut field = field.borrow_mut();
+            field.focused = false;
+            (field.on_defocus)(&field.text);
+        }
+    }
+}
+
+pub struct GuiInterface<State> {
+    pub state: RefCell<State>,
+    internal_state: RefCell<InternalGuiState>,
 }
 
 impl<State> GuiInterface<State> {
@@ -244,14 +256,42 @@ impl<State> GuiInterface<State> {
                 dragged: false,
                 last_click: Instant::now(),
                 last_click_pos: Vec2D::zero(),
+                focused_text_field: None,
             }),
         }
+    }
+
+    pub fn focus_text_field(&self, field: &Rcrc<TextField>) {
+        let mut internal = self.internal_state.borrow_mut();
+        internal.defocus_text_field();
+        field.borrow_mut().focused = true;
+        internal.focused_text_field = Some(Rc::clone(field));
     }
 }
 
 impl<State> GuiInterfaceProvider<State> for Rc<GuiInterface<State>> {
     fn provide_gui_interface(&self) -> Rc<GuiInterface<State>> {
         Rc::clone(self)
+    }
+}
+
+pub struct TextField {
+    pub text: String,
+    focused: bool,
+    on_defocus: Box<dyn Fn(&str)>,
+}
+
+impl TextField {
+    pub fn new<S: Into<String>>(initial_contents: S, on_defocus: Box<dyn Fn(&str)>) -> Self {
+        Self {
+            text: initial_contents.into(),
+            focused: false,
+            on_defocus,
+        }
+    }
+
+    pub fn is_focused(&self) -> bool {
+        self.focused
     }
 }
 
@@ -278,6 +318,7 @@ impl<State, RW> Gui<State, RW> {
         RW: Widget<R>,
     {
         let mut internal = self.interface.internal_state.borrow_mut();
+        internal.defocus_text_field();
         internal.mouse_down = true;
         internal.dragged = false;
         let mouse_pos = internal.mouse_pos;
@@ -340,7 +381,32 @@ impl<State, RW> Gui<State, RW> {
     {
         self.root.on_scroll(delta);
     }
-    // pub fn on_key_press()
+
+    pub fn on_key_press(&self, key: char) {
+        // For some reason JUCE gives \r instead of \n.
+        let key = if key == '\r' { '\n' } else { key };
+        let mut internal = self.interface.internal_state.borrow_mut();
+        if let Some(field) = &mut internal.focused_text_field {
+            let mut field = field.borrow_mut();
+            match key {
+                '\x08' | '\x7F' => {
+                    // ASCII delete or backspace.
+                    if field.text.len() > 0 {
+                        let last = field.text.len() - 1;
+                        field.text = field.text[..last].to_owned();
+                    }
+                }
+                '\x1B' | '\x0A' => {
+                    // Escape or enter
+                    drop(field);
+                    internal.defocus_text_field();
+                }
+                _ => {
+                    field.text.push(key);
+                }
+            }
+        }
+    }
 
     pub fn on_removed<R>(&self)
     where

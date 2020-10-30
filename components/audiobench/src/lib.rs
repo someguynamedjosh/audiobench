@@ -285,9 +285,9 @@ impl Instance {
         }
     }
 
-    pub fn key_press(&mut self, key: u8) {
+    pub fn key_press(&mut self, key: char) {
         if let Some(gui) = &mut self.gui {
-            // gui.on_key_press(&self.registry, key);
+            gui.on_key_press(key);
         } else if self.critical_error.is_none() {
             debug_assert!(false, "mouse_up called, but no GUI exists.");
             eprintln!("WARNING: mouse_up called, but no GUI exists.");

@@ -1467,6 +1467,7 @@ name = "scui"
 version = "0.1.0"
 dependencies = [
  "scui_macros",
+ "shared_util",
 ]
 
 [[package]]

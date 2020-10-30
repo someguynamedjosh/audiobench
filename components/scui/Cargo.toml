@@ -9,3 +9,4 @@ description = "Hierarchical UI"
 
 [dependencies]
 scui_macros = { path = "../scui_macros" }
+shared_util = { path = "../shared_util" }
