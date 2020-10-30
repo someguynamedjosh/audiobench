@@ -50,7 +50,7 @@ impl WidgetImpl<Renderer> for Header {
         renderer.draw_rounded_rect(GP, tooltip_size, CS);
         let textbox_size = tooltip_size - GP * 2.0;
         self.with_gui_state(|state| {
-            let tooltip = &state.tooltip;
+            let tooltip = &state.borrow_tooltip();
             renderer.set_color(&COLOR_FG1);
             renderer.draw_text(BFS, GP * 2.0, textbox_size, (-1, -1), 1, &tooltip.text);
 

@@ -1,3 +1,4 @@
+use scui::Vec2D;
 use std::time::Duration;
 
 /// Pixels of padding between grid squares.
@@ -35,6 +36,8 @@ pub const HEADER_HEIGHT: f32 = GRID_P + TOOLTIP_HEIGHT + GRID_P + grid(1);
 pub const TAB_BODY_WIDTH: f32 = ROOT_WIDTH;
 /// How tall tab windows are.
 pub const TAB_BODY_HEIGHT: f32 = ROOT_HEIGHT - HEADER_HEIGHT;
+/// The size of tab windows
+pub const TAB_BODY_SIZE: Vec2D = Vec2D::new(TAB_BODY_WIDTH, TAB_BODY_HEIGHT);
 
 pub const KNOB_OUTSIDE_SPACE: f32 = 1.0;
 pub const KNOB_INSIDE_SPACE: f32 = 6.0;

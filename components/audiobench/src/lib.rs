@@ -6,7 +6,8 @@ mod scui_config;
 
 use gui::graphics::GrahpicsWrapper;
 pub use gui::graphics::GraphicsFunctions;
-use gui::{Gui, MouseMods};
+use gui::Gui;
+use scui::MouseMods;
 
 use shared_util::prelude as util;
 

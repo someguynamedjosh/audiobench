@@ -1,6 +1,6 @@
 use shared_util::prelude::*;
 use std::cell::RefCell;
-use std::ops::{Add, Div, Mul, Sub};
+use std::ops::{Add, Deref, DerefMut, Div, Mul, Sub};
 use std::rc::Rc;
 use std::time::{Duration, Instant};
 
@@ -168,8 +168,9 @@ pub trait Widget<R: Renderer> {
     fn get_pos(&self) -> Vec2D;
     fn get_size(&self) -> Vec2D;
     fn get_mouse_behavior(&self, pos: Vec2D, mods: &MouseMods) -> Option<Box<dyn MouseBehavior>>;
+    fn on_scroll(&self, pos: Vec2D, delta: f32) -> bool;
+    fn on_hover(&self, pos: Vec2D) -> bool;
     fn draw(&self, renderer: &mut R);
-    fn on_scroll(&self, delta: f32);
     fn on_removed(&self);
 }
 
@@ -186,9 +187,15 @@ pub trait WidgetImpl<R: Renderer> {
         None
     }
 
-    fn draw(self: &Rc<Self>, _renderer: &mut R) {}
+    fn on_hover(self: &Rc<Self>, _pos: Vec2D) -> bool {
+        false
+    }
 
-    fn on_scroll(self: &Rc<Self>, _delta: f32) {}
+    fn on_scroll(self: &Rc<Self>, _pos: Vec2D, _delta: f32) -> bool {
+        false
+    }
+
+    fn draw(self: &Rc<Self>, _renderer: &mut R) {}
 }
 
 pub trait WidgetProvider<R: Renderer, W: Widget<R>> {
@@ -293,6 +300,56 @@ impl TextField {
     }
 }
 
+/// Acts like a more transparent version of Option<>. It automatically derefs to the templated type,
+/// panicking if it is None. You should use it with the same semantics that you would use for a
+/// plain variable of type C. Example:
+/// ```
+/// let field: ChildHolder<i32>;
+/// field = 123.into();
+/// println!("{}", field);
+/// let value = 321 + field;
+/// ```
+pub struct ChildHolder<C>(Option<C>);
+
+impl<C> Deref for ChildHolder<C> {
+    type Target = C;
+
+    fn deref(&self) -> &Self::Target {
+        // Print nicer message if we are debug build.
+        debug_assert!(
+            self.0.is_some(),
+            "ChildHolder must be assigned a value before use."
+        );
+        self.0.as_ref().unwrap()
+    }
+}
+
+impl<C> DerefMut for ChildHolder<C> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        // Print nicer message if we are debug build.
+        debug_assert!(
+            self.0.is_some(),
+            "ChildHolder must be assigned a value before use."
+        );
+        self.0.as_mut().unwrap()
+    }
+}
+
+impl<C> Default for ChildHolder<C> {
+    fn default() -> Self {
+        Self(None)
+    }
+}
+
+impl<'a, C> IntoIterator for &'a ChildHolder<C> {
+    type Item = <&'a Option<C> as IntoIterator>::Item;
+    type IntoIter = <&'a Option<C> as IntoIterator>::IntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        (&self.0).into_iter()
+    }
+}
+
 pub struct Gui<State, RootWidget> {
     interface: Rc<GuiInterface<State>>,
     root: RootWidget,
@@ -377,7 +434,8 @@ impl<State, RW> Gui<State, RW> {
         R: Renderer,
         RW: Widget<R>,
     {
-        self.root.on_scroll(delta);
+        let pos = self.interface.internal_state.borrow().mouse_pos;
+        self.root.on_scroll(pos, delta);
     }
 
     pub fn on_key_press(&self, key: char) {

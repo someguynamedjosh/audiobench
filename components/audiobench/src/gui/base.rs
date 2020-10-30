@@ -61,8 +61,8 @@ impl Status {
 
 pub struct GuiState {
     // pub registry: Rcrc<Registry>,
-    pub status: Option<Status>,
-    pub tooltip: Tooltip,
+    status: Option<Status>,
+    tooltip: Tooltip,
     tabs: Vec<Box<dyn GuiTab>>,
     current_tab_index: usize,
 }
@@ -75,6 +75,14 @@ impl GuiState {
             tabs: Vec::new(),
             current_tab_index: 0,
         }
+    }
+
+    pub fn set_tooltip(&mut self, tooltip: Tooltip) {
+        self.tooltip = tooltip;
+    }
+
+    pub fn borrow_tooltip(&self) -> &Tooltip {
+        &self.tooltip
     }
 
     pub fn add_tab(&mut self, tab: Box<dyn GuiTab>) {

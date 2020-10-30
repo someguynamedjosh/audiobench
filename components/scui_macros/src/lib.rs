@@ -257,12 +257,42 @@ impl ToTokens for WidgetInfo {
                     {
                         let children = self.children.borrow();
                         #(for child in &children.#child_names {
-                            if let Some(behavior) = #widget_trait_turbo::get_mouse_behavior(child, pos, mods) {
+                            let cpos = pos - #widget_trait_turbo::get_pos(child);
+                            if !cpos.inside(#widget_trait_turbo::get_size(child)) { continue; }
+                            if let Some(behavior) = #widget_trait_turbo::get_mouse_behavior(child, cpos, mods) {
                                 return Some(behavior);
                             }
                         })*
                     }
                     <#name as #widget_impl_trait>::get_mouse_behavior(self, pos, mods)
+                }
+
+                fn on_scroll(&self, pos: ::scui::Vec2D, delta: f32) -> bool {
+                    {
+                        let children = self.children.borrow();
+                        #(for child in &children.#child_names {
+                            let cpos = pos - #widget_trait_turbo::get_pos(child);
+                            if !cpos.inside(#widget_trait_turbo::get_size(child)) { continue; }
+                            if #widget_trait_turbo::on_scroll(child, cpos, delta) {
+                                return true;
+                            }
+                        })*
+                    }
+                    <#name as #widget_impl_trait>::on_scroll(self, pos, delta)
+                }
+
+                fn on_hover(&self, pos: ::scui::Vec2D) -> bool {
+                    {
+                        let children = self.children.borrow();
+                        #(for child in &children.#child_names {
+                            let cpos = pos - #widget_trait_turbo::get_pos(child);
+                            if !cpos.inside(#widget_trait_turbo::get_size(child)) { continue; }
+                            if #widget_trait_turbo::on_hover(child, cpos) {
+                                return true;
+                            }
+                        })*
+                    }
+                    <#name as #widget_impl_trait>::on_hover(self, pos)
                 }
 
                 fn draw(&self, renderer: &mut #renderer) {
@@ -274,10 +304,6 @@ impl ToTokens for WidgetInfo {
                     <#name as #widget_impl_trait>::draw(self, renderer);
 
                     renderer.pop_state();
-                }
-
-                fn on_scroll(&self, delta: f32) {
-                    <#name as #widget_impl_trait>::on_scroll(self, delta);
                 }
 
                 fn on_removed(&self) {
