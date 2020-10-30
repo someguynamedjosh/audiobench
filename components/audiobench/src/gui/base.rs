@@ -10,8 +10,6 @@ use enumflags2::BitFlags;
 use scui::{Vec2D, Widget, WidgetImpl};
 use shared_util::prelude::*;
 
-pub use scui::MouseMods;
-
 #[derive(BitFlags, Copy, Clone)]
 #[repr(u8)]
 pub enum InteractionHint {

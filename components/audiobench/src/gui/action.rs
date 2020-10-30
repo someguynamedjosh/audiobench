@@ -1,9 +1,10 @@
 use crate::engine::parts as ep;
 use crate::engine::static_controls as staticons;
 use crate::gui::constants::*;
-use crate::gui::{InteractionHint, MouseMods, Tooltip};
+use crate::gui::{InteractionHint, Tooltip};
 use crate::registry::save_data::Patch;
 use scones::make_constructor;
+use scui::MouseMods;
 use shared_util::prelude::*;
 
 // Describes an action that should be performed on an instance level.
