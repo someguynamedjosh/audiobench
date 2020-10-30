@@ -114,11 +114,39 @@ pub enum HAlign {
     Right = 2,
 }
 
+impl From<i32> for HAlign {
+    fn from(other: i32) -> Self {
+        match other {
+            -1 => Self::Left,
+            0 => Self::Center,
+            1 => Self::Right,
+            _ => panic!(
+                "Valid alignment values are -1, 0, and 1, got {} instead.",
+                other
+            ),
+        }
+    }
+}
+
 #[repr(i8)]
 pub enum VAlign {
     Top = 0,
     Center = 1,
     Bottom = 2,
+}
+
+impl From<i32> for VAlign {
+    fn from(other: i32) -> Self {
+        match other {
+            -1 => Self::Top,
+            0 => Self::Center,
+            1 => Self::Bottom,
+            _ => panic!(
+                "Valid alignment values are -1, 0, and 1, got {} instead.",
+                other
+            ),
+        }
+    }
 }
 
 pub struct GrahpicsWrapper {
@@ -230,12 +258,12 @@ impl<'a> GrahpicsWrapper {
         )
     }
 
-    pub fn draw_text<T: Into<Vec2D>, U: Into<Vec2D>>(
+    pub fn draw_text<T: Into<Vec2D>, U: Into<Vec2D>, H: Into<HAlign>, V: Into<VAlign>>(
         &mut self,
         font_size: f32,
         top_left: T,
         size: U,
-        align: (HAlign, VAlign),
+        align: (H, V),
         max_lines: i32,
         text: &str,
     ) {
@@ -252,8 +280,8 @@ impl<'a> GrahpicsWrapper {
             top_left.y,
             size.x,
             size.y,
-            align.0 as u8,
-            align.1 as u8,
+            align.0.into() as u8,
+            align.1.into() as u8,
             max_lines,
             raw_text.as_ptr(),
         );

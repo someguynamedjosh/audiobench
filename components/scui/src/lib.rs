@@ -1,5 +1,5 @@
 use std::cell::RefCell;
-use std::ops::{Add, Sub, Mul, Div};
+use std::ops::{Add, Div, Mul, Sub};
 use std::rc::Rc;
 use std::time::{Duration, Instant};
 
@@ -9,6 +9,9 @@ pub use scui_macros::*;
 pub const DRAG_DEADZONE: f32 = 4.0;
 /// The maximum amount of time between two clicks for the event to be considered a double-click.
 pub const DOUBLE_CLICK_TIME: Duration = Duration::from_millis(500);
+/// If the user moves the mouse at least this much between two clicks, it will not be considered
+/// a double-click.
+pub const DOUBLE_CLICK_RANGE: f32 = 8.0;
 
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
 pub struct Vec2D {
@@ -17,18 +20,18 @@ pub struct Vec2D {
 }
 
 impl Vec2D {
-    pub fn new(x: f32, y: f32) -> Self {
+    pub const fn new(x: f32, y: f32) -> Self {
         Self { x, y }
     }
 
-    pub fn new_int(x: i32, y: i32) -> Self {
+    pub const fn new_int(x: i32, y: i32) -> Self {
         Self {
             x: x as f32,
             y: y as f32,
         }
     }
 
-    pub fn zero() -> Self {
+    pub const fn zero() -> Self {
         Self { x: 0.0, y: 0.0 }
     }
 
@@ -124,10 +127,32 @@ impl From<(i32, i32)> for Vec2D {
 }
 
 pub trait MouseBehavior {
-    fn on_drag(&mut self, delta: Vec2D, mods: &MouseMods);
-    fn on_drop(self: Box<Self>);
-    fn on_click(self: Box<Self>);
-    fn on_double_click(self: Box<Self>);
+    fn on_drag(&mut self, _delta: Vec2D, _mods: &MouseMods) {}
+    fn on_drop(self: Box<Self>) {}
+    fn on_click(self: Box<Self>) {}
+    fn on_double_click(self: Box<Self>) {}
+}
+
+pub struct OnClickBehavior<F: FnOnce()> {
+    action: F,
+}
+
+impl<F: FnOnce() + 'static> OnClickBehavior<F> {
+    pub fn wrap(action: F) -> MaybeMouseBehavior {
+        Some(Box::new(Self { action }))
+    }
+}
+
+impl<F: FnOnce() + 'static> From<F> for OnClickBehavior<F> {
+    fn from(other: F) -> Self {
+        Self { action: other }
+    }
+}
+
+impl<F: FnOnce()> MouseBehavior for OnClickBehavior<F> {
+    fn on_click(self: Box<Self>) {
+        (self.action)();
+    }
 }
 
 pub type MaybeMouseBehavior = Option<Box<dyn MouseBehavior>>;
@@ -203,6 +228,7 @@ struct InternalGuiState {
     mouse_down: bool,
     dragged: bool,
     last_click: Instant,
+    last_click_pos: Vec2D,
     // focused_text_field: Option<Rcrc<gui::ui_widgets::TextField>>,
 }
 
@@ -217,6 +243,7 @@ impl<State> GuiInterface<State> {
                 mouse_down: false,
                 dragged: false,
                 last_click: Instant::now(),
+                last_click_pos: Vec2D::zero(),
             }),
         }
     }
@@ -252,6 +279,7 @@ impl<State, RW> Gui<State, RW> {
     {
         let mut internal = self.interface.internal_state.borrow_mut();
         internal.mouse_down = true;
+        internal.dragged = false;
         let mouse_pos = internal.mouse_pos;
         internal.click_pos = mouse_pos;
         internal.mouse_behavior = self.root.get_mouse_behavior(mouse_pos, mods);
@@ -292,10 +320,13 @@ impl<State, RW> Gui<State, RW> {
                 // behavior.on_drop(drop_target);
                 behavior.on_drop();
             } else {
-                if internal.last_click.elapsed() < DOUBLE_CLICK_TIME {
+                let time = internal.last_click.elapsed();
+                let distance = (internal.last_click_pos - internal.click_pos).length();
+                if time <= DOUBLE_CLICK_TIME && distance <= DOUBLE_CLICK_RANGE {
                     behavior.on_double_click()
                 } else {
                     internal.last_click = Instant::now();
+                    internal.last_click_pos = internal.click_pos;
                     behavior.on_click()
                 }
             }

@@ -65,7 +65,37 @@ pub struct GuiState {
     // pub registry: Rcrc<Registry>,
     pub status: Option<Status>,
     pub tooltip: Tooltip,
-    pub tabs: Vec<Box<dyn GuiTab>>,
+    tabs: Vec<Box<dyn GuiTab>>,
+    current_tab_index: usize,
+}
+
+impl GuiState {
+    pub fn new() -> Self {
+        Self {
+            status: None,
+            tooltip: Default::default(),
+            tabs: Vec::new(),
+            current_tab_index: 0,
+        }
+    }
+
+    pub fn add_tab(&mut self, tab: Box<dyn GuiTab>) {
+        self.tabs.push(tab);
+    }
+
+    pub fn all_tabs(&self) -> impl Iterator<Item = &Box<dyn GuiTab>> {
+        self.tabs.iter()
+    }
+
+    pub fn get_current_tab_index(&self) -> usize {
+        self.current_tab_index
+    }
+
+    pub fn focus_tab_by_index(&mut self, index: usize) {
+        if index < self.tabs.len() {
+            self.current_tab_index = index;
+        }
+    }
 }
 
 scui::widget! {
@@ -81,7 +111,8 @@ impl Root {
         let this = Rc::new(Self::create(parent, state));
         let tab = TestTab::new(&this);
         this.with_gui_state_mut(|state| {
-            state.tabs.push(Box::new(tab));
+            state.add_tab(Box::new(tab));
+            state.add_tab(Box::new(TestTab::new(&this)));
         });
         let header = Header::new(&this);
         this.children.borrow_mut().header = Some(header);
@@ -146,13 +177,5 @@ impl GuiTab for Rc<TestTab> {}
 pub type Gui = scui::Gui<GuiState, Rc<Root>>;
 
 pub fn new_gui() -> Gui {
-    Gui::new(
-        GuiState {
-            // registry,
-            status: None,
-            tooltip: Tooltip::default(),
-            tabs: Vec::new(),
-        },
-        |gui| Root::new(gui),
-    )
+    Gui::new(GuiState::new(), |gui| Root::new(gui))
 }
