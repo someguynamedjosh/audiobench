@@ -3,7 +3,7 @@ use crate::gui::constants::*;
 use crate::gui::top_level::*;
 use crate::scui_config::Renderer;
 use enumflags2::BitFlags;
-use scui::{Vec2D, Widget, WidgetImpl};
+use scui::{MaybeMouseBehavior, MouseMods, Vec2D, Widget, WidgetImpl};
 use shared_util::prelude::*;
 
 #[derive(BitFlags, Copy, Clone)]
@@ -138,13 +138,39 @@ impl WidgetImpl<Renderer> for Root {
         (ROOT_WIDTH, ROOT_HEIGHT).into()
     }
 
+    fn get_mouse_behavior(
+        self: &Rc<Self>,
+        mouse_pos: Vec2D,
+        mods: &MouseMods,
+    ) -> MaybeMouseBehavior {
+        self.with_gui_state(|state| {
+            let tab = &state.tabs[state.get_current_tab_index()];
+            let child_pos = mouse_pos - tab.get_pos();
+            tab.get_mouse_behavior(child_pos, mods)
+        })
+    }
+
+    fn on_hover(self: &Rc<Self>, mouse_pos: Vec2D) -> bool {
+        self.with_gui_state(|state| {
+            let tab = &state.tabs[state.get_current_tab_index()];
+            let child_pos = mouse_pos - tab.get_pos();
+            tab.on_hover(child_pos)
+        })
+    }
+
+    fn on_scroll(self: &Rc<Self>, mouse_pos: Vec2D, delta: f32) -> bool {
+        self.with_gui_state(|state| {
+            let tab = &state.tabs[state.get_current_tab_index()];
+            let child_pos = mouse_pos - tab.get_pos();
+            tab.on_scroll(child_pos, delta)
+        })
+    }
+
     fn draw(self: &Rc<Self>, renderer: &mut Renderer) {
         renderer.set_color(&COLOR_BG0);
         renderer.draw_rect(0, (ROOT_WIDTH, ROOT_HEIGHT));
         self.with_gui_state(|state| {
-            for tab in &state.tabs {
-                tab.draw(renderer);
-            }
+            state.tabs[state.get_current_tab_index()].draw(renderer);
         });
         self.draw_children(renderer);
     }

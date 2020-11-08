@@ -78,10 +78,6 @@ pub const LOG_OCTAVE_PIXELS: f32 = 40.0;
 /// How many pixels the mouse must be dragged across to increase or decrease a discrete integer by
 /// one step.
 pub const DISCRETE_STEP_PIXELS: f32 = 12.0;
-/// How many pixels the mouse must move across while being held down for dragging to start.
-pub const DRAG_DEADZONE: f32 = 4.0;
-/// The maximum amount of time between two clicks for the event to be considered a double-click.
-pub const DOUBLE_CLICK_TIME: Duration = Duration::from_millis(500);
 /// When holding SnappingModifier, how many steps should be snapped to.
 pub const SNAP_STEPS: f32 = 12.0;
 /// When holding SnappingModifier and PrecisionModifier, how many steps should be snapped to.

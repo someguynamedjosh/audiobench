@@ -9,10 +9,10 @@ pub use scui_macros::*;
 /// How many pixels the mouse must move across while being held down for dragging to start.
 pub const DRAG_DEADZONE: f32 = 4.0;
 /// The maximum amount of time between two clicks for the event to be considered a double-click.
-pub const DOUBLE_CLICK_TIME: Duration = Duration::from_millis(500);
+pub const DOUBLE_CLICK_TIME: Duration = Duration::from_millis(400);
 /// If the user moves the mouse at least this much between two clicks, it will not be considered
 /// a double-click.
-pub const DOUBLE_CLICK_RANGE: f32 = 8.0;
+pub const DOUBLE_CLICK_RANGE: f32 = 4.0;
 
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
 pub struct Vec2D {
@@ -42,7 +42,7 @@ impl Vec2D {
     }
 
     pub fn inside(self, other: Self) -> bool {
-        self.x <= other.x && self.y <= other.y
+        self.x >= 0.0 && self.y >= 0.0 && self.x <= other.x && self.y <= other.y
     }
 }
 
@@ -420,15 +420,18 @@ impl<State, RW> Gui<State, RW> {
             if internal.dragged {
                 // let drop_target = self.root.get_drop_target(internal.mouse_pos);
                 // behavior.on_drop(drop_target);
+                drop(internal);
                 behavior.on_drop();
             } else {
                 let time = internal.last_click.elapsed();
                 let distance = (internal.last_click_pos - internal.click_pos).length();
                 if time <= DOUBLE_CLICK_TIME && distance <= DOUBLE_CLICK_RANGE {
+                    drop(internal);
                     behavior.on_double_click()
                 } else {
                     internal.last_click = Instant::now();
                     internal.last_click_pos = internal.click_pos;
+                    drop(internal);
                     behavior.on_click()
                 }
             }

@@ -78,24 +78,24 @@ impl PatchBrowser {
         let patch_name = current_patch.borrow().borrow_name().to_owned();
         let save_icon = registry.lookup_icon("factory:save").unwrap();
         let this2 = Rc::clone(&this);
-        let save_button = IconButton::new(&this, (GRID_P, 0.0), CG, save_icon, move |_| {
+        let save_button = IconButton::new(&this, (GRID_P, GRID_P), CG, save_icon, move |_| {
             this2.on_save_patch()
         });
         save_button.set_enabled(save_enabled);
         let new_icon = registry.lookup_icon("factory:add").unwrap();
-        let pos = (GRID_P + HW - CG * 3.0 - GRID_P * 2.0, 0.0);
+        let pos = (GRID_P + HW - CG * 3.0 - GRID_P * 2.0, GRID_P);
         let this2 = Rc::clone(&this);
         let new_button = IconButton::new(&this, pos, CG, new_icon, move |_| {
             this2.on_save_patch_copy()
         });
         let copy_icon = registry.lookup_icon("factory:copy").unwrap();
-        let pos = (GRID_P + HW - CG * 2.0 - GRID_P, 0.0);
+        let pos = (GRID_P + HW - CG * 2.0 - GRID_P, GRID_P);
         let this2 = Rc::clone(&this);
         let copy_button = IconButton::new(&this, pos, CG, copy_icon, move |_| {
             this2.on_copy_patch_to_clipboard()
         });
         let paste_icon = registry.lookup_icon("factory:paste").unwrap();
-        let pos = (GRID_P + HW - CG, 0.0);
+        let pos = (GRID_P + HW - CG, GRID_P);
         let this2 = Rc::clone(&this);
         let paste_button = IconButton::new(&this, pos, CG, paste_icon, move |_| {
             this2.on_paste_patch_from_clipboard()
@@ -104,7 +104,7 @@ impl PatchBrowser {
         let this2 = Rc::clone(&this);
         let name_box = TextBox::new(
             &this,
-            (GRID_P + CG + GRID_P, 0.0),
+            (GRID_P + CG + GRID_P, GRID_P),
             (namew, NAME_BOX_HEIGHT),
             patch_name,
             Box::new(move |text| this2.on_rename_patch(text)),
@@ -223,11 +223,15 @@ impl PatchBrowser {
 
     fn on_load_patch(self: &Rc<Self>, patch: Rcrc<Patch>, index: usize) -> MaybeMouseBehavior {
         let this = Rc::clone(self);
+        let engine = self.with_gui_state(|state| Rc::clone(&state.engine));
         OnClickBehavior::wrap(move || {
             let mut state = this.state.borrow_mut();
             state.current_entry_index = Some(index);
             drop(state);
             this.update_on_patch_change(&patch);
+            if let Err(err) = engine.borrow_mut().load_patch(patch) {
+                this.with_gui_state_mut(|state| state.add_error_status(err));
+            }
         })
     }
 
@@ -262,9 +266,9 @@ impl PatchBrowser {
         children
             .name_box
             .set_text(new_patch_ref.borrow_name().to_owned());
-        children
-            .save_button
-            .set_enabled(new_patch_ref.is_writable());
+        let enable = new_patch_ref.is_writable();
+        children.name_box.set_enabled(enable);
+        children.save_button.set_enabled(enable);
     }
 
     fn on_delete_patch(self: &Rc<Self>, order_index: usize, index: usize) -> MaybeMouseBehavior {
@@ -366,7 +370,7 @@ impl WidgetImpl<Renderer> for PatchBrowser {
         g.draw_rect(0, TAB_BODY_SIZE);
         self.draw_children(g);
 
-        let y = CG + GP;
+        let y = GP + CG + GP;
         g.set_color(&COLOR_BG0);
         let panel_height = TAB_BODY_HEIGHT - y - GP;
         g.draw_rounded_rect((GP, y), (HW, panel_height), CORNER_SIZE);
@@ -412,7 +416,7 @@ impl WidgetImpl<Renderer> for PatchBrowser {
             } else {
                 g.set_alpha(0.5);
                 let t = "[Factory]";
-                g.draw_text(FONT_SIZE, (x + GP, y), (width, ENTRY_HEIGHT), (-1, 0), 1, t);
+                g.draw_text(FONT_SIZE, (x + GP, y), (width, ENTRY_HEIGHT), (1, 0), 1, t);
                 g.set_alpha(1.0);
             }
         }
