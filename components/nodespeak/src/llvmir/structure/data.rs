@@ -263,6 +263,10 @@ impl DataPacker {
     pub(crate) fn borrow_packed_data(&mut self) -> &mut [u8] {
         &mut self.data[..]
     }
+
+    pub fn borrow_format(&self) -> &[IOType] {
+        &self.format[..]
+    }
 }
 
 pub struct DataUnpacker {
@@ -321,5 +325,9 @@ impl DataUnpacker {
 
     pub(crate) fn borrow_packed_data(&mut self) -> &mut [u8] {
         &mut self.data[..]
+    }
+
+    pub fn borrow_format(&self) -> &[IOType] {
+        &self.format[..]
     }
 }

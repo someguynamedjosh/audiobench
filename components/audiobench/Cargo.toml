@@ -15,6 +15,7 @@ const_env = "0.1"
 directories = "2.0"
 enumflags2 = "0.6"
 nodespeak = { path = "../nodespeak" }
+owning_ref = "0.4"
 rand = "0.7"
 reqwest = { version = "0.10", features = ["blocking", "rustls-tls"] }
 scones = "0.1"

@@ -1,10 +1,6 @@
-use crate::engine::parts as ep;
-use crate::gui;
+use crate::engine::UiThreadEngine;
 use crate::gui::constants::*;
-use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
 use crate::gui::top_level::*;
-use crate::registry::save_data::Patch;
-use crate::registry::Registry;
 use crate::scui_config::Renderer;
 use enumflags2::BitFlags;
 use scui::{Vec2D, Widget, WidgetImpl};
@@ -61,6 +57,7 @@ impl Status {
 
 pub struct GuiState {
     // pub registry: Rcrc<Registry>,
+    pub engine: Rcrc<UiThreadEngine>,
     status: Option<Status>,
     tooltip: Tooltip,
     tabs: Vec<Box<dyn GuiTab>>,
@@ -68,8 +65,9 @@ pub struct GuiState {
 }
 
 impl GuiState {
-    pub fn new() -> Self {
+    pub fn new(engine: Rcrc<UiThreadEngine>) -> Self {
         Self {
+            engine,
             status: None,
             tooltip: Default::default(),
             tabs: Vec::new(),
@@ -102,6 +100,14 @@ impl GuiState {
             self.current_tab_index = index;
         }
     }
+
+    pub fn add_success_status(&mut self, message: String) {
+        self.status = Some(Status::success(message));
+    }
+
+    pub fn add_error_status(&mut self, message: String) {
+        self.status = Some(Status::error(message));
+    }
 }
 
 scui::widget! {
@@ -116,9 +122,10 @@ impl Root {
         let state = RootState { pos: Vec2D::zero() };
         let this = Rc::new(Self::create(parent, state));
         let tab = TestTab::new(&this);
+        let tab2 = Box::new(PatchBrowser::new(&this));
         this.with_gui_state_mut(|state| {
             state.add_tab(Box::new(tab));
-            state.add_tab(Box::new(TestTab::new(&this)));
+            state.add_tab(tab2);
         });
         let header = Header::new(&this);
         this.children.borrow_mut().header = Some(header);
@@ -182,6 +189,6 @@ impl GuiTab for Rc<TestTab> {}
 
 pub type Gui = scui::Gui<GuiState, Rc<Root>>;
 
-pub fn new_gui() -> Gui {
-    Gui::new(GuiState::new(), |gui| Root::new(gui))
+pub fn new_gui(engine: Rcrc<UiThreadEngine>) -> Gui {
+    Gui::new(GuiState::new(engine), |gui| Root::new(gui))
 }

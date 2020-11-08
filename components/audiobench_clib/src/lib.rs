@@ -107,7 +107,11 @@ pub unsafe extern "C" fn ABSongBeats(instance: *mut Instance, beats: f32) {
 
 #[no_mangle]
 pub unsafe extern "C" fn ABRenderAudio(instance: *mut Instance) -> *const f32 {
-    (*instance).render_audio().as_ptr()
+    if let Some(audio) = (*instance).render_audio() {
+        audio.as_ptr()
+    } else {
+        std::ptr::null()
+    }
 }
 
 #[no_mangle]
@@ -174,6 +178,6 @@ pub unsafe extern "C" fn ABUIScroll(instance: *mut Instance, delta: f32) {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ABUIKeyPress(instance: *mut Instance, key: u32) {
+pub unsafe extern "C" fn ABUIKeyPress(instance: *mut Instance, key: u8) {
     (*instance).key_press(key as char);
 }

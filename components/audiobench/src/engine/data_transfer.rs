@@ -158,16 +158,20 @@ impl<'a> InputPacker<'a> {
     }
 
     pub fn set_autocon_dyn_data(&mut self, data: &[f32]) {
-        // self.real_packer
-        //     .set_argument(Self::GPI_AUTOCON_DYN_DATA, IODataPtr::FloatArray(data));
+        if self.real_packer.borrow_format().len() > Self::GPI_AUTOCON_DYN_DATA {
+            self.real_packer
+                .set_argument(Self::GPI_AUTOCON_DYN_DATA, IODataPtr::FloatArray(data));
+        }
     }
 
     pub fn set_staticon_dyn_data(&mut self, data: &[OwnedIOData]) {
         assert!(self.data_format.staticon_dyn_data_types.len() == data.len());
-        for (index, item) in data.iter().enumerate() {
-            let item_ptr = item.borrow();
-            // self.real_packer
-            //     .set_argument(Self::GPI_STATICON_DYN_DATA_START + index, item_ptr);
+        if self.real_packer.borrow_format().len() > Self::GPI_STATICON_DYN_DATA_START + data.len() {
+            for (index, item) in data.iter().enumerate() {
+                let item_ptr = item.borrow();
+                self.real_packer
+                    .set_argument(Self::GPI_STATICON_DYN_DATA_START + index, item_ptr);
+            }
         }
     }
 }
@@ -195,15 +199,19 @@ impl<'a> OutputUnpacker<'a> {
         }
     }
 
-    pub fn borrow_feedback_data(&self) -> &[f32] {
-        unsafe {
-            if let IODataPtr::FloatArray(arr) =
-                self.real_unpacker.get_argument(Self::GPI_FEEDBACK_DATA)
-            {
-                arr
-            } else {
-                unreachable!()
+    pub fn borrow_feedback_data(&self) -> Option<&[f32]> {
+        if self.real_unpacker.borrow_format().len() > Self::GPI_FEEDBACK_DATA {
+            unsafe {
+                if let IODataPtr::FloatArray(arr) =
+                    self.real_unpacker.get_argument(Self::GPI_FEEDBACK_DATA)
+                {
+                    Some(arr)
+                } else {
+                    unreachable!()
+                }
             }
+        } else {
+            None
         }
     }
 }

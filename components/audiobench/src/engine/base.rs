@@ -6,7 +6,6 @@ use super::program_wrapper::{AudiobenchCompiler, AudiobenchProgram, NoteTracker}
 use crate::registry::{save_data::Patch, Registry};
 use nodespeak::llvmir::structure::OwnedIOData;
 use shared_util::{perf_counter::sections, prelude::*};
-use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
 const DEFAULT_BUFFER_LENGTH: usize = 512;
@@ -16,6 +15,7 @@ const FEEDBACK_UPDATE_INTERVAL: Duration = Duration::from_millis(50);
 type PreferredPerfCounter = shared_util::perf_counter::SimplePerfCounter;
 
 struct UiThreadData {
+    registry: Rcrc<Registry>,
     module_graph: Rcrc<ModuleGraph>,
     autocon_dyn_data_collector: AutoconDynDataCollector,
     staticon_dyn_data_collector: StaticonDynDataCollector,
@@ -32,6 +32,8 @@ struct CrossThreadData {
     new_feedback_data: Option<Vec<f32>>,
     critical_error: Option<String>,
     perf_counter: PreferredPerfCounter,
+    // Set if the audio thread has triggered something that requires recompiling.
+    request_recompile: bool,
     currently_compiling: bool,
 }
 
@@ -43,99 +45,113 @@ struct AudioThreadData {
     last_feedback_data_update: Instant,
 }
 
-pub struct Engine {
-    utd: UiThreadData,
-    ctd_mux: Mutex<CrossThreadData>,
-    atd: AudioThreadData,
+pub struct UiThreadEngine {
+    data: UiThreadData,
+    ctd_mux: Arcmux<CrossThreadData>,
 }
 
-impl Engine {
-    // MISC METHODS ================================================================================
-    pub fn perf_counter_report(&self) -> String {
-        self.ctd_mux.lock().unwrap().perf_counter.report()
-    }
+pub struct AudioThreadEngine {
+    data: AudioThreadData,
+    ctd_mux: Arcmux<CrossThreadData>,
+}
 
-    pub fn new(registry: &mut Registry) -> Result<Self, String> {
-        let mut module_graph = ModuleGraph::new();
-        let host_format = HostFormat {
-            buffer_len: DEFAULT_BUFFER_LENGTH,
-            sample_rate: DEFAULT_SAMPLE_RATE,
-        };
-        let default_patch = Rc::clone(
-            registry
-                .get_patch_by_name("factory:patches/default.abpatch")
-                .ok_or("Could not find factory:patches/default.abpatch".to_owned())?,
-        );
-        default_patch
-            .borrow()
-            .restore_note_graph(&mut module_graph, registry)
-            .map_err(|err| {
-                format!(
-                    concat!(
-                        "Default patch failed to load!\n",
-                        "This is a critical error, please submit a bug report containing this ",
-                        "error:\n\n{}",
-                    ),
-                    err
-                )
-            })?;
-        let CodeGenResult {
-            code,
-            autocon_dyn_data_collector,
-            staticon_dyn_data_collector,
-            feedback_displayer,
-            data_format,
-        } = codegen::generate_code(&module_graph, &host_format).map_err(|_| {
-            format!(concat!(
-                "Default patch contains feedback loops!\n",
-                "This is a critical error, please submit a bug report containing this ",
-                "error.",
-            ),)
-        })?;
-        let utd = UiThreadData {
-            module_graph: rcrc(module_graph),
-            autocon_dyn_data_collector,
-            staticon_dyn_data_collector,
-            feedback_displayer,
-            current_patch_save_data: default_patch,
-        };
-
-        let mut compiler = AudiobenchCompiler::new(registry);
-        let program = compiler.compile(code, data_format.clone()).map_err(|err| {
+pub fn new_engine(
+    registry_ptr: Rcrc<Registry>,
+) -> Result<(Rcrc<UiThreadEngine>, Rcrc<AudioThreadEngine>), String> {
+    let registry = registry_ptr.borrow_mut();
+    let mut module_graph = ModuleGraph::new();
+    let host_format = HostFormat {
+        buffer_len: DEFAULT_BUFFER_LENGTH,
+        sample_rate: DEFAULT_SAMPLE_RATE,
+    };
+    let default_patch = Rc::clone(
+        registry
+            .get_patch_by_name("factory:patches/default.abpatch")
+            .ok_or("Could not find factory:patches/default.abpatch".to_owned())?,
+    );
+    default_patch
+        .borrow()
+        .restore_note_graph(&mut module_graph, &*registry)
+        .map_err(|err| {
             format!(
                 concat!(
-                    "Default patch failed to compile!\n",
+                    "Default patch failed to load!\n",
                     "This is a critical error, please submit a bug report containing this ",
-                    "error:\n\n{}"
+                    "error:\n\n{}",
                 ),
                 err
             )
         })?;
-        let atd = AudioThreadData {
-            compiler,
-            current_program: Some(program),
-            host_data: HostData::new(),
-            audio_buffer: vec![0.0; data_format.host_format.buffer_len * 2],
-            last_feedback_data_update: Instant::now(),
-        };
+    let CodeGenResult {
+        code,
+        autocon_dyn_data_collector,
+        staticon_dyn_data_collector,
+        feedback_displayer,
+        data_format,
+    } = codegen::generate_code(&module_graph, &host_format).map_err(|_| {
+        format!(concat!(
+            "Default patch contains feedback loops!\n",
+            "This is a critical error, please submit a bug report containing this ",
+            "error.",
+        ),)
+    })?;
+    let utd = UiThreadData {
+        registry: Rc::clone(&registry_ptr),
+        module_graph: rcrc(module_graph),
+        autocon_dyn_data_collector,
+        staticon_dyn_data_collector,
+        feedback_displayer,
+        current_patch_save_data: default_patch,
+    };
 
-        let ctd = CrossThreadData {
-            host_format,
-            notes: NoteTracker::new(data_format.clone()),
-            new_source: None,
-            new_autocon_dyn_data: None,
-            new_staticon_dyn_data: None,
-            new_feedback_data: None,
-            critical_error: None,
-            perf_counter: PreferredPerfCounter::new(),
-            currently_compiling: false,
-        };
+    let mut compiler = AudiobenchCompiler::new(&*registry);
+    let program = compiler.compile(code, data_format.clone()).map_err(|err| {
+        format!(
+            concat!(
+                "Default patch failed to compile!\n",
+                "This is a critical error, please submit a bug report containing this ",
+                "error:\n\n{}"
+            ),
+            err
+        )
+    })?;
+    let atd = AudioThreadData {
+        compiler,
+        current_program: Some(program),
+        host_data: HostData::new(),
+        audio_buffer: vec![0.0; data_format.host_format.buffer_len * 2],
+        last_feedback_data_update: Instant::now(),
+    };
 
-        Ok(Self {
-            utd,
-            ctd_mux: Mutex::new(ctd),
-            atd,
-        })
+    let ctd = CrossThreadData {
+        host_format,
+        notes: NoteTracker::new(data_format.clone()),
+        new_source: None,
+        new_autocon_dyn_data: None,
+        new_staticon_dyn_data: None,
+        new_feedback_data: None,
+        critical_error: None,
+        perf_counter: PreferredPerfCounter::new(),
+        request_recompile: false,
+        currently_compiling: false,
+    };
+    let ctd_mux = arcmux(ctd);
+
+    Ok((
+        rcrc(UiThreadEngine {
+            data: utd,
+            ctd_mux: Arc::clone(&ctd_mux),
+        }),
+        rcrc(AudioThreadEngine {
+            data: atd,
+            ctd_mux: Arc::clone(&ctd_mux),
+        }),
+    ))
+}
+
+impl UiThreadEngine {
+    pub fn perf_counter_report(&self) -> String {
+        self.ctd_mux.lock().unwrap().perf_counter.report()
     }
 
     pub fn clone_critical_error(&self) -> Option<String> {
@@ -146,76 +162,89 @@ impl Engine {
         self.ctd_mux.lock().unwrap().currently_compiling
     }
 
-    // UI THREAD METHODS ===========================================================================
     pub fn rename_current_patch(&mut self, name: String) {
-        assert!(self.utd.current_patch_save_data.borrow().is_writable());
-        let mut patch_ref = self.utd.current_patch_save_data.borrow_mut();
+        assert!(self.data.current_patch_save_data.borrow().is_writable());
+        let mut patch_ref = self.data.current_patch_save_data.borrow_mut();
         patch_ref.set_name(name);
         patch_ref.write().unwrap();
     }
 
-    pub fn save_current_patch(&mut self, registry: &Registry) {
-        assert!(self.utd.current_patch_save_data.borrow().is_writable());
-        let mut patch_ref = self.utd.current_patch_save_data.borrow_mut();
-        patch_ref.save_note_graph(&*self.utd.module_graph.borrow(), registry);
+    pub fn borrow_registry(&self) -> &Rcrc<Registry> {
+        &self.data.registry
+    }
+
+    pub fn save_current_patch(&mut self) {
+        assert!(self.data.current_patch_save_data.borrow().is_writable());
+        let mut patch_ref = self.data.current_patch_save_data.borrow_mut();
+        let reg = self.data.registry.borrow();
+        patch_ref.save_note_graph(&*self.data.module_graph.borrow(), &*reg);
         patch_ref.write().unwrap();
     }
 
     pub fn borrow_current_patch(&self) -> &Rcrc<Patch> {
-        &self.utd.current_patch_save_data
+        &self.data.current_patch_save_data
     }
 
-    pub fn serialize_current_patch(&self, registry: &Registry) -> String {
-        let mut patch_ref = self.utd.current_patch_save_data.borrow_mut();
-        patch_ref.save_note_graph(&*self.utd.module_graph.borrow(), registry);
+    pub fn serialize_current_patch(&self) -> String {
+        let mut patch_ref = self.data.current_patch_save_data.borrow_mut();
+        let reg = self.data.registry.borrow();
+        patch_ref.save_note_graph(&*self.data.module_graph.borrow(), &*reg);
         patch_ref.serialize()
     }
 
-    pub fn new_patch(&mut self, registry: &mut Registry) -> &Rcrc<Patch> {
-        let new_patch = Rc::clone(registry.create_new_user_patch());
+    pub fn save_current_patch_with_new_name(&mut self) -> &Rcrc<Patch> {
+        let mut reg = self.data.registry.borrow_mut();
+        let patch = self.borrow_current_patch().borrow();
+        let name = shared_util::increment_name(patch.borrow_name());
+        let new_patch = Rc::clone(reg.create_new_user_patch());
         let mut new_patch_ref = new_patch.borrow_mut();
-        new_patch_ref.set_name("New Patch".to_owned());
-        new_patch_ref.save_note_graph(&*self.utd.module_graph.borrow(), registry);
+        new_patch_ref.set_name(name);
+        new_patch_ref.save_note_graph(&*self.data.module_graph.borrow(), &*reg);
         new_patch_ref.write().unwrap();
         drop(new_patch_ref);
+        drop(patch);
+        drop(reg);
         // Don't reload anything because we are just copying the current patch data.
-        self.utd.current_patch_save_data = new_patch;
-        &self.utd.current_patch_save_data
+        self.data.current_patch_save_data = new_patch;
+        &self.data.current_patch_save_data
     }
 
     pub fn new_patch_from_clipboard(
         &mut self,
-        registry: &mut Registry,
         clipboard_data: &[u8],
     ) -> Result<&Rcrc<Patch>, String> {
-        let new_patch = Rc::clone(registry.create_new_user_patch());
+        let mut reg = self.data.registry.borrow_mut();
+        let new_patch = Rc::clone(reg.create_new_user_patch());
         let mut new_patch_ref = new_patch.borrow_mut();
-        new_patch_ref.load_from_serialized_data(clipboard_data, registry)?;
+        new_patch_ref.load_from_serialized_data(clipboard_data, &*reg)?;
         let name = format!("{} (pasted)", new_patch_ref.borrow_name());
         new_patch_ref.set_name(name);
         drop(new_patch_ref);
-        self.load_patch(registry, Rc::clone(&new_patch))?;
-        Ok(&self.utd.current_patch_save_data)
+        drop(reg);
+        self.load_patch(Rc::clone(&new_patch))?;
+        Ok(&self.data.current_patch_save_data)
     }
 
-    pub fn load_patch(&mut self, registry: &Registry, patch: Rcrc<Patch>) -> Result<(), String> {
-        self.utd.current_patch_save_data = patch;
-        self.utd
+    pub fn load_patch(&mut self, patch: Rcrc<Patch>) -> Result<(), String> {
+        let reg = self.data.registry.borrow();
+        self.data.current_patch_save_data = patch;
+        self.data
             .current_patch_save_data
             .borrow()
-            .restore_note_graph(&mut *self.utd.module_graph.borrow_mut(), registry)?;
+            .restore_note_graph(&mut *self.data.module_graph.borrow_mut(), &*reg)?;
+        drop(reg);
         self.recompile()?;
         Ok(())
     }
 
     pub fn borrow_module_graph_ref(&self) -> &Rcrc<ModuleGraph> {
-        &self.utd.module_graph
+        &self.data.module_graph
     }
 
     pub fn recompile(&mut self) -> Result<(), String> {
         let mut ctd = self.ctd_mux.lock().unwrap();
 
-        let module_graph_ref = self.utd.module_graph.borrow();
+        let module_graph_ref = self.data.module_graph.borrow();
         let section = ctd.perf_counter.begin_section(&sections::GENERATE_CODE);
         let new_gen = codegen::generate_code(&*module_graph_ref, &ctd.host_format)
             .map_err(|_| format!("The note graph cannot contain feedback loops"));
@@ -234,9 +263,21 @@ impl Engine {
         ctd.new_staticon_dyn_data = Some(new_gen.staticon_dyn_data_collector.collect_data());
         ctd.perf_counter.end_section(section);
         ctd.new_feedback_data = None;
-        self.utd.autocon_dyn_data_collector = new_gen.autocon_dyn_data_collector;
-        self.utd.staticon_dyn_data_collector = new_gen.staticon_dyn_data_collector;
-        self.utd.feedback_displayer = new_gen.feedback_displayer;
+        self.data.autocon_dyn_data_collector = new_gen.autocon_dyn_data_collector;
+        self.data.staticon_dyn_data_collector = new_gen.staticon_dyn_data_collector;
+        self.data.feedback_displayer = new_gen.feedback_displayer;
+        Ok(())
+    }
+
+    /// Recompiles everything if the audio thread has encountered something that requires
+    /// recompiling. This method exists because compilation is started by the UI thread.
+    pub fn recompile_if_requested_by_audio_thread(&mut self) -> Result<(), String> {
+        let mut ctd = self.ctd_mux.lock().unwrap();
+        if ctd.request_recompile {
+            ctd.request_recompile = false;
+            drop(ctd);
+            self.recompile()?;
+        }
         Ok(())
     }
 
@@ -246,7 +287,7 @@ impl Engine {
         let section = ctd
             .perf_counter
             .begin_section(&sections::COLLECT_AUTOCON_DATA);
-        ctd.new_autocon_dyn_data = Some(self.utd.autocon_dyn_data_collector.collect_data());
+        ctd.new_autocon_dyn_data = Some(self.data.autocon_dyn_data_collector.collect_data());
         ctd.perf_counter.end_section(section);
     }
 
@@ -256,7 +297,7 @@ impl Engine {
         let section = ctd
             .perf_counter
             .begin_section(&sections::COLLECT_STATICON_DATA);
-        ctd.new_staticon_dyn_data = Some(self.utd.staticon_dyn_data_collector.collect_data());
+        ctd.new_staticon_dyn_data = Some(self.data.staticon_dyn_data_collector.collect_data());
         ctd.perf_counter.end_section(section);
     }
 
@@ -267,12 +308,13 @@ impl Engine {
     pub fn display_new_feedback_data(&mut self) {
         if let Ok(mut ctd) = self.ctd_mux.try_lock() {
             if let Some(data) = ctd.new_feedback_data.take() {
-                self.utd.feedback_displayer.display_feedback(&data[..]);
+                self.data.feedback_displayer.display_feedback(&data[..]);
             }
         }
     }
+}
 
-    // AUDIO THREAD METHODS ========================================================================
+impl AudioThreadEngine {
     pub fn set_host_format(&mut self, buffer_len: usize, sample_rate: usize) {
         let mut ctd = self.ctd_mux.lock().unwrap();
 
@@ -280,16 +322,12 @@ impl Engine {
         if buffer_len != ctd.host_format.buffer_len || sample_rate != ctd.host_format.sample_rate {
             ctd.host_format.buffer_len = buffer_len;
             ctd.host_format.sample_rate = sample_rate;
-            drop(ctd);
-            // This only errs if we have a feedback loop. Changing meta params does not introduce
-            // feedback loops.
-            // TODO: This is only supposed to be called from the UI thread.
-            self.recompile().unwrap();
+            ctd.request_recompile = true;
         }
     }
 
     pub fn start_note(&mut self, index: usize, velocity: f32) {
-        if let Some(program) = &mut self.atd.current_program {
+        if let Some(program) = &mut self.data.current_program {
             let mut ctd = self.ctd_mux.lock().unwrap();
             match program.create_static_data() {
                 Ok(data) => ctd.notes.start_note(data, index, velocity),
@@ -308,7 +346,7 @@ impl Engine {
             "{} is not a valid pitch wheel value.",
             new_pitch_wheel
         );
-        self.atd.host_data.pitch_wheel_value = new_pitch_wheel;
+        self.data.host_data.pitch_wheel_value = new_pitch_wheel;
     }
 
     pub fn set_control(&mut self, index: usize, value: f32) {
@@ -318,23 +356,28 @@ impl Engine {
             value
         );
         assert!(index < 128, "{} is not a valid control index.", index);
-        self.atd.host_data.controller_values[index] = value;
+        self.data.host_data.controller_values[index] = value;
     }
 
     pub fn set_bpm(&mut self, bpm: f32) {
-        self.atd.host_data.bpm = bpm;
+        self.data.host_data.bpm = bpm;
     }
 
     pub fn set_song_time(&mut self, time: f32) {
-        self.atd.host_data.song_time = time;
+        self.data.host_data.song_time = time;
     }
 
     pub fn set_song_beats(&mut self, beats: f32) {
-        self.atd.host_data.song_beats = beats;
+        self.data.host_data.song_beats = beats;
     }
 
     pub fn render_audio(&mut self) -> &[f32] {
         let mut ctd = self.ctd_mux.lock().unwrap();
+
+        // Don't run the program if we are waiting for it to be recompiled.
+        if ctd.request_recompile {
+            return &self.data.audio_buffer[..];
+        }
 
         if let Some((code, data_format)) = ctd.new_source.take() {
             ctd.notes.set_data_format(data_format.clone());
@@ -342,15 +385,15 @@ impl Engine {
             ctd.currently_compiling = true;
             // Compilation takes a while. Drop ctd so that other threads can use it.
             drop(ctd);
-            self.atd.compiler.reset_performance_counters();
-            match self.atd.compiler.compile(code, data_format) {
+            self.data.compiler.reset_performance_counters();
+            match self.data.compiler.compile(code, data_format) {
                 Ok(program) => {
                     ctd = self.ctd_mux.lock().unwrap();
-                    self.atd.current_program = Some(program);
+                    self.data.current_program = Some(program);
                 }
                 Err(err) => {
                     ctd = self.ctd_mux.lock().unwrap();
-                    self.atd.current_program = None;
+                    self.data.current_program = None;
                     ctd.critical_error = Some(format!(
                     concat!(
                         "Note graph failed to compile!\n",
@@ -365,11 +408,11 @@ impl Engine {
             ctd.perf_counter.end_section(section);
             // The compiler has its own performance counters, this method adds anything they
             // measure to our global performance counter.
-            self.atd
+            self.data
                 .compiler
                 .tally_performance_counters(&mut ctd.perf_counter);
         }
-        if let Some(program) = &mut self.atd.current_program {
+        if let Some(program) = &mut self.data.current_program {
             let mut input_packer = program.get_input_packer();
             if let Some(new_autocon_dyn_data) = ctd.new_autocon_dyn_data.take() {
                 input_packer.set_autocon_dyn_data(&new_autocon_dyn_data[..]);
@@ -379,15 +422,15 @@ impl Engine {
             }
         }
         let audio_buf_len = ctd.host_format.buffer_len * 2;
-        if self.atd.audio_buffer.len() != audio_buf_len {
-            self.atd.audio_buffer.resize(audio_buf_len, 0.0);
+        if self.data.audio_buffer.len() != audio_buf_len {
+            self.data.audio_buffer.resize(audio_buf_len, 0.0);
         }
         let update_feedback_data =
-            self.atd.last_feedback_data_update.elapsed() > FEEDBACK_UPDATE_INTERVAL;
+            self.data.last_feedback_data_update.elapsed() > FEEDBACK_UPDATE_INTERVAL;
         if update_feedback_data {
-            self.atd.last_feedback_data_update = Instant::now();
+            self.data.last_feedback_data_update = Instant::now();
         }
-        if let Some(program) = &mut self.atd.current_program {
+        if let Some(program) = &mut self.data.current_program {
             let CrossThreadData {
                 notes,
                 perf_counter,
@@ -395,21 +438,21 @@ impl Engine {
             } = &mut *ctd;
             let result = program.execute(
                 update_feedback_data,
-                &mut self.atd.host_data,
+                &mut self.data.host_data,
                 notes,
-                &mut self.atd.audio_buffer[..],
+                &mut self.data.audio_buffer[..],
                 perf_counter,
             );
             if let Err(err) = result {
                 ctd.critical_error = Some(err);
-                self.atd.current_program = None;
+                self.data.current_program = None;
             } else if let Ok(true) = result {
                 // Returns true if new feedback data was written.
-                ctd.new_feedback_data = Some(Vec::from(
-                    program.get_output_unpacker().borrow_feedback_data(),
-                ));
+                if let Some(data) = program.get_output_unpacker().borrow_feedback_data() {
+                    ctd.new_feedback_data = Some(Vec::from(data));
+                }
             }
         }
-        &self.atd.audio_buffer[..]
+        &self.data.audio_buffer[..]
     }
 }

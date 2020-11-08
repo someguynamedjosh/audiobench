@@ -350,6 +350,12 @@ impl<'a, C> IntoIterator for &'a ChildHolder<C> {
     }
 }
 
+impl<C> From<C> for ChildHolder<C> {
+    fn from(other: C) -> Self {
+        Self(Some(other))
+    }
+}
+
 pub struct Gui<State, RootWidget> {
     interface: Rc<GuiInterface<State>>,
     root: RootWidget,

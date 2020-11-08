@@ -43,7 +43,7 @@ impl TextBox {
     }
 
     pub fn set_enabled(&self, enabled: bool) {
-        self.state.borrow().enabled = enabled;
+        self.state.borrow_mut().enabled = enabled;
     }
 }
 

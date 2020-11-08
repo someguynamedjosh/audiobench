@@ -46,7 +46,9 @@ impl WidgetImpl<Renderer> for IconButton {
     }
 
     fn get_mouse_behavior(self: &Rc<Self>, _pos: Vec2D, mods: &MouseMods) -> MaybeMouseBehavior {
-        (self.state.borrow().mouse_behavior)(mods)
+        let mut state = self.state.borrow_mut();
+        // https://github.com/rust-lang/rust/issues/51886
+        (&mut *state.mouse_behavior)(mods)
     }
 
     fn draw(self: &Rc<Self>, g: &mut Renderer) {

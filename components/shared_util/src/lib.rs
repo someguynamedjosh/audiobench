@@ -117,6 +117,18 @@ impl<T: Float + Display> FloatUtil for T {
     }
 }
 
+// Turns "Name" to "Name 2", "Name 3", .. "Name 15", etc.
+pub fn increment_name(old_name: &str) -> String {
+    let old_name = old_name.trim();
+    if let Some(last_space) = old_name.rfind(' ') {
+        let (prefix, number) = old_name.split_at(last_space);
+        if let Ok(number) = number.trim().parse::<i32>() {
+            return format!("{} {}", prefix, number + 1);
+        }
+    }
+    format!("{} 2", old_name)
+}
+
 pub trait TupleUtil: Sized + Copy {
     fn add(self, other: Self) -> Self;
     fn sub(self, other: Self) -> Self;
@@ -189,6 +201,13 @@ use std::{cell::RefCell, rc::Rc};
 pub type Rcrc<T> = Rc<RefCell<T>>;
 pub fn rcrc<T>(content: T) -> Rcrc<T> {
     Rc::new(RefCell::new(content))
+}
+
+use std::sync::{Arc, Mutex};
+
+pub type Arcmux<T> = Arc<Mutex<T>>;
+pub fn arcmux<T>(content: T) -> Arcmux<T> {
+    Arc::new(Mutex::new(content))
 }
 
 pub trait IterMapCollect<Item> {
