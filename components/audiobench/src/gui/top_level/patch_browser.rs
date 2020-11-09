@@ -63,7 +63,6 @@ impl PatchBrowser {
         let entries = entries;
 
         let state = PatchBrowserState {
-            pos: (0.0, HEADER_HEIGHT).into(),
             delete_icon: registry.lookup_icon("factory:delete").unwrap(),
             entries,
             alphabetical_order,
@@ -301,6 +300,10 @@ impl PatchBrowser {
 }
 
 impl WidgetImpl<Renderer> for PatchBrowser {
+    fn get_pos(self: &Rc<Self>) -> Vec2D {
+        (0.0, HEADER_HEIGHT).into()
+    }
+
     fn get_size(self: &Rc<Self>) -> Vec2D {
         (TAB_BODY_WIDTH, TAB_BODY_HEIGHT).into()
     }

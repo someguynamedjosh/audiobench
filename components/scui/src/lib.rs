@@ -177,6 +177,7 @@ pub trait Widget<R: Renderer> {
 /// This is the trait that should be implemented by people creating widgets. It is a way to provide
 /// default implementations while still letting the programmer override them.
 pub trait WidgetImpl<R: Renderer> {
+    fn get_pos(self: &Rc<Self>) -> Vec2D;
     fn get_size(self: &Rc<Self>) -> Vec2D;
 
     fn get_mouse_behavior(

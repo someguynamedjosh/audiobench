@@ -12,13 +12,17 @@ const TAB_PADDING: f32 = GRID_P * 0.5;
 
 impl Header {
     pub fn new(parent: &impl HeaderParent) -> Rc<Self> {
-        let state = HeaderState { pos: Vec2D::zero() };
+        let state = HeaderState {};
         let this = Rc::new(Self::create(parent, state));
         this
     }
 }
 
 impl WidgetImpl<Renderer> for Header {
+    fn get_pos(self: &Rc<Self>) -> Vec2D {
+        0.into()
+    }
+
     fn get_size(self: &Rc<Self>) -> Vec2D {
         (ROOT_WIDTH, HEADER_HEIGHT).into()
     }

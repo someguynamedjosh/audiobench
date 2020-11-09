@@ -123,10 +123,6 @@ impl Parse for WidgetInfo {
             parse_quote! { gui },
             parse_quote! { ::std::rc::Rc<#gui_interface> },
         ));
-        state.fields.push(PartField(
-            parse_quote! { pos },
-            parse_quote! { ::scui::Vec2D },
-        ));
         parents.name = format_ident!("{}Parents", name);
         children.name = format_ident!("{}Children", name);
         state.name = format_ident!("{}State", name);
@@ -246,7 +242,7 @@ impl ToTokens for WidgetInfo {
 
             impl ::scui::Widget<#renderer> for #self_ptr {
                 fn get_pos(&self) -> ::scui::Vec2D {
-                    self.state.borrow().pos
+                    <#name as #widget_impl_trait>::get_pos(self)
                 }
 
                 fn get_size(&self) -> ::scui::Vec2D {
@@ -299,7 +295,7 @@ impl ToTokens for WidgetInfo {
                     use ::scui::Renderer;
 
                     renderer.push_state();
-                    renderer.translate(self.get_pos());
+                    renderer.translate(#widget_trait_turbo::get_pos(self));
 
                     <#name as #widget_impl_trait>::draw(self, renderer);
 

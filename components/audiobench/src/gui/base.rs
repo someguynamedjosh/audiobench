@@ -119,13 +119,11 @@ scui::widget! {
 
 impl Root {
     fn new(parent: &impl RootParent) -> Rc<Self> {
-        let state = RootState { pos: Vec2D::zero() };
+        let state = RootState {};
         let this = Rc::new(Self::create(parent, state));
-        let tab = TestTab::new(&this);
-        let tab2 = Box::new(PatchBrowser::new(&this));
+        let tab = Box::new(PatchBrowser::new(&this));
         this.with_gui_state_mut(|state| {
-            state.add_tab(Box::new(tab));
-            state.add_tab(tab2);
+            state.add_tab(tab);
         });
         let header = Header::new(&this);
         this.children.borrow_mut().header = Some(header);
@@ -134,6 +132,10 @@ impl Root {
 }
 
 impl WidgetImpl<Renderer> for Root {
+    fn get_pos(self: &Rc<Self>) -> Vec2D {
+        0.into()
+    }
+
     fn get_size(self: &Rc<Self>) -> Vec2D {
         (ROOT_WIDTH, ROOT_HEIGHT).into()
     }
@@ -176,10 +178,6 @@ impl WidgetImpl<Renderer> for Root {
     }
 }
 
-scui::widget! {
-    pub TestTab
-}
-
 pub trait GuiTab: Widget<Renderer> {
     fn get_name(self: &Self) -> String {
         "Unnamed".to_owned()
@@ -189,29 +187,6 @@ pub trait GuiTab: Widget<Renderer> {
         false
     }
 }
-
-impl TestTab {
-    fn new(parent: &impl TestTabParent) -> Rc<Self> {
-        let state = TestTabState {
-            pos: (0.0, HEADER_HEIGHT).into(),
-        };
-        let this = Rc::new(Self::create(parent, state));
-        this
-    }
-}
-
-impl WidgetImpl<Renderer> for TestTab {
-    fn get_size(self: &Rc<Self>) -> Vec2D {
-        (TAB_BODY_WIDTH, TAB_BODY_HEIGHT).into()
-    }
-
-    fn draw(self: &Rc<Self>, renderer: &mut Renderer) {
-        renderer.set_color(&COLOR_BG1);
-        renderer.draw_rect(0, (TAB_BODY_WIDTH, TAB_BODY_HEIGHT));
-    }
-}
-
-impl GuiTab for Rc<TestTab> {}
 
 pub type Gui = scui::Gui<GuiState, Rc<Root>>;
 
