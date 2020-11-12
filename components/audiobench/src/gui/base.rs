@@ -1,7 +1,7 @@
 use crate::engine::UiThreadEngine;
 use crate::gui::constants::*;
 use crate::gui::top_level::*;
-use crate::scui_config::Renderer;
+use crate::scui_config::{DropTarget, Renderer};
 use enumflags2::BitFlags;
 use scui::{MaybeMouseBehavior, MouseMods, Vec2D, Widget, WidgetImpl};
 use shared_util::prelude::*;
@@ -131,44 +131,44 @@ impl Root {
     }
 }
 
-impl WidgetImpl<Renderer> for Root {
-    fn get_pos(self: &Rc<Self>) -> Vec2D {
+impl WidgetImpl<Renderer, DropTarget> for Root {
+    fn get_pos_impl(self: &Rc<Self>) -> Vec2D {
         0.into()
     }
 
-    fn get_size(self: &Rc<Self>) -> Vec2D {
+    fn get_size_impl(self: &Rc<Self>) -> Vec2D {
         (ROOT_WIDTH, ROOT_HEIGHT).into()
     }
 
-    fn get_mouse_behavior(
+    fn get_mouse_behavior_impl(
         self: &Rc<Self>,
         mouse_pos: Vec2D,
         mods: &MouseMods,
     ) -> MaybeMouseBehavior {
+        ris!(self.get_mouse_behavior_children(mouse_pos, mods));
         self.with_gui_state(|state| {
             let tab = &state.tabs[state.get_current_tab_index()];
-            let child_pos = mouse_pos - tab.get_pos();
-            tab.get_mouse_behavior(child_pos, mods)
+            tab.get_mouse_behavior(mouse_pos, mods)
         })
     }
 
-    fn on_hover(self: &Rc<Self>, mouse_pos: Vec2D) -> bool {
+    fn on_scroll_impl(self: &Rc<Self>, mouse_pos: Vec2D, delta: f32) -> Option<()> {
+        ris!(self.on_scroll_children(mouse_pos, delta));
         self.with_gui_state(|state| {
             let tab = &state.tabs[state.get_current_tab_index()];
-            let child_pos = mouse_pos - tab.get_pos();
-            tab.on_hover(child_pos)
+            tab.on_scroll(mouse_pos, delta)
         })
     }
 
-    fn on_scroll(self: &Rc<Self>, mouse_pos: Vec2D, delta: f32) -> bool {
+    fn on_hover_impl(self: &Rc<Self>, mouse_pos: Vec2D) -> Option<()> {
+        ris!(self.on_hover_children(mouse_pos));
         self.with_gui_state(|state| {
             let tab = &state.tabs[state.get_current_tab_index()];
-            let child_pos = mouse_pos - tab.get_pos();
-            tab.on_scroll(child_pos, delta)
+            tab.on_hover(mouse_pos)
         })
     }
 
-    fn draw(self: &Rc<Self>, renderer: &mut Renderer) {
+    fn draw_impl(self: &Rc<Self>, renderer: &mut Renderer) {
         renderer.set_color(&COLOR_BG0);
         renderer.draw_rect(0, (ROOT_WIDTH, ROOT_HEIGHT));
         self.with_gui_state(|state| {
@@ -178,7 +178,7 @@ impl WidgetImpl<Renderer> for Root {
     }
 }
 
-pub trait GuiTab: Widget<Renderer> {
+pub trait GuiTab: Widget<Renderer, DropTarget> {
     fn get_name(self: &Self) -> String {
         "Unnamed".to_owned()
     }

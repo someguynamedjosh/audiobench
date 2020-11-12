@@ -7,3 +7,11 @@ use scones::make_constructor;
 use scui::{MouseBehavior, MouseMods, Vec2D};
 use shared_util::prelude::*;
 
+
+#[derive(Clone, Debug)]
+pub enum DropTarget {
+    None,
+    Autocon(Rcrc<ep::Autocon>),
+    Input(Rcrc<ep::Module>, usize),
+    Output(Rcrc<ep::Module>, usize),
+}

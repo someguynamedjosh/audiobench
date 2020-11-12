@@ -2,9 +2,11 @@ use crate::gui::constants::*;
 use crate::gui::ui_widgets::{IconButton, TextBox};
 use crate::gui::{GuiTab, InteractionHint, Tooltip};
 use crate::registry::save_data::Patch;
-use crate::scui_config::Renderer;
+use crate::scui_config::{DropTarget, Renderer};
 use clipboard::ClipboardProvider;
-use scui::{ChildHolder, MaybeMouseBehavior, MouseMods, OnClickBehavior, Vec2D, WidgetImpl};
+use scui::{
+    ChildHolder, MaybeMouseBehavior, MouseMods, OnClickBehavior, Vec2D, Widget, WidgetImpl,
+};
 use shared_util::prelude::*;
 
 scui::widget! {
@@ -299,20 +301,21 @@ impl PatchBrowser {
     }
 }
 
-impl WidgetImpl<Renderer> for PatchBrowser {
-    fn get_pos(self: &Rc<Self>) -> Vec2D {
+impl WidgetImpl<Renderer, DropTarget> for PatchBrowser {
+    fn get_pos_impl(self: &Rc<Self>) -> Vec2D {
         (0.0, HEADER_HEIGHT).into()
     }
 
-    fn get_size(self: &Rc<Self>) -> Vec2D {
+    fn get_size_impl(self: &Rc<Self>) -> Vec2D {
         (TAB_BODY_WIDTH, TAB_BODY_HEIGHT).into()
     }
 
-    fn get_mouse_behavior(
+    fn get_mouse_behavior_impl(
         self: &Rc<Self>,
         mouse_pos: Vec2D,
-        _mods: &MouseMods,
+        mods: &MouseMods,
     ) -> MaybeMouseBehavior {
+        ris!(self.get_mouse_behavior_children(mouse_pos, mods));
         let state = self.state.borrow();
 
         if mouse_pos.x <= HW && mouse_pos.y > NAME_BOX_HEIGHT + GRID_P {
@@ -333,7 +336,7 @@ impl WidgetImpl<Renderer> for PatchBrowser {
         None
     }
 
-    fn on_scroll(self: &Rc<Self>, mouse_pos: Vec2D, delta: f32) -> bool {
+    fn on_scroll_impl(self: &Rc<Self>, mouse_pos: Vec2D, delta: f32) -> Option<()> {
         if mouse_pos.x <= HW && mouse_pos.y > NAME_BOX_HEIGHT + GRID_P {
             let mut state = self.state.borrow_mut();
             if delta > 0.0 {
@@ -346,13 +349,13 @@ impl WidgetImpl<Renderer> for PatchBrowser {
                     state.scroll_offset += 1;
                 }
             }
-            true
+            Some(())
         } else {
-            false
+            None
         }
     }
 
-    fn on_hover(self: &Rc<Self>, mouse_pos: Vec2D) -> bool {
+    fn on_hover_impl(self: &Rc<Self>, mouse_pos: Vec2D) -> Option<()> {
         if mouse_pos.x <= HW && mouse_pos.y > NAME_BOX_HEIGHT + GRID_P {
             self.with_gui_state_mut(|state| {
                 state.set_tooltip(Tooltip {
@@ -362,10 +365,10 @@ impl WidgetImpl<Renderer> for PatchBrowser {
                 });
             })
         }
-        true
+        Some(())
     }
 
-    fn draw(self: &Rc<Self>, g: &mut Renderer) {
+    fn draw_impl(self: &Rc<Self>, g: &mut Renderer) {
         const GP: f32 = GRID_P;
         let state = self.state.borrow();
 

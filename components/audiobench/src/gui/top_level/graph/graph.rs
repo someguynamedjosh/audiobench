@@ -1,11 +1,10 @@
 use super::Module;
 use crate::engine::parts as ep;
-use crate::gui::action::{DropTarget, MouseAction};
 use crate::gui::constants::*;
 use crate::gui::graphics::GrahpicsWrapper;
 use crate::gui::{Gui, InteractionHint, Tooltip};
 use crate::registry::Registry;
-use crate::scui_config::Renderer;
+use crate::scui_config::{DropTarget, Renderer};
 use scui::{MaybeMouseBehavior, MouseMods, Vec2D, Widget, WidgetImpl};
 use shared_util::prelude::*;
 
@@ -21,7 +20,7 @@ scui::widget! {
     }
     Children {
         modules: Vec<Rc<Module>>,
-        popup_menu: Option<Box<dyn Widget<Renderer>>>
+        popup_menu: Option<Box<dyn Widget<Renderer, DropTarget>>>
     }
 }
 
@@ -63,8 +62,8 @@ impl ModuleGraph {
         let mut bottom_right = Vec2D::from(std::f32::MIN);
         for module_rc in state.graph.borrow().borrow_modules() {
             let module_widget = Module::new(self, Rc::clone(module_rc));
-            let pos = Widget::get_pos(&module_widget);
-            let size = Widget::get_size(&module_widget);
+            let pos = module_widget.get_pos();
+            let size = module_widget.get_size();
             top_left = top_left.min(pos);
             bottom_right = bottom_right.max(pos + size);
             children.modules.push(module_widget);
@@ -83,12 +82,12 @@ impl ModuleGraph {
             bottom_right = 0.0.into();
         }
         for module in &children.modules {
-            let tl = Widget::get_pos(module);
-            let br = tl + Widget::get_size(module);
+            let tl = module.get_pos();
+            let br = tl + module.get_size();
             top_left = top_left.min(tl);
             bottom_right = bottom_right.max(br);
         }
-        let size = Widget::get_size(self);
+        let size = self.get_size();
         let center = (bottom_right - top_left) / 2.0 + top_left;
         let mut state = self.state.borrow_mut();
         state.offset = center - size / (state.zoom * 2.0);
@@ -141,7 +140,7 @@ impl ModuleGraph {
         })
     }
 
-    pub fn open_menu(self: &Rc<Self>, menu: Box<dyn Widget<Renderer>>) {
+    pub fn open_menu(self: &Rc<Self>, menu: Box<dyn Widget<Renderer, DropTarget>>) {
         self.children.borrow_mut().popup_menu = Some(menu);
     }
 
@@ -154,16 +153,21 @@ impl ModuleGraph {
     }
 }
 
-impl WidgetImpl<Renderer> for ModuleGraph {
-    fn get_pos(self: &Rc<Self>) -> Vec2D {
+impl WidgetImpl<Renderer, DropTarget> for ModuleGraph {
+    fn get_pos_impl(self: &Rc<Self>) -> Vec2D {
         (0.0, HEADER_HEIGHT).into()
     }
 
-    fn get_size(self: &Rc<Self>) -> Vec2D {
+    fn get_size_impl(self: &Rc<Self>) -> Vec2D {
         (TAB_BODY_WIDTH, TAB_BODY_HEIGHT).into()
     }
 
-    fn get_mouse_behavior(self: &Rc<Self>, pos: Vec2D, mods: &MouseMods) -> MaybeMouseBehavior {
+    fn get_mouse_behavior_impl(
+        self: &Rc<Self>,
+        pos: Vec2D,
+        mods: &MouseMods,
+    ) -> MaybeMouseBehavior {
+        ris!(self.get_mouse_behavior_children(pos, mods));
         // let pos = self.translate_mouse_pos(pos);
         // if let Some(widget) = &self.detail_menu_widget {
         //     let local_pos = pos.sub(widget.get_pos());
@@ -185,8 +189,7 @@ impl WidgetImpl<Renderer> for ModuleGraph {
         None
     }
 
-    fn draw(self: &Rc<Self>, g: &mut GrahpicsWrapper) {
-        let pos = Widget::get_pos(self);
+    fn draw_impl(self: &Rc<Self>, g: &mut GrahpicsWrapper) {
         let mouse_pos = self.parents.gui.get_mouse_pos();
         let state = self.state.borrow();
         let children = self.children.borrow();
@@ -198,16 +201,15 @@ impl WidgetImpl<Renderer> for ModuleGraph {
             state.current_draw_layer = layer;
             drop(state);
             for module in &children.modules {
-                Widget::draw(module, g);
+                module.draw(g);
             }
         }
         if let Some(popup) = &children.popup_menu {
-            Widget::draw(popup, g);
+            popup.draw(g);
         }
         let state = self.state.borrow();
         if let Some(end) = &state.wire_preview_endpoint {
             g.set_color(&COLOR_FG1);
-            let mouse_pos = self.parents.gui.get_mouse_pos();
             g.draw_line(*end, mouse_pos, 2.0);
         }
     }

@@ -1,14 +1,15 @@
 use super::{GraphHighlightMode, ModuleGraph, WireTracker};
 use crate::engine::parts as ep;
-use crate::gui::action::{DropTarget, MouseAction};
 use crate::gui::constants::*;
 use crate::gui::graphics::{HAlign, VAlign};
 use crate::gui::module_widgets::ModuleWidget;
 use crate::gui::{InteractionHint, Tooltip};
 use crate::registry::Registry;
-use crate::scui_config::Renderer;
+use crate::scui_config::{DropTarget, Renderer};
 use owning_ref::OwningRef;
-use scui::{ChildHolder, MaybeMouseBehavior, MouseMods, OnClickBehavior, Vec2D, WidgetImpl};
+use scui::{
+    ChildHolder, MaybeMouseBehavior, MouseMods, OnClickBehavior, Vec2D, Widget, WidgetImpl,
+};
 use shared_util::prelude::*;
 use std::cell::Ref;
 use std::f32::consts::PI;
@@ -356,17 +357,17 @@ impl Module {
     }
 }
 
-impl WidgetImpl<Renderer> for Module {
-    fn get_pos(self: &Rc<Self>) -> Vec2D {
+impl WidgetImpl<Renderer, DropTarget> for Module {
+    fn get_pos_impl(self: &Rc<Self>) -> Vec2D {
         let pos = self.state.borrow().module.borrow().pos;
         (pos.0 as f32, pos.1 as f32).into()
     }
 
-    fn get_size(self: &Rc<Self>) -> Vec2D {
+    fn get_size_impl(self: &Rc<Self>) -> Vec2D {
         self.state.borrow().size
     }
 
-    fn get_mouse_behavior(
+    fn get_mouse_behavior_impl(
         self: &Rc<Self>,
         mouse_pos: Vec2D,
         mods: &MouseMods,
@@ -431,7 +432,7 @@ impl WidgetImpl<Renderer> for Module {
     }
     */
 
-    fn draw(self: &Rc<Self>, g: &mut Renderer) {
+    fn draw_impl(self: &Rc<Self>, g: &mut Renderer) {
         let pos = self.get_pos();
         let size = self.get_size();
         let state = self.state.borrow();

@@ -167,15 +167,16 @@ impl ToTokens for WidgetInfo {
         let gui_state = quote! { crate::scui_config::GuiState };
         let gui_interface_provider = quote! { ::scui::GuiInterfaceProvider<#gui_state> };
         let renderer = quote! { crate::scui_config::Renderer };
+        let drop_target = quote! { crate::scui_config::DropTarget };
         let widget_provider_bounds = quote! {
             #gui_interface_provider +
-            #(::scui::WidgetProvider<#renderer, ::std::rc::Rc<#parent_types>>)+*
+            #(::scui::WidgetProvider<#renderer, #drop_target, ::std::rc::Rc<#parent_types>>)+*
         };
         let self_ptr = quote! { ::std::rc::Rc<#name> };
         let ref_cell = quote! { ::std::cell::RefCell };
         let default = quote! { ::core::default::Default::default() };
-        let widget_trait_turbo = quote! { ::scui::Widget::<#renderer> };
-        let widget_impl_trait = quote! { ::scui::WidgetImpl<#renderer> };
+        let widget_trait_turbo = quote! { ::scui::Widget::<#renderer, #drop_target> };
+        let widget_impl_trait = quote! { ::scui::WidgetImpl<#renderer, #drop_target> };
 
         let content = quote! {
             #parents
@@ -210,6 +211,68 @@ impl ToTokens for WidgetInfo {
                     }
                 }
 
+                /// Returns `Some()` if any of the children of this widget have a mouse behavior at 
+                /// the given position (as indicated by calling their `get_mouse_behavior` method.) 
+                /// Returns `None` if no children provided a mouse behavior.
+                fn get_mouse_behavior_children(self: &::std::rc::Rc<Self>, pos: ::scui::Vec2D, mods: &::scui::MouseMods) -> ::scui::MaybeMouseBehavior {
+                    let children = self.children.borrow();
+                    #(
+                        for child in &children.#child_names {
+                            if let ::std::option::Option::Some(v) = #widget_trait_turbo::get_mouse_behavior(child, pos, mods) {
+                                return Some(v);
+                            }
+                        }
+                    )*
+                    ::std::option::Option::None
+                }
+
+                /// Returns `Some()` if any of the children of this widget have a drop target at the
+                /// given position (as indicated by calling their `get_drop_target` method.) Returns
+                /// `None` if no children provided a drop target.
+                fn get_drop_target_children(self: &::std::rc::Rc<Self>, pos: ::scui::Vec2D) -> ::std::option::Option<#drop_target> {
+                    let children = self.children.borrow();
+                    #(
+                        for child in &children.#child_names {
+                            if let ::std::option::Option::Some(v) = #widget_trait_turbo::get_drop_target(child, pos) {
+                                return Some(v);
+                            }
+                        }
+                    )*
+                    ::std::option::Option::None
+                }
+
+
+                /// Calls the `on_scroll` method of each child of this widget, returning `Some` if any
+                /// of the children returned Some and `None` if not. (Some children may not have their
+                /// `on_scroll` called if an earlier child returns `Some`.)
+                fn on_scroll_children(self: &::std::rc::Rc<Self>, pos: ::scui::Vec2D, delta: f32) -> ::std::option::Option<()> {
+                    let children = self.children.borrow();
+                    #(
+                        for child in &children.#child_names {
+                            if let ::std::option::Option::Some(v) = #widget_trait_turbo::on_scroll(child, pos, delta) {
+                                return Some(v);
+                            }
+                        }
+                    )*
+                    ::std::option::Option::None
+                }
+
+                /// Calls the `on_hover` method of each child of this widget, returning `Some` if any
+                /// of the children returned Some and `None` if not. (Some children may not have their
+                /// `on_hover` called if an earlier child returns `Some`.)
+                fn on_hover_children(self: &::std::rc::Rc<Self>, pos: ::scui::Vec2D) -> ::std::option::Option<()> {
+                    let children = self.children.borrow();
+                    #(
+                        for child in &children.#child_names {
+                            if let ::std::option::Option::Some(v) = #widget_trait_turbo::on_hover(child, pos) {
+                                return Some(v);
+                            }
+                        }
+                    )*
+                    ::std::option::Option::None
+                }
+
+                /// Calls the `draw` method of all children of this widget.
                 fn draw_children(self: &::std::rc::Rc<Self>, renderer: &mut #renderer) {
                     let children = self.children.borrow();
                     #(
@@ -233,67 +296,57 @@ impl ToTokens for WidgetInfo {
                 }
             }
             #(
-                impl ::scui::WidgetProvider<#renderer, ::std::rc::Rc<#parent_types>> for #self_ptr {
+                impl ::scui::WidgetProvider<#renderer, #drop_target, ::std::rc::Rc<#parent_types>> for #self_ptr {
                     fn provide(&self) -> ::std::rc::Rc<#parent_types> {
                         ::std::rc::Rc::clone(&self.parents.#parent_names)
                     }
                 }
             )*
-            impl ::scui::WidgetProvider<#renderer, #self_ptr> for #self_ptr {
+            impl ::scui::WidgetProvider<#renderer, #drop_target, #self_ptr> for #self_ptr {
                 fn provide(&self) -> #self_ptr {
                     ::std::rc::Rc::clone(self)
                 }
             }
 
-            impl ::scui::Widget<#renderer> for #self_ptr {
+            impl ::scui::Widget<#renderer, #drop_target> for #self_ptr {
                 fn get_pos(&self) -> ::scui::Vec2D {
-                    <#name as #widget_impl_trait>::get_pos(self)
+                    <#name as #widget_impl_trait>::get_pos_impl(self)
                 }
 
                 fn get_size(&self) -> ::scui::Vec2D {
-                    <#name as #widget_impl_trait>::get_size(self)
+                    <#name as #widget_impl_trait>::get_size_impl(self)
                 }
 
                 fn get_mouse_behavior(&self, pos: ::scui::Vec2D, mods: &::scui::MouseMods) -> ::scui::MaybeMouseBehavior {
-                    {
-                        let children = self.children.borrow();
-                        #(for child in &children.#child_names {
-                            let cpos = pos - #widget_trait_turbo::get_pos(child);
-                            if !cpos.inside(#widget_trait_turbo::get_size(child)) { continue; }
-                            if let Some(behavior) = #widget_trait_turbo::get_mouse_behavior(child, cpos, mods) {
-                                return Some(behavior);
-                            }
-                        })*
+                    let pos = pos - self.get_pos();
+                    if !pos.inside(self.get_size()) {
+                        return None;
                     }
-                    <#name as #widget_impl_trait>::get_mouse_behavior(self, pos, mods)
+                    <#name as #widget_impl_trait>::get_mouse_behavior_impl(self, pos, mods)
                 }
 
-                fn on_scroll(&self, pos: ::scui::Vec2D, delta: f32) -> bool {
-                    {
-                        let children = self.children.borrow();
-                        #(for child in &children.#child_names {
-                            let cpos = pos - #widget_trait_turbo::get_pos(child);
-                            if !cpos.inside(#widget_trait_turbo::get_size(child)) { continue; }
-                            if #widget_trait_turbo::on_scroll(child, cpos, delta) {
-                                return true;
-                            }
-                        })*
+                fn get_drop_target(&self, pos: ::scui::Vec2D) -> ::std::option::Option::<#drop_target> {
+                    let pos = pos - self.get_pos();
+                    if !pos.inside(self.get_size()) {
+                        return None;
                     }
-                    <#name as #widget_impl_trait>::on_scroll(self, pos, delta)
+                    <#name as #widget_impl_trait>::get_drop_target_impl(self, pos)
                 }
 
-                fn on_hover(&self, pos: ::scui::Vec2D) -> bool {
-                    {
-                        let children = self.children.borrow();
-                        #(for child in &children.#child_names {
-                            let cpos = pos - #widget_trait_turbo::get_pos(child);
-                            if !cpos.inside(#widget_trait_turbo::get_size(child)) { continue; }
-                            if #widget_trait_turbo::on_hover(child, cpos) {
-                                return true;
-                            }
-                        })*
+                fn on_scroll(&self, pos: ::scui::Vec2D, delta: f32) -> ::std::option::Option::<()> {
+                    let pos = pos - self.get_pos();
+                    if !pos.inside(self.get_size()) {
+                        return None;
                     }
-                    <#name as #widget_impl_trait>::on_hover(self, pos)
+                    <#name as #widget_impl_trait>::on_scroll_impl(self, pos, delta)
+                }
+
+                fn on_hover(&self, pos: ::scui::Vec2D) -> ::std::option::Option::<()> {
+                    let pos = pos - self.get_pos();
+                    if !pos.inside(self.get_size()) {
+                        return None;
+                    }
+                    <#name as #widget_impl_trait>::on_hover_impl(self, pos)
                 }
 
                 fn draw(&self, renderer: &mut #renderer) {
@@ -302,13 +355,35 @@ impl ToTokens for WidgetInfo {
                     renderer.push_state();
                     renderer.translate(#widget_trait_turbo::get_pos(self));
 
-                    <#name as #widget_impl_trait>::draw(self, renderer);
+                    <#name as #widget_impl_trait>::draw_impl(self, renderer);
 
                     renderer.pop_state();
                 }
 
                 fn on_removed(&self) {
                     (*self.children.borrow_mut()) = #default;
+                }
+            }
+
+            impl ::scui::WidgetImplDefaults<#renderer, #drop_target> for #name {
+                fn get_mouse_behavior_default(self: &#self_ptr, pos: ::scui::Vec2D, mods: &::scui::MouseMods) -> ::scui::MaybeMouseBehavior {
+                    #name::get_mouse_behavior_children(self, pos, mods)
+                }
+
+                fn get_drop_target_default(self: &#self_ptr, pos: ::scui::Vec2D) -> ::std::option::Option<#drop_target> {
+                    #name::get_drop_target_children(self, pos)
+                }
+
+                fn on_scroll_default(self: &#self_ptr, pos: ::scui::Vec2D, delta: f32) -> ::std::option::Option<()> {
+                    #name::on_scroll_children(self, pos, delta)
+                }
+
+                fn on_hover_default(self: &#self_ptr, pos: ::scui::Vec2D) -> ::std::option::Option<()> {
+                    #name::on_hover_children(self, pos)
+                }
+
+                fn draw_default(self: &#self_ptr, renderer: &mut #renderer) {
+                    #name::draw_children(self, renderer);
                 }
             }
         };

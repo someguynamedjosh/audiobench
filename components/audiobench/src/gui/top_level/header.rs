@@ -1,5 +1,5 @@
 use crate::gui::constants::*;
-use crate::scui_config::Renderer;
+use crate::scui_config::{DropTarget, Renderer};
 use scui::{MaybeMouseBehavior, MouseMods, OnClickBehavior, Vec2D, WidgetImpl};
 use shared_util::prelude::*;
 
@@ -18,16 +18,22 @@ impl Header {
     }
 }
 
-impl WidgetImpl<Renderer> for Header {
-    fn get_pos(self: &Rc<Self>) -> Vec2D {
+impl WidgetImpl<Renderer, DropTarget> for Header {
+    fn get_pos_impl(self: &Rc<Self>) -> Vec2D {
         0.into()
     }
 
-    fn get_size(self: &Rc<Self>) -> Vec2D {
+    fn get_size_impl(self: &Rc<Self>) -> Vec2D {
         (ROOT_WIDTH, HEADER_HEIGHT).into()
     }
 
-    fn get_mouse_behavior(self: &Rc<Self>, pos: Vec2D, _mods: &MouseMods) -> MaybeMouseBehavior {
+    fn get_mouse_behavior_impl(
+        self: &Rc<Self>,
+        pos: Vec2D,
+        mods: &MouseMods,
+    ) -> MaybeMouseBehavior {
+        ris!(self.get_mouse_behavior_children(pos, mods));
+
         let tab_index = (pos.x / (TAB_SIZE.x + TAB_PADDING)) as usize;
         let this = Rc::clone(self);
         OnClickBehavior::wrap(move || {
@@ -37,7 +43,7 @@ impl WidgetImpl<Renderer> for Header {
         })
     }
 
-    fn draw(self: &Rc<Self>, renderer: &mut Renderer) {
+    fn draw_impl(self: &Rc<Self>, renderer: &mut Renderer) {
         const BFS: f32 = BIG_FONT_SIZE;
         const CS: f32 = CORNER_SIZE;
         const GP: f32 = GRID_P;

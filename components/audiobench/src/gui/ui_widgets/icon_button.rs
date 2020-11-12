@@ -1,5 +1,5 @@
 use crate::gui::constants::*;
-use crate::scui_config::Renderer;
+use crate::scui_config::{DropTarget, Renderer};
 use scui::{MaybeMouseBehavior, MouseMods, Vec2D, WidgetImpl};
 use shared_util::prelude::*;
 
@@ -41,16 +41,20 @@ impl IconButton {
     }
 }
 
-impl WidgetImpl<Renderer> for IconButton {
-    fn get_pos(self: &Rc<Self>) -> Vec2D {
+impl WidgetImpl<Renderer, DropTarget> for IconButton {
+    fn get_pos_impl(self: &Rc<Self>) -> Vec2D {
         self.state.borrow().pos
     }
 
-    fn get_size(self: &Rc<Self>) -> Vec2D {
+    fn get_size_impl(self: &Rc<Self>) -> Vec2D {
         self.state.borrow().size.into()
     }
 
-    fn get_mouse_behavior(self: &Rc<Self>, _pos: Vec2D, mods: &MouseMods) -> MaybeMouseBehavior {
+    fn get_mouse_behavior_impl(
+        self: &Rc<Self>,
+        _pos: Vec2D,
+        mods: &MouseMods,
+    ) -> MaybeMouseBehavior {
         let mut state = self.state.borrow_mut();
         if !state.enabled {
             return None;
@@ -59,7 +63,7 @@ impl WidgetImpl<Renderer> for IconButton {
         (&mut *state.mouse_behavior)(mods)
     }
 
-    fn draw(self: &Rc<Self>, g: &mut Renderer) {
+    fn draw_impl(self: &Rc<Self>, g: &mut Renderer) {
         let state = self.state.borrow();
         g.set_color(&COLOR_BG0);
         g.draw_rounded_rect(0, state.size, CORNER_SIZE);

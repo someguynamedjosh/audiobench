@@ -252,3 +252,13 @@ impl<T: Sized> RawDataSource for Vec<T> {
         }
     }
 }
+
+/// "Return If Some", use it like the `try!` macro.
+#[macro_export]
+macro_rules! ris {
+    ($value:expr) => {
+        if let ::std::option::Option::Some(value) = $value {
+            return Some(::std::convert::Into::into(value));
+        }
+    };
+}

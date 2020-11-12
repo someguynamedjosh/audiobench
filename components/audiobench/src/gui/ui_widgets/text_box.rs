@@ -1,5 +1,5 @@
 use crate::gui::constants::*;
-use crate::scui_config::Renderer;
+use crate::scui_config::{DropTarget, Renderer};
 use scui::{MaybeMouseBehavior, MouseMods, OnClickBehavior, TextField, Vec2D, WidgetImpl};
 use shared_util::prelude::*;
 use std::time::Instant;
@@ -48,16 +48,16 @@ impl TextBox {
     }
 }
 
-impl WidgetImpl<Renderer> for TextBox {
-    fn get_pos(self: &Rc<Self>) -> Vec2D {
+impl WidgetImpl<Renderer, DropTarget> for TextBox {
+    fn get_pos_impl(self: &Rc<Self>) -> Vec2D {
         self.state.borrow().pos
     }
 
-    fn get_size(self: &Rc<Self>) -> Vec2D {
+    fn get_size_impl(self: &Rc<Self>) -> Vec2D {
         self.state.borrow().size
     }
 
-    fn get_mouse_behavior(
+    fn get_mouse_behavior_impl(
         self: &Rc<Self>,
         _mouse_pos: Vec2D,
         _mods: &MouseMods,
@@ -74,7 +74,7 @@ impl WidgetImpl<Renderer> for TextBox {
         })
     }
 
-    fn draw(self: &Rc<Self>, g: &mut Renderer) {
+    fn draw_impl(self: &Rc<Self>, g: &mut Renderer) {
         const GP: f32 = GRID_P;
         let state = self.state.borrow();
         let field = state.field.borrow();
