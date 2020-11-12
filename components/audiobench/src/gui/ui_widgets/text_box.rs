@@ -7,6 +7,7 @@ use std::time::Instant;
 scui::widget! {
     pub TextBox
     State {
+        pos: Vec2D,
         size: Vec2D,
         field: Rcrc<TextField>,
         blink_timer: Instant,
@@ -48,6 +49,10 @@ impl TextBox {
 }
 
 impl WidgetImpl<Renderer> for TextBox {
+    fn get_pos(self: &Rc<Self>) -> Vec2D {
+        self.state.borrow().pos
+    }
+
     fn get_size(self: &Rc<Self>) -> Vec2D {
         self.state.borrow().size
     }

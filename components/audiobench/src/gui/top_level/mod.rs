@@ -1,5 +1,6 @@
 //! Contains widgets that make up the top-level structure of the GUI, I.E. tabs and header.
 
+pub mod graph;
 mod header;
 mod patch_browser;
 

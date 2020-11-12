@@ -6,6 +6,7 @@ use shared_util::prelude::*;
 scui::widget! {
     pub IconButton
     State {
+        pos: Vec2D,
         size: f32,
         icon: usize,
         enabled: bool,
@@ -41,6 +42,10 @@ impl IconButton {
 }
 
 impl WidgetImpl<Renderer> for IconButton {
+    fn get_pos(self: &Rc<Self>) -> Vec2D {
+        self.state.borrow().pos
+    }
+
     fn get_size(self: &Rc<Self>) -> Vec2D {
         self.state.borrow().size.into()
     }

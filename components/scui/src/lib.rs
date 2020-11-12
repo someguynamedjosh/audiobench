@@ -1,6 +1,6 @@
 use shared_util::prelude::*;
 use std::cell::RefCell;
-use std::ops::{Add, Deref, DerefMut, Div, Mul, Sub};
+use std::ops::{Add, AddAssign, Deref, DerefMut, Div, DivAssign, Mul, MulAssign, Sub, SubAssign};
 use std::rc::Rc;
 use std::time::{Duration, Instant};
 
@@ -44,6 +44,20 @@ impl Vec2D {
     pub fn inside(self, other: Self) -> bool {
         self.x >= 0.0 && self.y >= 0.0 && self.x <= other.x && self.y <= other.y
     }
+
+    pub fn min(self, other: Self) -> Self {
+        Self {
+            x: self.x.min(other.x),
+            y: self.y.min(other.y),
+        }
+    }
+
+    pub fn max(self, other: Self) -> Self {
+        Self {
+            x: self.x.max(other.x),
+            y: self.y.max(other.y),
+        }
+    }
 }
 
 impl<T: Into<Vec2D>> Add<T> for Vec2D {
@@ -55,6 +69,14 @@ impl<T: Into<Vec2D>> Add<T> for Vec2D {
             x: self.x + other.x,
             y: self.y + other.y,
         }
+    }
+}
+
+impl<T: Into<Vec2D>> AddAssign<T> for Vec2D {
+    fn add_assign(&mut self, other: T) {
+        let other = other.into();
+        self.x += other.x;
+        self.y += other.y;
     }
 }
 
@@ -70,6 +92,14 @@ impl<T: Into<Vec2D>> Sub<T> for Vec2D {
     }
 }
 
+impl<T: Into<Vec2D>> SubAssign<T> for Vec2D {
+    fn sub_assign(&mut self, other: T) {
+        let other = other.into();
+        self.x -= other.x;
+        self.y += other.y;
+    }
+}
+
 impl<T: Into<Vec2D>> Mul<T> for Vec2D {
     type Output = Self;
 
@@ -82,6 +112,14 @@ impl<T: Into<Vec2D>> Mul<T> for Vec2D {
     }
 }
 
+impl<T: Into<Vec2D>> MulAssign<T> for Vec2D {
+    fn mul_assign(&mut self, other: T) {
+        let other = other.into();
+        self.x *= other.x;
+        self.y *= other.y;
+    }
+}
+
 impl<T: Into<Vec2D>> Div<T> for Vec2D {
     type Output = Self;
 
@@ -91,6 +129,14 @@ impl<T: Into<Vec2D>> Div<T> for Vec2D {
             x: self.x / other.x,
             y: self.y / other.y,
         }
+    }
+}
+
+impl<T: Into<Vec2D>> DivAssign<T> for Vec2D {
+    fn div_assign(&mut self, other: T) {
+        let other = other.into();
+        self.x /= other.x;
+        self.y /= other.y;
     }
 }
 
@@ -172,6 +218,30 @@ pub trait Widget<R: Renderer> {
     fn on_hover(&self, pos: Vec2D) -> bool;
     fn draw(&self, renderer: &mut R);
     fn on_removed(&self);
+}
+
+impl<R: Renderer> Widget<R> for Box<dyn Widget<R>> {
+    fn get_pos(&self) -> Vec2D {
+        (**self).get_pos()
+    }
+    fn get_size(&self) -> Vec2D {
+        (**self).get_size()
+    }
+    fn get_mouse_behavior(&self, pos: Vec2D, mods: &MouseMods) -> Option<Box<dyn MouseBehavior>> {
+        (**self).get_mouse_behavior(pos, mods)
+    }
+    fn on_scroll(&self, pos: Vec2D, delta: f32) -> bool {
+        (**self).on_scroll(pos, delta)
+    }
+    fn on_hover(&self, pos: Vec2D) -> bool {
+        (**self).on_hover(pos)
+    }
+    fn draw(&self, renderer: &mut R) {
+        (**self).draw(renderer)
+    }
+    fn on_removed(&self) {
+        (**self).on_removed()
+    }
 }
 
 /// This is the trait that should be implemented by people creating widgets. It is a way to provide
@@ -272,6 +342,10 @@ impl<State> GuiInterface<State> {
         internal.defocus_text_field();
         field.borrow_mut().focused = true;
         internal.focused_text_field = Some(Rc::clone(field));
+    }
+
+    pub fn get_mouse_pos(&self) -> Vec2D {
+        self.internal_state.borrow().mouse_pos
     }
 }
 

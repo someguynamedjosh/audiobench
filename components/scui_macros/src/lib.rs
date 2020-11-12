@@ -239,6 +239,11 @@ impl ToTokens for WidgetInfo {
                     }
                 }
             )*
+            impl ::scui::WidgetProvider<#renderer, #self_ptr> for #self_ptr {
+                fn provide(&self) -> #self_ptr {
+                    ::std::rc::Rc::clone(self)
+                }
+            }
 
             impl ::scui::Widget<#renderer> for #self_ptr {
                 fn get_pos(&self) -> ::scui::Vec2D {
