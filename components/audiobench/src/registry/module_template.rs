@@ -1,7 +1,7 @@
 use super::yaml::YamlNode;
 use crate::engine::parts as ep;
 use crate::engine::static_controls as staticons;
-// use crate::gui::module_widgets::WidgetOutline;
+use crate::gui::module_widgets::WidgetOutline;
 use shared_util::prelude::*;
 use std::collections::{HashMap, HashSet};
 
@@ -188,7 +188,7 @@ pub struct ModuleTemplate {
     pub category: String,
     pub tooltip: String,
     pub size: (i32, i32),
-    pub widget_outlines: Vec<()>,//WidgetOutline>,
+    pub widget_outlines: Vec<WidgetOutline>,
     pub feedback_data_len: usize,
 
     pub inputs: Vec<ep::IOJack>,

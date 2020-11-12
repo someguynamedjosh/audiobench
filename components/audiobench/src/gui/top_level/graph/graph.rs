@@ -93,6 +93,7 @@ impl ModuleGraph {
         state.offset = center - size / (state.zoom * 2.0);
     }
 
+    /// This also adds the module to the actual graph this widget represents.
     pub fn add_module(self: &Rc<Self>, mut module: ep::Module) {
         let state = self.state.borrow();
         let pos = state.offset * -1.0;
@@ -104,7 +105,7 @@ impl ModuleGraph {
     }
 
     pub fn remove_module(self: &Rc<Self>, module: &Rcrc<ep::Module>) {
-        let mut state = self.state.borrow_mut();
+        let state = self.state.borrow();
         state.graph.borrow_mut().remove_module(module);
         let mut children = self.children.borrow_mut();
         let index = children
@@ -120,24 +121,6 @@ impl ModuleGraph {
         let offset = state.offset;
         let zoom = state.zoom;
         mouse_pos / zoom - offset
-    }
-
-    pub fn get_drop_target_at(self: &Rc<Self>, mouse_pos: Vec2D) -> DropTarget {
-        // let mouse_pos = self.translate_mouse_pos(mouse_pos);
-        // for module in &self.modules {
-        //     let target = module.get_drop_target_at(mouse_pos);
-        //     if !target.is_none() {
-        //         return target;
-        //     }
-        // }
-        DropTarget::None
-    }
-
-    pub fn get_tooltip_at(self: &Rc<Self>, mouse_pos: Vec2D) -> Option<Tooltip> {
-        Some(Tooltip {
-            text: "".to_owned(),
-            interaction: InteractionHint::Scroll.into(),
-        })
     }
 
     pub fn open_menu(self: &Rc<Self>, menu: Box<dyn Widget<Renderer, DropTarget>>) {

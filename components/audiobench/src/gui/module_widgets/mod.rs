@@ -1,4 +1,8 @@
+mod outline_stuff;
+mod timing_selector;
 mod traits;
+pub use outline_stuff::*;
+pub use timing_selector::*;
 pub use traits::*;
 
 // mod duration_box;

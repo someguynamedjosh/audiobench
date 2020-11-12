@@ -215,7 +215,7 @@ impl Instance {
             debug_assert!(false, "create_gui called when GUI was already created!");
             eprintln!("WARNING: create_gui called when GUI was already created!");
         } else if let Some((engine, _)) = self.engine.as_ref() {
-            self.gui = Some(gui::new_gui(Rc::clone(&engine)));
+            self.gui = Some(gui::new_gui(Rc::clone(&self.registry), Rc::clone(&engine)));
         }
     }
 

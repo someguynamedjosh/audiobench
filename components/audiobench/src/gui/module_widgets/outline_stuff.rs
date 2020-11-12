@@ -17,18 +17,22 @@ impl FeedbackDataRequirement {
 }
 
 yaml_widget_boilerplate::make_widget_outline_enum![
-    DurationBox,
-    EnvelopeGraph,
-    FrequencyBox,
-    HSlider,
-    IntBox,
-    Knob,
-    MiniKnob,
-    OptionBox,
-    TimingSelector,
-    TriggerSequence,
-    TriggerSequenceLength,
-    ValueSequence,
-    ValueSequenceLength,
-    WaveformGraph,
+    TimingSelector
 ];
+
+// yaml_widget_boilerplate::make_widget_outline_enum![
+//     DurationBox,
+//     EnvelopeGraph,
+//     FrequencyBox,
+//     HSlider,
+//     IntBox,
+//     Knob,
+//     MiniKnob,
+//     OptionBox,
+//     TimingSelector,
+//     TriggerSequence,
+//     TriggerSequenceLength,
+//     ValueSequence,
+//     ValueSequenceLength,
+//     WaveformGraph,
+// ];

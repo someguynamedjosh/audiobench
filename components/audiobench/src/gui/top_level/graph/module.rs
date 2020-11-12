@@ -243,10 +243,6 @@ impl Module {
     }
 
     pub fn new(parent: &impl ModuleParent, module: Rcrc<ep::Module>) -> Rc<Self> {
-        let gui = parent.provide_gui_interface();
-        let state = gui.state.borrow();
-        let engine = state.engine.borrow();
-        let registry = engine.borrow_registry();
         const MIW: f32 = MODULE_IO_WIDTH;
         let mut module_ref = module.borrow_mut();
         let template_ref = module_ref.template.borrow();
@@ -254,12 +250,11 @@ impl Module {
         let label = template_ref.label.clone();
         let module_autocons = &module_ref.autocons;
         let module_staticons = &module_ref.staticons;
-        let widgets = Vec::new();
-        // let widgets = template_ref
-        //     .widget_outlines
-        //     .iter()
-        //     .map(|wo| wo.instantiate(registry, module_autocons, module_staticons))
-        //     .collect();
+        let widgets = template_ref
+            .widget_outlines
+            .iter()
+            .map(|wo| wo.instantiate(parent, module_autocons, module_staticons))
+            .collect();
 
         let size = Vec2D::new(
             fatgrid(grid_size.0) + MIW * 2.0 + JACK_SIZE,
@@ -503,7 +498,8 @@ impl WidgetImpl<Renderer, DropTarget> for Module {
             let feedback_data = &feedback_data_ref[..];
             let mut fdi = 0;
             for (widget, segment_len) in &state.widgets {
-                widget.draw_in_module(g, &feedback_data[fdi..fdi + segment_len]);
+                let data = &feedback_data[fdi..fdi + segment_len];
+                widget.draw(g);
                 fdi += segment_len;
             }
 

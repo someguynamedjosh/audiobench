@@ -1,6 +1,7 @@
 use crate::engine::UiThreadEngine;
 use crate::gui::constants::*;
 use crate::gui::top_level::*;
+use crate::registry::Registry;
 use crate::scui_config::{DropTarget, Renderer};
 use enumflags2::BitFlags;
 use scui::{MaybeMouseBehavior, MouseMods, Vec2D, Widget, WidgetImpl};
@@ -56,7 +57,7 @@ impl Status {
 }
 
 pub struct GuiState {
-    // pub registry: Rcrc<Registry>,
+    pub registry: Rcrc<Registry>,
     pub engine: Rcrc<UiThreadEngine>,
     status: Option<Status>,
     tooltip: Tooltip,
@@ -65,8 +66,9 @@ pub struct GuiState {
 }
 
 impl GuiState {
-    pub fn new(engine: Rcrc<UiThreadEngine>) -> Self {
+    pub fn new(registry: Rcrc<Registry>, engine: Rcrc<UiThreadEngine>) -> Self {
         Self {
+            registry,
             engine,
             status: None,
             tooltip: Default::default(),
@@ -190,6 +192,6 @@ pub trait GuiTab: Widget<Renderer, DropTarget> {
 
 pub type Gui = scui::Gui<GuiState, Rc<Root>>;
 
-pub fn new_gui(engine: Rcrc<UiThreadEngine>) -> Gui {
-    Gui::new(GuiState::new(engine), |gui| Root::new(gui))
+pub fn new_gui(registry: Rcrc<Registry>, engine: Rcrc<UiThreadEngine>) -> Gui {
+    Gui::new(GuiState::new(registry, engine), |gui| Root::new(gui))
 }

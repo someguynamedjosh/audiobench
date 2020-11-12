@@ -1,82 +1,88 @@
-use super::ModuleWidget;
+use super::ModuleWidgetImpl;
 use crate::engine::static_controls as staticons;
-use crate::gui::action::{MouseAction, MutateStaticon};
 use crate::gui::constants::*;
-use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
-use crate::gui::{InteractionHint, MouseMods, Tooltip};
+use crate::gui::mouse_behaviors::MutateStaticon;
+use crate::gui::{InteractionHint, Tooltip};
 use crate::registry::Registry;
+use crate::scui_config::{DropTarget, Renderer};
+use scui::{MaybeMouseBehavior, MouseMods, Vec2D, WidgetImpl};
 use shared_util::prelude::*;
 
 yaml_widget_boilerplate::make_widget_outline! {
     widget_struct: TimingSelector,
-    constructor: create(
-        registry: RegistryRef,
+    constructor: new(
+        parent: ParentRef,
         pos: GridPos,
         control: ControlledTimingModeRef,
     ),
 }
 
-#[derive(Clone)]
-pub struct TimingSelector {
-    control: Rcrc<staticons::ControlledTimingMode>,
-    pos: (f32, f32),
-    note_icon: usize,
-    song_icon: usize,
-    time_icon: usize,
-    beats_icon: usize,
+scui::widget! {
+    pub TimingSelector
+    State {
+        pos: Vec2D,
+        control: Rcrc<staticons::ControlledTimingMode>,
+        note_icon: usize,
+        song_icon: usize,
+        time_icon: usize,
+        beats_icon: usize,
+    }
 }
 
 impl TimingSelector {
-    pub fn create(
-        registry: &Registry,
-        pos: (f32, f32),
+    pub fn new(
+        parent: &impl TimingSelectorParent,
+        pos: Vec2D,
         control: Rcrc<staticons::ControlledTimingMode>,
-    ) -> Self {
-        Self {
-            control,
+    ) -> Rc<Self> {
+        let int = parent.provide_gui_interface();
+        let gui_state = int.state.borrow();
+        let registry = gui_state.registry.borrow();
+        let state = TimingSelectorState {
             pos,
+            control,
             note_icon: registry.lookup_icon("factory:note").unwrap(),
             song_icon: registry.lookup_icon("factory:treble_clef").unwrap(),
             time_icon: registry.lookup_icon("factory:time").unwrap(),
             beats_icon: registry.lookup_icon("factory:metronome").unwrap(),
-        }
+        };
+        Rc::new(Self::create(parent, state))
     }
 
     fn source_value(&self) -> bool {
-        self.control.borrow().uses_song_time()
+        self.state.borrow().control.borrow().uses_song_time()
     }
 
     fn type_value(&self) -> bool {
-        self.control.borrow().is_beat_synchronized()
+        self.state.borrow().control.borrow().is_beat_synchronized()
     }
 }
 
-impl ModuleWidget for TimingSelector {
-    fn get_position(&self) -> (f32, f32) {
-        self.pos
+impl WidgetImpl<Renderer, DropTarget> for TimingSelector {
+    fn get_pos_impl(self: &Rc<Self>) -> Vec2D {
+        self.state.borrow().pos.into()
     }
 
-    fn get_bounds(&self) -> (f32, f32) {
-        (grid(2), grid(2))
+    fn get_size_impl(self: &Rc<Self>) -> Vec2D {
+        (grid(2), grid(2)).into()
     }
 
-    fn respond_to_mouse_press(
-        &self,
-        local_pos: (f32, f32),
+    fn get_mouse_behavior_impl(
+        self: &Rc<Self>,
+        pos: Vec2D,
         _mods: &MouseMods,
-        _parent_pos: (f32, f32),
-    ) -> Option<Box<dyn MouseAction>> {
-        let cref = Rc::clone(&self.control);
-        if local_pos.0 < grid(2) / 2.0 {
-            MutateStaticon::wrap(move || cref.borrow_mut().toggle_source())
+    ) -> MaybeMouseBehavior {
+        let cref = Rc::clone(&self.state.borrow().control);
+        if pos.x < grid(2) / 2.0 {
+            MutateStaticon::wrap(self, move || cref.borrow_mut().toggle_source())
         } else {
-            MutateStaticon::wrap(move || cref.borrow_mut().toggle_units())
+            MutateStaticon::wrap(self, move || cref.borrow_mut().toggle_units())
         }
     }
 
-    fn get_tooltip_at(&self, local_pos: (f32, f32)) -> Option<Tooltip> {
-        Some(Tooltip {
-            text: if local_pos.0 < grid(2) / 2.0 {
+    fn on_hover_impl(self: &Rc<Self>, pos: Vec2D) -> Option<()> {
+        let tooltip = Tooltip {
+            text: if pos.x < grid(2) / 2.0 {
                 format!(
                     "Change timing source, current value is \"{}\"",
                     if self.source_value() { "song" } else { "note" }
@@ -92,56 +98,41 @@ impl ModuleWidget for TimingSelector {
                 )
             },
             interaction: InteractionHint::LeftClick.into(),
-        })
+        };
+        self.with_gui_state_mut(|state| {
+            state.set_tooltip(tooltip);
+        });
+        Some(())
     }
 
-    fn draw(
-        &self,
-        g: &mut GrahpicsWrapper,
-        _highlight: bool,
-        _parent_pos: (f32, f32),
-        _feedback_data: &[f32],
-    ) {
-        g.push_state();
-        g.apply_offset(self.pos.0, self.pos.1);
+    fn draw_impl(self: &Rc<Self>, g: &mut Renderer) {
+        let state = self.state.borrow();
 
         const CS: f32 = CORNER_SIZE;
         const ICON_SIZE: f32 = (grid(2) - CS * 3.0) / 2.0;
         g.set_color(&COLOR_BG0);
-        g.fill_rounded_rect(0.0, 0.0, grid(2), CS * 2.0 + ICON_SIZE, CS);
+        g.draw_rounded_rect(0.0, (grid(2), CS * 2.0 + ICON_SIZE), CS);
         g.draw_white_icon(
             if self.source_value() {
-                self.song_icon
+                state.song_icon
             } else {
-                self.note_icon
+                state.note_icon
             },
-            CS,
             CS,
             ICON_SIZE,
         );
         g.draw_white_icon(
             if self.type_value() {
-                self.beats_icon
+                state.beats_icon
             } else {
-                self.time_icon
+                state.time_icon
             },
-            CS + ICON_SIZE + CS,
-            CS,
+            (CS + ICON_SIZE + CS, CS),
             ICON_SIZE,
         );
         g.set_color(&COLOR_FG1);
-        g.write_text(
-            FONT_SIZE,
-            0.0,
-            0.0,
-            grid(2),
-            grid(2),
-            HAlign::Center,
-            VAlign::Bottom,
-            1,
-            "Timing",
-        );
-
-        g.pop_state();
+        g.draw_text(FONT_SIZE, 0.0, grid(2), (0, 1), 1, "Timing");
     }
 }
+
+impl ModuleWidgetImpl for TimingSelector {}
