@@ -1,16 +1,18 @@
-use super::ModuleWidget;
-use super::{IntBoxBase, IntBoxImpl};
+use super::ModuleWidgetImpl;
 use crate::engine::static_controls as staticons;
-use crate::gui::action::{MouseAction, MutateStaticon};
 use crate::gui::constants::*;
 use crate::gui::graphics::GrahpicsWrapper;
-use crate::gui::{InteractionHint, MouseMods, Tooltip};
+use crate::gui::mouse_behaviors::MutateStaticon;
+use crate::gui::{InteractionHint, Tooltip};
 use crate::registry::Registry;
+use crate::scui_config::{DropTarget, Renderer, MaybeMouseBehavior};
+use scui::{MouseMods, OnClickBehavior, Vec2D, WidgetImpl};
 use shared_util::prelude::*;
 
 yaml_widget_boilerplate::make_widget_outline! {
     widget_struct: TriggerSequence,
-    constructor: create(
+    constructor: new(
+        parent: ParentRef,
         pos: GridPos,
         size: GridSize,
         sequence_control: ControlledTriggerSequenceRef,
@@ -20,82 +22,83 @@ yaml_widget_boilerplate::make_widget_outline! {
     feedback: custom(1),
 }
 
-#[derive(Clone)]
-pub struct TriggerSequence {
-    tooltip: String,
-    sequence_control: Rcrc<staticons::ControlledTriggerSequence>,
-    pos: (f32, f32),
-    width: f32,
-}
-
-impl TriggerSequence {
-    const HEIGHT: f32 = grid(1);
-    const HEADER_SPACE: f32 = CORNER_SIZE * 2.0;
-    const STEP_GAP: f32 = CORNER_SIZE / 2.0;
-
-    pub fn create(
-        pos: (f32, f32),
-        size: (f32, f32),
+scui::widget! {
+    pub TriggerSequence
+    State {
+        pos: Vec2D,
+        size: Vec2D,
         sequence_control: Rcrc<staticons::ControlledTriggerSequence>,
         tooltip: String,
-    ) -> TriggerSequence {
-        TriggerSequence {
+    }
+}
+
+const HEIGHT: f32 = grid(1);
+const HEADER_SPACE: f32 = CORNER_SIZE * 2.0;
+const STEP_GAP: f32 = CORNER_SIZE / 2.0;
+
+impl TriggerSequence {
+    fn new(
+        parent: &impl TriggerSequenceParent,
+        pos: Vec2D,
+        size: Vec2D,
+        sequence_control: Rcrc<staticons::ControlledTriggerSequence>,
+        tooltip: String,
+    ) -> Rc<Self> {
+        let state = TriggerSequenceState {
             tooltip,
             sequence_control,
             pos,
-            width: size.0,
-        }
+            size: size * (1, 0) + (0.0, HEIGHT),
+        };
+        Rc::new(Self::create(parent, state))
     }
 }
 
-impl ModuleWidget for TriggerSequence {
-    fn get_position(&self) -> (f32, f32) {
-        self.pos
+impl WidgetImpl<Renderer, DropTarget> for TriggerSequence {
+    fn get_pos_impl(self: &Rc<Self>) -> Vec2D {
+        self.state.borrow().pos
     }
 
-    fn get_bounds(&self) -> (f32, f32) {
-        (self.width, grid(1))
+    fn get_size_impl(self: &Rc<Self>) -> Vec2D {
+        self.state.borrow().size
     }
 
-    fn respond_to_mouse_press(
-        &self,
-        local_pos: (f32, f32),
+    fn get_mouse_behavior_impl(
+        self: &Rc<Self>,
+        pos: Vec2D,
         _mods: &MouseMods,
-        _parent_pos: (f32, f32),
-    ) -> Option<Box<dyn MouseAction>> {
-        let num_steps = self.sequence_control.borrow().get_len();
-        let step_width = (self.width + TriggerSequence::STEP_GAP) / num_steps as f32;
-        let clicked_step = (local_pos.0 / step_width) as usize;
-        let cref = Rc::clone(&self.sequence_control);
-        MutateStaticon::wrap(move || cref.borrow_mut().toggle_trigger(clicked_step))
+    ) -> MaybeMouseBehavior {
+        let state = self.state.borrow();
+        let num_steps = state.sequence_control.borrow().get_len();
+        let step_width = (state.size.x + STEP_GAP) / num_steps as f32;
+        let clicked_step = (pos.x / step_width) as usize;
+        let cref = Rc::clone(&state.sequence_control);
+        MutateStaticon::wrap(self, move || cref.borrow_mut().toggle_trigger(clicked_step))
     }
 
-    fn get_tooltip_at(&self, _local_pos: (f32, f32)) -> Option<Tooltip> {
-        Some(Tooltip {
-            text: self.tooltip.clone(),
+    fn on_hover_impl(self: &Rc<Self>, _pos: Vec2D) -> Option<()> {
+        let tooltip = Tooltip {
+            text: self.state.borrow().tooltip.clone(),
             interaction: InteractionHint::LeftClick.into(),
-        })
+        };
+        self.with_gui_state_mut(|state| {
+            state.set_tooltip(tooltip);
+        });
+        Some(())
     }
 
-    fn draw(
-        &self,
-        g: &mut GrahpicsWrapper,
-        _highlight: bool,
-        _parent_pos: (f32, f32),
-        feedback_data: &[f32],
-    ) {
-        g.push_state();
-        g.apply_offset(self.pos.0, self.pos.1);
-
-        const H: f32 = TriggerSequence::HEIGHT;
+    fn draw_impl(self: &Rc<Self>, g: &mut Renderer) {
+        let state = self.state.borrow();
+        let feedback_data: &[f32] = unimplemented!();
+        const H: f32 = HEIGHT;
         const CS: f32 = CORNER_SIZE;
-        const HEAD: f32 = TriggerSequence::HEADER_SPACE;
-        const SG: f32 = TriggerSequence::STEP_GAP;
+        const HEAD: f32 = HEADER_SPACE;
+        const SG: f32 = STEP_GAP;
         g.set_color(&COLOR_BG0);
 
-        let borrowed = self.sequence_control.borrow();
+        let borrowed = state.sequence_control.borrow();
         let num_steps = borrowed.get_len();
-        let step_width = (self.width + SG) / num_steps as f32;
+        let step_width = (state.size.x + SG) / num_steps as f32;
         for step_index in 0..num_steps {
             let x = step_index as f32 * step_width;
             if borrowed.get_trigger(step_index) {
@@ -103,68 +106,40 @@ impl ModuleWidget for TriggerSequence {
             } else {
                 g.set_color(&COLOR_BG0);
             }
-            g.fill_rounded_rect(x, HEAD, step_width - SG, H - HEAD, CS);
+            g.draw_rounded_rect((x, HEAD), (step_width - SG, H - HEAD), CS);
         }
 
         g.set_color(&COLOR_FG1);
-        g.fill_pie(
-            feedback_data[0] * step_width - HEAD,
-            0.0,
+        g.draw_pie(
+            (feedback_data[0] * step_width - HEAD, 0.0),
             HEAD * 2.0,
             0.0,
             std::f32::consts::PI * 0.75,
             std::f32::consts::PI * 0.25,
         );
-
-        g.pop_state();
     }
 }
 
-yaml_widget_boilerplate::make_widget_outline! {
-    widget_struct: TriggerSequenceLength,
-    constructor: create(
-        registry: RegistryRef,
-        pos: GridPos,
-        sequence_control: ControlledTriggerSequenceRef,
-        label: String,
-        tooltip: String,
-    ),
-}
-
-pub struct TriggerSequenceLength {
-    base: IntBoxBase,
-    sequence_control: Rcrc<staticons::ControlledTriggerSequence>,
+crate::make_int_box_widget! {
+    pub TriggerSequenceLength {
+        sequence_control: ControlledTriggerSequenceRef
+            as Rcrc<staticons::ControlledTriggerSequence>
+    }
 }
 
 impl TriggerSequenceLength {
-    pub fn create(
-        registry: &Registry,
-        pos: (f32, f32),
-        sequence_control: Rcrc<staticons::ControlledTriggerSequence>,
-        label: String,
-        tooltip: String,
-    ) -> Self {
-        Self {
-            base: IntBoxBase::create(tooltip, registry, pos, (1, 99), label),
-            sequence_control,
-        }
-    }
-}
-
-impl IntBoxImpl for TriggerSequenceLength {
-    fn get_base(&self) -> &IntBoxBase {
-        &self.base
-    }
-
     fn get_current_value(&self) -> i32 {
-        self.sequence_control.borrow().get_len() as _
+        self.state.borrow().sequence_control.borrow().get_len() as _
     }
 
     fn make_callback(&self) -> Box<dyn FnMut(i32) -> staticons::StaticonUpdateRequest> {
-        let sequence_control = Rc::clone(&self.sequence_control);
+        let sequence_control = Rc::clone(&self.state.borrow().sequence_control);
         Box::new(move |new_length| {
             assert!(new_length >= 1);
             sequence_control.borrow_mut().set_len(new_length as usize)
         })
     }
 }
+
+impl ModuleWidgetImpl for TriggerSequence {}
+impl ModuleWidgetImpl for TriggerSequenceLength {}

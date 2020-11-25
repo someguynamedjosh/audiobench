@@ -1,6 +1,6 @@
 use crate::gui::constants::*;
-use crate::scui_config::{DropTarget, Renderer};
-use scui::{MaybeMouseBehavior, MouseMods, OnClickBehavior, TextField, Vec2D, WidgetImpl};
+use crate::scui_config::{DropTarget, Renderer, MaybeMouseBehavior};
+use scui::{MouseMods, OnClickBehavior, TextField, Vec2D, WidgetImpl};
 use shared_util::prelude::*;
 use std::time::Instant;
 

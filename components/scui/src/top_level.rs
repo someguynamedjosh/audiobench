@@ -7,15 +7,15 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::time::Instant;
 
-pub trait GuiInterfaceProvider<State> {
-    fn provide_gui_interface(&self) -> Rc<GuiInterface<State>>;
+pub trait GuiInterfaceProvider<State, DT> {
+    fn provide_gui_interface(&self) -> Rc<GuiInterface<State, DT>>;
 }
 
 pub struct PlaceholderGuiState;
 
 // Stuff that the GUI keeps track of for normal operations, e.g. when the last mouse press was.
-struct InternalGuiState {
-    mouse_behavior: MaybeMouseBehavior,
+struct InternalGuiState<DT> {
+    mouse_behavior: MaybeMouseBehavior<DT>,
     click_pos: Vec2D,
     mouse_pos: Vec2D,
     mouse_down: bool,
@@ -25,7 +25,7 @@ struct InternalGuiState {
     focused_text_field: Option<Rcrc<TextField>>,
 }
 
-impl InternalGuiState {
+impl<DT> InternalGuiState<DT> {
     // Defocuses the current text field, if one is focused.
     fn defocus_text_field(&mut self) {
         if let Some(field) = self.focused_text_field.take() {
@@ -36,12 +36,12 @@ impl InternalGuiState {
     }
 }
 
-pub struct GuiInterface<State> {
+pub struct GuiInterface<State, DT> {
     pub state: RefCell<State>,
-    internal_state: RefCell<InternalGuiState>,
+    internal_state: RefCell<InternalGuiState<DT>>,
 }
 
-impl<State> GuiInterface<State> {
+impl<State, DT> GuiInterface<State, DT> {
     fn new(state: State) -> Self {
         Self {
             state: RefCell::new(state),
@@ -70,33 +70,33 @@ impl<State> GuiInterface<State> {
     }
 }
 
-impl<State> GuiInterfaceProvider<State> for Rc<GuiInterface<State>> {
-    fn provide_gui_interface(&self) -> Rc<GuiInterface<State>> {
+impl<State, DT> GuiInterfaceProvider<State, DT> for Rc<GuiInterface<State, DT>> {
+    fn provide_gui_interface(&self) -> Rc<GuiInterface<State, DT>> {
         Rc::clone(self)
     }
 }
 
-pub struct Gui<State, RootWidget> {
-    interface: Rc<GuiInterface<State>>,
+pub struct Gui<State, DT, RootWidget> {
+    interface: Rc<GuiInterface<State, DT>>,
     root: RootWidget,
 }
 
-impl<State, RW> Gui<State, RW> {
+impl<State, DT, RW> Gui<State, DT, RW> {
     pub fn new<R, D, B>(state: State, root_builder: B) -> Self
     where
         R: Renderer,
         RW: Widget<R, D>,
-        B: FnOnce(&Rc<GuiInterface<State>>) -> RW,
+        B: FnOnce(&Rc<GuiInterface<State, DT>>) -> RW,
     {
         let interface = Rc::new(GuiInterface::new(state));
         let root = root_builder(&interface);
         Self { interface, root }
     }
 
-    pub fn on_mouse_down<R, D>(&self, mods: &MouseMods)
+    pub fn on_mouse_down<R>(&self, mods: &MouseMods)
     where
         R: Renderer,
-        RW: Widget<R, D>,
+        RW: Widget<R, DT>,
     {
         let mut internal = self.interface.internal_state.borrow_mut();
         internal.defocus_text_field();
@@ -130,18 +130,17 @@ impl<State, RW> Gui<State, RW> {
         }
     }
 
-    pub fn on_mouse_up<R, D>(&self)
+    pub fn on_mouse_up<R>(&self)
     where
         R: Renderer,
-        RW: Widget<R, D>,
+        RW: Widget<R, DT>,
     {
         let mut internal = self.interface.internal_state.borrow_mut();
         if let Some(behavior) = internal.mouse_behavior.take() {
             if internal.dragged {
-                // let drop_target = self.root.get_drop_target(internal.mouse_pos);
-                // behavior.on_drop(drop_target);
+                let drop_target = self.root.get_drop_target(internal.mouse_pos);
                 drop(internal);
-                behavior.on_drop();
+                behavior.on_drop(drop_target);
             } else {
                 let time = internal.last_click.elapsed();
                 let distance = (internal.last_click_pos - internal.click_pos).length();

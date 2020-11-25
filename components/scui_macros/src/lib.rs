@@ -113,7 +113,7 @@ impl Parse for WidgetInfo {
                 ));
             }
         }
-        let gui_interface = quote! { ::scui::GuiInterface<crate::scui_config::GuiState> };
+        let gui_interface = quote! { ::scui::GuiInterface<crate::scui_config::GuiState, crate::scui_config::DropTarget> };
         let parent_types: Vec<_> = parents
             .fields
             .iter()
@@ -165,9 +165,9 @@ impl ToTokens for WidgetInfo {
         let parent_types = &self.parent_types;
 
         let gui_state = quote! { crate::scui_config::GuiState };
-        let gui_interface_provider = quote! { ::scui::GuiInterfaceProvider<#gui_state> };
-        let renderer = quote! { crate::scui_config::Renderer };
         let drop_target = quote! { crate::scui_config::DropTarget };
+        let gui_interface_provider = quote! { ::scui::GuiInterfaceProvider<#gui_state, #drop_target> };
+        let renderer = quote! { crate::scui_config::Renderer };
         let widget_provider_bounds = quote! {
             #gui_interface_provider +
             #(::scui::WidgetProvider<#renderer, #drop_target, ::std::rc::Rc<#parent_types>>)+*
@@ -214,7 +214,7 @@ impl ToTokens for WidgetInfo {
                 /// Returns `Some()` if any of the children of this widget have a mouse behavior at 
                 /// the given position (as indicated by calling their `get_mouse_behavior` method.) 
                 /// Returns `None` if no children provided a mouse behavior.
-                fn get_mouse_behavior_children(self: &::std::rc::Rc<Self>, pos: ::scui::Vec2D, mods: &::scui::MouseMods) -> ::scui::MaybeMouseBehavior {
+                fn get_mouse_behavior_children(self: &::std::rc::Rc<Self>, pos: ::scui::Vec2D, mods: &::scui::MouseMods) -> ::scui::MaybeMouseBehavior<#drop_target> {
                     let children = self.children.borrow();
                     #(
                         for child in &children.#child_names {
@@ -291,7 +291,7 @@ impl ToTokens for WidgetInfo {
                 }
             }
             impl #gui_interface_provider for #self_ptr {
-                fn provide_gui_interface(&self) -> ::std::rc::Rc<::scui::GuiInterface<#gui_state>> {
+                fn provide_gui_interface(&self) -> ::std::rc::Rc<::scui::GuiInterface<#gui_state, #drop_target>> {
                     ::std::rc::Rc::clone(&self.parents.gui)
                 }
             }
@@ -317,7 +317,7 @@ impl ToTokens for WidgetInfo {
                     <#name as #widget_impl_trait>::get_size_impl(self)
                 }
 
-                fn get_mouse_behavior(&self, pos: ::scui::Vec2D, mods: &::scui::MouseMods) -> ::scui::MaybeMouseBehavior {
+                fn get_mouse_behavior(&self, pos: ::scui::Vec2D, mods: &::scui::MouseMods) -> ::scui::MaybeMouseBehavior<#drop_target> {
                     let pos = pos - self.get_pos();
                     if !pos.inside(self.get_size()) {
                         return None;
@@ -366,7 +366,7 @@ impl ToTokens for WidgetInfo {
             }
 
             impl ::scui::WidgetImplDefaults<#renderer, #drop_target> for #name {
-                fn get_mouse_behavior_default(self: &#self_ptr, pos: ::scui::Vec2D, mods: &::scui::MouseMods) -> ::scui::MaybeMouseBehavior {
+                fn get_mouse_behavior_default(self: &#self_ptr, pos: ::scui::Vec2D, mods: &::scui::MouseMods) -> ::scui::MaybeMouseBehavior<#drop_target> {
                     #name::get_mouse_behavior_children(self, pos, mods)
                 }
 

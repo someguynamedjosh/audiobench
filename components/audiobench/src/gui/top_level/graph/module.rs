@@ -5,11 +5,9 @@ use crate::gui::graphics::{HAlign, VAlign};
 use crate::gui::module_widgets::ModuleWidget;
 use crate::gui::{InteractionHint, Tooltip};
 use crate::registry::Registry;
-use crate::scui_config::{DropTarget, Renderer};
+use crate::scui_config::{DropTarget, MaybeMouseBehavior, Renderer};
 use owning_ref::OwningRef;
-use scui::{
-    ChildHolder, MaybeMouseBehavior, MouseMods, OnClickBehavior, Vec2D, Widget, WidgetImpl,
-};
+use scui::{ChildHolder, MouseMods, OnClickBehavior, Vec2D, Widget, WidgetImpl};
 use shared_util::prelude::*;
 use std::cell::Ref;
 use std::f32::consts::PI;
@@ -218,11 +216,11 @@ impl Drop for Module {
 }
 
 impl Module {
-    fn jack_y(index: i32) -> f32 {
-        coord(index) + JACK_SIZE / 2.0
+    fn jack_y(index: usize) -> f32 {
+        coord(index as i32) + JACK_SIZE / 2.0
     }
 
-    pub fn input_position(module: &ep::Module, input_index: i32) -> Vec2D {
+    pub fn input_position(module: &ep::Module, input_index: usize) -> Vec2D {
         let module_pos = (module.pos.0 as f32, module.pos.1 as f32);
         (
             module_pos.0 + JACK_SIZE,
@@ -231,7 +229,7 @@ impl Module {
             .into()
     }
 
-    pub fn output_position(module: &ep::Module, output_index: i32) -> Vec2D {
+    pub fn output_position(module: &ep::Module, output_index: usize) -> Vec2D {
         let module_pos = (module.pos.0 as f32, module.pos.1 as f32);
         let module_size = module.template.borrow().size;
         let module_width = fatgrid(module_size.0) + MODULE_IO_WIDTH * 2.0 + JACK_SIZE;
@@ -250,11 +248,6 @@ impl Module {
         let label = template_ref.label.clone();
         let module_autocons = &module_ref.autocons;
         let module_staticons = &module_ref.staticons;
-        let widgets = template_ref
-            .widget_outlines
-            .iter()
-            .map(|wo| wo.instantiate(parent, module_autocons, module_staticons))
-            .collect();
 
         let size = Vec2D::new(
             fatgrid(grid_size.0) + MIW * 2.0 + JACK_SIZE,
@@ -281,6 +274,23 @@ impl Module {
             ));
         }
 
+        let state = ModuleState {
+            module: Rc::clone(&module),
+            size,
+            label,
+            inputs,
+            outputs,
+            widgets: Vec::new(),
+        };
+
+        let this = Rc::new(Self::create(parent, state));
+        let widgets = template_ref
+            .widget_outlines
+            .iter()
+            .map(|wo| wo.instantiate(&this, module_autocons, module_staticons))
+            .collect();
+        this.state.borrow_mut().widgets = widgets;
+
         let feedback_data_len = template_ref.feedback_data_len;
         drop(template_ref);
         // There should only be one instance of the GUI at a time.
@@ -288,16 +298,7 @@ impl Module {
         module_ref.feedback_data = Some(rcrc(vec![0.0; feedback_data_len]));
         drop(module_ref);
 
-        let state = ModuleState {
-            module,
-            size,
-            label,
-            inputs,
-            outputs,
-            widgets,
-        };
-
-        Rc::new(Self::create(parent, state))
+        this
     }
 
     fn get_tooltip_at(&self, mouse_pos: Vec2D) -> Option<Tooltip> {
@@ -339,7 +340,7 @@ impl Module {
         for (index, jack) in state.module.borrow().inputs.iter().enumerate() {
             let y = coord(index as i32) + grid(1) / 2.0;
             if let ep::InputConnection::Wire(module, output_index) = jack {
-                let output_index = *output_index as i32;
+                let output_index = *output_index;
                 let module_ref = module.borrow();
                 let op = Self::output_position(&*module_ref, output_index);
                 super::draw_io_wire(g, pos + (JACK_SIZE, y), pos);

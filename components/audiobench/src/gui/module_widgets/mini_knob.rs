@@ -1,16 +1,19 @@
-use super::{KnobEditor, ModuleWidget};
+use super::ModuleWidgetImpl;
 use crate::engine::parts as ep;
-use crate::gui::action::{DropTarget, GuiRequest, ManipulateControl, MouseAction};
 use crate::gui::constants::*;
-use crate::gui::graph::{Module, WireTracker};
-use crate::gui::graphics::GrahpicsWrapper;
-use crate::gui::{InteractionHint, MouseMods, Tooltip};
+use crate::gui::module_widgets::KnobEditor;
+use crate::gui::mouse_behaviors::ManipulateControl;
+use crate::gui::top_level::graph::{Module, ModuleGraph, WireTracker};
+use crate::gui::{InteractionHint, Tooltip};
+use crate::scui_config::{DropTarget, Renderer, MaybeMouseBehavior};
+use scui::{MouseMods, OnClickBehavior, Vec2D, Widget, WidgetImpl};
 use shared_util::prelude::*;
 use std::f32::consts::PI;
 
 yaml_widget_boilerplate::make_widget_outline! {
     widget_struct: MiniKnob,
-    constructor: create(
+    constructor: new(
+        parent: ParentRef,
         pos: GridPos,
         control: AutoconRef,
         label: String,
@@ -19,114 +22,116 @@ yaml_widget_boilerplate::make_widget_outline! {
     feedback: control,
 }
 
-#[derive(Clone)]
-pub struct MiniKnob {
-    control: Rcrc<ep::Autocon>,
-    // This allows the knob to share feedback data with the right-click menu when it it open.
-    value: Rcrc<f32>,
-    pos: (f32, f32),
-    label: String,
-    tooltip: String,
+scui::widget! {
+    pub MiniKnob
+    State {
+        pos: Vec2D,
+        control: Rcrc<ep::Autocon>,
+        // This allows the knob to share feedback data with the right-click menu when it it open.
+        value: Rcrc<f32>,
+        label: String,
+        tooltip: String,
+    }
+    Parents {
+        graph: Rc<ModuleGraph>,
+        module: Rc<Module>,
+    }
 }
 
 impl MiniKnob {
-    pub fn create(
-        pos: (f32, f32),
+    fn new(
+        parent: &impl MiniKnobParent,
+        pos: Vec2D,
         control: Rcrc<ep::Autocon>,
         label: String,
         tooltip: String,
-    ) -> MiniKnob {
-        MiniKnob {
+    ) -> Rc<Self> {
+        let state = MiniKnobState {
             tooltip,
             control,
             value: rcrc(0.0),
             pos,
             label,
-        }
+        };
+        Rc::new(Self::create(parent, state))
     }
 }
 
-impl ModuleWidget for MiniKnob {
-    fn get_position(&self) -> (f32, f32) {
-        self.pos
+impl WidgetImpl<Renderer, DropTarget> for MiniKnob {
+    fn get_pos_impl(self: &Rc<Self>) -> Vec2D {
+        self.state.borrow().pos
     }
 
-    fn get_bounds(&self) -> (f32, f32) {
-        (grid(1), grid(1))
+    fn get_size_impl(self: &Rc<Self>) -> Vec2D {
+        grid(1).into()
     }
 
-    fn respond_to_mouse_press(
-        &self,
-        _local_pos: (f32, f32),
+    fn get_mouse_behavior_impl(
+        self: &Rc<Self>,
+        _pos: Vec2D,
         mods: &MouseMods,
-        parent_pos: (f32, f32),
-    ) -> Option<Box<dyn MouseAction>> {
+    ) -> MaybeMouseBehavior {
+        let state = self.state.borrow();
         if mods.right_click {
-            let pos = (
-                self.pos.0 + parent_pos.0 + grid(1) / 2.0,
-                self.pos.1 + parent_pos.1 + grid(1) / 2.0,
-            );
-            GuiRequest::OpenMenu(Box::new(KnobEditor::create(
-                Rc::clone(&self.control),
-                Rc::clone(&self.value),
+            let parent_pos = self.parents.module.get_pos();
+            let pos = state.pos + parent_pos + grid(1) / 2.0;
+            let graph = Rc::clone(&self.parents.graph);
+            let menu = KnobEditor::new(
+                self,
+                Rc::clone(&state.control),
+                Rc::clone(&state.value),
                 pos,
-                self.label.clone(),
-                self.tooltip.clone(),
-            )))
-            .into()
+                state.label.clone(),
+                state.tooltip.clone(),
+            );
+            OnClickBehavior::wrap(move || {
+                graph.open_menu(Box::new(menu));
+            })
         } else {
-            Some(Box::new(ManipulateControl::new(Rc::clone(&self.control))))
+            Some(Box::new(ManipulateControl::new(
+                self,
+                Rc::clone(&state.control),
+            )))
         }
     }
 
-    fn get_drop_target_at(&self, _local_pos: (f32, f32)) -> DropTarget {
-        DropTarget::Autocon(Rc::clone(&self.control))
+    fn get_drop_target_impl(self: &Rc<Self>, _pos: Vec2D) -> Option<DropTarget> {
+        Some(DropTarget::Autocon(Rc::clone(&self.state.borrow().control)))
     }
 
-    fn get_tooltip_at(&self, _local_pos: (f32, f32)) -> Option<Tooltip> {
-        Some(Tooltip {
-            text: self.tooltip.clone(),
+    fn on_hover_impl(self: &Rc<Self>, _pos: Vec2D) -> Option<()> {
+        let tooltip = Tooltip {
+            text: self.state.borrow().tooltip.clone(),
             interaction: InteractionHint::LeftClickAndDrag
                 | InteractionHint::RightClick
                 | InteractionHint::DoubleClick,
-        })
+        };
+        self.with_gui_state_mut(|state| {
+            state.set_tooltip(tooltip);
+        });
+        Some(())
     }
 
-    fn add_wires(&self, wire_tracker: &mut WireTracker) {
-        let (cx, cy) = (self.pos.0 + grid(1) / 2.0, self.pos.1 + grid(1) / 2.0);
-        for lane in self.control.borrow().automation.iter() {
-            let (module, output_index) = &lane.connection;
-            let module_ref = module.borrow();
-            let (ox, oy) = Module::output_position(&*module_ref, *output_index);
-            wire_tracker.add_wire((ox, oy), (cx, cy));
-        }
-    }
+    fn draw_impl(self: &Rc<Self>, g: &mut Renderer) {
+        let state = self.state.borrow();
+        let highlight = unimplemented!();
+        let feedback_data: &[f32] = unimplemented!();
+        const MIN_ANGLE: f32 = PI * 1.10;
+        const MAX_ANGLE: f32 = -PI * 0.10;
 
-    fn draw(
-        &self,
-        g: &mut GrahpicsWrapper,
-        highlight: bool,
-        _parent_pos: (f32, f32),
-        feedback_data: &[f32],
-    ) {
-        g.push_state();
-        const MIN_ANGLE: f32 = PI * 1.50;
-        const MAX_ANGLE: f32 = -PI * 0.50;
-
-        let control = &*self.control.borrow();
+        let control = &*state.control.borrow();
         fn value_to_angle(range: (f32, f32), value: f32) -> f32 {
             value.from_range_to_range(range.0, range.1, MIN_ANGLE, MAX_ANGLE)
         }
 
         g.set_color(&COLOR_FG1);
-        g.apply_offset(self.pos.0, self.pos.1);
 
         if highlight {
             g.set_color(&COLOR_FG1);
         } else {
             g.set_color(&COLOR_BG0);
         }
-        g.fill_pie(0.0, 0.0, grid(1), KNOB_INSIDE_SPACE, MIN_ANGLE, MAX_ANGLE);
+        g.draw_pie(0, grid(1), KNOB_INSIDE_SPACE * 2.0, MIN_ANGLE, MAX_ANGLE);
         g.set_color(&COLOR_EDITABLE);
         if highlight {
             g.set_alpha(0.5);
@@ -139,17 +144,18 @@ impl ModuleWidget for MiniKnob {
         } else {
             control.value
         };
-        *self.value.borrow_mut() = value;
+        *state.value.borrow_mut() = value;
         let value_angle = value_to_angle(control.range, value);
-        g.fill_pie(
-            0.0,
-            0.0,
+        g.draw_pie(
+            0,
             grid(1),
-            KNOB_INSIDE_SPACE,
+            KNOB_INSIDE_SPACE * 2.0,
             zero_angle.clam(MAX_ANGLE, MIN_ANGLE),
             value_angle,
         );
         g.set_alpha(1.0);
+        g.set_color(&COLOR_FG1);
+        g.draw_text(FONT_SIZE, 0, grid(1), (0, 1), 1, &state.label);
 
         if control.automation.len() > 0 {
             let num_lanes = control.automation.len() as f32;
@@ -163,17 +169,21 @@ impl ModuleWidget for MiniKnob {
                 let inset = (grid(1) - outer_diameter) / 2.0;
                 let min_angle = value_to_angle(control.range, lane.range.0);
                 let max_angle = value_to_angle(control.range, lane.range.1);
-                g.fill_pie(
-                    inset,
-                    inset,
-                    outer_diameter,
-                    inner_diameter,
-                    min_angle,
-                    max_angle,
-                );
+                g.draw_pie(inset, outer_diameter, inner_diameter, min_angle, max_angle);
             }
         }
+    }
+}
 
-        g.pop_state();
+impl ModuleWidgetImpl for MiniKnob {
+    fn add_wires(self: &Rc<Self>, wire_tracker: &mut WireTracker) {
+        let state = self.state.borrow();
+        let center = state.pos + grid(1) / 2.0;
+        for lane in state.control.borrow().automation.iter() {
+            let (module, output_index) = &lane.connection;
+            let module_ref = module.borrow();
+            let out_pos = Module::output_position(&*module_ref, *output_index);
+            wire_tracker.add_wire(out_pos, center);
+        }
     }
 }

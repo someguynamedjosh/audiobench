@@ -3,9 +3,8 @@ use crate::engine::static_controls as staticons;
 use crate::gui::constants::*;
 use crate::gui::mouse_behaviors::MutateStaticon;
 use crate::gui::{InteractionHint, Tooltip};
-use crate::registry::Registry;
-use crate::scui_config::{DropTarget, Renderer};
-use scui::{MaybeMouseBehavior, MouseMods, Vec2D, WidgetImpl};
+use crate::scui_config::{DropTarget, Renderer, MaybeMouseBehavior};
+use scui::{MouseMods, Vec2D, WidgetImpl};
 use shared_util::prelude::*;
 
 yaml_widget_boilerplate::make_widget_outline! {

@@ -9,9 +9,9 @@ pub const DOUBLE_CLICK_TIME: Duration = Duration::from_millis(400);
 /// a double-click.
 pub const DOUBLE_CLICK_RANGE: f32 = 4.0;
 
-pub trait MouseBehavior {
+pub trait MouseBehavior<DT> {
     fn on_drag(&mut self, _delta: Vec2D, _mods: &MouseMods) {}
-    fn on_drop(self: Box<Self>) {}
+    fn on_drop(self: Box<Self>, _drop_target: Option<DT>) {}
     fn on_click(self: Box<Self>) {}
     fn on_double_click(self: Box<Self>) {}
 }
@@ -21,7 +21,7 @@ pub struct OnClickBehavior<F: FnOnce()> {
 }
 
 impl<F: FnOnce() + 'static> OnClickBehavior<F> {
-    pub fn wrap(action: F) -> MaybeMouseBehavior {
+    pub fn wrap<DT>(action: F) -> MaybeMouseBehavior<DT> {
         Some(Box::new(Self { action }))
     }
 }
@@ -32,13 +32,13 @@ impl<F: FnOnce() + 'static> From<F> for OnClickBehavior<F> {
     }
 }
 
-impl<F: FnOnce()> MouseBehavior for OnClickBehavior<F> {
+impl<F: FnOnce(), DT> MouseBehavior<DT> for OnClickBehavior<F> {
     fn on_click(self: Box<Self>) {
         (self.action)();
     }
 }
 
-pub type MaybeMouseBehavior = Option<Box<dyn MouseBehavior>>;
+pub type MaybeMouseBehavior<DT> = Option<Box<dyn MouseBehavior<DT>>>;
 
 pub struct MouseMods {
     pub right_click: bool,

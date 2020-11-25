@@ -2,9 +2,9 @@ use crate::engine::UiThreadEngine;
 use crate::gui::constants::*;
 use crate::gui::top_level::*;
 use crate::registry::Registry;
-use crate::scui_config::{DropTarget, Renderer};
+use crate::scui_config::{DropTarget, MaybeMouseBehavior, Renderer};
 use enumflags2::BitFlags;
-use scui::{MaybeMouseBehavior, MouseMods, Vec2D, Widget, WidgetImpl};
+use scui::{MouseMods, Vec2D, Widget, WidgetImpl};
 use shared_util::prelude::*;
 
 #[derive(BitFlags, Copy, Clone)]
@@ -190,7 +190,7 @@ pub trait GuiTab: Widget<Renderer, DropTarget> {
     }
 }
 
-pub type Gui = scui::Gui<GuiState, Rc<Root>>;
+pub type Gui = scui::Gui<GuiState, DropTarget, Rc<Root>>;
 
 pub fn new_gui(registry: Rcrc<Registry>, engine: Rcrc<UiThreadEngine>) -> Gui {
     Gui::new(GuiState::new(registry, engine), |gui| Root::new(gui))

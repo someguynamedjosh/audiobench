@@ -4,8 +4,8 @@ use crate::gui::constants::*;
 use crate::gui::graphics::GrahpicsWrapper;
 use crate::gui::{Gui, InteractionHint, Tooltip};
 use crate::registry::Registry;
-use crate::scui_config::{DropTarget, Renderer};
-use scui::{MaybeMouseBehavior, MouseMods, Vec2D, Widget, WidgetImpl};
+use crate::scui_config::{DropTarget, MaybeMouseBehavior, Renderer};
+use scui::{MouseMods, Vec2D, Widget, WidgetImpl};
 use shared_util::prelude::*;
 
 scui::widget! {

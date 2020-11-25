@@ -523,7 +523,7 @@ pub fn make_widget_outline_enum(args: TokenStream) -> TokenStream {
                 staticons: & ::std::vec::Vec<::std::rc::Rc<::std::cell::RefCell<crate::engine::static_controls::Staticon>>>,
             ) -> (::std::boxed::Box<dyn crate::gui::module_widgets::ModuleWidget>, usize)
             where
-                P: #(#parent_traits),*
+                P: #(#parent_traits)+*
             {
                 (
                     match self {

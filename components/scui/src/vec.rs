@@ -22,6 +22,11 @@ impl Vec2D {
         Self { x: 0.0, y: 0.0 }
     }
 
+    /// Returns the angle in radians according to atan2()
+    pub fn angle(self) -> f32 {
+        self.y.atan2(self.x)
+    }
+
     /// Returns length of this vector using pythagorean distance.
     pub fn length(self) -> f32 {
         (self.x * self.x + self.y * self.y).sqrt()

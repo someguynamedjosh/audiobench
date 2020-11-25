@@ -233,7 +233,7 @@ impl UiThreadEngine {
             .borrow()
             .restore_note_graph(&mut *self.data.module_graph.borrow_mut(), &*reg)?;
         drop(reg);
-        self.recompile()?;
+        self.recompile();
         Ok(())
     }
 
@@ -241,7 +241,7 @@ impl UiThreadEngine {
         &self.data.module_graph
     }
 
-    pub fn recompile(&mut self) -> Result<(), String> {
+    pub fn recompile(&mut self) {
         let mut ctd = self.ctd_mux.lock().unwrap();
 
         let module_graph_ref = self.data.module_graph.borrow();
@@ -249,7 +249,7 @@ impl UiThreadEngine {
         let new_gen = codegen::generate_code(&*module_graph_ref, &ctd.host_format)
             .map_err(|_| format!("The note graph cannot contain feedback loops"));
         ctd.perf_counter.end_section(section);
-        let new_gen = new_gen?;
+        let new_gen = new_gen.expect("TODO: Nice error.");
         drop(module_graph_ref);
         ctd.new_source = Some((new_gen.code, new_gen.data_format.clone()));
         let section = ctd
@@ -266,19 +266,17 @@ impl UiThreadEngine {
         self.data.autocon_dyn_data_collector = new_gen.autocon_dyn_data_collector;
         self.data.staticon_dyn_data_collector = new_gen.staticon_dyn_data_collector;
         self.data.feedback_displayer = new_gen.feedback_displayer;
-        Ok(())
     }
 
     /// Recompiles everything if the audio thread has encountered something that requires
     /// recompiling. This method exists because compilation is started by the UI thread.
-    pub fn recompile_if_requested_by_audio_thread(&mut self) -> Result<(), String> {
+    pub fn recompile_if_requested_by_audio_thread(&mut self) {
         let mut ctd = self.ctd_mux.lock().unwrap();
         if ctd.request_recompile {
             ctd.request_recompile = false;
             drop(ctd);
-            self.recompile()?;
+            self.recompile();
         }
-        Ok(())
     }
 
     pub fn reload_autocon_dyn_data(&mut self) {

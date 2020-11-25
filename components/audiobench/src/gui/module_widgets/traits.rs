@@ -9,7 +9,7 @@ pub trait ModuleWidgetImpl: WidgetImpl<Renderer, DropTarget> {
 }
 
 pub trait ModuleWidget: Widget<Renderer, DropTarget> {
-    fn add_wires(&self, wire_tracker: &mut WireTracker);
+    fn add_wires(self: &Self, wire_tracker: &mut WireTracker);
 }
 
 impl<T> ModuleWidget for Rc<T>
@@ -17,7 +17,7 @@ where
     T: ModuleWidgetImpl,
     Rc<T>: Widget<Renderer, DropTarget>,
 {
-    fn add_wires(&self, wire_tracker: &mut WireTracker) {
+    fn add_wires(self: &Self, wire_tracker: &mut WireTracker) {
         ModuleWidgetImpl::add_wires(self, wire_tracker);
     }
 }

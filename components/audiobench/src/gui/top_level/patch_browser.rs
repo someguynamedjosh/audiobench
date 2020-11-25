@@ -2,10 +2,10 @@ use crate::gui::constants::*;
 use crate::gui::ui_widgets::{IconButton, TextBox};
 use crate::gui::{GuiTab, InteractionHint, Tooltip};
 use crate::registry::save_data::Patch;
-use crate::scui_config::{DropTarget, Renderer};
+use crate::scui_config::{DropTarget, Renderer, MaybeMouseBehavior};
 use clipboard::ClipboardProvider;
 use scui::{
-    ChildHolder, MaybeMouseBehavior, MouseMods, OnClickBehavior, Vec2D, Widget, WidgetImpl,
+    ChildHolder, MouseMods, OnClickBehavior, Vec2D, Widget, WidgetImpl,
 };
 use shared_util::prelude::*;
 
