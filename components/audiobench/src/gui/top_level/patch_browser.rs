@@ -110,6 +110,7 @@ impl PatchBrowser {
             patch_name,
             Box::new(move |text| this2.on_rename_patch(text)),
         );
+        name_box.set_enabled(current_patch.borrow().is_writable());
 
         // Extra +GRID_P because the padding under the last patch in the list shouldn't be
         // rendered.

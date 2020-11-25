@@ -127,6 +127,8 @@ impl<State, DT, RW> Gui<State, DT, RW> {
                     internal.click_pos = new_pos;
                 }
             }
+        } else {
+            self.root.on_hover(new_pos);
         }
     }
 
@@ -136,6 +138,7 @@ impl<State, DT, RW> Gui<State, DT, RW> {
         RW: Widget<R, DT>,
     {
         let mut internal = self.interface.internal_state.borrow_mut();
+        internal.mouse_down = false;
         if let Some(behavior) = internal.mouse_behavior.take() {
             if internal.dragged {
                 let drop_target = self.root.get_drop_target(internal.mouse_pos);

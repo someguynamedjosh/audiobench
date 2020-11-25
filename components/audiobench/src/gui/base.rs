@@ -61,7 +61,7 @@ pub struct GuiState {
     pub engine: Rcrc<UiThreadEngine>,
     status: Option<Status>,
     tooltip: Tooltip,
-    tabs: Vec<Box<dyn GuiTab>>,
+    tabs: Vec<Rc<dyn GuiTab>>,
     current_tab_index: usize,
 }
 
@@ -85,11 +85,11 @@ impl GuiState {
         &self.tooltip
     }
 
-    pub fn add_tab(&mut self, tab: Box<dyn GuiTab>) {
+    pub fn add_tab(&mut self, tab: Rc<dyn GuiTab>) {
         self.tabs.push(tab);
     }
 
-    pub fn all_tabs(&self) -> impl Iterator<Item = &Box<dyn GuiTab>> {
+    pub fn all_tabs(&self) -> impl Iterator<Item = &Rc<dyn GuiTab>> {
         self.tabs.iter()
     }
 
@@ -123,7 +123,7 @@ impl Root {
     fn new(parent: &impl RootParent) -> Rc<Self> {
         let state = RootState {};
         let this = Rc::new(Self::create(parent, state));
-        let tab = Box::new(PatchBrowser::new(&this));
+        let tab = Rc::new(PatchBrowser::new(&this));
         this.with_gui_state_mut(|state| {
             state.add_tab(tab);
         });
@@ -156,18 +156,19 @@ impl WidgetImpl<Renderer, DropTarget> for Root {
 
     fn on_scroll_impl(self: &Rc<Self>, mouse_pos: Vec2D, delta: f32) -> Option<()> {
         ris!(self.on_scroll_children(mouse_pos, delta));
-        self.with_gui_state(|state| {
-            let tab = &state.tabs[state.get_current_tab_index()];
-            tab.on_scroll(mouse_pos, delta)
-        })
+        let tab =
+            self.with_gui_state(|state| Rc::clone(&state.tabs[state.get_current_tab_index()]));
+        tab.on_scroll(mouse_pos, delta)
     }
 
     fn on_hover_impl(self: &Rc<Self>, mouse_pos: Vec2D) -> Option<()> {
+        self.with_gui_state_mut(|state| {
+            state.set_tooltip(Tooltip::default());
+        });
         ris!(self.on_hover_children(mouse_pos));
-        self.with_gui_state(|state| {
-            let tab = &state.tabs[state.get_current_tab_index()];
-            tab.on_hover(mouse_pos)
-        })
+        let tab =
+            self.with_gui_state(|state| Rc::clone(&state.tabs[state.get_current_tab_index()]));
+        tab.on_hover(mouse_pos)
     }
 
     fn draw_impl(self: &Rc<Self>, renderer: &mut Renderer) {
