@@ -69,11 +69,11 @@ pub(super) fn create_module_prototype_from_yaml(
         .parse_ranged(Some(0), None)?;
     let mut widgets = Vec::new();
     for widget_description in &widgets_description.children {
-        // widgets.push(WidgetOutline::from_yaml(
-        //     widget_description,
-        //     &controls,
-        //     &mut staticons,
-        // )?);
+        widgets.push(WidgetOutline::from_yaml(
+            widget_description,
+            &controls,
+            &mut staticons,
+        )?);
     }
 
     let mut inputs = Vec::new();
@@ -146,10 +146,9 @@ pub(super) fn create_module_prototype_from_yaml(
         ));
     }
 
-    let feedback_data_len = 0;
-    // let feedback_data_len = widgets.iter().fold(0, |counter, item| {
-    //     counter + item.get_feedback_data_requirement().size()
-    // });
+    let feedback_data_len = widgets.iter().fold(0, |counter, item| {
+        counter + item.get_feedback_data_requirement().size()
+    });
 
     let template = ModuleTemplate {
         lib_name,

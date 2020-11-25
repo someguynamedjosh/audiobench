@@ -172,6 +172,10 @@ crate::make_int_box_widget! {
 }
 
 impl ValueSequenceLength {
+    fn get_range(self: &Rc<Self>) -> (i32, i32) {
+        (1, 99)
+    }
+
     fn get_current_value(&self) -> i32 {
         self.state.borrow().sequence_control.borrow().get_len() as _
     }

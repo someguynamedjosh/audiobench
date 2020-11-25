@@ -12,9 +12,9 @@ pub const WIDTH: f32 = grid(2);
 pub const HEIGHT: f32 = grid(2) - FONT_SIZE - GRID_P / 2.0;
 
 /// Use this to create a widget which displays an integer and can be clicked / dragged to modify
-/// that integer. You must implement get_current_value(self: &Rc<Self>) -> i32 and
-/// make_callback(self: &Rc<Self>) -> Box<dyn FnMut(i32) -> staticons::StaticonUpdateRequest>
-/// for the generated widget.
+/// that integer. You must implement get_current_value(self: &Rc<Self>) -> i32,
+/// make_callback(self: &Rc<Self>) -> Box<dyn FnMut(i32) -> staticons::StaticonUpdateRequest>,
+/// and get_range() -> (i32, i32) for the generated widget.
 #[macro_export]
 macro_rules! make_int_box_widget {
     (
@@ -27,7 +27,6 @@ macro_rules! make_int_box_widget {
             constructor: new(
                 parent: ParentRef,
                 pos: GridPos,
-                range: IntRange,
                 label: String,
                 tooltip: String,
                 $($field_names: $field_yaml_tys),*
@@ -38,7 +37,6 @@ macro_rules! make_int_box_widget {
             $v $widget_name
             State {
                 pos: Vec2D,
-                range: (i32, i32),
                 icons: (usize, usize),
                 label: String,
                 tooltip: String,
@@ -51,7 +49,6 @@ macro_rules! make_int_box_widget {
             pub fn new(
                 parent: &impl [<$widget_name Parent>],
                 pos: Vec2D,
-                range: (i32, i32),
                 label: String,
                 tooltip: String,
                 $($field_names: $field_tys),*
@@ -61,7 +58,6 @@ macro_rules! make_int_box_widget {
                 let registry = gui_state.registry.borrow();
                 let state = [<$widget_name State>] {
                     pos,
-                    range,
                     // Factory library is guaranteed to have these icons.
                     icons: (
                         registry.lookup_icon("factory:increase").unwrap(),
@@ -91,6 +87,7 @@ macro_rules! make_int_box_widget {
                 _mods: &MouseMods,
             ) -> MaybeMouseBehavior {
                 let state = self.state.borrow();
+                let range = self.get_range();
                 let click_delta = if pos.y > HEIGHT / 2.0 {
                     -1
                 } else {
@@ -99,8 +96,8 @@ macro_rules! make_int_box_widget {
                 Some(Box::new(crate::gui::mouse_behaviors::ManipulateIntBox::new(
                     self,
                     self.make_callback(),
-                    state.range.0,
-                    state.range.1,
+                    range.0,
+                    range.1,
                     click_delta,
                     self.get_current_value(),
                 )))
@@ -155,6 +152,11 @@ make_int_box_widget! {
 }
 
 impl IntBox {
+    fn get_range(self: &Rc<Self>) -> (i32, i32) {
+        let range16 = self.state.borrow().control.borrow().get_range();
+        (range16.0 as _, range16.1 as _)
+    }
+
     fn get_current_value(self: &Rc<Self>) -> i32 {
         self.state.borrow().control.borrow().get_value() as _
     }

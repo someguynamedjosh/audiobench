@@ -1,12 +1,12 @@
 use nodespeak::llvmir::structure::{DataPacker, DataUnpacker, IODataPtr, IOType, OwnedIOData};
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct HostFormat {
     pub sample_rate: usize,
     pub buffer_len: usize,
 }
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DataFormat {
     pub host_format: HostFormat,
     pub autocon_dyn_data_len: usize,
@@ -14,6 +14,7 @@ pub struct DataFormat {
     pub feedback_data_len: usize,
 }
 
+#[derive(Clone)]
 pub struct HostData {
     // MIDI specifies each MIDI Channel has 128 controls.
     pub controller_values: [f32; 128],
@@ -33,6 +34,18 @@ impl HostData {
             song_time: 0.0,
             song_beats: 0.0,
         }
+    }
+}
+
+impl std::fmt::Debug for HostData {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        f.debug_struct("HostData")
+            .field("controller_values", &&self.controller_values[..])
+            .field("pitch_wheel_value", &self.pitch_wheel_value)
+            .field("bpm", &self.bpm)
+            .field("song_time", &self.song_time)
+            .field("song_beats", &self.song_beats);
+        Ok(())
     }
 }
 

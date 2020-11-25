@@ -1,6 +1,6 @@
 /// Represents the data type of a variable which is either an input or output in the generated
 /// program. E.G. `IOType::FloatArray(20)` would be the type of `input [20]FLOAT some_data;`.
-#[derive(Eq, PartialEq, Clone, Copy)]
+#[derive(Debug, Eq, PartialEq, Clone, Copy)]
 pub enum IOType {
     Bool,
     Int,
