@@ -1,0 +1,20 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"julia.lint.disabledDirs": [
+			"docs",
+			"test",
+			"dependencies"
+		],
+		"files.exclude": {
+			"artifacts": true,
+			"dependencies/julia/*": true,
+			"dependencies/llvm/*": true,
+			"target": true
+		}
+	}
+}
