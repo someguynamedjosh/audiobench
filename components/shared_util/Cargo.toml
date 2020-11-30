@@ -8,3 +8,4 @@ edition = "2018"
 
 [dependencies]
 num = "0.2"
+scones = "0.1"

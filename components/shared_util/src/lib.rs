@@ -2,10 +2,13 @@ use num::Float;
 use std::fmt::Display;
 
 mod nvec;
+mod search;
+
 pub mod perf_counter;
 pub mod prelude;
 pub use nvec::*;
 pub use perf_counter::{NoopPerfCounter, PerfCounter, PerfSectionGuard, SimplePerfCounter};
+pub use search::*;
 
 pub trait FloatUtil: Sized + Copy {
     /// Converts from the range [from_min,from_max] to [0,1]

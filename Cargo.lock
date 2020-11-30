@@ -844,6 +844,7 @@ name = "julia_helper"
 version = "0.1.0"
 dependencies = [
  "jlrs",
+ "scones",
 ]
 
 [[package]]
@@ -1611,6 +1612,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "scones"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c27886d4ee79c1daf5be1409dada995c4afc044ee65df1dec280e3a82a095a00"
+dependencies = [
+ "scones_macros",
+]
+
+[[package]]
+name = "scones_macros"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9ab548c8a11278694f101fc4e34d0c2ef4287cd98da948234c126d7eb6f9f24c"
+dependencies = [
+ "Inflector",
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "scopeguard"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1724,6 +1746,7 @@ name = "shared_util"
 version = "0.1.0"
 dependencies = [
  "num",
+ "scones",
 ]
 
 [[package]]
