@@ -67,7 +67,7 @@ impl Clip {
         self.source_position
     }
 
-    pub fn borrow_text(&self) -> &str {
+    pub fn as_str(&self) -> &str {
         &self.text
     }
 }
@@ -242,10 +242,10 @@ mod tests {
         searcher.goto_pattern_start("and");
         let start = searcher.start_clip();
         searcher.goto_pattern_end("years");
-        assert_eq!(searcher.end_clip(start).borrow_text(), "and seven years");
+        assert_eq!(searcher.end_clip(start).as_str(), "and seven years");
         searcher.goto_end();
         assert_eq!(
-            searcher.end_clip(start).borrow_text(),
+            searcher.end_clip(start).as_str(),
             "and seven years ago"
         );
     }

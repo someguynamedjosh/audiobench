@@ -803,8 +803,7 @@ checksum = "dc6f3ad7b9d11a0c00842ff8de1b60ee58661048eb8049ed33c73594f359d7e6"
 [[package]]
 name = "jl-sys"
 version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5d92b76adb2c9608e81d89b6634b2614e1c866e979cdc3e2d45cd75fb3d80da4"
+source = "git+https://github.com/Taaitaaiger/jlrs?branch=v0.8#5c88805ec93f20a42e2a8f1527b65cb4e202ffb7"
 dependencies = [
  "bindgen",
 ]
@@ -812,11 +811,10 @@ dependencies = [
 [[package]]
 name = "jlrs"
 version = "0.7.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cf551df1fa47f570006905cb3519f7cf7574dd19930202a8f0e4e6639e565dca"
+source = "git+https://github.com/Taaitaaiger/jlrs?branch=v0.8#5c88805ec93f20a42e2a8f1527b65cb4e202ffb7"
 dependencies = [
  "jl-sys",
- "jlrs-derive",
+ "jlrs-derive 0.2.0 (git+https://github.com/Taaitaaiger/jlrs?branch=v0.8)",
 ]
 
 [[package]]
@@ -824,6 +822,16 @@ name = "jlrs-derive"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "35542557a9ac3a1b2441ea5f1f177cf0cf379b20d7697461fa9343ea1c70628a"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
+name = "jlrs-derive"
+version = "0.2.0"
+source = "git+https://github.com/Taaitaaiger/jlrs?branch=v0.8#5c88805ec93f20a42e2a8f1527b65cb4e202ffb7"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -844,7 +852,9 @@ name = "julia_helper"
 version = "0.1.0"
 dependencies = [
  "jlrs",
+ "jlrs-derive 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "scones",
+ "shared_util",
 ]
 
 [[package]]
