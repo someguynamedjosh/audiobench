@@ -213,9 +213,9 @@ impl Instance {
         self.registry.borrow_icon_data(icon_index)
     }
 
-    pub fn set_host_format(&mut self, buffer_length: usize, sample_rate: usize) {
+    pub fn set_global_params(&mut self, buffer_length: usize, sample_rate: usize) {
         if let Some(engine) = self.engine.as_mut() {
-            engine.set_host_format(buffer_length, sample_rate)
+            engine.set_global_params(buffer_length, sample_rate)
         } else {
             self.silence.resize(buffer_length as usize * 2, 0.0);
         }
@@ -277,12 +277,12 @@ impl Instance {
         self.engine.as_mut().map(|e| e.set_bpm(bpm));
     }
 
-    pub fn set_song_time(&mut self, time: f32) {
-        self.engine.as_mut().map(|e| e.set_song_time(time));
+    pub fn set_elapsed_time(&mut self, time: f32) {
+        self.engine.as_mut().map(|e| e.set_elapsed_time(time));
     }
 
-    pub fn set_song_beats(&mut self, beats: f32) {
-        self.engine.as_mut().map(|e| e.set_song_beats(beats));
+    pub fn set_elapsed_beats(&mut self, beats: f32) {
+        self.engine.as_mut().map(|e| e.set_elapsed_beats(beats));
     }
 
     pub fn render_audio(&mut self) -> &[f32] {

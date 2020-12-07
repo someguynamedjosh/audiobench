@@ -39,7 +39,7 @@ fn do_benchmark(test_id: usize, params: &TestParameters) {
     println!("Patch name:       {}", patch_name);
 
     let mut instance = Instance::new();
-    instance.set_host_format(*buffer_length, *sample_rate);
+    instance.set_global_params(*buffer_length, *sample_rate);
     instance.deserialize_patch(patch_data);
     // We need to do this at least once so that the audio thread can adjust to the new parameters.
     // Without this, the audio thread will shut down the notes when the actual benchmark starts.

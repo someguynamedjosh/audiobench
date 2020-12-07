@@ -29,12 +29,12 @@ pub unsafe extern "C" fn ABGetIconData(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ABSetHostFormat(
+pub unsafe extern "C" fn ABSetGlobalParameters(
     instance: *mut Instance,
     buffer_length: i32,
     sample_rate: i32,
 ) {
-    (*instance).set_host_format(buffer_length as usize, sample_rate as usize)
+    (*instance).set_global_params(buffer_length as usize, sample_rate as usize)
 }
 
 #[no_mangle]
@@ -96,12 +96,12 @@ pub unsafe extern "C" fn ABBpm(instance: *mut Instance, bpm: f32) {
 
 #[no_mangle]
 pub unsafe extern "C" fn ABSongTime(instance: *mut Instance, time: f32) {
-    (*instance).set_song_time(time)
+    (*instance).set_elapsed_time(time)
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn ABSongBeats(instance: *mut Instance, beats: f32) {
-    (*instance).set_song_beats(beats)
+    (*instance).set_elapsed_beats(beats)
 }
 
 #[no_mangle]

@@ -4,6 +4,7 @@ use super::update_check::{self, UpdateInfo};
 use super::yaml;
 use crate::config::*;
 use crate::engine::parts::Module;
+use julia_helper::FileClip;
 use rand::RngCore;
 use shared_util::prelude::*;
 use std::collections::{HashMap, HashSet};
@@ -18,7 +19,8 @@ pub struct Registry {
     modules_by_resource_id: HashMap<String, usize>,
     modules_by_serialized_id: HashMap<(String, usize), usize>,
 
-    scripts: HashMap<String, String>,
+    general_scripts_by_library: HashMap<String, Vec<FileClip>>,
+    module_scripts_by_library: HashMap<String, Vec<(String, FileClip)>>,
 
     icon_indexes: HashMap<String, usize>,
     icons: Vec<Vec<u8>>,
@@ -80,14 +82,57 @@ impl Registry {
         Ok(delayed_error)
     }
 
-    fn load_script_resource(&mut self, name: &str, buffer: Vec<u8>) -> Result<(), String> {
+    fn load_general_script_resource(
+        &mut self,
+        library_name: &str,
+        file_name: &str,
+        buffer: Vec<u8>,
+    ) -> Result<(), String> {
         let buffer_as_text = String::from_utf8(buffer).map_err(|e| {
             format!(
                 "ERROR: The file {} is not a valid UTF-8 text document, caused by:\nERROR: {}",
-                name, e
+                file_name, e
             )
         })?;
-        self.scripts.insert(name.to_owned(), buffer_as_text);
+        if !self.general_scripts_by_library.contains_key(library_name) {
+            self.general_scripts_by_library
+                .insert(library_name.to_owned(), Vec::new());
+        }
+        let clip = FileClip::new(file_name.to_owned(), buffer_as_text);
+        self.general_scripts_by_library
+            .get_mut(library_name)
+            .unwrap()
+            .push(clip);
+        Ok(())
+    }
+
+    fn load_module_script_resource(
+        &mut self,
+        library_name: &str,
+        file_name: &str,
+        buffer: Vec<u8>,
+    ) -> Result<(), String> {
+        let buffer_as_text = String::from_utf8(buffer).map_err(|e| {
+            format!(
+                "ERROR: The file {} is not a valid UTF-8 text document, caused by:\nERROR: {}",
+                file_name, e
+            )
+        })?;
+        let name_start = file_name
+            .rfind('/')
+            .or_else(|| file_name.find(':'))
+            .expect("Illegal file name");
+        let name_end = file_name.rfind(".module.jl").expect("Illegal file name");
+        let module_name = String::from(&file_name[name_start..name_end]);
+        if !self.module_scripts_by_library.contains_key(library_name) {
+            self.module_scripts_by_library
+                .insert(library_name.to_owned(), Vec::new());
+        }
+        let clip = FileClip::new(file_name.to_owned(), buffer_as_text);
+        self.module_scripts_by_library
+            .get_mut(library_name)
+            .unwrap()
+            .push((module_name, clip));
         Ok(())
     }
 
@@ -140,8 +185,10 @@ impl Registry {
                 module_id.to_owned(),
                 buffer,
             );
-        } else if file_name.ends_with(".ns") {
-            self.load_script_resource(&full_name, buffer)?;
+        } else if file_name.ends_with(".lib.jl") {
+            self.load_general_script_resource(lib_name, &full_name, buffer)?;
+        } else if file_name.ends_with(".module.jl") {
+            self.load_module_script_resource(lib_name, &full_name, buffer)?;
         } else if file_name.ends_with(".abpatch") {
             self.unloaded_patches.push((full_name, full_path, buffer));
         } else if file_name.ends_with(".md") {
@@ -309,12 +356,17 @@ impl Registry {
             modules: Vec::new(),
             modules_by_resource_id: HashMap::new(),
             modules_by_serialized_id: HashMap::new(),
-            scripts: HashMap::new(),
+
+            general_scripts_by_library: HashMap::new(),
+            module_scripts_by_library: HashMap::new(),
+
             icon_indexes: HashMap::new(),
             icons: Vec::new(),
+
             unloaded_patches: Vec::new(),
             patches: Vec::new(),
             patch_paths: HashMap::new(),
+
             library_path,
             library_info: HashMap::new(),
             checked_updates: HashMap::new(),
@@ -335,8 +387,12 @@ impl Registry {
             .map(|idx| &self.modules[*idx])
     }
 
-    pub fn borrow_scripts(&self) -> &HashMap<String, String> {
-        &self.scripts
+    pub fn borrow_general_scripts_from_library(&self, lib_name: &str) -> &[FileClip] {
+        &self.general_scripts_by_library.get(lib_name).unwrap()[..]
+    }
+
+    pub fn borrow_module_scripts_from_library(&self, lib_name: &str) -> &[(String, FileClip)] {
+        &self.module_scripts_by_library.get(lib_name).unwrap()[..]
     }
 
     pub fn lookup_icon(&self, name: &str) -> Option<usize> {
@@ -373,8 +429,8 @@ impl Registry {
         self.library_info.get(name)
     }
 
-    pub fn borrow_library_infos(&self) -> impl Iterator<Item = &LibraryInfo> {
-        self.library_info.values()
+    pub fn borrow_library_infos(&self) -> impl Iterator<Item = (&String, &LibraryInfo)> {
+        self.library_info.iter()
     }
 
     // Returns true if the update checker is still running.

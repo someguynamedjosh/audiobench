@@ -101,7 +101,7 @@ void AudiobenchAudioProcessor::prepareToPlay (double sampleRate, int samplesPerB
 {
     // Use this method as the place to do any pre-playback
     // initialisation that you need..
-    ABSetHostFormat(ab, samplesPerBlock, (int) sampleRate);
+    ABSetGlobalParameters(ab, samplesPerBlock, (int) sampleRate);
 }
 
 void AudiobenchAudioProcessor::releaseResources()

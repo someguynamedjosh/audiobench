@@ -61,6 +61,12 @@ target_include_directories(
     "$ENV{PROJECT_ROOT}/components/audiobench_clib/"
 )
 
+add_library(julia SHARED IMPORTED)
+set_target_properties(julia PROPERTIES
+    IMPORTED_LOCATION "$ENV{PROJECT_ROOT}/dependencies/julia/lib/libjulia.so"
+    INTERFAFCE_INCLUDE_DIRECTORIES "$ENV{PROJECT_ROOT}/dependencies/julia/include/"
+)
+
 # `juce_generate_juce_header` will create a JuceHeader.h for a given target, which will be generated
 # into your build tree. This should be included with `#include <JuceHeader.h>`. The include path for
 # this header will be automatically added to the target. The main function of the JuceHeader is to
@@ -164,6 +170,7 @@ else()
         # AudioPluginData           # If we'd created a binary data target, we'd link to it here
         juce::juce_audio_utils
         "$ENV{RUST_OUTPUT_DIR}/libaudiobench_clib.a"
+        julia
         z
         ssl
         crypto

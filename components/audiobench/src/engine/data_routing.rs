@@ -1,6 +1,5 @@
 use super::parts::{Autocon, Module};
 use super::static_controls::Staticon;
-use nodespeak::llvmir::structure::OwnedIOData;
 use shared_util::prelude::*;
 
 // This packages changes made by the user to knobs and automation into a format that can be read
@@ -52,16 +51,18 @@ impl StaticonDynDataCollector {
         Self { ordered_controls }
     }
 
-    pub(super) fn collect_data(&self) -> Vec<OwnedIOData> {
+    // Previously OwnedIOData
+    pub(super) fn collect_data(&self) -> Vec<()> {
         self.ordered_controls
             .iter()
             .filter_map(|staticon| {
-                let staticon = staticon.borrow();
-                if staticon.is_static_only() {
-                    None
-                } else {
-                    Some(staticon.borrow_data().package_dyn_data().to_owned())
-                }
+                None
+                // let staticon = staticon.borrow();
+                // if staticon.is_static_only() {
+                //     None
+                // } else {
+                //     Some(staticon.borrow_data().package_dyn_data().to_owned())
+                // }
             })
             .collect()
     }

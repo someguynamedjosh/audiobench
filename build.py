@@ -6,6 +6,7 @@ from pathlib import Path
 import shutil
 import subprocess
 import sys
+import tempfile
 
 parser = argparse.ArgumentParser(description='Does things.')
 parser.add_argument(
@@ -24,8 +25,11 @@ def set_env(name, value):
     os.environ[name] = value
 
 
-def get_env(name):
-    return os.environ[name]
+def get_env(name) -> str:
+    if name not in os.environ.keys():
+        return ''
+    else:
+        return os.environ[name]
 
 
 def rmdir(path):
@@ -38,6 +42,39 @@ def mkdir(path):
 
 def cp(src, dst):
     shutil.copy2(src, dst)
+
+
+def should_skip_dep(name: str, version: int) -> bool:
+    """Returns true if the dependency is already set up"""
+    mkdir(PROJECT_ROOT.joinpath('dependencies', name))
+    try:
+        f = open(PROJECT_ROOT.joinpath(
+            'dependencies', name, '__dependency__.txt'), 'r')
+        current_version = int(f.read())
+        f.close()
+        should = current_version == version
+        if should:
+            print('Skipping dependency ' + name + ' as it is already set up.')
+        return should
+    except:
+        return False
+
+
+def mark_dep_complete(name: str, version: int):
+    """Makes it so that calling should_skip_dep in the future will return true."""
+    f = open(PROJECT_ROOT.joinpath(
+        'dependencies', name, '__dependency__.txt'), 'w')
+    f.write(str(version))
+    f.close()
+
+
+def temp_clone(git_url: str, commit_id: str) -> tempfile.TemporaryDirectory:
+    target = tempfile.TemporaryDirectory('', 'git_')
+    print('Cloning ' + git_url)
+    command(['git', 'clone', git_url, target.name])
+    print('\nSwitching to commit ' + commit_id)
+    command(['git', 'checkout', '-q', commit_id], target.name)
+    return target
 
 
 def command(args, working_dir=None):
@@ -69,6 +106,13 @@ JUCE_FRONTEND_ROOT = PROJECT_ROOT.joinpath('components', 'juce_frontend')
 # Tooling on windows expects forward slashes.
 set_env('PROJECT_ROOT', str(PROJECT_ROOT).replace('\\', '/'))
 set_env('RUST_OUTPUT_DIR', str(RUST_OUTPUT_DIR).replace('\\', '/'))
+set_env('LLVM_CONFIG_PATH', str(PROJECT_ROOT.joinpath(
+    'dependencies', 'llvm', 'bin', 'llvm-config')).replace('\\', '/'))
+set_env('JULIA_DIR', str(PROJECT_ROOT.joinpath(
+    'dependencies', 'julia')).replace('\\', '/'))
+if not ON_WINDOWS:
+    set_env('LD_LIBRARY_PATH', get_env('LD_LIBRARY_PATH') + ':' +
+            str(PROJECT_ROOT.joinpath('dependencies', 'julia', 'lib')))
 
 
 def print_jobs():
@@ -83,6 +127,7 @@ def print_jobs():
 def clean():
     command(['cargo', 'clean'])
     rmdir(PROJECT_ROOT.joinpath('artifacts'))
+    rmdir(PROJECT_ROOT.joinpath('dependencies'))
     rmdir(JUCE_FRONTEND_ROOT.joinpath('_build'))
 
 
@@ -175,6 +220,16 @@ def run_standalone():
     command([PROJECT_ROOT.joinpath('artifacts', 'bin', artifact)])
 
 
+def run_tests():
+    args = ['cargo', 'test']
+    if DO_RELEASE:
+        args.append('--release')
+    args.append('--')
+    # Some of the tests test running Julia, which cannot be run multiple times on different threads.
+    args.append('--test-threads=1')
+    command(args)
+
+
 def run_benchmark():
     args = ['cargo', 'run', '-p', 'benchmark']
     if DO_RELEASE:
@@ -229,6 +284,58 @@ def build_juce6_win():
         'lib', 'cmake', 'JUCE-6.0.0')).replace('\\', '/'))
 
 
+def pack_julia_package(git_url: str, commit_id: str, module_name: str):
+    """Turns a Julia package (from a Git repository) into a single file which can more easily be
+    embedded into an application.
+    """
+    repo_dir = temp_clone(git_url, commit_id)
+    src_dir = Path(repo_dir.name).joinpath('src')
+    packed_code = ''
+    custom_include_name = '__packed_' + module_name + '_include__'
+    custom_module_name = '__packed_' + module_name + '__'
+
+    def stringify(text: str) -> str:
+        return '"' + text.replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\n').replace('\r', '\\r').replace('\t', '\\t').replace('$', '\\$') + '"'
+
+    packed_code += 'module ' + custom_module_name + '\n\n'
+    packed_code += 'sources = Dict([\n'
+    for src_file_path in src_dir.iterdir():
+        f = open(src_file_path, 'r')
+        code = f.read()
+        f.close()
+        code = code.replace(
+            'include(', 'Main.' + custom_module_name + '.include(@__MODULE__, ')
+        escaped_code = stringify(code)
+        filename = stringify(str(src_file_path.relative_to(src_dir)))
+        packed_code += '    (' + filename + ', ' + escaped_code + '),\n'
+    packed_code += '])\n\n'
+    packed_code += 'function include(mod, filename)\n'
+    packed_code += '    code = sources[filename]\n'
+    packed_code += '        include_string(mod, code, "packed/' + \
+        module_name + '/" * filename)\n'
+    packed_code += 'end\n\n'
+    packed_code += 'end\n\n'
+    packed_code += custom_module_name + \
+        '.include(Main.UnpackedDependencies, "' + module_name + '.jl")\n'
+
+    out_file = open(PROJECT_ROOT.joinpath(
+        'dependencies', 'julia_packages', module_name + '.jl'), 'w')
+    out_file.write(packed_code)
+    out_file.close()
+
+
+def pack_julia_deps():
+    if should_skip_dep('julia_packages', 1):
+        return
+    pack_julia_package('https://github.com/JuliaArrays/StaticArrays.jl',
+                       'bfd1c051bbe6923261ee976a855dbc0676c02159', 'StaticArrays')
+    mark_dep_complete('julia_packages', 1)
+
+
+def open_terminal():
+    command([get_env('SHELL')])
+
+
 class Job:
     def __init__(self, description, dependencies, executor):
         self.description = description
@@ -239,17 +346,20 @@ class Job:
 JOBS = {
     'jobs': Job('Print available jobs', [], print_jobs),
     'clean': Job('Delete all artifacts and intermediate files', [], clean),
-    'clib': Job('Build Audiobench as a static library', [], build_clib),
+    'pack_julia_deps': Job('Pack all Julia dependencies into single files', [], pack_julia_deps),
+    'env': Job('Run a terminal after setting variables and installing deps', ['pack_julia_deps'], open_terminal),
+    'clib': Job('Build Audiobench as a static library', ['pack_julia_deps'], build_clib),
     'remove_juce_splash': Job('Remove JUCE splash screen (Audiobench is GPLv3)', [], remove_juce_splash),
     'juce_frontend': Job('Build the JUCE frontend for Audiobench', ['remove_juce_splash', 'clib'], build_juce_frontend),
     'run': Job('Run the standalone version of Audiobench', ['juce_frontend'], run_standalone),
+    'test': Job('Test all Rust components in the project', ['pack_julia_deps'], run_tests),
     'benchmark': Job('Run a benchmarking suite', [], run_benchmark),
     'check_version': Job('Ensures version numbers have been incremented', [], check_version),
 }
 
 if ON_WINDOWS:
     JOBS['juce6'] = Job('Build JUCE6 library (necessary on Windows)', [
-                        'remove_juce_splash'], build_juce6_win)
+        'remove_juce_splash'], build_juce6_win)
     JOBS['juce_frontend'].dependencies.append('juce6')
 
 if args.job not in JOBS:

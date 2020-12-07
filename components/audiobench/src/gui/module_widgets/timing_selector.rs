@@ -43,7 +43,7 @@ impl TimingSelector {
     }
 
     fn source_value(&self) -> bool {
-        self.control.borrow().uses_song_time()
+        self.control.borrow().uses_elapsed_time()
     }
 
     fn type_value(&self) -> bool {

@@ -60,11 +60,11 @@ macro GetTiming(INT mode):(timing) {
     if !SOURCE and !TYPE {
         timing = global_note_time;
     } else if SOURCE and !TYPE {
-        timing = global_song_time;
+        timing = global_elapsed_time;
     } else if !SOURCE and TYPE {
         timing = global_note_beats;
     } else if SOURCE and TYPE {
-        timing = global_song_beats;
+        timing = global_elapsed_beats;
     }
 }
 
@@ -79,7 +79,7 @@ static lib_random_seed {
 macro CrapRand():(value) {
     // This line makes different notes have different "seeds" so they don't sound the same.
     // This might also break the period of the generator but I don't care.
-    lib_random_seed = lib_random_seed + Ftoi(global_pitch + 60.0 * global_song_time[0?]);
+    lib_random_seed = lib_random_seed + Ftoi(global_pitch + 60.0 * global_elapsed_time[0?]);
     lib_random_seed = lib_random_seed bxor lib_random_seed << 13;
     lib_random_seed = lib_random_seed bxor lib_random_seed >> 17;
     lib_random_seed = lib_random_seed bxor lib_random_seed << 5;

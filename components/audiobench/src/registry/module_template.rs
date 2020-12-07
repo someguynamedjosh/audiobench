@@ -150,10 +150,17 @@ pub(super) fn create_module_prototype_from_yaml(
         counter + item.get_feedback_data_requirement().size()
     });
 
+    let name_start = yaml
+        .name
+        .rfind('/')
+        .or_else(|| yaml.name.rfind(':'))
+        .expect("Illegal file name");
+    let name_end = yaml.name.rfind(".module.yaml").expect("Illegal file name");
+    let name = String::from(&yaml.name[name_start..name_end]);
+
     let template = ModuleTemplate {
         lib_name,
-        resource_name,
-        code_resource: yaml.name.replace(".module.yaml", ".module.ns"),
+        module_name: name,
         template_id: save_id,
 
         label,
@@ -179,8 +186,7 @@ pub(super) fn create_module_prototype_from_yaml(
 #[derive(Debug)]
 pub struct ModuleTemplate {
     pub lib_name: String,
-    pub resource_name: String,
-    pub code_resource: String,
+    pub module_name: String,
     pub template_id: usize,
 
     pub label: String,

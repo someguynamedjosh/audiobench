@@ -205,7 +205,8 @@ pub(super) fn preload_library(
         }
     }
     Err(format!(
-        "ERROR: Library does not have a library_info.yaml file"
+        "ERROR: {} does not have a library_info.yaml file",
+        lib_name
     ))
 }
 

@@ -25,7 +25,7 @@ extern "C" {
     void ABDestroyInstance(ABInstanceRef);
     int ABGetNumIcons(ABInstanceRef);
     void ABGetIconData(ABInstanceRef, int iconIndex, void **dataBufferPtr, int *sizePtr);
-    float *ABSetHostFormat(ABInstanceRef, int, int);
+    float *ABSetGlobalParameters(ABInstanceRef, int, int);
     void ABSerializePatch(ABInstanceRef, char**, uint32_t*);
     void ABCleanupSerializedData(char*, uint32_t);
     void ABDeserializePatch(ABInstanceRef, char*, uint32_t);

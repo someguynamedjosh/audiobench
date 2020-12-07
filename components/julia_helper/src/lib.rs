@@ -1,5 +1,4 @@
-use jlrs::prelude::*;
-use jlrs::traits::IntoJulia;
+pub use jlrs::prelude::*;
 use scones::make_constructor;
 use shared_util::{Clip, Position};
 
@@ -80,11 +79,12 @@ pub struct GeneratedCode {
 impl GeneratedCode {
     pub fn from_unique_source(source_name: &str, content: &str) -> Self {
         let mut this = Self::new();
-        this.append(content, source_name.into());
+        this.append(content, source_name);
         this
     }
 
-    pub fn append(&mut self, code: &str, from: FilePosition) {
+    pub fn append(&mut self, code: &str, from: impl Into<FilePosition>) {
+        let from = from.into();
         let start = self.current_end;
         self.code_map.push((start, from));
         self.current_end = self.current_end.after_str(&code);
@@ -100,6 +100,19 @@ impl GeneratedCode {
     }
 }
 
+#[macro_export]
+macro_rules! include_packed_library {
+    ($name:literal) => {{
+        const CODE: &'static str = include_str!(concat!(
+            env!("PROJECT_ROOT"),
+            "/dependencies/julia_packages/",
+            $name,
+            ".jl"
+        ));
+        GeneratedCode::from_unique_source(concat!("packed/", $name, "/__entry__.jl"), CODE)
+    }};
+}
+
 /// Creating more than one of these at a time will raise a panic.
 pub struct ExecutionEngine {
     julia: Julia,
@@ -109,8 +122,7 @@ pub struct ExecutionEngine {
 const STACK_SIZE: usize = 128;
 /// Code to run a function and return any produced exceptions as a string including a backtrace
 /// instead of just the raw exception argument.
-const RUNNER: &'static str = r#"
-using Base.StackTraces
+const EE_ENV: &'static str = r#"
 function __error_format_helper__(fn_to_run, argument)
     try
         fn_to_run(argument)
@@ -121,6 +133,17 @@ function __error_format_helper__(fn_to_run, argument)
         throw(sprint(showerror, error, bt))
     end
 end
+
+function __load_code_helper__(code, filename)
+    try
+        Main.include_string(Main, code, filename)
+    catch error
+        bt = catch_backtrace()
+        throw(sprint(showerror, error, bt))
+    end
+end
+
+module UnpackedDependencies end
 "#;
 
 impl ExecutionEngine {
@@ -131,27 +154,48 @@ impl ExecutionEngine {
             julia: unsafe { Julia::init(STACK_SIZE).expect(ERR) },
             global_code_segments: Vec::new(),
         };
-        let runner_code = GeneratedCode::from_unique_source("__execution_engine__", RUNNER);
-        this.add_global_code(runner_code).unwrap();
+        let env_code = GeneratedCode::from_unique_source("__execution_engine__", EE_ENV);
+        // We can't use add_global_code yet because it relies on code from EE_ENV.
+        this.julia
+            .dynamic_frame(|global, frame| {
+                let code_str = Value::new(frame, EE_ENV).unwrap();
+                let tracker_filename = Value::new(frame, "__global_code_0__.jl").unwrap();
+                let main_module = Module::main(global);
+                let include_string = Module::base(global).function("include_string").unwrap();
+                include_string
+                    .call3(frame, main_module.as_value(), code_str, tracker_filename)
+                    .unwrap()
+                    .unwrap();
+                Ok(())
+            })
+            .unwrap();
+        this.global_code_segments.push(env_code);
         this
     }
 
     /// Executes the specified code clip in the global scope such that it will affect the
     /// execution of all Julia code executed after this call.
-    pub fn add_global_code(&mut self, code: GeneratedCode) -> JlrsResult<()> {
-        let tracker_filename = format!("__global_code_{}.jl", self.global_code_segments.len());
-        self.julia.dynamic_frame(|global, frame| {
-            let code_str = Value::new(frame, code.as_str())?;
-            let tracker_filename = Value::new(frame, tracker_filename)?;
-            let main_module = Module::main(global);
-            let include_string = Module::base(global).function("include_string")?;
-            include_string
-                .call3(frame, main_module.as_value(), code_str, tracker_filename)?
-                .unwrap();
-            Ok(())
-        })?;
-        self.global_code_segments.push(code);
-        Ok(())
+    pub fn add_global_code(&mut self, code: GeneratedCode) -> Result<(), String> {
+        let tracker_filename = format!("__global_code_{}__.jl", self.global_code_segments.len());
+        let res = self
+            .julia
+            .dynamic_frame(|global, frame| {
+                let code_str = Value::new(frame, code.as_str()).unwrap();
+                let tracker_filename = Value::new(frame, tracker_filename).unwrap();
+                let main_module = Module::main(global);
+                let include_helper = main_module.function("__load_code_helper__").unwrap();
+                Ok(include_helper
+                    .call2(frame, code_str, tracker_filename)
+                    .unwrap())
+            })
+            .unwrap();
+        match res {
+            Ok(..) => {
+                self.global_code_segments.push(code);
+                Ok(())
+            }
+            Err(err) => Err(Self::format_error(err)),
+        }
     }
 
     fn format_error(error: Value) -> String {
@@ -161,15 +205,21 @@ impl ExecutionEngine {
 
     /// Calls a Julia function, passing the output to a provided function. (It cannot outlive that
     /// function in the general case, though specific data types may allow this.)
-    pub fn call_fn<I, O, F>(
+    pub fn call_fn<O, IF, OF>(
         &mut self,
         path: &[&str],
-        input: I,
-        convert_result: F,
+        make_inputs: IF,
+        convert_result: OF,
     ) -> Result<O, String>
     where
-        I: IntoJulia,
-        F: for<'f, 'd> FnOnce(Value<'f, 'd>) -> JlrsResult<O>,
+        IF: for<'f> FnOnce(
+            &mut StaticFrame<'f, jlrs::mode::Sync>,
+            &mut Vec<Value<'f, 'f>>,
+        ) -> JlrsResult<()>,
+        OF: for<'f> FnOnce(
+            &mut StaticFrame<'f, jlrs::mode::Sync>,
+            Value<'f, 'f>,
+        ) -> JlrsResult<O>,
     {
         let r = self.julia.frame(STACK_SIZE - 10, |global, frame| {
             let mut module = Module::main(global);
@@ -197,22 +247,17 @@ impl ExecutionEngine {
                     )))
                 }
             };
-            let input = Value::new(frame, input);
-            let input = match input {
-                Ok(v) => v,
-                Err(err) => {
-                    return Ok(Err(format!(
-                        concat!(
-                            "ERROR: Failed to convert the provided value before sending it ",
-                            "to Julia, caused by:\nERROR: {:?}"
-                        ),
-                        err
-                    )))
-                }
+            let mut inputs = Vec::new();
+            inputs.push(func);
+            if let Err(err) = make_inputs(frame, &mut inputs) {
+                return Ok(Err(format!(
+                    "ERROR: Failed to create inputs to Julia, caused by:\nERROR: {:?}",
+                    err
+                )));
             };
-            let result = wrapper.call(frame, &mut [func, input]).unwrap();
+            let result = wrapper.call(frame, &mut inputs).unwrap();
             Ok(match result {
-                Ok(value) => convert_result(value).map_err(|_err| {
+                Ok(value) => convert_result(frame, value).map_err(|_err| {
                     format!(
                         "ERROR: Function returned unexpected type {}.",
                         value.type_name()
@@ -272,7 +317,14 @@ Scope End"#
         ));
         ee.add_global_code(code).unwrap();
 
-        let value = ee.call_fn(&["Main", "increment"], 12i32, |v| v.cast::<i32>());
+        let value = ee.call_fn(
+            &["Main", "increment"],
+            |frame, args| {
+                args.push(Value::new(frame, 12i32)?);
+                Ok(())
+            },
+            |_, v| v.cast::<i32>(),
+        );
         assert_eq!(value.unwrap(), 13);
 
         #[repr(C)]
@@ -292,17 +344,44 @@ Scope End"#
 
         let input = InData { a: 3, b: 5 };
         let output = ee
-            .call_fn(&["Main", "domath"], input, |v| v.cast::<OutData>())
+            .call_fn(
+                &["Main", "domath"],
+                |frame, args| {
+                    args.push(Value::new(frame, input)?);
+                    Ok(())
+                },
+                |_, v| v.cast::<OutData>(),
+            )
             .unwrap();
         assert_eq!(output.sum, 8);
         assert_eq!(output.product, 15);
 
         let error = ee
-            .call_fn(&["Main", "throw_error"], input, |_| Ok(()))
+            .call_fn(
+                &["Main", "throw_error"],
+                |frame, args| {
+                    args.push(Value::new(frame, input)?);
+                    Ok(())
+                },
+                |_, _| Ok(()),
+            )
             .unwrap_err();
-        println!("{}", error);
         assert!(error.contains("throw_error"));
-        assert!(error.contains("__global_code_0.jl:5"));
-        assert!(error.contains("__global_code_1.jl:14"));
+        assert!(error.contains("__global_code_0__.jl:4"));
+        assert!(error.contains("__global_code_1__.jl:14"));
+
+        let lib = include_packed_library!("StaticArrays");
+        ee.add_global_code(lib).unwrap();
+        let code = GeneratedCode::from_unique_source(
+            "asdf",
+            "using Main.UnpackedDependencies.StaticArrays",
+        );
+        ee.add_global_code(code).unwrap();
+        let code = GeneratedCode::from_unique_source("asdf", "SA_F32[1, 2, 3]");
+        ee.add_global_code(code).unwrap();
+        let code = GeneratedCode::from_unique_source("asdf", "SA_F32[1, 2, 3][4]");
+        let error = ee.add_global_code(code).unwrap_err();
+        assert!(error.contains("packed/StaticArrays/SVector.jl:40"));
+        assert!(error.contains("__global_code_0__.jl:15"));
     }
 }

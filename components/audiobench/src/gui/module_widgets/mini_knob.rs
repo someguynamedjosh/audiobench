@@ -1,4 +1,4 @@
-use super::{ModuleWidget, KnobEditor};
+use super::{KnobEditor, ModuleWidget};
 use crate::engine::parts as ep;
 use crate::gui::action::{DropTarget, MouseAction};
 use crate::gui::constants::*;
@@ -126,14 +126,7 @@ impl ModuleWidget for MiniKnob {
         } else {
             g.set_color(&COLOR_BG0);
         }
-        g.fill_pie(
-            0.0,
-            0.0,
-            grid(1),
-            KNOB_INSIDE_SPACE,
-            MIN_ANGLE,
-            MAX_ANGLE,
-        );
+        g.fill_pie(0.0, 0.0, grid(1), KNOB_INSIDE_SPACE, MIN_ANGLE, MAX_ANGLE);
         g.set_color(&COLOR_EDITABLE);
         if highlight {
             g.set_alpha(0.5);

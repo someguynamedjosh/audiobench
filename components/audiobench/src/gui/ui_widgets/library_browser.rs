@@ -44,7 +44,7 @@ impl LibraryBrowser {
     pub fn create(registry: &Registry, pos: (f32, f32), size: (f32, f32)) -> Self {
         let mut libraries: Vec<_> = registry
             .borrow_library_infos()
-            .map(|info| LibraryEntry {
+            .map(|(_, info)| LibraryEntry {
                 name: info.pretty_name.clone(),
                 description: info.description.clone(),
                 version: info.version,
