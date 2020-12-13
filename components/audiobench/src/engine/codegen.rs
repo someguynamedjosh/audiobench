@@ -150,7 +150,7 @@ impl<'a> CodeGenerator<'a> {
                 code.push_str(&format!("module_{}_output_{}, ", index, output_index,));
             }
             code.push_str(&format!(
-                "static_container[static_index].for_module_{} = \\\n",
+                "static_container[static_index].for_module_{} = ",
                 index
             ));
             code.push_str(&format!(

@@ -1,3 +1,0 @@
-FLOAT START_LOG = Log2(START);
-FLOAT END_LOG = Log2(END);
-<STEREO_BUFFER> frequency = Exp2(START_LOG * (1.0 - sweep) + END_LOG * sweep);

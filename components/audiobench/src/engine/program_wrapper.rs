@@ -155,17 +155,19 @@ impl AudiobenchExecutor {
         let mut base = ExecutionEngine::new();
         let mut registry_source = GeneratedCode::new();
         registry_source.append("module Registry\n", "generated");
-        for (lib_name, _) in registry.borrow_library_infos() {
+        for (lib_name, _) in &Vec::<(String, i32)>::new() { //registry.borrow_library_infos() {
+            registry_source.append(&format!("\nmodule {}\n", lib_name), "generated");
             for file_content in registry.borrow_general_scripts_from_library(lib_name) {
                 registry_source.append_clip(file_content);
             }
             for (mod_name, file_content) in registry.borrow_module_scripts_from_library(lib_name) {
                 registry_source.append(&format!("module {}\n", mod_name), "generated");
                 registry_source.append_clip(file_content);
-                registry_source.append("end\n", "generated");
+                registry_source.append(&format!("\nend # module {}\n", mod_name), "generated");
             }
+            registry_source.append(&format!("\nend # module {}\n", lib_name), "generated");
         }
-        registry_source.append("end\n", "generated");
+        registry_source.append("\nend # module Registry\n", "generated");
         println!("{}", registry_source.as_str());
         let mut res = AudiobenchExecutor {
             base,
@@ -203,6 +205,7 @@ impl AudiobenchExecutor {
     }
 
     pub fn change_generated_code(&mut self, generated_code: GeneratedCode) -> Result<(), String> {
+        println!("{}", generated_code.as_str());
         self.base.add_global_code(generated_code)?;
         self.loaded = true;
         Ok(())

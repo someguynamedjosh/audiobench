@@ -1,3 +1,0 @@
-FLOAT EXPONENT = Itof(OCTAVES) + (Itof(SEMITONES) + Itof(CENTS) / 100.0) / 12.0;
-
-<STEREO_BUFFER> transposed = pitch * (2.0 ** (EXPONENT * amount));

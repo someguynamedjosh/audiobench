@@ -154,7 +154,8 @@ pub(super) fn create_module_prototype_from_yaml(
         .name
         .rfind('/')
         .or_else(|| yaml.name.rfind(':'))
-        .expect("Illegal file name");
+        .expect("Illegal file name")
+        + 1;
     let name_end = yaml.name.rfind(".module.yaml").expect("Illegal file name");
     let name = String::from(&yaml.name[name_start..name_end]);
 

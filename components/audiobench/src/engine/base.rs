@@ -120,7 +120,7 @@ impl Engine {
                 ),
                 err
             )
-        });
+        })?;
         let atd = AudioThreadData {
             executor,
             global_input: GlobalInput::new(),

@@ -1,7 +1,7 @@
 save_id: 10
 inputs:
 outputs:
-  Waveform:
+  waveform:
     type: waveform
     label: Waveform
     tooltip: The triangle wave

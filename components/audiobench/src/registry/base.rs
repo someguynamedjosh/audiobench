@@ -94,10 +94,7 @@ impl Registry {
                 file_name, e
             )
         })?;
-        if !self.general_scripts_by_library.contains_key(library_name) {
-            self.general_scripts_by_library
-                .insert(library_name.to_owned(), Vec::new());
-        }
+        assert!(self.general_scripts_by_library.contains_key(library_name));
         let clip = FileClip::new(file_name.to_owned(), buffer_as_text);
         self.general_scripts_by_library
             .get_mut(library_name)
@@ -121,13 +118,11 @@ impl Registry {
         let name_start = file_name
             .rfind('/')
             .or_else(|| file_name.find(':'))
-            .expect("Illegal file name");
+            .expect("Illegal file name")
+            + 1;
         let name_end = file_name.rfind(".module.jl").expect("Illegal file name");
         let module_name = String::from(&file_name[name_start..name_end]);
-        if !self.module_scripts_by_library.contains_key(library_name) {
-            self.module_scripts_by_library
-                .insert(library_name.to_owned(), Vec::new());
-        }
+        assert!(self.module_scripts_by_library.contains_key(library_name));
         let clip = FileClip::new(file_name.to_owned(), buffer_as_text);
         self.module_scripts_by_library
             .get_mut(library_name)
@@ -205,6 +200,11 @@ impl Registry {
     }
 
     fn load_library(&mut self, mut library: PreloadedLibrary) -> Result<LibraryInfo, String> {
+        // Add entries to script hash table.
+        self.general_scripts_by_library
+            .insert(library.internal_name.clone(), Vec::new());
+        self.module_scripts_by_library
+            .insert(library.internal_name.clone(), Vec::new());
         // Load icons before other data.
         for index in 0..library.content.get_num_files() {
             let file_name = library.content.get_file_name(index);

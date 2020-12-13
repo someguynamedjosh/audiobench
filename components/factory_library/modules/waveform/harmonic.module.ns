@@ -1,7 +1,0 @@
-macro OutWave(INT buffer_pos, ANY_SAMPLE phase):(value) {
-    BaseWave(buffer_pos, phase * Itof(HARMONIC) % 1.0):(<> value);
-}
-
-if global_update_feedback_data {
-    DisplayWaveform(SetGraphFeedback, OutWave);
-}

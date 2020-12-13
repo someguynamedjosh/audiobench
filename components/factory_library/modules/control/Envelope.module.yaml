@@ -22,12 +22,12 @@ autocons:
     max: 1
     default: 1.0
 staticons:
-  TIMING_MODE: TimingMode
-  ATTACK_TIME: Duration
+  timing_mode: TimingMode
+  attack_time: Duration
     default: 0.005
-  DECAY_TIME: Duration
+  decay_time: Duration
     default: 0.2
-  RELEASE_TIME: Duration
+  release_time: Duration
     default: 0.3
 gui: 
   label: Envelope
@@ -45,26 +45,26 @@ gui:
     timing_selector:
       x: 0
       y: 2
-      control: TIMING_MODE
+      control: timing_mode
     duration_box:
       x: 2
       y: 2
-      duration_control: ATTACK_TIME
-      mode_control: TIMING_MODE
+      duration_control: attack_time
+      mode_control: timing_mode
       label: Attack
       tooltip: How long the envelope takes to rise to full volume
     duration_box:
       x: 4
       y: 2
-      duration_control: DECAY_TIME
-      mode_control: TIMING_MODE
+      duration_control: decay_time
+      mode_control: timing_mode
       label: Decay
       tooltip: How long the envelope takes to fall back down to the sustain value after the attack ends
     duration_box:
       x: 6
       y: 2
-      duration_control: RELEASE_TIME
-      mode_control: TIMING_MODE
+      duration_control: release_time
+      mode_control: timing_mode
       label: Release
       tooltip: How long the envelope takes to fade out after receiving the release trigger
     envelope_graph:
