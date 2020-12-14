@@ -141,41 +141,89 @@ impl<'a> CodeGenerator<'a> {
             ordered_modules.push(Rc::clone(module_ptr));
         }
 
+        code.push_str("module Generated\n\n  using Main.Registry.Factory.Lib\n\n");
+        code.push_str("  mutable struct StaticData");
+        for (index, module) in self.graph.borrow_modules().iter().enumerate() {
+            let module_ref = module.borrow();
+            let template_ref = module_ref.template.borrow();
+            code.push_str("\n    for_module_");
+            code.push_str(&format!(
+                "{}::Main.Registry.{}.{}.StaticData",
+                index, template_ref.lib_name, template_ref.module_name
+            ));
+        }
+        code.push_str("\n  end\n\n");
+
+        code.push_str("  const static_container = Vector{StaticData}()\n\n");
+        code.push_str("  function init_static(index::Integer)\n");
+        code.push_str("    data = StaticData(\n");
+        for (index, module) in self.graph.borrow_modules().iter().enumerate() {
+            let module_ref = module.borrow();
+            let template_ref = module_ref.template.borrow();
+            code.push_str(&format!(
+                "      Main.Registry.{}.{}.init_static()",
+                template_ref.lib_name, template_ref.module_name
+            ));
+            if index < self.graph.borrow_modules().len() - 1 {
+                code.push_str(",\n");
+            }
+        }
+        code.push_str("\n    )\n");
+        code.push_str(concat!(
+            "    if index > length(static_container)\n",
+            "      push!(static_container, data)\n",
+            "    else\n",
+            "      static_container[index] = data\n",
+            "    end\n",
+        ));
+        code.push_str("  end # function init_static\n\n");
+
+        code.push_str(concat!(
+            "  function exec(midi_controls::Vector{Float32}, pitch_wheel::Float32, bpm::Float32, ",
+            "elapsed_time::Float32, elapsed_beats::Float32, do_update::Bool, ",
+            "note_input::NoteInput, static_index::Integer)\n",
+            "    global_input = GlobalInput(midi_controls, pitch_wheel, bpm, elapsed_time, ",
+            "elapsed_beats, do_update)\n",
+            "    note_output = NoteOutput()\n",
+            "    context = NoteContext(global_input, note_input, note_output)\n",
+        ));
         for index in std::mem::replace(&mut self.execution_order, Vec::new()) {
             let module_ref = self.graph.borrow_modules()[index].borrow();
             let template_ref = module_ref.template.borrow();
 
-            code.push_str("  ");
+            code.push_str("\n    ");
             for output_index in 0..template_ref.outputs.len() {
                 code.push_str(&format!("module_{}_output_{}, ", index, output_index,));
             }
             code.push_str(&format!(
-                "static_container[static_index].for_module_{} = ",
+                "static_container[static_index].for_module_{} = \n",
                 index
             ));
             code.push_str(&format!(
-                "  Main.Registry.{}.{}Module.exec(\n    context,\n",
+                "    Main.Registry.{}.{}Module.exec(\n      context,\n",
                 template_ref.lib_name, template_ref.module_name
             ));
             for (input, jack) in module_ref.inputs.iter().zip(template_ref.inputs.iter()) {
                 code.push_str(&format!(
-                    "    {}, // {}\n",
+                    "      {}, # {}\n",
                     self.generate_code_for_input(input, jack),
                     jack.borrow_code_name()
                 ));
             }
             for control in &module_ref.autocons {
                 code.push_str(&format!(
-                    "    {}, // {}\n",
+                    "      {}, # {}\n",
                     self.generate_code_for_control(control),
                     &control.borrow().code_name
                 ));
             }
             code.push_str(&format!(
-                "    static_container[static_index].for_module_{}\n  )\n",
+                "      static_container[static_index].for_module_{}\n    )\n",
                 index
             ));
         }
+        code.push_str("  end # function exec\n\n");
+        code.push_str("end # module Generated\n");
         let code = GeneratedCode::from_unique_source("Generated/note_graph.jl", &code);
 
         let Self {

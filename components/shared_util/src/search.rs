@@ -100,6 +100,34 @@ impl<'a> ClipSearcher<'a> {
         self.text.find(pattern)
     }
 
+    pub fn peek_symbol_start(&self, pattern: &str) -> Option<usize> {
+        let mut stext = self.text;
+        let mut result = 0;
+        while let Some(index) = stext.find(pattern) {
+            result += index;
+            let mut is_symbol = true;
+            if index > 0 {
+                let before = stext[index - 1..].chars().next().unwrap();
+                if before.is_alphanumeric() {
+                    is_symbol = false;
+                }
+            }
+            if index + pattern.len() < stext.len() {
+                let after = stext[index + pattern.len()..].chars().next().unwrap();
+                if after.is_alphanumeric() {
+                    is_symbol = false;
+                }
+            }
+            if is_symbol {
+                return Some(result);
+            } else {
+                result += 1;
+                stext = &stext[index + 1..];
+            }
+        }
+        None
+    }
+
     pub fn skip_n(&mut self, n: usize) -> &mut Self {
         self.pos = self.pos.after_str(&self.text[..n]);
         self.text = &self.text[n..];
@@ -112,6 +140,14 @@ impl<'a> ClipSearcher<'a> {
 
     pub fn goto_pattern_start(&mut self, pattern: &str) -> &mut Self {
         if let Some(index) = self.peek_pattern_start(pattern) {
+            self.skip_n(index)
+        } else {
+            self.goto_end()
+        }
+    }
+
+    pub fn goto_symbol_start(&mut self, pattern: &str) -> &mut Self {
+        if let Some(index) = self.peek_symbol_start(pattern) {
             self.skip_n(index)
         } else {
             self.goto_end()
@@ -141,7 +177,7 @@ impl<'a> ClipSearcher<'a> {
     fn delim_dists<'d>(&mut self, delimiters: &[(&str, &'d str)]) -> Vec<(usize, &'d str)> {
         delimiters
             .into_iter()
-            .filter_map(|(start, end)| self.peek_pattern_start(start).map(|e| (e, *end)))
+            .filter_map(|(start, end)| self.peek_symbol_start(start).map(|e| (e, *end)))
             .collect()
     }
 
@@ -154,7 +190,7 @@ impl<'a> ClipSearcher<'a> {
         while stack.len() > 0 {
             // How many more characters until we encounter something that can be popped off the
             // stack.
-            let end_dist = if let Some(d) = self.peek_pattern_start(stack.last().unwrap()) {
+            let end_dist = if let Some(d) = self.peek_symbol_start(stack.last().unwrap()) {
                 d
             } else {
                 return self.goto_end();
@@ -172,11 +208,17 @@ impl<'a> ClipSearcher<'a> {
                 }
             }
             if let Some((distance, end_delim)) = closest_delimiter {
-                // A bit hacky but it works.
-                self.text = &self.text[distance + 1..];
+                self.text = &self.text[distance..];
                 stack.push(end_delim);
             } else {
-                self.goto_pattern_start(stack.pop().unwrap());
+                self.goto_symbol_start(stack.pop().unwrap());
+            }
+            if self.at_end() {
+                return self;
+            }
+            // A bit hacky but it works to prevent consuming the same symbol several times.
+            if stack.len() > 0 {
+                self.text = &self.text[1..];
             }
         }
         self
@@ -244,10 +286,7 @@ mod tests {
         searcher.goto_pattern_end("years");
         assert_eq!(searcher.end_clip(start).as_str(), "and seven years");
         searcher.goto_end();
-        assert_eq!(
-            searcher.end_clip(start).as_str(),
-            "and seven years ago"
-        );
+        assert_eq!(searcher.end_clip(start).as_str(), "and seven years ago");
     }
 
     #[test]
@@ -261,6 +300,20 @@ mod tests {
         let mut searcher = clip.search();
         searcher.skip_blocks(&[("{", "}"), ("(", ")")], "goal");
         assert_eq!(searcher.remaining(), "goal { }");
+
+        let clip = Clip::from("begin start hello start end end there end");
+        let mut searcher = clip.search();
+        searcher.goto_pattern_end("begin");
+        searcher.skip_blocks(&[("start", "end")], "end");
+        assert_eq!(searcher.remaining(), "end");
+
+        let clip = Clip::from("start if elseif blahend endblah end end trailing");
+        let mut searcher = clip.search();
+        searcher.skip_blocks(
+            &[("start", "end"), ("if", "end")],
+            "trailing",
+        );
+        assert_eq!(searcher.remaining(), "trailing");
     }
 
     #[test]

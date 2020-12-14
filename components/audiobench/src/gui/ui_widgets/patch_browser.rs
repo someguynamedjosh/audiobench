@@ -42,14 +42,14 @@ impl PatchBrowser {
         // Width of the name box.
         let namew = hw - (CG + GRID_P) * NUM_ICONS;
         let patch_name = current_patch.borrow().borrow_name().to_owned();
-        let save_icon = registry.lookup_icon("factory:save").unwrap();
+        let save_icon = registry.lookup_icon("Factory:save").unwrap();
         let mut save_button = IconButton::create((GRID_P, 0.0), CG, save_icon);
-        let new_icon = registry.lookup_icon("factory:add").unwrap();
+        let new_icon = registry.lookup_icon("Factory:add").unwrap();
         let new_button =
             IconButton::create((GRID_P + hw - CG * 3.0 - GRID_P * 2.0, 0.0), CG, new_icon);
-        let copy_icon = registry.lookup_icon("factory:copy").unwrap();
+        let copy_icon = registry.lookup_icon("Factory:copy").unwrap();
         let copy_button = IconButton::create((GRID_P + hw - CG * 2.0 - GRID_P, 0.0), CG, copy_icon);
-        let paste_icon = registry.lookup_icon("factory:paste").unwrap();
+        let paste_icon = registry.lookup_icon("Factory:paste").unwrap();
         let paste_button = IconButton::create((GRID_P + hw - CG, 0.0), CG, paste_icon);
 
         let entries = registry.borrow_patches().clone();
@@ -97,7 +97,7 @@ impl PatchBrowser {
             new_button,
             copy_button,
             paste_button,
-            delete_icon: registry.lookup_icon("factory:delete").unwrap(),
+            delete_icon: registry.lookup_icon("Factory:delete").unwrap(),
             entries,
             alphabetical_order,
             current_entry_index,
@@ -138,7 +138,7 @@ impl PatchBrowser {
                     }
                 } else {
                     Tooltip {
-                        text: "The current patch is a factory patch, so you cannot edit its name"
+                        text: "The current patch is a Factory patch, so you cannot edit its name"
                             .to_owned(),
                         interaction: Default::default(),
                     }

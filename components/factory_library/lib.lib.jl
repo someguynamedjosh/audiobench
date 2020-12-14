@@ -31,6 +31,14 @@ const flat_waveform = (phase, _buffer_pos::Integer) -> mono_sample(0f0)
 const ramp_up_waveform = (phase, _buffer_pos::Integer) -> @. phase * 2 - 1
 const ramp_down_waveform = (phase, _buffer_pos::Integer) -> @. 1 - phase * 2
 
+function mutable(type::DataType)::DataType
+    typeof(similar(type))
+end
+
+function maybe_mutable(type::DataType)
+    Union{type, mutable(type)}
+end
+
 struct GlobalInput
     midi_controls::Vector{Float32}
     pitch_wheel::Float32
@@ -50,7 +58,11 @@ struct NoteInput
 end
 
 mutable struct NoteOutput
-    audio::StereoAudio
+    audio::mutable(StereoAudio)
+end
+
+function NoteOutput()
+    NoteOutput(similar(StereoAudio))
 end
 
 struct NoteContext
@@ -65,14 +77,6 @@ end
 
 function promote_typeof_vectorized(values...)::DataType
     Base.promote_op(Base.broadcast, typeof(+), broadcast(typeof, values)...)
-end
-
-function mutable(type::DataType)::DataType
-    typeof(similar(type))
-end
-
-function maybe_mutable(type::DataType)
-    Union{type, mutable(type)}
 end
 
 function assert_sample_type(_type::Type{MonoSample}) end

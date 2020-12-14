@@ -1,6 +1,6 @@
 use super::codegen::{self, CodeGenResult};
 use super::data_routing::{AutoconDynDataCollector, FeedbackDisplayer, StaticonDynDataCollector};
-use super::data_transfer::{DataFormat, GlobalInput, GlobalParameters};
+use super::data_transfer::{DataFormat, GlobalData, GlobalParameters};
 use super::parts::ModuleGraph;
 use super::program_wrapper::{AudiobenchExecutor, NoteTracker};
 use crate::registry::{save_data::Patch, Registry};
@@ -38,7 +38,7 @@ struct CrossThreadData {
 
 struct AudioThreadData {
     executor: AudiobenchExecutor,
-    global_input: GlobalInput,
+    global_data: GlobalData,
     audio_buffer: Vec<f32>,
     last_feedback_data_update: Instant,
 }
@@ -64,8 +64,8 @@ impl Engine {
         };
         let default_patch = Rc::clone(
             registry
-                .get_patch_by_name("factory:patches/default.abpatch")
-                .ok_or("Could not find factory:patches/default.abpatch".to_owned())?,
+                .get_patch_by_name("Factory:patches/default.abpatch")
+                .ok_or("Could not find Factory:patches/default.abpatch".to_owned())?,
         );
         default_patch
             .borrow()
@@ -101,6 +101,7 @@ impl Engine {
             current_patch_save_data: default_patch,
         };
 
+        eprintln!("{:?}", std::thread::current());
         let mut executor = AudiobenchExecutor::new(registry, &global_params).map_err(|err| {
             format!(
                 concat!(
@@ -123,7 +124,7 @@ impl Engine {
         })?;
         let atd = AudioThreadData {
             executor,
-            global_input: GlobalInput::new(),
+            global_data: GlobalData::new(),
             audio_buffer: vec![0.0; data_format.global_params.buffer_length * 2],
             last_feedback_data_update: Instant::now(),
         };
@@ -316,7 +317,7 @@ impl Engine {
             "{} is not a valid pitch wheel value.",
             new_pitch_wheel
         );
-        self.atd.global_input.pitch_wheel = new_pitch_wheel;
+        self.atd.global_data.pitch_wheel = new_pitch_wheel;
     }
 
     pub fn set_control(&mut self, index: usize, value: f32) {
@@ -326,22 +327,23 @@ impl Engine {
             value
         );
         assert!(index < 128, "{} is not a valid control index.", index);
-        self.atd.global_input.controller_values[index] = value;
+        self.atd.global_data.controller_values[index] = value;
     }
 
     pub fn set_bpm(&mut self, bpm: f32) {
-        self.atd.global_input.bpm = bpm;
+        self.atd.global_data.bpm = bpm;
     }
 
     pub fn set_elapsed_time(&mut self, time: f32) {
-        self.atd.global_input.elapsed_time = time;
+        self.atd.global_data.elapsed_time = time;
     }
 
     pub fn set_elapsed_beats(&mut self, beats: f32) {
-        self.atd.global_input.elapsed_beats = beats;
+        self.atd.global_data.elapsed_beats = beats;
     }
 
     pub fn render_audio(&mut self) -> &[f32] {
+        eprintln!("{:?}", std::thread::current());
         let mut ctd = self.ctd_mux.lock().unwrap();
 
         if let Some((code, data_format)) = ctd.new_source.take() {
@@ -392,7 +394,7 @@ impl Engine {
             } = &mut *ctd;
             let result = self.atd.executor.execute(
                 update_feedback_data,
-                &mut self.atd.global_input,
+                &mut self.atd.global_data,
                 notes,
                 &mut self.atd.audio_buffer[..],
                 perf_counter,

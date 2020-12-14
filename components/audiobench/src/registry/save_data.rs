@@ -463,7 +463,7 @@ impl SavedModule {
     // different amount of space, so this helps save space.
     fn get_ser_mode_u2(&self) -> u8 {
         let small_coords = self.pos.0.abs() < 0x7FFF && self.pos.1.abs() < 0x7FFF;
-        let small_resource = self.lib_name == "factory" && self.template_id < 0xFF;
+        let small_resource = self.lib_name == "Factory" && self.template_id < 0xFF;
         compose_u2(small_coords, small_resource)
     }
 
@@ -479,7 +479,7 @@ impl SavedModule {
         if small_resource {
             ser_u8(buffer, self.template_id as u8);
         } else {
-            let lib_id = if self.lib_name == "factory" {
+            let lib_id = if self.lib_name == "Factory" {
                 0
             } else {
                 additional_libs
@@ -511,7 +511,7 @@ impl SavedModule {
             (des_u8(slice)? as usize, des_u16(slice)? as usize)
         };
         let lib_name = if lib_index == 0 {
-            "factory".to_owned()
+            "Factory".to_owned()
         } else {
             additional_libs
                 .get(lib_index as usize - 1)
@@ -561,7 +561,7 @@ impl SavedModuleGraph {
             library_names.insert(module.lib_name.clone());
         }
         // The factory library is stored more compactly as it is always assumed to be present.
-        library_names.remove("factory");
+        library_names.remove("Factory");
         let additional_libs = library_names.imc(|name| {
             let version = registry
                 .borrow_library_info(name)
@@ -620,7 +620,7 @@ impl SavedModuleGraph {
     }
 
     fn serialize(&self, buffer: &mut Vec<u8>) {
-        // FE not FF because it doesn't include factory.
+        // FE not FF because it doesn't include Factory.
         assert!(self.additional_libs.len() < 0xFE);
         ser_u8(buffer, self.additional_libs.len() as u8);
         ser_u16(buffer, ENGINE_VERSION);
@@ -715,11 +715,11 @@ impl SavedModuleGraph {
 
     fn deserialize(slice: &mut &[u8], format_version: u8, registry: &Registry) -> Result<Self, ()> {
         let num_libs = des_u8(slice)?;
-        // After version 1, the version number of the factory library is included in the patch.
+        // After version 1, the version number of the Factory library is included in the patch.
         let factory_lib_version = if format_version >= 1 {
             des_u16(slice)?
         } else {
-            // Before format version 1, the factory library was always at version 0.
+            // Before format version 1, the Factory library was always at version 0.
             0
         };
         // If dependencies_ok is false, we will skip loading the rest of the data in the patch. When

@@ -68,6 +68,6 @@ function exec()
             release_time * multiplier,
             now_time * multiplier,
             first(signal),
-        ]);
+        ])
     end
 end

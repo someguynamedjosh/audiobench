@@ -84,10 +84,10 @@ impl GuiScreen {
 
     pub fn get_icon_name(&self) -> &'static str {
         match self {
-            Self::LibraryBrowser => "factory:library",
-            Self::PatchBrowser => "factory:patch_browser",
-            Self::NoteGraph => "factory:note",
-            Self::ModuleBrowser => "factory:add",
+            Self::LibraryBrowser => "Factory:library",
+            Self::PatchBrowser => "Factory:patch_browser",
+            Self::NoteGraph => "Factory:note",
+            Self::ModuleBrowser => "Factory:add",
         }
     }
 

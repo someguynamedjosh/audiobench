@@ -1,4 +1,5 @@
 pub use jlrs::prelude::*;
+use jlrs::traits::IntoJulia;
 use scones::make_constructor;
 use shared_util::{Clip, Position};
 
@@ -179,7 +180,7 @@ impl ExecutionEngine {
         let tracker_filename = format!("__global_code_{}__.jl", self.global_code_segments.len());
         let res = self
             .julia
-            .dynamic_frame(|global, frame| {
+            .frame(STACK_SIZE - 10, |global, frame| {
                 let code_str = Value::new(frame, code.as_str()).unwrap();
                 let tracker_filename = Value::new(frame, tracker_filename).unwrap();
                 let main_module = Module::main(global);
@@ -216,10 +217,7 @@ impl ExecutionEngine {
             &mut StaticFrame<'f, jlrs::mode::Sync>,
             &mut Vec<Value<'f, 'f>>,
         ) -> JlrsResult<()>,
-        OF: for<'f> FnOnce(
-            &mut StaticFrame<'f, jlrs::mode::Sync>,
-            Value<'f, 'f>,
-        ) -> JlrsResult<O>,
+        OF: for<'f> FnOnce(&mut StaticFrame<'f, jlrs::mode::Sync>, Value<'f, 'f>) -> JlrsResult<O>,
     {
         let r = self.julia.frame(STACK_SIZE - 10, |global, frame| {
             let mut module = Module::main(global);

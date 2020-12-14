@@ -277,15 +277,15 @@ impl Registry {
 
     fn initialize(&mut self) -> Result<(), String> {
         let factory_library = {
-            let raw = std::include_bytes!(concat!(env!("OUT_DIR"), "/factory.ablib"));
+            let raw = std::include_bytes!(concat!(env!("OUT_DIR"), "/Factory.ablib"));
             let reader = std::io::Cursor::new(raw as &[u8]);
             let content = ZippedLibraryContentProvider::new(reader).map_err(|err| {
-                format!("ERROR: Failed to open factory library, caused by:\n{}", err)
+                format!("ERROR: Failed to open Factory library, caused by:\n{}", err)
             })?;
-            library_preload::preload_library("factory".to_owned(), Box::new(content)).map_err(
+            library_preload::preload_library("Factory".to_owned(), Box::new(content)).map_err(
                 |err| {
                     format!(
-                        "ERROR: Failed to preload factory library, caused by:\n{}",
+                        "ERROR: Failed to preload Factory library, caused by:\n{}",
                         err
                     )
                 },
@@ -293,14 +293,14 @@ impl Registry {
         };
         let factory_lib_info = self
             .load_library(factory_library)
-            .map_err(|e| format!("ERROR: Failed to load factory library, caused by:\n{}", e))?;
+            .map_err(|e| format!("ERROR: Failed to load Factory library, caused by:\n{}", e))?;
         self.library_info
-            .insert("factory".to_owned(), factory_lib_info);
+            .insert("Factory".to_owned(), factory_lib_info);
 
         self.create_and_update_user_library()?;
 
         let mut loaded_libraries = HashSet::new();
-        loaded_libraries.insert("factory".to_owned());
+        loaded_libraries.insert("Factory".to_owned());
         for entry in fs::read_dir(&self.library_path).map_err(|err| {
             format!(
                 "ERROR: Failed to read libraries from {}, caused by:\n{}",

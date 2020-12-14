@@ -4,11 +4,11 @@ const TYPICAL_BUFFER_LENGTH: usize = 512;
 const TYPICAL_SAMPLE_RATE: usize = 44100;
 const TYPICAL_TEST_DURATION: usize = 100;
 const TYPICAL_NUM_NOTES: usize = 10;
-/// The 'default' patch from the factory library.
+/// The 'default' patch from the Factory library.
 const PATCH_DEFAULT: &[u8] =
     "AQAHRGVmYXVsdAAAAQAE_wHgAKgFAVAAqAYAeADACgAwADAOIgABAliAAGqqAAA7o9cKAD5MzM0APpmZmgMD"
         .as_bytes();
-/// The 'pluckypluckypluck' patch from the factory library.
+/// The 'pluckypluckypluck' patch from the Factory library.
 const PATCH_PLUCK: &[u8] = "AQARUGx1Y2t5cGx1Y2t5cGx1Y2sAAAEACv__DwK4AKgFAKj_6A4AqABgEgEIAWgOAfgAqBEBOADYBgE4ASAGADABaAz_cABgDv-gAPAHEomiQgAEAgUGCQcJIgKUmQIJAADo9QAAAAAAAAAAO6PXCgA9d85jAD55hhgAADvqv2gBAAA7o9cKAD5MzIYAPpmZmgAAAAcAAAAAO6PXCgA9lewBAD6ZmZogMwAI8zMFHgHuFAMDCBR6frg".as_bytes();
 
 struct TestParameters {

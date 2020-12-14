@@ -83,10 +83,10 @@ impl JackType {
 
     pub fn icon_name(&self) -> &'static str {
         match self {
-            Self::Pitch => "factory:pitch",
-            Self::Waveform => "factory:waveform",
-            Self::Audio => "factory:audio",
-            Self::Trigger => "factory:trigger",
+            Self::Pitch => "Factory:pitch",
+            Self::Waveform => "Factory:waveform",
+            Self::Audio => "Factory:audio",
+            Self::Trigger => "Factory:trigger",
         }
     }
 
@@ -104,51 +104,51 @@ impl JackType {
             Self::Pitch => &[DefaultInputDescription {
                 name: "Note Pitch",
                 code: "global_pitch",
-                icon: "factory:note",
+                icon: "Factory:note",
             }],
             Self::Waveform => &[
                 DefaultInputDescription {
                     name: "Silence",
                     code: "FlatWaveform",
                     // TODO: Better icon.
-                    icon: "factory:nothing",
+                    icon: "Factory:nothing",
                 },
                 DefaultInputDescription {
                     name: "Ramp Up",
                     code: "RampUpWaveform",
-                    icon: "factory:ramp_up",
+                    icon: "Factory:ramp_up",
                 },
                 DefaultInputDescription {
                     name: "Ramp Down",
                     code: "RampDownWaveform",
-                    icon: "factory:ramp_down",
+                    icon: "Factory:ramp_down",
                 },
                 DefaultInputDescription {
                     name: "Sine Wave",
                     code: "SineWaveform",
-                    icon: "factory:sine_wave",
+                    icon: "Factory:sine_wave",
                 },
             ],
             Self::Audio => &[DefaultInputDescription {
                 name: "Silence",
                 code: "0.0",
-                icon: "factory:nothing",
+                icon: "Factory:nothing",
             }],
             Self::Trigger => &[
                 DefaultInputDescription {
                     name: "Note Start",
                     code: "global_start_trigger",
-                    icon: "factory:note_down",
+                    icon: "Factory:note_down",
                 },
                 DefaultInputDescription {
                     name: "Note Release",
                     code: "global_release_trigger",
-                    icon: "factory:note_up",
+                    icon: "Factory:note_up",
                 },
                 DefaultInputDescription {
                     name: "Never",
                     code: "FALSE",
-                    icon: "factory:nothing",
+                    icon: "Factory:nothing",
                 },
             ],
         }

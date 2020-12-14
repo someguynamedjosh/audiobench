@@ -4,7 +4,7 @@ use std::path::Path;
 
 fn main() {
     // Can't use env! because it isn't defined when the build script is first compiled.
-    let output_path = Path::new(&std::env::var("OUT_DIR").unwrap()).join("factory.ablib");
+    let output_path = Path::new(&std::env::var("OUT_DIR").unwrap()).join("Factory.ablib");
     let output_file = fs::File::create(output_path).unwrap();
     let mut zip_writer = zip::ZipWriter::new(output_file);
     let options =

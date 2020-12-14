@@ -17,7 +17,7 @@ pub struct DataFormat {
 }
 
 #[derive(Clone)]
-pub struct GlobalInput {
+pub struct GlobalData {
     // MIDI specifies each MIDI Channel has 128 controls.
     pub controller_values: [f32; 128],
     // The pitch wheel is seperate from other controls due to its higher precision.
@@ -27,7 +27,7 @@ pub struct GlobalInput {
     pub elapsed_beats: f32,
 }
 
-impl GlobalInput {
+impl GlobalData {
     pub fn new() -> Self {
         Self {
             controller_values: [0.0; 128],
@@ -53,9 +53,8 @@ impl GlobalInput {
 }
 
 #[repr(C)]
-#[derive(Clone, Copy, JuliaStruct, IntoJulia)]
-#[jlrs(julia_type = "Main.Regsitry.Factory.Lib.NoteInput")]
-pub struct NoteInput {
+#[derive(Clone, Copy)]
+pub struct NoteData {
     pub pitch: f32,
     pub velocity: f32,
     pub elapsed_samples: usize,
@@ -105,45 +104,45 @@ impl<'a> InputPacker<'a> {
         //     .set_argument(index, IODataPtr::FloatArray(&data[..]));
     }
 
-    pub fn set_global_input(&mut self, global_input: &GlobalInput) {
+    pub fn set_global_data(&mut self, global_data: &GlobalData) {
         // self.real_packer
-        //     .set_argument(Self::GPI_BPM, IODataPtr::Float(global_input.bpm));
+        //     .set_argument(Self::GPI_BPM, IODataPtr::Float(global_data.bpm));
         self.set_timing_input(
             Self::GPI_elapsed_time,
-            global_input.elapsed_time,
+            global_data.elapsed_time,
             1.0 / self.data_format.global_params.sample_rate as f32,
         );
         self.set_timing_input(
             Self::GPI_elapsed_beats,
-            global_input.elapsed_beats,
-            global_input.bpm / 60.0 / self.data_format.global_params.sample_rate as f32,
+            global_data.elapsed_beats,
+            global_data.bpm / 60.0 / self.data_format.global_params.sample_rate as f32,
         );
         // self.real_packer.set_argument(
         //     Self::GPI_MIDI_CONTROLS,
-        //     IODataPtr::FloatArray(&global_input.controller_values[..]),
+        //     IODataPtr::FloatArray(&global_data.controller_values[..]),
         // );
     }
 
     pub fn set_note_data(
         &mut self,
-        note_data: &NoteInput,
-        global_input: &GlobalInput,
+        note_data: &NoteData,
+        global_data: &GlobalData,
         update_feedback: bool,
     ) {
         // Pitch wheel value goes from -1.0 to 1.0. At the extreme ends, pitch should be offset by
         // a nice ratio. In the middle, there should be a deadzone where nothing happens. There
         // should be no sudden transition when leaving the deadzone. This math makes all these
         // conditions true.
-        let pitch_offset: f32 = if global_input.pitch_wheel.abs() <= Self::PITCH_WHEEL_DEADZONE {
+        let pitch_offset: f32 = if global_data.pitch_wheel.abs() <= Self::PITCH_WHEEL_DEADZONE {
             1.0
         } else {
             // Make sure to offset so there is no sudden transition.
-            let wheel_offset = if global_input.pitch_wheel > 0.0 {
+            let wheel_offset = if global_data.pitch_wheel > 0.0 {
                 Self::PITCH_WHEEL_DEADZONE
             } else {
                 -Self::PITCH_WHEEL_DEADZONE
             };
-            2.0f32.powf((global_input.pitch_wheel - wheel_offset) * Self::PITCH_WHEEL_RANGE)
+            2.0f32.powf((global_data.pitch_wheel - wheel_offset) * Self::PITCH_WHEEL_RANGE)
         };
         // self.real_packer.set_argument(
         //     Self::GPI_PITCH,
@@ -171,7 +170,7 @@ impl<'a> InputPacker<'a> {
         self.set_timing_input(
             Self::GPI_NOTE_BEATS,
             note_data.elapsed_beats,
-            global_input.bpm / 60.0 / sample_rate,
+            global_data.bpm / 60.0 / sample_rate,
         );
     }
 

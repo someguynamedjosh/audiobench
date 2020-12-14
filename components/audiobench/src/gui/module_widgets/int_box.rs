@@ -33,8 +33,8 @@ impl IntBoxBase {
             label,
             // Factory library is guaranteed to have these icons.
             icons: (
-                registry.lookup_icon("factory:increase").unwrap(),
-                registry.lookup_icon("factory:decrease").unwrap(),
+                registry.lookup_icon("Factory:increase").unwrap(),
+                registry.lookup_icon("Factory:decrease").unwrap(),
             ),
         }
     }
