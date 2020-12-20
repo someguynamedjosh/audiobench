@@ -16,7 +16,7 @@ pub struct DataFormat {
     pub feedback_data_len: usize,
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub struct GlobalData {
     // MIDI specifies each MIDI Channel has 128 controls.
     pub controller_values: [f32; 128],

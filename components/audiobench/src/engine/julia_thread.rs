@@ -115,13 +115,17 @@ impl JuliaThread {
 
     fn render(&mut self) {
         let mut ctd = self.ctd_mux.lock().unwrap();
-        let mut output = vec![0.0; ctd.global_params.channels * ctd.global_params.buffer_length];
         let CrossThreadData {
+            global_params,
             global_data,
             notes,
             perf_counter,
             ..
         } = &mut *ctd;
+        if (self.executor.parameters_have_changed(global_params)) {
+            self.executor.change_parameters(global_params).expect("TODO: Handle error.");
+        }
+        let mut output = vec![0.0; global_params.channels * global_params.buffer_length];
         let result =
             self.executor
                 .execute(false, global_data, notes, &mut output[..], perf_counter);

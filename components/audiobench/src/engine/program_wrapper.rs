@@ -19,7 +19,7 @@ const SILENT_CUTOFF: f32 = 1e-5;
 
 #[repr(C)]
 #[derive(Clone, Copy, JuliaStruct, IntoJulia)]
-#[jlrs(julia_type = "Main.Regsitry.Factory.Lib.NoteInput")]
+#[jlrs(julia_type = "Main.Registry.Factory.Lib.NoteInput")]
 struct NoteInput {
     pub pitch: f32,
     pub velocity: f32,
@@ -258,6 +258,7 @@ impl AudiobenchExecutorBuilder {
             base,
             parameters: parameters.clone(),
             registry_source: self.registry_source,
+            generated_source: GeneratedCode::from_unique_source("blank", ""),
             loaded: false,
         };
         res.change_parameters(parameters)?;
@@ -269,12 +270,18 @@ pub(super) struct AudiobenchExecutor {
     base: ExecutionEngine,
     parameters: GlobalParameters,
     registry_source: GeneratedCode,
+    generated_source: GeneratedCode,
     loaded: bool,
 }
 
 impl AudiobenchExecutor {
+    pub fn parameters_have_changed(&self, new_parameters: &GlobalParameters) -> bool {
+        &self.parameters != new_parameters
+    }
+
     pub fn change_parameters(&mut self, parameters: &GlobalParameters) -> Result<(), String> {
         self.loaded = false;
+        self.parameters = parameters.clone();
         let mut parameter_code = format!(
             concat!(
                 "module Parameters\n",
@@ -294,13 +301,13 @@ impl AudiobenchExecutor {
         self.base.add_global_code(self.registry_source.clone())?;
         // Redefine the Generated module to be blank because it may have been previously compiled
         // with old parameters.
-        let blank_mod = GeneratedCode::from_unique_source("Generated", "module Generated end");
-        self.base.add_global_code(blank_mod)?;
+        self.base.add_global_code(self.generated_source.clone())?;
         Ok(())
     }
 
     pub fn change_generated_code(&mut self, generated_code: GeneratedCode) -> Result<(), String> {
         // println!("{}", generated_code.as_str());
+        self.generated_source = generated_code.clone();
         self.base.add_global_code(generated_code)?;
         self.loaded = true;
         Ok(())
@@ -356,7 +363,7 @@ impl AudiobenchExecutor {
             let static_index = note.static_index;
             perf_counter.end_section(section);
 
-            let section = perf_counter.begin_section(&sections::NODESPEAK_EXEC);
+            // let section = perf_counter.begin_section(&sections::NODESPEAK_EXEC);
             self.base.call_fn(
                 &["Main", "Generated", "exec"],
                 |frame, inputs| {
@@ -366,7 +373,7 @@ impl AudiobenchExecutor {
                     Ok(())
                 },
                 |frame, output| {
-                    perf_counter.end_section(section);
+                    // perf_counter.end_section(section);
                     let audio = output.get_field(frame, "audio");
                     let audio = match audio {
                         Ok(v) => v,

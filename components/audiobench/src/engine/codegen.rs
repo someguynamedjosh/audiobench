@@ -152,6 +152,7 @@ impl<'a> CodeGenerator<'a> {
                 index, template_ref.lib_name, template_ref.module_name
             ));
         }
+        code.push_str("  end\n\n");
 
         code.push_str("  const static_container = Vector{StaticData}()\n\n");
         code.push_str("  function static_init(index::Integer)\n");
@@ -169,10 +170,10 @@ impl<'a> CodeGenerator<'a> {
         }
         code.push_str("\n    )\n");
         code.push_str(concat!(
-            "    if index > length(static_container)\n",
+            "    if index >= length(static_container)\n",
             "      push!(static_container, data)\n",
             "    else\n",
-            "      static_container[index] = data\n",
+            "      static_container[index + 1] = data\n",
             "    end\n",
         ));
         code.push_str("  end # function static_init\n\n");

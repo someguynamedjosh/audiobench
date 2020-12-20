@@ -96,7 +96,16 @@ pub struct PerfSectionGuard {
 impl Drop for PerfSectionGuard {
     fn drop(&mut self) {
         if !self.handled {
-            panic!("PerfSectionGuard dropped before being handled by end_section().");
+            let mut name: &'static str = "";
+            for section in &sections::ALL_SECTIONS {
+                if section.index == self.section_index {
+                    name = &section.name;
+                }
+            }
+            panic!(
+                "PerfSectionGuard({}) dropped before being handled by end_section().",
+                name
+            );
         }
     }
 }

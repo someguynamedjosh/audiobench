@@ -124,14 +124,15 @@ const STACK_SIZE: usize = 128;
 /// Code to run a function and return any produced exceptions as a string including a backtrace
 /// instead of just the raw exception argument.
 const EE_ENV: &'static str = r#"
-function __error_format_helper__(fn_to_run, argument)
+function __error_format_helper__(fn_to_run, arguments...)
     try
-        fn_to_run(argument)
+        fn_to_run(arguments...)
     catch error
         # Turn the error into a string describing the error (including a backtrace)
         # https://discourse.julialang.org/t/is-it-possible-to-get-an-exception-message-as-a-string/3201/4
         bt = catch_backtrace()
-        throw(sprint(showerror, error, bt))
+        new_error = sprint(showerror, error, bt)
+        throw(new_error)
     end
 end
 
@@ -200,8 +201,12 @@ impl ExecutionEngine {
     }
 
     fn format_error(error: Value) -> String {
-        let err = error.cast::<String>().unwrap();
-        err
+        error
+            .cast::<JuliaString>()
+            .unwrap()
+            .as_str()
+            .unwrap()
+            .to_owned()
     }
 
     /// Calls a Julia function, passing the output to a provided function. (It cannot outlive that
