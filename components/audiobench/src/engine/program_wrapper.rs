@@ -81,15 +81,15 @@ impl NoteTracker {
         440.0 * (2.0f32).powf((index as i32 - 69) as f32 / 12.0)
     }
 
-    pub fn start_note(&mut self, index: usize, velocity: f32) {
+    pub fn start_note(&mut self, index: usize, velocity: f32) -> usize {
         let mut static_index = 0;
         while self.reserved_static_indexes.contains(&static_index) {
             static_index += 1;
         }
         self.reserved_static_indexes.insert(static_index);
         let static_index = static_index;
-        if self.held_notes[index].is_some() {
-            return;
+        if let Some(note) = &self.held_notes[index] {
+            return note.static_index;
         }
         self.held_notes[index] = Some(CompleteNoteData {
             data: NoteData {
@@ -103,6 +103,7 @@ impl NoteTracker {
             silent_samples: 0,
             static_index,
         });
+        static_index
     }
 
     pub fn release_note(&mut self, index: usize) {
@@ -171,18 +172,13 @@ impl NoteTracker {
     }
 }
 
-pub(super) struct AudiobenchExecutor {
-    base: ExecutionEngine,
-    parameters: GlobalParameters,
+pub(super) struct AudiobenchExecutorBuilder {
     registry_source: GeneratedCode,
-    loaded: bool,
 }
 
-impl AudiobenchExecutor {
-    pub fn new(registry: &Registry, parameters: &GlobalParameters) -> Result<Self, String> {
-        let mut base = ExecutionEngine::new();
-        base.add_global_code(julia_helper::include_packed_library!("StaticArrays"))
-            .unwrap();
+/// This is so that we can have the registry and julia instance on seperate threads.
+impl AudiobenchExecutorBuilder {
+    pub fn new(registry: &Registry) -> Self {
         let mut registry_source = GeneratedCode::new();
         registry_source.append("module Registry\n", "generated");
         for (lib_name, _) in registry.borrow_library_infos() {
@@ -235,30 +231,48 @@ impl AudiobenchExecutor {
                     registry_source.append_clip(&exec_source);
                     registry_source.append("end", "generated");
                 } else {
-                    return Err(format!(
-                        concat!(
-                            "ERROR: Failed to load library {}, cause by:\nERROR: ",
-                            "The code for module {} does not define a function called exec()\n"
-                        ),
-                        lib_name, mod_name
-                    ));
+                    panic!("TODO: Skip & warning.");
+                    // return Err(format!(
+                    //     concat!(
+                    //         "ERROR: Failed to load library {}, cause by:\nERROR: ",
+                    //         "The code for module {} does not define a function called exec()\n"
+                    //     ),
+                    //     lib_name, mod_name
+                    // ));
                 }
                 registry_source.append(&format!("\nend # module {}\n", mod_name), "generated");
             }
             registry_source.append(&format!("\nend # module {}\n", lib_name), "generated");
         }
         registry_source.append("\nend # module Registry\n", "generated");
-        // println!("{}", registry_source.as_str());
+        Self {
+            registry_source
+        }
+    }
+
+    pub fn build(self, parameters: &GlobalParameters) -> Result<AudiobenchExecutor, String> {
+        let mut base = ExecutionEngine::new();
+        base.add_global_code(julia_helper::include_packed_library!("StaticArrays"))
+            .unwrap();
         let mut res = AudiobenchExecutor {
             base,
             parameters: parameters.clone(),
-            registry_source,
+            registry_source: self.registry_source,
             loaded: false,
         };
         res.change_parameters(parameters)?;
         Ok(res)
     }
+}
 
+pub(super) struct AudiobenchExecutor {
+    base: ExecutionEngine,
+    parameters: GlobalParameters,
+    registry_source: GeneratedCode,
+    loaded: bool,
+}
+
+impl AudiobenchExecutor {
     pub fn change_parameters(&mut self, parameters: &GlobalParameters) -> Result<(), String> {
         self.loaded = false;
         let mut parameter_code = format!(
@@ -300,7 +314,7 @@ impl AudiobenchExecutor {
 
     pub fn reset_static_data(&mut self, index: usize) -> Result<(), String> {
         self.base.call_fn(
-            &["Main", "Generated", "init_static"],
+            &["Main", "Generated", "static_init"],
             |frame, inputs| {
                 inputs.push(Value::new(frame, index)?);
                 Ok(())

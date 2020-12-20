@@ -152,16 +152,15 @@ impl<'a> CodeGenerator<'a> {
                 index, template_ref.lib_name, template_ref.module_name
             ));
         }
-        code.push_str("\n  end\n\n");
 
         code.push_str("  const static_container = Vector{StaticData}()\n\n");
-        code.push_str("  function init_static(index::Integer)\n");
+        code.push_str("  function static_init(index::Integer)\n");
         code.push_str("    data = StaticData(\n");
         for (index, module) in self.graph.borrow_modules().iter().enumerate() {
             let module_ref = module.borrow();
             let template_ref = module_ref.template.borrow();
             code.push_str(&format!(
-                "      Main.Registry.{}.{}.init_static()",
+                "      Main.Registry.{}.{}.static_init()",
                 template_ref.lib_name, template_ref.module_name
             ));
             if index < self.graph.borrow_modules().len() - 1 {
@@ -176,7 +175,7 @@ impl<'a> CodeGenerator<'a> {
             "      static_container[index] = data\n",
             "    end\n",
         ));
-        code.push_str("  end # function init_static\n\n");
+        code.push_str("  end # function static_init\n\n");
 
         code.push_str(concat!(
             "  function exec(midi_controls::Vector{Float32}, pitch_wheel::Float32, bpm::Float32, ",

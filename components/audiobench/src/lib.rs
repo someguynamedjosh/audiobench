@@ -285,11 +285,11 @@ impl Instance {
         self.engine.as_mut().map(|e| e.set_elapsed_beats(beats));
     }
 
-    pub fn render_audio(&mut self) -> &[f32] {
+    pub fn render_audio(&mut self) -> Vec<f32> {
         if let Some(engine) = self.engine.as_mut() {
             engine.render_audio()
         } else {
-            &self.silence[..]
+            self.silence.clone()
         }
     }
 
@@ -329,7 +329,7 @@ impl Instance {
             // we render the UI so it will show up in the UI.
             let engine_ref = self.engine.as_mut().unwrap();
             engine_ref.display_new_feedback_data();
-            let is_compiling = engine_ref.is_currently_compiling();
+            let is_compiling = engine_ref.is_julia_thread_busy();
             g.set_color(&gui::constants::COLOR_BG0);
             g.clear();
             if let Some(gui) = &mut self.gui {

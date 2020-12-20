@@ -1,11 +1,13 @@
 use super::codegen::{self, CodeGenResult};
 use super::data_routing::{AutoconDynDataCollector, FeedbackDisplayer, StaticonDynDataCollector};
 use super::data_transfer::{DataFormat, GlobalData, GlobalParameters};
+use super::julia_thread;
 use super::parts::ModuleGraph;
-use super::program_wrapper::{AudiobenchExecutor, NoteTracker};
+use super::program_wrapper::{AudiobenchExecutor, AudiobenchExecutorBuilder, NoteTracker};
 use crate::registry::{save_data::Patch, Registry};
 use julia_helper::GeneratedCode;
 use shared_util::{perf_counter::sections, prelude::*};
+use std::sync::mpsc::{self, Receiver, SyncSender};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
@@ -24,28 +26,32 @@ struct UiThreadData {
     current_patch_save_data: Rcrc<Patch>,
 }
 
-struct CrossThreadData {
-    global_params: GlobalParameters,
-    notes: NoteTracker,
-    new_source: Option<(GeneratedCode, DataFormat)>,
-    new_autocon_dyn_data: Option<Vec<f32>>,
-    new_staticon_dyn_data: Option<Vec<()>>, // Previously OwnedIOData
-    new_feedback_data: Option<Vec<f32>>,
-    critical_error: Option<String>,
-    perf_counter: PreferredPerfCounter,
-    currently_compiling: bool,
+pub(super) struct CrossThreadData {
+    pub julia_thread_status: julia_thread::Status,
+    /// We put this in with the other ctd instead of giving each thread its own copy so that we
+    /// don't get a situation where two threads send two requests at the same time thinking the
+    /// thread is not busy (julia_thread_status) and expecting to get a result back quickly.
+    pub julia_request_input: SyncSender<julia_thread::Request>,
+    pub global_params: GlobalParameters,
+    pub global_data: GlobalData,
+    pub notes: NoteTracker,
+    // new_source: Option<(GeneratedCode, DataFormat)>,
+    // new_autocon_dyn_data: Option<Vec<f32>>,
+    // new_staticon_dyn_data: Option<Vec<()>>, // Previously OwnedIOData
+    // new_feedback_data: Option<Vec<f32>>,
+    pub critical_error: Option<String>,
+    pub perf_counter: PreferredPerfCounter,
 }
 
 struct AudioThreadData {
-    executor: AudiobenchExecutor,
-    global_data: GlobalData,
     audio_buffer: Vec<f32>,
     last_feedback_data_update: Instant,
+    audio_response_output: Receiver<julia_thread::AudioResponse>,
 }
 
 pub struct Engine {
     utd: UiThreadData,
-    ctd_mux: Mutex<CrossThreadData>,
+    ctd_mux: Arc<Mutex<CrossThreadData>>,
     atd: AudioThreadData,
 }
 
@@ -93,6 +99,10 @@ impl Engine {
                 "error.",
             ),)
         })?;
+
+        let (reqi, reqo) = mpsc::sync_channel(0);
+        let (audio_resi, audio_reso) = mpsc::sync_channel(0);
+
         let utd = UiThreadData {
             module_graph: rcrc(module_graph),
             autocon_dyn_data_collector,
@@ -101,59 +111,49 @@ impl Engine {
             current_patch_save_data: default_patch,
         };
 
-        eprintln!("{:?}", std::thread::current());
-        let mut executor = AudiobenchExecutor::new(registry, &global_params).map_err(|err| {
-            format!(
-                concat!(
-                    "Failed to initialize execution environment!\n",
-                    "This is a critical error, please submit a bug report containing this ",
-                    "error:\n\n{}"
-                ),
-                err
-            )
-        })?;
-        executor.change_generated_code(code).map_err(|err| {
-            format!(
-                concat!(
-                    "Default patch failed to compile!\n",
-                    "This is a critical error, please submit a bug report containing this ",
-                    "error:\n\n{}"
-                ),
-                err
-            )
-        })?;
         let atd = AudioThreadData {
-            executor,
-            global_data: GlobalData::new(),
             audio_buffer: vec![0.0; data_format.global_params.buffer_length * 2],
             last_feedback_data_update: Instant::now(),
+            audio_response_output: audio_reso,
         };
 
+        let global_params_2 = global_params.clone();
         let ctd = CrossThreadData {
+            julia_thread_status: julia_thread::Status::Busy,
+            julia_request_input: reqi,
             global_params,
+            global_data: GlobalData::new(),
             notes: NoteTracker::new(data_format.clone()),
-            new_source: None,
-            new_autocon_dyn_data: None,
-            new_staticon_dyn_data: None,
-            new_feedback_data: None,
             critical_error: None,
             perf_counter: PreferredPerfCounter::new(),
-            currently_compiling: false,
         };
+        let ctd_mux = Arc::new(Mutex::new(ctd));
 
-        Ok(Self {
-            utd,
-            ctd_mux: Mutex::new(ctd),
-            atd,
-        })
+        let executor_builder = AudiobenchExecutorBuilder::new(registry);
+        let julia_ctd_mux = Arc::clone(&ctd_mux);
+        let julia_executor = move || {
+            julia_thread::entry(
+                julia_ctd_mux,
+                global_params_2,
+                executor_builder,
+                code,
+                reqo,
+                audio_resi,
+            );
+        };
+        std::thread::Builder::new()
+            .name("julia_executor".to_owned())
+            .spawn(julia_executor);
+
+        Ok(Self { utd, ctd_mux, atd })
     }
 
     pub fn clone_critical_error(&self) -> Option<String> {
         self.ctd_mux.lock().unwrap().critical_error.clone()
     }
 
-    pub fn is_currently_compiling(&self) -> bool {
-        self.ctd_mux.lock().unwrap().currently_compiling
+    pub fn is_julia_thread_busy(&self) -> bool {
+        self.ctd_mux.lock().unwrap().julia_thread_status == julia_thread::Status::Busy
     }
 
     // UI THREAD METHODS ===========================================================================
@@ -231,18 +231,18 @@ impl Engine {
             .map_err(|_| format!("The note graph cannot contain feedback loops"))?;
         ctd.perf_counter.end_section(section);
         drop(module_graph_ref);
-        ctd.new_source = Some((new_gen.code, new_gen.data_format.clone()));
+        // ctd.new_source = Some((new_gen.code, new_gen.data_format.clone()));
         let section = ctd
             .perf_counter
             .begin_section(&sections::COLLECT_AUTOCON_DATA);
-        ctd.new_autocon_dyn_data = Some(new_gen.autocon_dyn_data_collector.collect_data());
+        // ctd.new_autocon_dyn_data = Some(new_gen.autocon_dyn_data_collector.collect_data());
         ctd.perf_counter.end_section(section);
         let section = ctd
             .perf_counter
             .begin_section(&sections::COLLECT_STATICON_DATA);
-        ctd.new_staticon_dyn_data = Some(new_gen.staticon_dyn_data_collector.collect_data());
+        // ctd.new_staticon_dyn_data = Some(new_gen.staticon_dyn_data_collector.collect_data());
         ctd.perf_counter.end_section(section);
-        ctd.new_feedback_data = None;
+        // ctd.new_feedback_data = None;
         self.utd.autocon_dyn_data_collector = new_gen.autocon_dyn_data_collector;
         self.utd.staticon_dyn_data_collector = new_gen.staticon_dyn_data_collector;
         self.utd.feedback_displayer = new_gen.feedback_displayer;
@@ -255,7 +255,7 @@ impl Engine {
         let section = ctd
             .perf_counter
             .begin_section(&sections::COLLECT_AUTOCON_DATA);
-        ctd.new_autocon_dyn_data = Some(self.utd.autocon_dyn_data_collector.collect_data());
+        // ctd.new_autocon_dyn_data = Some(self.utd.autocon_dyn_data_collector.collect_data());
         ctd.perf_counter.end_section(section);
     }
 
@@ -265,7 +265,7 @@ impl Engine {
         let section = ctd
             .perf_counter
             .begin_section(&sections::COLLECT_STATICON_DATA);
-        ctd.new_staticon_dyn_data = Some(self.utd.staticon_dyn_data_collector.collect_data());
+        // ctd.new_staticon_dyn_data = Some(self.utd.staticon_dyn_data_collector.collect_data());
         ctd.perf_counter.end_section(section);
     }
 
@@ -275,9 +275,9 @@ impl Engine {
     /// the mutex.
     pub fn display_new_feedback_data(&mut self) {
         if let Ok(mut ctd) = self.ctd_mux.try_lock() {
-            if let Some(data) = ctd.new_feedback_data.take() {
-                self.utd.feedback_displayer.display_feedback(&data[..]);
-            }
+            // if let Some(data) = ctd.new_feedback_data.take() {
+            //     self.utd.feedback_displayer.display_feedback(&data[..]);
+            // }
         }
     }
 
@@ -300,15 +300,19 @@ impl Engine {
     }
 
     pub fn start_note(&mut self, index: usize, velocity: f32) {
-        if self.atd.executor.is_generated_code_loaded() {
-            let mut ctd = self.ctd_mux.lock().unwrap();
-            let static_index = ctd.notes.start_note(index, velocity);
-            unimplemented!("TODO: Reset static data.");
-        }
+        // TODO: Don't wait for julia thread.
+        let mut ctd = self.ctd_mux.lock().unwrap();
+        ctd.julia_request_input
+            .send(julia_thread::Request::StartNote { index, velocity })
+            .unwrap();
     }
 
     pub fn release_note(&mut self, index: usize) {
-        self.ctd_mux.lock().unwrap().notes.release_note(index)
+        // TODO: Don't wait for julia thread.
+        let mut ctd = self.ctd_mux.lock().unwrap();
+        ctd.julia_request_input
+            .send(julia_thread::Request::ReleaseNote { index })
+            .unwrap();
     }
 
     pub fn set_pitch_wheel(&mut self, new_pitch_wheel: f32) {
@@ -317,7 +321,7 @@ impl Engine {
             "{} is not a valid pitch wheel value.",
             new_pitch_wheel
         );
-        self.atd.global_data.pitch_wheel = new_pitch_wheel;
+        self.ctd_mux.lock().unwrap().global_data.pitch_wheel = new_pitch_wheel;
     }
 
     pub fn set_control(&mut self, index: usize, value: f32) {
@@ -327,46 +331,44 @@ impl Engine {
             value
         );
         assert!(index < 128, "{} is not a valid control index.", index);
-        self.atd.global_data.controller_values[index] = value;
+        self.ctd_mux.lock().unwrap().global_data.controller_values[index] = value;
     }
 
     pub fn set_bpm(&mut self, bpm: f32) {
-        self.atd.global_data.bpm = bpm;
+        self.ctd_mux.lock().unwrap().global_data.bpm = bpm;
     }
 
     pub fn set_elapsed_time(&mut self, time: f32) {
-        self.atd.global_data.elapsed_time = time;
+        self.ctd_mux.lock().unwrap().global_data.elapsed_time = time;
     }
 
     pub fn set_elapsed_beats(&mut self, beats: f32) {
-        self.atd.global_data.elapsed_beats = beats;
+        self.ctd_mux.lock().unwrap().global_data.elapsed_beats = beats;
     }
 
-    pub fn render_audio(&mut self) -> &[f32] {
-        eprintln!("{:?}", std::thread::current());
-        let mut ctd = self.ctd_mux.lock().unwrap();
-
-        if let Some((code, data_format)) = ctd.new_source.take() {
-            ctd.notes.set_data_format(data_format.clone());
-            let section = ctd.perf_counter.begin_section(&sections::COMPILE_CODE);
-            ctd.currently_compiling = true;
-            // Compilation takes a while. Drop ctd so that other threads can use it.
-            drop(ctd);
-            let res = self.atd.executor.change_generated_code(code);
-            ctd = self.ctd_mux.lock().unwrap();
-            if let Err(err) = res {
-                ctd.critical_error = Some(format!(
-                    concat!(
-                        "Note graph failed to compile!\n",
-                        "This is a critical error, please submit a bug report containing this error ",
-                        "message:\n\n{}",
-                    ),
-                    err
-                ));
-            }
-            ctd.currently_compiling = false;
-            ctd.perf_counter.end_section(section);
-        }
+    pub fn render_audio(&mut self) -> Vec<f32> {
+        // TODO: Also this.
+        // if let Some((code, data_format)) = ctd.new_source.take() {
+        //     ctd.notes.set_data_format(data_format.clone());
+        //     let section = ctd.perf_counter.begin_section(&sections::COMPILE_CODE);
+        //     ctd.currently_compiling = true;
+        //     // Compilation takes a while. Drop ctd so that other threads can use it.
+        //     drop(ctd);
+        //     let res = self.atd.executor.change_generated_code(code);
+        //     ctd = self.ctd_mux.lock().unwrap();
+        //     if let Err(err) = res {
+        //         ctd.critical_error = Some(format!(
+        //             concat!(
+        //                 "Note graph failed to compile!\n",
+        //                 "This is a critical error, please submit a bug report containing this error ",
+        //                 "message:\n\n{}",
+        //             ),
+        //             err
+        //         ));
+        //     }
+        //     ctd.currently_compiling = false;
+        //     ctd.perf_counter.end_section(section);
+        // }
         // TODO: This.
         // if let Some(program) = &mut self.atd.current_program {
         //     let mut input_packer = program.get_input_packer();
@@ -377,39 +379,48 @@ impl Engine {
         //         input_packer.set_staticon_dyn_data(&new_staticon_dyn_data[..]);
         //     }
         // }
-        let audio_buf_len = ctd.global_params.buffer_length * 2;
-        if self.atd.audio_buffer.len() != audio_buf_len {
-            self.atd.audio_buffer.resize(audio_buf_len, 0.0);
-        }
         let update_feedback_data =
             self.atd.last_feedback_data_update.elapsed() > FEEDBACK_UPDATE_INTERVAL;
         if update_feedback_data {
             self.atd.last_feedback_data_update = Instant::now();
         }
-        if self.atd.executor.is_generated_code_loaded() {
-            let CrossThreadData {
-                notes,
-                perf_counter,
-                ..
-            } = &mut *ctd;
-            let result = self.atd.executor.execute(
-                update_feedback_data,
-                &mut self.atd.global_data,
-                notes,
-                &mut self.atd.audio_buffer[..],
-                perf_counter,
-            );
-            if let Err(err) = result {
-                ctd.critical_error = Some(err);
-                // TODO: Clear program?
-            } else if let Ok(true) = result {
-                // Returns true if new feedback data was written.
-                // TODO: This.
-                // ctd.new_feedback_data = Some(Vec::from(
-                //     program.get_output_unpacker().borrow_feedback_data(),
-                // ));
+        let mut ctd = self.ctd_mux.lock().unwrap();
+        let ok = ctd
+            .julia_request_input
+            .try_send(julia_thread::Request::Render)
+            .is_ok();
+        drop(ctd);
+        if ok {
+            if let Ok(result) = self.atd.audio_response_output.recv() {
+                return result.audio;
             }
         }
-        &self.atd.audio_buffer[..]
+        let mut ctd = self.ctd_mux.lock().unwrap();
+        let size = ctd.global_params.channels * ctd.global_params.buffer_length;
+        vec![0.0; size]
+        // if self.atd.executor.is_generated_code_loaded() {
+        //     let CrossThreadData {
+        //         notes,
+        //         perf_counter,
+        //         ..
+        //     } = &mut *ctd;
+        //     let result = self.atd.executor.execute(
+        //         update_feedback_data,
+        //         &mut self.atd.global_data,
+        //         notes,
+        //         &mut self.atd.audio_buffer[..],
+        //         perf_counter,
+        //     );
+        //     if let Err(err) = result {
+        //         ctd.critical_error = Some(err);
+        //     // TODO: Clear program?
+        //     } else if let Ok(true) = result {
+        //         // Returns true if new feedback data was written.
+        //         // TODO: This.
+        //         // ctd.new_feedback_data = Some(Vec::from(
+        //         //     program.get_output_unpacker().borrow_feedback_data(),
+        //         // ));
+        //     }
+        // }
     }
 }
