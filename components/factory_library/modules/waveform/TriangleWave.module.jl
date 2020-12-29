@@ -1,6 +1,6 @@
 function exec()
     waveform = function(phase, buffer_pos::Integer)
-        SampleType = promote_vectorized(typeof(phase), at2st(typeof(peak_phase)))
+        SampleType = promote_vectorized(typeof2(phase), at2st(typeof(peak_phase)))
         sample = similar(SampleType)
         for c in channel_indices(sample)
             phase_here = phase[c]

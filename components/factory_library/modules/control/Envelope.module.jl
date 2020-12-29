@@ -10,6 +10,13 @@ end
 
 function exec()
     signal = similar(MonoAudio)
+
+    # TODO: Remove.
+    timing_mode = 0 
+    attack_time = 0.005f0
+    decay_time = 0.5f0
+    release_time = 0.2f0
+
     timing = get_timing(context, timing_mode)
     for i in sample_indices(signal)
         if !static.releasing
@@ -44,30 +51,30 @@ function exec()
             static.last_value = value
         end
 
-        signal[i] = value * 2f0 - 1f0
+        signal[1, i] = value * 2f0 - 1f0
     end
 
-    if context.global_in.do_update
-        now_time = first(timing) - static.start;
-        if releasing
-            now_time = now_time + attack_time + decay_time;
-            if now_time > attack_time + decay_time + release_time
-                now_time = attack_time + decay_time + release_time;
-            end
-        elseif now_time > attack_time + decay_time
-            now_time = attack_time + decay_time;
-        end
-        multiplier = 1f0
-        if TimingModeIsBeatSynchronized(TIMING_MODE)
-            multiplier = 60.0 / global_bpm;
-        end
-        SetGraphFeedback([
-            attack_time * multiplier,
-            decay_time * multiplier,
-            first(sustain),
-            release_time * multiplier,
-            now_time * multiplier,
-            first(signal),
-        ])
-    end
+    # if context.global_in.do_update
+    #     now_time = first(timing) - static.start;
+    #     if releasing
+    #         now_time = now_time + attack_time + decay_time;
+    #         if now_time > attack_time + decay_time + release_time
+    #             now_time = attack_time + decay_time + release_time;
+    #         end
+    #     elseif now_time > attack_time + decay_time
+    #         now_time = attack_time + decay_time;
+    #     end
+    #     multiplier = 1f0
+    #     if TimingModeIsBeatSynchronized(TIMING_MODE)
+    #         multiplier = 60.0 / global_bpm;
+    #     end
+    #     SetGraphFeedback([
+    #         attack_time * multiplier,
+    #         decay_time * multiplier,
+    #         first(sustain),
+    #         release_time * multiplier,
+    #         now_time * multiplier,
+    #         first(signal),
+    #     ])
+    # end
 end

@@ -196,17 +196,50 @@ impl ExecutionEngine {
                 self.global_code_segments.push(code);
                 Ok(())
             }
-            Err(err) => Err(Self::format_error(err)),
+            Err(err) => Err(Self::format_error(err, &self.global_code_segments[..])),
         }
     }
 
-    fn format_error(error: Value) -> String {
-        error
+    fn format_error(error: Value, segments: &[GeneratedCode]) -> String {
+        let raw_error = error
             .cast::<JuliaString>()
             .unwrap()
             .as_str()
             .unwrap()
-            .to_owned()
+            .to_owned();
+        let mut error = &raw_error[..];
+        let mut result = String::new();
+        while let Some(index) = error.find("./__global_code_") {
+            let before = &error[..index];
+            result.push_str(before);
+            let file_start = index + "./__global_code_".as_bytes().len();
+            let file_end = file_start + (&error[file_start..]).find("__.jl:").unwrap();
+            let file = (&error[file_start..file_end]).parse::<usize>().unwrap();
+            let line_start = file_end + "__.jl:".as_bytes().len();
+            let line_end = line_start
+                + (&error[line_start..])
+                    .find("\n")
+                    .unwrap_or(error.len() - line_start);
+            let line = (&error[line_start..line_end])
+                .trim()
+                .parse::<usize>()
+                .unwrap();
+            let source_segment = &segments[file];
+            assert!(source_segment.code_map.len() > 0);
+            let mut candidate = source_segment.code_map[0].clone();
+            for (gen, og) in &source_segment.code_map {
+                if gen.line > line {
+                    break;
+                } else {
+                    candidate = (gen.clone(), og.clone());
+                }
+            }
+            let real_line = line - candidate.0.line + candidate.1.position.line;
+            result.push_str(&format!("{}:{}", candidate.1.filename, real_line));
+            error = &error[line_end..];
+        }
+        result.push_str(&error);
+        result
     }
 
     /// Calls a Julia function, passing the output to a provided function. (It cannot outlive that
@@ -224,7 +257,12 @@ impl ExecutionEngine {
         ) -> JlrsResult<()>,
         OF: for<'f> FnOnce(&mut StaticFrame<'f, jlrs::mode::Sync>, Value<'f, 'f>) -> JlrsResult<O>,
     {
-        let r = self.julia.frame(STACK_SIZE - 10, |global, frame| {
+        let Self {
+            julia,
+            global_code_segments,
+            ..
+        } = self;
+        let r = julia.frame(STACK_SIZE - 10, |global, frame| {
             let mut module = Module::main(global);
             let wrapper = module.function("__error_format_helper__").unwrap();
             let path_len = path.len();
@@ -266,7 +304,7 @@ impl ExecutionEngine {
                         value.type_name()
                     )
                 }),
-                Err(err) => Err(Self::format_error(err)),
+                Err(err) => Err(Self::format_error(err, &global_code_segments[..])),
             })
         });
         r.unwrap()

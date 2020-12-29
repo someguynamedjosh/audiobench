@@ -82,6 +82,7 @@ dependencies = [
  "serde_json",
  "shared_util",
  "single_value_channel",
+ "tempfile",
  "walkdir",
  "webbrowser",
  "yaml_widget_boilerplate",

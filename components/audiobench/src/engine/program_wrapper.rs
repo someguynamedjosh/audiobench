@@ -51,16 +51,14 @@ struct CompleteNoteData {
 pub struct NoteTracker {
     held_notes: [Option<CompleteNoteData>; NUM_MIDI_NOTES],
     decaying_notes: Vec<CompleteNoteData>,
-    data_format: DataFormat,
     reserved_static_indexes: HashSet<usize>,
 }
 
 impl NoteTracker {
-    pub fn new(data_format: DataFormat) -> Self {
+    pub fn new() -> Self {
         Self {
             held_notes: array![None; NUM_MIDI_NOTES],
             decaying_notes: Vec::new(),
-            data_format,
             reserved_static_indexes: HashSet::new(),
         }
     }
@@ -68,12 +66,6 @@ impl NoteTracker {
     pub fn silence_all(&mut self) {
         self.held_notes = array![None; NUM_MIDI_NOTES];
         self.decaying_notes.clear();
-    }
-
-    pub fn set_data_format(&mut self, data_format: DataFormat) {
-        self.data_format = data_format;
-        // Old notes may not be compatible with the new data data_format.
-        self.silence_all();
     }
 
     fn equal_tempered_tuning(index: usize) -> f32 {
@@ -114,9 +106,9 @@ impl NoteTracker {
         }
     }
 
-    fn advance_all_notes(&mut self, global_data: &GlobalData) {
-        let sample_rate = self.data_format.global_params.sample_rate as f32;
-        let buffer_len = self.data_format.global_params.buffer_length;
+    fn advance_all_notes(&mut self, global_params: &GlobalParameters, global_data: &GlobalData) {
+        let sample_rate = global_params.sample_rate as f32;
+        let buffer_len = global_params.buffer_length;
         let min_silent_samples = (MIN_SILENT_TIME * sample_rate) as usize;
         let buffer_beats = global_data.bpm / 60.0 * buffer_len as f32 / sample_rate;
         for index in (0..self.decaying_notes.len()).rev() {
@@ -198,14 +190,17 @@ impl AudiobenchExecutorBuilder {
                 let mod_template = mod_def.template.borrow();
 
                 registry_source.append(
-                    &format!("\nmodule {}\nusing Main.Registry.Factory.Lib\n", mod_name),
+                    &format!(
+                        "\nmodule {}Module\nusing Main.Registry.Factory.Lib\n",
+                        mod_name
+                    ),
                     "generated",
                 );
                 if let (Some(struct_src), Some(init_src)) = (
                     file_content.clip_section("mutable struct StaticData", "end"),
                     file_content.clip_section("function static_init()", "end"),
                 ) {
-                    registry_source.append("struct StaticData ", "generated");
+                    registry_source.append("mutable struct StaticData ", "generated");
                     registry_source.append_clip(&struct_src);
                     registry_source.append(" end\n\nfunction static_init() ", "generated");
                     registry_source.append_clip(&init_src);
@@ -229,7 +224,16 @@ impl AudiobenchExecutorBuilder {
                     func_header.push_str("static::StaticData) ");
                     registry_source.append(&func_header, "generated");
                     registry_source.append_clip(&exec_source);
-                    registry_source.append("end", "generated");
+
+                    // Return outputs and modified static data. TODO: do this for early returns
+                    // specified by the programmer as well.
+                    let mut func_close = String::from(" return (");
+                    for output in &mod_template.outputs {
+                        func_close.push_str(output.borrow_code_name());
+                        func_close.push_str(", ");
+                    }
+                    func_close.push_str("static,) end ");
+                    registry_source.append(&func_close, "generated");
                 } else {
                     panic!("TODO: Skip & warning.");
                     // return Err(format!(
@@ -245,9 +249,13 @@ impl AudiobenchExecutorBuilder {
             registry_source.append(&format!("\nend # module {}\n", lib_name), "generated");
         }
         registry_source.append("\nend # module Registry\n", "generated");
-        Self {
-            registry_source
+
+        let mut temp_file = std::env::temp_dir();
+        temp_file.push("audiobench_registry_code.jl");
+        if std::fs::write(temp_file, registry_source.as_str()).is_err() {
+            unimplemented!("TODO: Handle failed tempfile.");
         }
+        Self { registry_source }
     }
 
     pub fn build(self, parameters: &GlobalParameters) -> Result<AudiobenchExecutor, String> {
@@ -306,7 +314,11 @@ impl AudiobenchExecutor {
     }
 
     pub fn change_generated_code(&mut self, generated_code: GeneratedCode) -> Result<(), String> {
-        // println!("{}", generated_code.as_str());
+        let mut temp_file = std::env::temp_dir();
+        temp_file.push("audiobench_note_graph_code.jl");
+        if std::fs::write(temp_file, generated_code.as_str()).is_err() {
+            unimplemented!("TODO: Handle failed tempfile.");
+        }
         self.generated_source = generated_code.clone();
         self.base.add_global_code(generated_code)?;
         self.loaded = true;
@@ -335,12 +347,10 @@ impl AudiobenchExecutor {
     pub fn execute(
         &mut self,
         update_feedback: bool,
-        global_data: &mut GlobalData,
+        global_data: &GlobalData,
         notes: &mut NoteTracker,
         audio_output: &mut [f32],
-        perf_counter: &mut impl PerfCounter,
     ) -> Result<bool, String> {
-        let section = perf_counter.begin_section(&sections::GLOBAL_SETUP);
         let channels = self.parameters.channels;
         let buf_len = self.parameters.buffer_length;
         let sample_rate = self.parameters.sample_rate;
@@ -355,25 +365,21 @@ impl AudiobenchExecutor {
         } else {
             None
         };
-        perf_counter.end_section(section);
 
         for note in notes.active_notes_mut() {
-            let section = perf_counter.begin_section(&sections::NOTE_SETUP);
             let note_input = NoteInput::from(&note.data, &self.parameters);
             let static_index = note.static_index;
-            perf_counter.end_section(section);
 
-            // let section = perf_counter.begin_section(&sections::NODESPEAK_EXEC);
             self.base.call_fn(
                 &["Main", "Generated", "exec"],
                 |frame, inputs| {
                     inputs.append(&mut global_data.as_julia_values(frame)?);
+                    inputs.push(Value::new(frame, update_feedback)?);
                     inputs.push(Value::new(frame, note_input)?);
                     inputs.push(Value::new(frame, static_index)?);
                     Ok(())
                 },
                 |frame, output| {
-                    // perf_counter.end_section(section);
                     let audio = output.get_field(frame, "audio");
                     let audio = match audio {
                         Ok(v) => v,
@@ -394,7 +400,6 @@ impl AudiobenchExecutor {
                         }
                     };
                     let audio = audio.inline_data(frame)?.into_slice();
-                    let section = perf_counter.begin_section(&sections::NOTE_FINALIZE);
                     let mut silent = true;
                     for i in 0..buf_len * channels {
                         audio_output[i] += audio[i];
@@ -405,17 +410,12 @@ impl AudiobenchExecutor {
                     } else {
                         note.silent_samples = 0;
                     }
-                    perf_counter.end_section(section);
                     Ok(Ok(()))
                 },
             )??;
         }
 
-        let section = perf_counter.begin_section(&sections::GLOBAL_FINALIZE);
-        notes.advance_all_notes(global_data);
-        global_data.elapsed_time += buf_time;
-        global_data.elapsed_beats += buf_time * global_data.bpm / 60.0;
-        perf_counter.end_section(section);
+        notes.advance_all_notes(&self.parameters, global_data);
         Ok(feedback_note.is_some())
     }
 }

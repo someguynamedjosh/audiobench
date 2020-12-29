@@ -63,8 +63,8 @@ impl<'a> CodeGenerator<'a> {
     fn next_aux_value(&mut self) -> String {
         self.current_autocon_dyn_data_item += 1;
         format!(
-            "global_autocon_dyn_data[{}]",
-            self.current_autocon_dyn_data_item - 1
+            "StaticMonoAudio(global_autocon_dyn_data[{}])",
+            self.current_autocon_dyn_data_item - 1 + 1 // Julia indexes start at 1.
         )
     }
 
@@ -77,7 +77,7 @@ impl<'a> CodeGenerator<'a> {
         // channel such that mulitplying by the first and adding the second will generate the
         // appropriate transformation. See AutoconDynDataCollector::collect_data for more.
         format!(
-            "module_{}_output_{} * {} + {}",
+            "module_{}_output_{} .* {} .+ {}",
             mod_index,
             lane.connection.1,
             self.next_aux_value(),
@@ -93,7 +93,7 @@ impl<'a> CodeGenerator<'a> {
         } else {
             let mut code = self.generate_code_for_lane(&control_ref.automation[0]);
             for lane in &control_ref.automation[1..] {
-                code.push_str(" + ");
+                code.push_str(" .+ ");
                 code.push_str(&self.generate_code_for_lane(lane));
             }
             code
@@ -148,7 +148,7 @@ impl<'a> CodeGenerator<'a> {
             let template_ref = module_ref.template.borrow();
             code.push_str("\n    for_module_");
             code.push_str(&format!(
-                "{}::Main.Registry.{}.{}.StaticData",
+                "{}::Main.Registry.{}.{}Module.StaticData",
                 index, template_ref.lib_name, template_ref.module_name
             ));
         }
@@ -161,7 +161,7 @@ impl<'a> CodeGenerator<'a> {
             let module_ref = module.borrow();
             let template_ref = module_ref.template.borrow();
             code.push_str(&format!(
-                "      Main.Registry.{}.{}.static_init()",
+                "      Main.Registry.{}.{}Module.static_init()",
                 template_ref.lib_name, template_ref.module_name
             ));
             if index < self.graph.borrow_modules().len() - 1 {
@@ -182,8 +182,12 @@ impl<'a> CodeGenerator<'a> {
             "  function exec(midi_controls::Vector{Float32}, pitch_wheel::Float32, bpm::Float32, ",
             "elapsed_time::Float32, elapsed_beats::Float32, do_update::Bool, ",
             "note_input::NoteInput, static_index::Integer)\n",
+            "    static_index += 1\n", // grumble grumble
             "    global_input = GlobalInput(midi_controls, pitch_wheel, bpm, elapsed_time, ",
             "elapsed_beats, do_update)\n",
+            "    global_start_trigger = Trigger(note_input.start_trigger, repeat([false], buffer_length - 1)...)\n",
+            "    global_release_trigger = Trigger(note_input.release_trigger, repeat([false], buffer_length - 1)...)\n",
+            "    global_autocon_dyn_data = SA_F32[0.25f0, 0.25f0, 0.25f0, 0.25f0, 0.25f0, 0.25f0, 0.25f0, 0.25f0, 0.25f0, 0.25f0, 0.25f0]\n",
             "    note_output = NoteOutput()\n",
             "    context = NoteContext(global_input, note_input, note_output)\n",
         ));

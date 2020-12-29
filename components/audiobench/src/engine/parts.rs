@@ -103,35 +103,35 @@ impl JackType {
         match self {
             Self::Pitch => &[DefaultInputDescription {
                 name: "Note Pitch",
-                code: "global_pitch",
+                code: "StaticMonoAudio(note_input.pitch)",
                 icon: "Factory:note",
             }],
             Self::Waveform => &[
                 DefaultInputDescription {
                     name: "Silence",
-                    code: "FlatWaveform",
+                    code: "flat_waveform",
                     // TODO: Better icon.
                     icon: "Factory:nothing",
                 },
                 DefaultInputDescription {
                     name: "Ramp Up",
-                    code: "RampUpWaveform",
+                    code: "ramp_up_waveform",
                     icon: "Factory:ramp_up",
                 },
                 DefaultInputDescription {
                     name: "Ramp Down",
-                    code: "RampDownWaveform",
+                    code: "ramp_down_waveform",
                     icon: "Factory:ramp_down",
                 },
                 DefaultInputDescription {
                     name: "Sine Wave",
-                    code: "SineWaveform",
+                    code: "sine_waveform",
                     icon: "Factory:sine_wave",
                 },
             ],
             Self::Audio => &[DefaultInputDescription {
                 name: "Silence",
-                code: "0.0",
+                code: "StaticMonoAudio(0f0)",
                 icon: "Factory:nothing",
             }],
             Self::Trigger => &[
@@ -147,7 +147,7 @@ impl JackType {
                 },
                 DefaultInputDescription {
                     name: "Never",
-                    code: "FALSE",
+                    code: "StaticTrigger(False)",
                     icon: "Factory:nothing",
                 },
             ],

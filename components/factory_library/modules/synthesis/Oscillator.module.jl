@@ -1,5 +1,5 @@
 mutable struct StaticData
-    phase::StereoSample
+    phase::mutable(StereoSample)
 end
 
 function static_init()
@@ -14,13 +14,13 @@ function exec()
     audio = similar(AudioType)
     sample = similar(WaveformOutputType)
     phase = viewas(static.phase, mutable(PhaseType))
-    phase_delta = similar(phase)
+    phase_delta = similar(PhaseType)
 
     @views for s in sample_indices(AudioType)
         sample .= 0f0
         phase_delta .= pitch[:, s] ./ sample_rate ./ Float32(oversampling)
         for subsample in 1:oversampling
-            sample .+= waveform(s, phase)
+            sample .+= waveform(phase, s)
             phase .= (phase .+ phase_delta) .% 1f0
         end
         audio[:, s] .= sample .* amplitude[:, s] ./ Float32(oversampling)

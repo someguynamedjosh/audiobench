@@ -1,6 +1,6 @@
 use super::base::CrossThreadData;
-use super::data_transfer::GlobalParameters;
-use super::program_wrapper::{AudiobenchExecutor, AudiobenchExecutorBuilder};
+use super::data_transfer::{GlobalData, GlobalParameters};
+use super::program_wrapper::{AudiobenchExecutor, AudiobenchExecutorBuilder, NoteTracker};
 use julia_helper::GeneratedCode;
 use std::sync::mpsc::{Receiver, SyncSender};
 use std::sync::{Arc, Mutex};
@@ -13,7 +13,8 @@ pub enum Status {
 }
 
 pub enum Request {
-    Render,
+    Render(GlobalData),
+    ChangeGlobalParams(GlobalParameters),
     StartNote { index: usize, velocity: f32 },
     ReleaseNote { index: usize },
 }
@@ -72,6 +73,8 @@ pub(super) fn entry(
     let mut thread = JuliaThread {
         ctd_mux,
         executor,
+        global_params,
+        notes: NoteTracker::new(),
         request_pipe,
         audio_response_pipe,
     };
@@ -81,6 +84,8 @@ pub(super) fn entry(
 struct JuliaThread {
     ctd_mux: Arc<Mutex<CrossThreadData>>,
     executor: AudiobenchExecutor,
+    global_params: GlobalParameters,
+    notes: NoteTracker,
     request_pipe: Receiver<Request>,
     audio_response_pipe: SyncSender<AudioResponse>,
 }
@@ -97,45 +102,37 @@ impl JuliaThread {
         while let Ok(request) = self.request_pipe.recv() {
             self.set_status(Status::Busy);
             match request {
-                Request::Render => self.render(),
+                Request::Render(global_data) => self.render(global_data),
+                Request::ChangeGlobalParams(params) => {
+                    self.executor
+                        .change_parameters(&params)
+                        .expect("TODO: Handle error.");
+                    self.global_params = params;
+                }
                 Request::StartNote { index, velocity } => {
-                    let mut ctd = self.ctd_mux.lock().unwrap();
-                    let static_index = ctd.notes.start_note(index, velocity);
+                    let static_index = self.notes.start_note(index, velocity);
                     self.executor
                         .reset_static_data(static_index)
                         .expect("TODO: Handle error.");
                 }
                 Request::ReleaseNote { index } => {
-                    let mut ctd = self.ctd_mux.lock().unwrap();
-                    let static_index = ctd.notes.release_note(index);
+                    self.notes.release_note(index);
                 }
             }
         }
     }
 
-    fn render(&mut self) {
-        let mut ctd = self.ctd_mux.lock().unwrap();
-        let CrossThreadData {
-            global_params,
-            global_data,
-            notes,
-            perf_counter,
-            ..
-        } = &mut *ctd;
-        if (self.executor.parameters_have_changed(global_params)) {
-            self.executor.change_parameters(global_params).expect("TODO: Handle error.");
-        }
-        let mut output = vec![0.0; global_params.channels * global_params.buffer_length];
-        let result =
-            self.executor
-                .execute(false, global_data, notes, &mut output[..], perf_counter);
+    fn render(&mut self, global_data: GlobalData) {
+        let mut output = vec![0.0; self.global_params.channels * self.global_params.buffer_length];
+        let result = self
+            .executor
+            .execute(false, &global_data, &mut self.notes, &mut output[..]);
         let feedback_updated = match result {
             Ok(v) => v,
-            Err(err) => unimplemented!("Handle Julia error."),
+            Err(err) => unimplemented!("Handle Julia error:\n{}", err),
         };
         self.audio_response_pipe
             .send(AudioResponse { audio: output });
-        drop(ctd);
         self.set_status(Status::Ready);
     }
 }

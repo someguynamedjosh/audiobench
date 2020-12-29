@@ -33,8 +33,6 @@ pub(super) struct CrossThreadData {
     /// thread is not busy (julia_thread_status) and expecting to get a result back quickly.
     pub julia_request_input: SyncSender<julia_thread::Request>,
     pub global_params: GlobalParameters,
-    pub global_data: GlobalData,
-    pub notes: NoteTracker,
     // new_source: Option<(GeneratedCode, DataFormat)>,
     // new_autocon_dyn_data: Option<Vec<f32>>,
     // new_staticon_dyn_data: Option<Vec<()>>, // Previously OwnedIOData
@@ -45,6 +43,7 @@ pub(super) struct CrossThreadData {
 
 struct AudioThreadData {
     audio_buffer: Vec<f32>,
+    global_data: GlobalData,
     last_feedback_data_update: Instant,
     audio_response_output: Receiver<julia_thread::AudioResponse>,
 }
@@ -113,6 +112,7 @@ impl Engine {
 
         let atd = AudioThreadData {
             audio_buffer: vec![0.0; data_format.global_params.buffer_length * 2],
+            global_data: GlobalData::new(),
             last_feedback_data_update: Instant::now(),
             audio_response_output: audio_reso,
         };
@@ -122,8 +122,6 @@ impl Engine {
             julia_thread_status: julia_thread::Status::Busy,
             julia_request_input: reqi,
             global_params,
-            global_data: GlobalData::new(),
-            notes: NoteTracker::new(data_format.clone()),
             critical_error: None,
             perf_counter: PreferredPerfCounter::new(),
         };
@@ -321,7 +319,7 @@ impl Engine {
             "{} is not a valid pitch wheel value.",
             new_pitch_wheel
         );
-        self.ctd_mux.lock().unwrap().global_data.pitch_wheel = new_pitch_wheel;
+        self.atd.global_data.pitch_wheel = new_pitch_wheel;
     }
 
     pub fn set_control(&mut self, index: usize, value: f32) {
@@ -331,19 +329,19 @@ impl Engine {
             value
         );
         assert!(index < 128, "{} is not a valid control index.", index);
-        self.ctd_mux.lock().unwrap().global_data.controller_values[index] = value;
+        self.atd.global_data.controller_values[index] = value;
     }
 
     pub fn set_bpm(&mut self, bpm: f32) {
-        self.ctd_mux.lock().unwrap().global_data.bpm = bpm;
+        self.atd.global_data.bpm = bpm;
     }
 
     pub fn set_elapsed_time(&mut self, time: f32) {
-        self.ctd_mux.lock().unwrap().global_data.elapsed_time = time;
+        self.atd.global_data.elapsed_time = time;
     }
 
     pub fn set_elapsed_beats(&mut self, beats: f32) {
-        self.ctd_mux.lock().unwrap().global_data.elapsed_beats = beats;
+        self.atd.global_data.elapsed_beats = beats;
     }
 
     pub fn render_audio(&mut self) -> Vec<f32> {
@@ -387,9 +385,13 @@ impl Engine {
         let mut ctd = self.ctd_mux.lock().unwrap();
         let ok = ctd
             .julia_request_input
-            .try_send(julia_thread::Request::Render)
+            .try_send(julia_thread::Request::Render(self.atd.global_data.clone()))
             .is_ok();
+        let buf_time =
+            ctd.global_params.buffer_length as f32 / ctd.global_params.sample_rate as f32;
         drop(ctd);
+        self.atd.global_data.elapsed_time += buf_time;
+        self.atd.global_data.elapsed_beats += buf_time * self.atd.global_data.bpm / 60.0;
         if ok {
             if let Ok(result) = self.atd.audio_response_output.recv() {
                 return result.audio;

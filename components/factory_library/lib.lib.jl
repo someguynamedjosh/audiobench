@@ -7,7 +7,7 @@ module TestParameters
 end
 
 if isinteractive()
-    @eval Main Parameters = Main.Lib.TestParameters
+    @eval Main Parameters = Main.Registry.Factory.Lib.TestParameters
     @eval Main module UnpackedDependencies using StaticArrays end
 end
 
@@ -30,6 +30,7 @@ const Waveform = Function
 const flat_waveform = (phase, _buffer_pos::Integer) -> mono_sample(0f0) 
 const ramp_up_waveform = (phase, _buffer_pos::Integer) -> @. phase * 2 - 1
 const ramp_down_waveform = (phase, _buffer_pos::Integer) -> @. 1 - phase * 2
+const sine_waveform = (phase, _buffer_pos::Integer) -> @. sin(phase * pi * 2f0)
 
 function mutable(type::DataType)::DataType
     typeof(similar(type))
@@ -37,6 +38,36 @@ end
 
 function maybe_mutable(type::DataType)
     Union{type, mutable(type)}
+end
+
+function maybe_mutable_type(type::DataType)
+    Union{Type{type}, Type{mutable(type)}}
+end
+
+function typeof2(data::AbstractArray{Float32,1})
+    dims = size(data)
+    if dims[1] === 1
+        MonoSample
+    elseif dims[1] === channels
+        StereoSample
+    else
+        @assert false "Invalid sample type"
+    end
+end
+
+function typeof2(data::AbstractArray{Float32,2})
+    dims = size(data)
+    if dims === [1, 1]
+        StaticMonoAudio
+    elseif dims === [channels, 1]
+        StaticStereoAudio
+    elseif dims === [1, buffer_length]
+        MonoAudio
+    elseif dims === [channels, buffer_length]
+        StereoAudio
+    else
+        @assert false "Invalid audio type"
+    end
 end
 
 struct GlobalInput
@@ -71,6 +102,32 @@ struct NoteContext
     note_out::NoteOutput
 end
 
+const TimingSignal = SArray{Tuple{buffer_length},Float32,1,buffer_length}
+
+# Timing modes:
+# Bit 1 controls note (false) vs song (true)
+# Bit 2 controls seconds (false) vs beats (true)
+function get_timing(context::NoteContext, mode::Integer)::TimingSignal
+    result = similar(TimingSignal)
+    song_source::Bool = mode & 0b1 === 0b1
+    beat_units::Bool = mode & 0b10 === 0b10
+    value::Float32 = if song_source 
+        if beat_units context.global_in.elapsed_beats else context.global_in.elapsed_time end
+    else 
+        if beat_units context.note_in.elapsed_beats else context.note_in.elapsed_time end
+    end
+    per_sample::Float32 = if beat_units
+        context.global_in.bpm / 60f0 / sample_rate
+    else
+        1f0 / sample_rate
+    end
+    for i in 1:buffer_length
+        result[i] = value
+        value += per_sample
+    end
+    return TimingSignal(result)
+end
+
 function promote_vectorized(types::DataType...)::DataType
     Base.promote_op(Base.broadcast, typeof(+), types...)
 end
@@ -83,15 +140,6 @@ function assert_sample_type(_type::Type{MonoSample}) end
 function assert_sample_type(_type::Type{StereoSample}) end
 function assert_sample_type(type) 
     throw(AssertionError("$type is not a valid sample type."))
-end
-
-function MonoSample(value::Float32)::MonoSample
-    return SA_F32[value]
-end
-
-function StereoSample(left::Float32, right::Float32)::StereoSample
-    @assert channels == 2
-    return SA_F32[left, right]
 end
 
 function assert_audio_type(_type::Type{StaticMonoAudio}) end
@@ -121,26 +169,17 @@ st2sat(_sample_type::Type{StereoSample})::Type{StaticStereoAudio} = StaticStereo
 st2sat(_sample_type::Type{mutable(MonoSample)})::Type{StaticMonoAudio} = StaticMonoAudio
 st2sat(_sample_type::Type{mutable(StereoSample)})::Type{StaticStereoAudio} = StaticStereoAudio
 
-function StaticMonoAudio(value::Float32)::StaticMonoAudio
-    return SA_F32[value]
-end
-
-function StaticStereoAudio(left::Float32, right::Float32)::StaticStereoAudio
-    @assert channels == 2
-    return SA_F32[left; right]
-end
-
 function assert_trigger_type(_type::Type{StaticTrigger}) end
 function assert_trigger_type(_type::Type{Trigger}) end
 function assert_trigger_type(type) 
     throw(AssertionError("$type is not a valid trigger type."))
 end
 
-function w2st(waveform::Waveform, _phase_type::Type{MonoSample})::Union{Type{MonoSample}, Type{StereoSample}}
+function w2st(waveform::Waveform, _phase_type::maybe_mutable_type(MonoSample))::Union{maybe_mutable_type(MonoSample), maybe_mutable_type(StereoSample)}
     Base.promote_op(waveform, MonoSample, Int32)
 end
 
-function w2st(waveform::Waveform, _phase_type::Type{StereoSample})::Union{Type{MonoSample}, Type{StereoSample}}
+function w2st(waveform::Waveform, _phase_type::maybe_mutable_type(StereoSample))::Union{maybe_mutable_type(MonoSample), maybe_mutable_type(StereoSample)}
     Base.promote_op(waveform, StereoSample, Int32)
 end
 
@@ -159,44 +198,44 @@ Base.getindex(from::maybe_mutable(StaticStereoAudio), channelidx::Int64, samplei
 Base.getindex(from::maybe_mutable(StaticTrigger), sampleidx::Int64)::Bool = from[1]
 
 # Allows accessing static data as a smaller data type. Cannot view small data as a bigger type.
-viewas(data::Union{maybe_mutable(MonoSample), maybe_mutable(StereoSample)}, type::Type{MonoSample}) = @view data[1]
-viewas(data::maybe_mutable(StereoSample), type::Type{StereoSample}) = @view data[:]
-viewas(data::Union{mutable(MonoSample), mutable(StereoSample)}, type::Type{mutable(MonoSample)}) = @view data[1]
-viewas(data::mutable(StereoSample), type::Type{mutable(StereoSample)}) = @view data[:]
+viewas(data::Union{maybe_mutable(MonoSample), maybe_mutable(StereoSample)}, type::maybe_mutable_type(MonoSample)) = @view data[1:1]
+viewas(data::maybe_mutable(StereoSample), type::maybe_mutable_type(StereoSample)) = @view data[:]
 
-viewas(data::Union{maybe_mutable(StaticTrigger), maybe_mutable(Trigger)}, type::Type{StaticTrigger}) = @view data[1]
-viewas(data::maybe_mutable(Trigger), type::Type{Trigger}) = @view data[:]
-viewas(data::Union{mutable(StaticTrigger), mutable(Trigger)}, type::Type{mutable(StaticTrigger)}) = @view data[1]
-viewas(data::mutable(Trigger), type::Type{mutable(Trigger)}) = @view data[:]
+viewas(data::Union{maybe_mutable(StaticTrigger), maybe_mutable(Trigger)}, type::maybe_mutable_type(StaticTrigger)) = @view data[1:1]
+viewas(data::maybe_mutable(Trigger), type::maybe_mutable_type(Trigger)) = @view data[:]
 
-viewas(data::Union{maybe_mutable(StaticMonoAudio), maybe_mutable(StaticStereoAudio), maybe_mutable(MonoAudio), maybe_mutable(StereoAudio)}, type::Type{StaticMonoAudio}) = @view data[1, 1]
-viewas(data::Union{maybe_mutable(StaticStereoAudio), maybe_mutable(StereoAudio)}, type::Type{StaticStereoAudio}) = @view data[:, 1]
-viewas(data::Union{maybe_mutable(MonoAudio), maybe_mutable(StereoAudio)}, type::Type{MonoAudio}) = @view data[1, :]
+viewas(data::Union{maybe_mutable(StaticMonoAudio), maybe_mutable(StaticStereoAudio), maybe_mutable(MonoAudio), maybe_mutable(StereoAudio)}, type::Type{StaticMonoAudio}) = @view data[1:1, 1:1]
+viewas(data::Union{maybe_mutable(StaticStereoAudio), maybe_mutable(StereoAudio)}, type::Type{StaticStereoAudio}) = @view data[:, 1:1]
+viewas(data::Union{maybe_mutable(MonoAudio), maybe_mutable(StereoAudio)}, type::Type{MonoAudio}) = @view data[1:1, :]
 viewas(data::maybe_mutable(StereoAudio), type::Type{StereoAudio}) = @view data[:, :]
-viewas(data::Union{mutable(StaticMonoAudio), mutable(StaticStereoAudio), mutable(MonoAudio), mutable(StereoAudio)}, type::Type{mutable(StaticMonoAudio)}) = @view data[1, 1]
-viewas(data::Union{mutable(StaticStereoAudio), mutable(StereoAudio)}, type::Type{mutable(StaticStereoAudio)}) = @view data[:, 1]
-viewas(data::Union{mutable(MonoAudio), mutable(StereoAudio)}, type::Type{mutable(MonoAudio)}) = @view data[1, :]
-viewas(data::mutable(StereoAudio), type::Type{mutable(StereoAudio)}) = @view data[:, :]
 
 # Allows manually iterating over buffers.
 sample_indices(_buf::SArray{Tuple{C, S}, Float32, 2, N}) where {C, S, N} = Base.OneTo(S)
 sample_indices(_buf::MArray{Tuple{C, S}, Float32, 2, N}) where {C, S, N} = Base.OneTo(S)
+sample_indices(_buf::SizedArray{Tuple{C, S}, Float32, 2, N}) where {C, S, N} = Base.OneTo(S)
 sample_indices(_buf::Type{SArray{Tuple{C, S}, Float32, 2, N}}) where {C, S, N} = Base.OneTo(S)
 sample_indices(_buf::Type{MArray{Tuple{C, S}, Float32, 2, N}}) where {C, S, N} = Base.OneTo(S)
+sample_indices(_buf::Type{SizedArray{Tuple{C, S}, Float32, 2, N}}) where {C, S, N} = Base.OneTo(S)
 channel_indices(_buf::SArray{Tuple{C, S}, Float32, 2, N}) where {C, S, N} = Base.OneTo(C)
 channel_indices(_buf::MArray{Tuple{C, S}, Float32, 2, N}) where {C, S, N} = Base.OneTo(C)
+channel_indices(_buf::SizedArray{Tuple{C, S}, Float32, 2, N}) where {C, S, N} = Base.OneTo(C)
 channel_indices(_buf::Type{SArray{Tuple{C, S}, Float32, 2, N}}) where {C, S, N} = Base.OneTo(C)
 channel_indices(_buf::Type{MArray{Tuple{C, S}, Float32, 2, N}}) where {C, S, N} = Base.OneTo(C)
+channel_indices(_buf::Type{SizedArray{Tuple{C, S}, Float32, 2, N}}) where {C, S, N} = Base.OneTo(C)
 # For samples.
 channel_indices(_buf::SArray{Tuple{C}, Float32, 1, N}) where {C, N} = Base.OneTo(C)
 channel_indices(_buf::MArray{Tuple{C}, Float32, 1, N}) where {C, N} = Base.OneTo(C)
+channel_indices(_buf::SizedArray{Tuple{C}, Float32, 1, N}) where {C, N} = Base.OneTo(C)
 channel_indices(_buf::Type{SArray{Tuple{C}, Float32, 1, N}}) where {C, N} = Base.OneTo(C)
 channel_indices(_buf::Type{MArray{Tuple{C}, Float32, 1, N}}) where {C, N} = Base.OneTo(C)
+channel_indices(_buf::Type{SizedArray{Tuple{C}, Float32, 1, N}}) where {C, N} = Base.OneTo(C)
 # For trigger buffers.
 sample_indices(_buf::SArray{Tuple{S}, Bool, 1, N}) where {S, N} = Base.OneTo(S)
 sample_indices(_buf::MArray{Tuple{S}, Bool, 1, N}) where {S, N} = Base.OneTo(S)
+sample_indices(_buf::SizedArray{Tuple{S}, Float32, 1, N}) where {S, N} = Base.OneTo(S)
 sample_indices(_buf::Type{SArray{Tuple{S}, Bool, 1, N}}) where {S, N} = Base.OneTo(S)
 sample_indices(_buf::Type{MArray{Tuple{S}, Bool, 1, N}}) where {S, N} = Base.OneTo(S)
+sample_indices(_buf::Type{SizedArray{Tuple{S}, Float32, 1, N}}) where {S, N} = Base.OneTo(S)
 
 # export all
 # https://discourse.julialang.org/t/exportall/4970/16
