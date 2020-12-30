@@ -63,7 +63,7 @@ impl<'a> CodeGenerator<'a> {
     fn next_aux_value(&mut self) -> String {
         self.current_autocon_dyn_data_item += 1;
         format!(
-            "StaticMonoAudio(global_autocon_dyn_data[{}])",
+            "global_autocon_dyn_data[{}]",
             self.current_autocon_dyn_data_item - 1 + 1 // Julia indexes start at 1.
         )
     }
@@ -77,7 +77,7 @@ impl<'a> CodeGenerator<'a> {
         // channel such that mulitplying by the first and adding the second will generate the
         // appropriate transformation. See AutoconDynDataCollector::collect_data for more.
         format!(
-            "module_{}_output_{} .* {} .+ {}",
+            "a2cs(module_{}_output_{}) .* StaticControlSignal({}) .+ StaticControlSignal({})",
             mod_index,
             lane.connection.1,
             self.next_aux_value(),
@@ -89,7 +89,7 @@ impl<'a> CodeGenerator<'a> {
         self.autocon_dyn_data_control_order.push(Rc::clone(control));
         let control_ref = control.borrow();
         if control_ref.automation.len() == 0 {
-            self.next_aux_value()
+            format!("StaticControlSignal({})", self.next_aux_value())
         } else {
             let mut code = self.generate_code_for_lane(&control_ref.automation[0]);
             for lane in &control_ref.automation[1..] {
@@ -200,7 +200,7 @@ impl<'a> CodeGenerator<'a> {
                 code.push_str(&format!("module_{}_output_{}, ", index, output_index,));
             }
             code.push_str(&format!(
-                "static_container[static_index].for_module_{} = \n",
+                "static_container[static_index].for_module_{}, = \n",
                 index
             ));
             code.push_str(&format!(

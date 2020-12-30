@@ -20,10 +20,10 @@ function exec()
     timing = get_timing(context, timing_mode)
     for i in sample_indices(signal)
         if !static.releasing
-            if reset_trigger[i]
+            if reset_trigger[%, i]
                 static.start = timing[i]
             end
-            if release_trigger[i]
+            if release_trigger[%, i]
                 static.start = timing[i]
                 static.releasing = true
             end
@@ -43,9 +43,9 @@ function exec()
             else
                 now = now - attack_time
                 if now < decay_time
-                    value = 1f0 - now / decay_time * (1f0 - sustain[1, i])
+                    value = 1f0 - now / decay_time * (1f0 - sustain[%, i])
                 else
-                    value = sustain[1, i]
+                    value = sustain[%, i]
                 end
             end
             static.last_value = value

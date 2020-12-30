@@ -1,28 +1,26 @@
 mutable struct StaticData
-    phase::mutable(StereoSample)
+    phase::mutable(MonoSample)
 end
 
 function static_init()
-    StaticData(StereoSample(0f0, 0f0))
+    StaticData(MonoSample(0f0))
 end    
 
 function exec()
-    PhaseType = at2st(typeof(pitch))
-    WaveformOutputType = w2st(waveform, PhaseType)
-    AudioType = promote_vectorized(st2at(WaveformOutputType), typeof(amplitude))
+    WaveformOutputType = w2st(waveform, MonoSample)
+    AudioType = st2at(WaveformOutputType)
     oversampling = 4
     audio = similar(AudioType)
     sample = similar(WaveformOutputType)
-    phase = viewas(static.phase, mutable(PhaseType))
-    phase_delta = similar(PhaseType)
+    phase_delta = similar(MonoSample)
 
-    @views for s in sample_indices(AudioType)
+    for s in sample_indices(AudioType)
         sample .= 0f0
-        phase_delta .= pitch[:, s] ./ sample_rate ./ Float32(oversampling)
+        phase_delta .= pitch[%, s] ./ sample_rate ./ Float32(oversampling)
         for subsample in 1:oversampling
-            sample .+= waveform(phase, s)
-            phase .= (phase .+ phase_delta) .% 1f0
+            sample .+= waveform(static.phase, s)
+            static.phase .= (static.phase .+ phase_delta) .% 1f0
         end
-        audio[:, s] .= sample .* amplitude[:, s] ./ Float32(oversampling)
+        audio[:, s] .= sample .* amplitude[%, s] ./ Float32(oversampling)
     end
 end

@@ -18,6 +18,8 @@ const num_midi_controls = 128
 
 const MonoSample = SArray{Tuple{1},Float32,1,1}
 const StereoSample = SArray{Tuple{channels},Float32,1,channels}
+const StaticControlSignal = SArray{Tuple{1},Float32,1,1}
+const ControlSignal = SArray{Tuple{buffer_length},Float32,1,buffer_length}
 const StaticMonoAudio = SArray{Tuple{1,1},Float32,2,1}
 const StaticStereoAudio = SArray{Tuple{channels,1},Float32,2,channels}
 const MonoAudio = SArray{Tuple{1,buffer_length},Float32,2,buffer_length}
@@ -47,11 +49,13 @@ end
 function typeof2(data::AbstractArray{Float32,1})
     dims = size(data)
     if dims[1] === 1
-        MonoSample
+        MonoSample # Also equivalent to StaticControlSignal
     elseif dims[1] === channels
         StereoSample
+    elseif dims[1] === buffer_length
+        ControlSignal
     else
-        @assert false "Invalid sample type"
+        @assert false "Invalid sample or control signal type"
     end
 end
 
@@ -102,13 +106,11 @@ struct NoteContext
     note_out::NoteOutput
 end
 
-const TimingSignal = SArray{Tuple{buffer_length},Float32,1,buffer_length}
-
 # Timing modes:
 # Bit 1 controls note (false) vs song (true)
 # Bit 2 controls seconds (false) vs beats (true)
-function get_timing(context::NoteContext, mode::Integer)::TimingSignal
-    result = similar(TimingSignal)
+function get_timing(context::NoteContext, mode::Integer)::mutable(ControlSignal)
+    result = similar(ControlSignal)
     song_source::Bool = mode & 0b1 === 0b1
     beat_units::Bool = mode & 0b10 === 0b10
     value::Float32 = if song_source 
@@ -125,7 +127,7 @@ function get_timing(context::NoteContext, mode::Integer)::TimingSignal
         result[i] = value
         value += per_sample
     end
-    return TimingSignal(result)
+    result
 end
 
 function promote_vectorized(types::DataType...)::DataType
@@ -136,20 +138,7 @@ function promote_typeof_vectorized(values...)::DataType
     Base.promote_op(Base.broadcast, typeof(+), broadcast(typeof, values)...)
 end
 
-function assert_sample_type(_type::Type{MonoSample}) end
-function assert_sample_type(_type::Type{StereoSample}) end
-function assert_sample_type(type) 
-    throw(AssertionError("$type is not a valid sample type."))
-end
-
-function assert_audio_type(_type::Type{StaticMonoAudio}) end
-function assert_audio_type(_type::Type{StaticStereoAudio}) end
-function assert_audio_type(_type::Type{MonoAudio}) end
-function assert_audio_type(_type::Type{StereoAudio}) end
-function assert_audio_type(type) 
-    throw(AssertionError("$type is not a valid sample type."))
-end
-
+# Audio type to sample type
 at2st(_audio_type::Type{StaticMonoAudio})::Type{MonoSample} = MonoSample
 at2st(_audio_type::Type{StaticStereoAudio})::Type{StereoSample} = StereoSample
 at2st(_audio_type::Type{MonoAudio})::Type{MonoSample} = MonoSample
@@ -159,22 +148,51 @@ at2st(_audio_type::Type{mutable(StaticStereoAudio)})::Type{StereoSample} = Stere
 at2st(_audio_type::Type{mutable(MonoAudio)})::Type{MonoSample} = MonoSample
 at2st(_audio_type::Type{mutable(StereoAudio)})::Type{StereoSample} = StereoSample
 
+# Sample type to audio type
 st2at(_sample_type::Type{MonoSample})::Type{MonoAudio} = MonoAudio
 st2at(_sample_type::Type{StereoSample})::Type{StereoAudio} = StereoAudio
 st2at(_sample_type::Type{mutable(MonoSample)})::Type{MonoAudio} = MonoAudio
 st2at(_sample_type::Type{mutable(StereoSample)})::Type{StereoAudio} = StereoAudio
 
+# Sample type to static audio type
 st2sat(_sample_type::Type{MonoSample})::Type{StaticMonoAudio} = StaticMonoAudio
 st2sat(_sample_type::Type{StereoSample})::Type{StaticStereoAudio} = StaticStereoAudio
 st2sat(_sample_type::Type{mutable(MonoSample)})::Type{StaticMonoAudio} = StaticMonoAudio
 st2sat(_sample_type::Type{mutable(StereoSample)})::Type{StaticStereoAudio} = StaticStereoAudio
 
-function assert_trigger_type(_type::Type{StaticTrigger}) end
-function assert_trigger_type(_type::Type{Trigger}) end
-function assert_trigger_type(type) 
+# Audio to control signal
+a2cs(audio::maybe_mutable(StereoAudio))::ControlSignal = ControlSignal(sum(audio; dims=1) ./ 2)
+a2cs(audio::maybe_mutable(MonoAudio))::ControlSignal = ControlSignal(audio)
+a2cs(audio::maybe_mutable(StaticStereoAudio))::StaticControlSignal = StaticControlSignal((audio[1] + audio[2]) / 2)
+a2cs(audio::maybe_mutable(StaticMonoAudio))::StaticControlSignal = StaticControlSignal(audio)
+
+function assert_is_sample_type(_type::Type{MonoSample}) end
+function assert_is_sample_type(_type::Type{StereoSample}) end
+function assert_is_sample_type(type) 
+    throw(AssertionError("$type is not a valid sample type."))
+end
+
+function assert_is_control_signal_type(_type::Type{StaticControlSignal}) end
+function assert_is_control_signal_type(_type::Type{ControlSignal}) end
+function assert_is_control_signal_type(type) 
+    throw(AssertionError("$type is not a valid control signal type."))
+end
+
+function assert_is_audio_type(_type::Type{StaticMonoAudio}) end
+function assert_is_audio_type(_type::Type{StaticStereoAudio}) end
+function assert_is_audio_type(_type::Type{MonoAudio}) end
+function assert_is_audio_type(_type::Type{StereoAudio}) end
+function assert_is_audio_type(type) 
+    throw(AssertionError("$type is not a valid audio type."))
+end
+
+function assert_is_trigger_type(_type::Type{StaticTrigger}) end
+function assert_is_trigger_type(_type::Type{Trigger}) end
+function assert_is_trigger_type(type) 
     throw(AssertionError("$type is not a valid trigger type."))
 end
 
+# Waveform to sample type
 function w2st(waveform::Waveform, _phase_type::maybe_mutable_type(MonoSample))::Union{maybe_mutable_type(MonoSample), maybe_mutable_type(StereoSample)}
     Base.promote_op(waveform, MonoSample, Int32)
 end
@@ -185,21 +203,34 @@ end
 
 # Asserts that the specified function has a signature that makes it usable
 # as a waveform (I.E. it can accept a Mono/StereoSample and Int32 and return a valid
-# sample type as described by assert_sample_type.)
-function assert_waveform_func(func::Function)
-    assert_sample_type(get_waveform_output_type(func, MonoSample))
-    assert_sample_type(get_waveform_output_type(func, StereoSample))
+# sample type as described by assert_is_sample_type.)
+function assert_is_waveform(func::Function)
+    assert_is_sample_type(w2st(func, MonoSample))
+    assert_is_sample_type(w2st(func, StereoSample))
 end
 
 # Allows indexing smaller buffers as if they were their full-sized counterparts.
-Base.getindex(from::maybe_mutable(MonoAudio), channelidx::Int64, sampleidx::Int64)::Float32 = from[sampleidx]
-Base.getindex(from::maybe_mutable(StaticMonoAudio), channelidx::Int64, sampleidx::Int64)::Float32 = from[1]
-Base.getindex(from::maybe_mutable(StaticStereoAudio), channelidx::Int64, sampleidx::Int64)::Float32 = from[channelidx]
-Base.getindex(from::maybe_mutable(StaticTrigger), sampleidx::Int64)::Bool = from[1]
+Base.getindex(from::maybe_mutable(StereoAudio), _::typeof(%), channelidx::Integer, sampleidx::Integer)::Float32 = from[channelidx, sampleidx]
+Base.getindex(from::maybe_mutable(MonoAudio), _::typeof(%), channelidx::Integer, sampleidx::Integer)::Float32 = from[1, sampleidx]
+Base.getindex(from::maybe_mutable(StaticStereoAudio), _::typeof(%), channelidx::Integer, sampleidx::Integer)::Float32 = from[channelidx, 1]
+Base.getindex(from::maybe_mutable(StaticMonoAudio), _::typeof(%), channelidx::Integer, sampleidx::Integer)::Float32 = from[1, 1]
+
+Base.getindex(from::maybe_mutable(StereoSample), _::typeof(%), channelidx::Integer)::Float32 = from[channelidx]
+Base.getindex(from::maybe_mutable(MonoSample), _::typeof(%), channelidx::Integer)::Float32 = from[1]
+
+Base.getindex(from::maybe_mutable(ControlSignal), _::typeof(%), sampleidx::Integer)::Float32 = from[sampleidx]
+# Ambiguous with MonoSample, but same functionality.
+# Base.getindex(from::maybe_mutable(StaticControlSignal), _::typeof(%), sampleidx::Integer)::Float32 = from[1]
+
+Base.getindex(from::maybe_mutable(Trigger), _::typeof(%), sampleidx::Integer)::Bool = from[sampleidx]
+Base.getindex(from::maybe_mutable(StaticTrigger), _::typeof(%), sampleidx::Integer)::Bool = from[1]
 
 # Allows accessing static data as a smaller data type. Cannot view small data as a bigger type.
 viewas(data::Union{maybe_mutable(MonoSample), maybe_mutable(StereoSample)}, type::maybe_mutable_type(MonoSample)) = @view data[1:1]
 viewas(data::maybe_mutable(StereoSample), type::maybe_mutable_type(StereoSample)) = @view data[:]
+
+viewas(data::Union{maybe_mutable(StaticControlSignal), maybe_mutable(ControlSignal)}, type::maybe_mutable_type(StaticControlSignal)) = @view data[1:1]
+viewas(data::maybe_mutable(ControlSignal), type::maybe_mutable_type(ControlSignal)) = @view data[:]
 
 viewas(data::Union{maybe_mutable(StaticTrigger), maybe_mutable(Trigger)}, type::maybe_mutable_type(StaticTrigger)) = @view data[1:1]
 viewas(data::maybe_mutable(Trigger), type::maybe_mutable_type(Trigger)) = @view data[:]
@@ -209,7 +240,7 @@ viewas(data::Union{maybe_mutable(StaticStereoAudio), maybe_mutable(StereoAudio)}
 viewas(data::Union{maybe_mutable(MonoAudio), maybe_mutable(StereoAudio)}, type::Type{MonoAudio}) = @view data[1:1, :]
 viewas(data::maybe_mutable(StereoAudio), type::Type{StereoAudio}) = @view data[:, :]
 
-# Allows manually iterating over buffers.
+# Allows manually iterating over audio.
 sample_indices(_buf::SArray{Tuple{C, S}, Float32, 2, N}) where {C, S, N} = Base.OneTo(S)
 sample_indices(_buf::MArray{Tuple{C, S}, Float32, 2, N}) where {C, S, N} = Base.OneTo(S)
 sample_indices(_buf::SizedArray{Tuple{C, S}, Float32, 2, N}) where {C, S, N} = Base.OneTo(S)
@@ -222,14 +253,21 @@ channel_indices(_buf::SizedArray{Tuple{C, S}, Float32, 2, N}) where {C, S, N} = 
 channel_indices(_buf::Type{SArray{Tuple{C, S}, Float32, 2, N}}) where {C, S, N} = Base.OneTo(C)
 channel_indices(_buf::Type{MArray{Tuple{C, S}, Float32, 2, N}}) where {C, S, N} = Base.OneTo(C)
 channel_indices(_buf::Type{SizedArray{Tuple{C, S}, Float32, 2, N}}) where {C, S, N} = Base.OneTo(C)
-# For samples.
+# ...samples.
 channel_indices(_buf::SArray{Tuple{C}, Float32, 1, N}) where {C, N} = Base.OneTo(C)
 channel_indices(_buf::MArray{Tuple{C}, Float32, 1, N}) where {C, N} = Base.OneTo(C)
 channel_indices(_buf::SizedArray{Tuple{C}, Float32, 1, N}) where {C, N} = Base.OneTo(C)
 channel_indices(_buf::Type{SArray{Tuple{C}, Float32, 1, N}}) where {C, N} = Base.OneTo(C)
 channel_indices(_buf::Type{MArray{Tuple{C}, Float32, 1, N}}) where {C, N} = Base.OneTo(C)
 channel_indices(_buf::Type{SizedArray{Tuple{C}, Float32, 1, N}}) where {C, N} = Base.OneTo(C)
-# For trigger buffers.
+# ...control signals.
+sample_indices(_buf::SArray{Tuple{S}, Float32, 1, N}) where {S, N} = Base.OneTo(S)
+sample_indices(_buf::MArray{Tuple{S}, Float32, 1, N}) where {S, N} = Base.OneTo(S)
+sample_indices(_buf::SizedArray{Tuple{S}, Float32, 1, N}) where {S, N} = Base.OneTo(S)
+sample_indices(_buf::Type{SArray{Tuple{S}, Float32, 1, N}}) where {S, N} = Base.OneTo(S)
+sample_indices(_buf::Type{MArray{Tuple{S}, Float32, 1, N}}) where {S, N} = Base.OneTo(S)
+sample_indices(_buf::Type{SizedArray{Tuple{S}, Float32, 1, N}}) where {S, N} = Base.OneTo(S)
+# ...triggers.
 sample_indices(_buf::SArray{Tuple{S}, Bool, 1, N}) where {S, N} = Base.OneTo(S)
 sample_indices(_buf::MArray{Tuple{S}, Bool, 1, N}) where {S, N} = Base.OneTo(S)
 sample_indices(_buf::SizedArray{Tuple{S}, Float32, 1, N}) where {S, N} = Base.OneTo(S)

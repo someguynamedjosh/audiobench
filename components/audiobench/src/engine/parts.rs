@@ -103,7 +103,7 @@ impl JackType {
         match self {
             Self::Pitch => &[DefaultInputDescription {
                 name: "Note Pitch",
-                code: "StaticMonoAudio(note_input.pitch)",
+                code: "StaticControlSignal(note_input.pitch)",
                 icon: "Factory:note",
             }],
             Self::Waveform => &[
