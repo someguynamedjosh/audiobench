@@ -226,6 +226,7 @@ impl<'a> CodeGenerator<'a> {
                 index
             ));
         }
+        code.push_str("    (Array(context.note_out.audio),)\n");
         code.push_str("  end # function exec\n\n");
         code.push_str("end # module Generated\n");
         let code = GeneratedCode::from_unique_source("Generated/note_graph.jl", &code);

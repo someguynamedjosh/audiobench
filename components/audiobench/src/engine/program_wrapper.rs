@@ -380,7 +380,8 @@ impl AudiobenchExecutor {
                     Ok(())
                 },
                 |frame, output| {
-                    let audio = output.get_field(frame, "audio");
+                    // 0-based index, not Julia index.
+                    let audio = output.get_nth_field(frame, 0);
                     let audio = match audio {
                         Ok(v) => v,
                         Err(err) => {
