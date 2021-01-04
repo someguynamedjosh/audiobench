@@ -329,7 +329,77 @@ def pack_julia_deps():
         return
     pack_julia_package('https://github.com/JuliaArrays/StaticArrays.jl',
                        'bfd1c051bbe6923261ee976a855dbc0676c02159', 'StaticArrays')
+    print('Finished downloading all necessary Julia packages.')
     mark_dep_complete('julia_packages', 1)
+
+
+def get_llvm():
+    if should_skip_dep('llvm', 1):
+        return
+    print('Setting up LLVM 10...')
+    checkout_path = Path('dependencies', 'llvm_src')
+    mkdir(checkout_path)
+    args = ['git', 'clone', '--depth', '1',
+            'https://github.com/llvm/llvm-project', '-b', 'release/10.x']
+    if ON_WINDOWS:
+        args += ['--config', 'core.autocrlf=false']
+    command(args, checkout_path)
+
+    print('Running cmake to configure build...')
+    source_path = checkout_path.joinpath('llvm-project')
+    cmake_path = source_path.joinpath('build')
+    mkdir(cmake_path)
+    cmake_command = ['cmake']
+    if ON_WINDOWS:
+        cmake_command += ['-GVisual Studio 16 2019']
+    cmake_command += ['../llvm']
+    command(cmake_command, cmake_path)
+
+    print('Building LLVM...')
+    command(['cmake', '--build', '.'], cmake_path)
+
+    print('Installing built files...')
+    mkdir(Path('dependencies', 'llvm'))
+    prefix = Path('dependencies', 'llvm').absolute()
+    command(['cmake', '-DCMAKE_INSTALL_PREFIX=' + str(prefix), '-P', 'cmake_install.cmake'], cmake_path)
+    rmdir(checkout_path)
+    mark_dep_complete('llvm', 1)
+
+
+def get_julia():
+    if should_skip_dep('julia', 1):
+        return
+    if ON_WINDOWS:
+        url = 'https://julialang-s3.julialang.org/bin/winnt/x64/1.5/julia-1.5.3-win64.zip'
+        # Need to extract .zip to deps/
+        print('Unimlemented: Julia installation on Windows')
+        exit(1)
+    if ON_MAC:
+        url = 'https://julialang-s3.julialang.org/bin/mac/x64/1.5/julia-1.5.3-mac64.dmg'
+        # Need to extract .dmg, no idea what's in it.
+        print('Unimlemented: Julia installation on MacOS')
+        exit(1)
+    if ON_LINUX:
+        url = 'https://julialang-s3.julialang.org/bin/linux/x64/1.5/julia-1.5.3-linux-x86_64.tar.gz'
+        target = tempfile.mktemp('', 'julia')
+        print('Downloading Julia 1.5.3...')
+        command(['wget', url, '-O', target])
+
+        print('Extracting...')
+        command(['tar', '-xzf', target, '-C', 'dependencies/'])
+
+        rmdir('dependencies/julia')
+        command(['mv', 'dependencies/julia-1.5.3', 'dependencies/julia'])
+        command(['rm', target])
+    mark_dep_complete('julia', 1)
+
+
+def get_dependencies():
+    mkdir(Path('dependencies'))
+    get_julia()
+    pack_julia_deps()
+    get_llvm()
+    print('All dependencies set up successfully.')
 
 
 def open_terminal():
@@ -345,15 +415,15 @@ class Job:
 
 JOBS = {
     'jobs': Job('Print available jobs', [], print_jobs),
-    'clean': Job('Delete all artifacts and intermediate files', [], clean),
-    'pack_julia_deps': Job('Pack all Julia dependencies into single files', [], pack_julia_deps),
     'env': Job('Run a terminal after setting variables and installing deps', ['pack_julia_deps'], open_terminal),
-    'clib': Job('Build Audiobench as a static library', ['pack_julia_deps'], build_clib),
+    'clean': Job('Delete all artifacts and intermediate files', [], clean),
+    'deps': Job('Download or build necessary dependencies', [], get_dependencies),
     'remove_juce_splash': Job('Remove JUCE splash screen (Audiobench is GPLv3)', [], remove_juce_splash),
+    'clib': Job('Build Audiobench as a static library', ['deps'], build_clib),
     'juce_frontend': Job('Build the JUCE frontend for Audiobench', ['remove_juce_splash', 'clib'], build_juce_frontend),
     'run': Job('Run the standalone version of Audiobench', ['juce_frontend'], run_standalone),
-    'test': Job('Test all Rust components in the project', ['pack_julia_deps'], run_tests),
-    'benchmark': Job('Run a benchmarking suite', [], run_benchmark),
+    'test': Job('Test all Rust components in the project', ['deps'], run_tests),
+    'benchmark': Job('Run a benchmarking suite', ['deps'], run_benchmark),
     'check_version': Job('Ensures version numbers have been incremented', [], check_version),
 }
 

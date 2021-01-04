@@ -8,5 +8,11 @@
         "artifacts": true,
         "dependencies": true,
         "target": true
+    },
+    "search.exclude": {
+        "dependencies/": true
+    },
+    "files.watcherExclude": {
+        "dependencies/**": true
     }
 }
