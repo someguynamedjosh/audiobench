@@ -60,8 +60,8 @@ macro_rules! make_int_box_widget {
                     pos,
                     // Factory library is guaranteed to have these icons.
                     icons: (
-                        registry.lookup_icon("factory:increase").unwrap(),
-                        registry.lookup_icon("factory:decrease").unwrap(),
+                        registry.lookup_icon("Factory:increase").unwrap(),
+                        registry.lookup_icon("Factory:decrease").unwrap(),
                     ),
                     label,
                     tooltip,

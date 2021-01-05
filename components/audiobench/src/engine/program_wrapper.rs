@@ -179,7 +179,7 @@ impl AudiobenchExecutorBuilder {
                 registry_source.append_clip(file_content);
             }
             for (mod_name, file_content) in registry.borrow_module_scripts_from_library(lib_name) {
-                let template = registry
+                let template_ptr = registry
                     .borrow_templates()
                     .iter()
                     .find(|template_ptr| {
@@ -187,6 +187,7 @@ impl AudiobenchExecutorBuilder {
                         &template.lib_name == lib_name && &template.module_name == mod_name
                     })
                     .unwrap();
+                let template = template_ptr.borrow();
 
                 registry_source.append(
                     &format!(
@@ -212,15 +213,10 @@ impl AudiobenchExecutorBuilder {
                 }
                 if let Some(exec_source) = file_content.clip_section("function exec()", "end") {
                     let mut func_header = String::from("function exec(context, ");
-                    unimplemented!();
-                    // for input in &mod_template.inputs {
-                    //     func_header.push_str(input.borrow_code_name());
-                    //     func_header.push_str(", ");
-                    // }
-                    // for control in &mod_def.autocons {
-                    //     func_header.push_str(&control.borrow().code_name);
-                    //     func_header.push_str(", ");
-                    // }
+                    for (name, _) in &template.default_controls {
+                        func_header.push_str(name);
+                        func_header.push_str(", ");
+                    }
                     func_header.push_str("static::StaticData) ");
                     registry_source.append(&func_header, "generated");
                     registry_source.append_clip(&exec_source);
@@ -228,7 +224,7 @@ impl AudiobenchExecutorBuilder {
                     // Return outputs and modified static data. TODO: do this for early returns
                     // specified by the programmer as well.
                     let mut func_close = String::from(" return (");
-                    for output in &template.borrow().outputs {
+                    for output in &template.outputs {
                         func_close.push_str(output.borrow_code_name());
                         func_close.push_str(", ");
                     }

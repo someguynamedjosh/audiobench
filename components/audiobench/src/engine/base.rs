@@ -7,6 +7,8 @@ use super::program_wrapper::{AudiobenchExecutor, AudiobenchExecutorBuilder, Note
 use crate::registry::{save_data::Patch, Registry};
 use julia_helper::GeneratedCode;
 use shared_util::{perf_counter::sections, prelude::*};
+use std::path::PathBuf;
+use std::str::FromStr;
 use std::sync::mpsc::{self, Receiver, SyncSender};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
@@ -70,24 +72,25 @@ pub fn new_engine(
         buffer_length: DEFAULT_BUFFER_LENGTH,
         sample_rate: DEFAULT_SAMPLE_RATE,
     };
-    let default_patch = Rc::clone(
-        registry
-            .get_patch_by_name("Factory:patches/default.abpatch")
-            .ok_or("Could not find Factory:patches/default.abpatch".to_owned())?,
-    );
-    default_patch
-        .borrow()
-        .restore_note_graph(&mut module_graph, &*registry)
-        .map_err(|err| {
-            format!(
-                concat!(
-                    "Default patch failed to load!\n",
-                    "This is a critical error, please submit a bug report containing this ",
-                    "error:\n\n{}",
-                ),
-                err
-            )
-        })?;
+    // unimplemented!();
+    // let default_patch = Rc::clone(
+    //     registry
+    //         .get_patch_by_name("Factory:patches/default.abpatch")
+    //         .ok_or("Could not find Factory:patches/default.abpatch".to_owned())?,
+    // );
+    // default_patch
+    //     .borrow()
+    //     .restore_note_graph(&mut module_graph, &*registry)
+    //     .map_err(|err| {
+    //         format!(
+    //             concat!(
+    //                 "Default patch failed to load!\n",
+    //                 "This is a critical error, please submit a bug report containing this ",
+    //                 "error:\n\n{}",
+    //             ),
+    //             err
+    //         )
+    //     })?;
     let CodeGenResult {
         code,
         dyn_data_collector,
@@ -109,7 +112,7 @@ pub fn new_engine(
         module_graph: rcrc(module_graph),
         dyn_data_collector,
         feedback_displayer,
-        current_patch_save_data: default_patch,
+        current_patch_save_data: rcrc(Patch::new(PathBuf::from_str("/tmp/blank").unwrap())), //default_patch, unimplemented!()
     };
 
     let atd = AudioThreadData {
@@ -274,7 +277,6 @@ impl UiThreadEngine {
         self.data.dyn_data_collector = new_gen.dyn_data_collector;
         self.data.feedback_displayer = new_gen.feedback_displayer;
     }
-    
     /// Recompiles everything if the audio thread has encountered something that requires
     /// recompiling. This method exists because compilation is started by the UI thread.
     pub fn recompile_if_requested_by_audio_thread(&mut self) {

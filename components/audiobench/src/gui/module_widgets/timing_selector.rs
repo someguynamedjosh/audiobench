@@ -40,10 +40,10 @@ impl TimingSelector {
         let state = TimingSelectorState {
             pos,
             control,
-            note_icon: registry.lookup_icon("factory:note").unwrap(),
-            song_icon: registry.lookup_icon("factory:treble_clef").unwrap(),
-            time_icon: registry.lookup_icon("factory:time").unwrap(),
-            beats_icon: registry.lookup_icon("factory:metronome").unwrap(),
+            note_icon: registry.lookup_icon("Factory:note").unwrap(),
+            song_icon: registry.lookup_icon("Factory:treble_clef").unwrap(),
+            time_icon: registry.lookup_icon("Factory:time").unwrap(),
+            beats_icon: registry.lookup_icon("Factory:metronome").unwrap(),
         };
         Rc::new(Self::create(parent, state))
     }

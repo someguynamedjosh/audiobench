@@ -65,7 +65,7 @@ impl PatchBrowser {
         let entries = entries;
 
         let state = PatchBrowserState {
-            delete_icon: registry.lookup_icon("factory:delete").unwrap(),
+            delete_icon: registry.lookup_icon("Factory:delete").unwrap(),
             entries,
             alphabetical_order,
             current_entry_index,
@@ -77,25 +77,25 @@ impl PatchBrowser {
         this.sort();
 
         let patch_name = current_patch.borrow().borrow_name().to_owned();
-        let save_icon = registry.lookup_icon("factory:save").unwrap();
+        let save_icon = registry.lookup_icon("Factory:save").unwrap();
         let this2 = Rc::clone(&this);
         let save_button = IconButton::new(&this, (GRID_P, GRID_P), CG, save_icon, move |_| {
             this2.on_save_patch()
         });
         save_button.set_enabled(save_enabled);
-        let new_icon = registry.lookup_icon("factory:add").unwrap();
+        let new_icon = registry.lookup_icon("Factory:add").unwrap();
         let pos = (GRID_P + HW - CG * 3.0 - GRID_P * 2.0, GRID_P);
         let this2 = Rc::clone(&this);
         let new_button = IconButton::new(&this, pos, CG, new_icon, move |_| {
             this2.on_save_patch_copy()
         });
-        let copy_icon = registry.lookup_icon("factory:copy").unwrap();
+        let copy_icon = registry.lookup_icon("Factory:copy").unwrap();
         let pos = (GRID_P + HW - CG * 2.0 - GRID_P, GRID_P);
         let this2 = Rc::clone(&this);
         let copy_button = IconButton::new(&this, pos, CG, copy_icon, move |_| {
             this2.on_copy_patch_to_clipboard()
         });
-        let paste_icon = registry.lookup_icon("factory:paste").unwrap();
+        let paste_icon = registry.lookup_icon("Factory:paste").unwrap();
         let pos = (GRID_P + HW - CG, GRID_P);
         let this2 = Rc::clone(&this);
         let paste_button = IconButton::new(&this, pos, CG, paste_icon, move |_| {
