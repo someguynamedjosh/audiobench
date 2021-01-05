@@ -9,6 +9,7 @@ scui::widget! {
 
 const TAB_SIZE: Vec2D = Vec2D::new(grid(4), grid(1));
 const TAB_PADDING: f32 = GRID_P * 0.5;
+const TAB_HEIGHT: f32 = grid(1);
 
 impl Header {
     pub fn new(parent: &impl HeaderParent) -> Rc<Self> {
@@ -50,21 +51,27 @@ impl WidgetImpl<Renderer, DropTarget> for Header {
         const FS: f32 = FONT_SIZE;
 
         renderer.set_color(&COLOR_BG2);
-        renderer.draw_rect(0, (ROOT_WIDTH, HEADER_HEIGHT - grid(1)));
+        renderer.draw_rect((0.0, TAB_HEIGHT), (ROOT_WIDTH, HEADER_HEIGHT - grid(1)));
         renderer.set_color(&COLOR_BG0);
-        let tab_bar_start = Vec2D::new(0.0, HEADER_HEIGHT - grid(1));
-        renderer.draw_rect(tab_bar_start, (ROOT_WIDTH, grid(1)));
+        renderer.draw_rect(0, (ROOT_WIDTH, grid(1)));
 
-        let tooltip_size: Vec2D = (ROOT_WIDTH - GP * 2.0, TOOLTIP_HEIGHT).into();
         renderer.set_color(&COLOR_BG0);
-        renderer.draw_rounded_rect(GP, tooltip_size, CS);
+        let tooltip_size: Vec2D = (ROOT_WIDTH - GP * 2.0, TOOLTIP_HEIGHT).into();
+        renderer.draw_rounded_rect((GP, GP + TAB_HEIGHT), tooltip_size, CS);
         let textbox_size = tooltip_size - GP * 2.0;
         self.with_gui_state(|state| {
             let tooltip = &state.borrow_tooltip();
             renderer.set_color(&COLOR_FG1);
-            renderer.draw_text(BFS, GP * 2.0, textbox_size, (-1, -1), 1, &tooltip.text);
+            renderer.draw_text(
+                BFS,
+                (GP * 2.0, GP * 2.0 + TAB_HEIGHT),
+                textbox_size,
+                (-1, -1),
+                1,
+                &tooltip.text,
+            );
 
-            let mut pos = tab_bar_start;
+            let mut pos: Vec2D = 0.into();
             let mut index = 0;
             let active_index = state.get_current_tab_index();
             for tab in state.all_tabs() {

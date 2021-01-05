@@ -79,24 +79,24 @@ impl PatchBrowser {
         let patch_name = current_patch.borrow().borrow_name().to_owned();
         let save_icon = registry.lookup_icon("Factory:save").unwrap();
         let this2 = Rc::clone(&this);
-        let save_button = IconButton::new(&this, (GRID_P, GRID_P), CG, save_icon, move |_| {
+        let save_button = IconButton::new(&this, (GRID_P, 0.0), CG, save_icon, move |_| {
             this2.on_save_patch()
         });
         save_button.set_enabled(save_enabled);
         let new_icon = registry.lookup_icon("Factory:add").unwrap();
-        let pos = (GRID_P + HW - CG * 3.0 - GRID_P * 2.0, GRID_P);
+        let pos = (GRID_P + HW - CG * 3.0 - GRID_P * 2.0, 0.0);
         let this2 = Rc::clone(&this);
         let new_button = IconButton::new(&this, pos, CG, new_icon, move |_| {
             this2.on_save_patch_copy()
         });
         let copy_icon = registry.lookup_icon("Factory:copy").unwrap();
-        let pos = (GRID_P + HW - CG * 2.0 - GRID_P, GRID_P);
+        let pos = (GRID_P + HW - CG * 2.0 - GRID_P, 0.0);
         let this2 = Rc::clone(&this);
         let copy_button = IconButton::new(&this, pos, CG, copy_icon, move |_| {
             this2.on_copy_patch_to_clipboard()
         });
         let paste_icon = registry.lookup_icon("Factory:paste").unwrap();
-        let pos = (GRID_P + HW - CG, GRID_P);
+        let pos = (GRID_P + HW - CG, 0.0);
         let this2 = Rc::clone(&this);
         let paste_button = IconButton::new(&this, pos, CG, paste_icon, move |_| {
             this2.on_paste_patch_from_clipboard()
@@ -105,7 +105,7 @@ impl PatchBrowser {
         let this2 = Rc::clone(&this);
         let name_box = TextBox::new(
             &this,
-            (GRID_P + CG + GRID_P, GRID_P),
+            (GRID_P + CG + GRID_P, 0.0),
             (namew, NAME_BOX_HEIGHT),
             patch_name,
             Box::new(move |text| this2.on_rename_patch(text)),
@@ -377,7 +377,7 @@ impl WidgetImpl<Renderer, DropTarget> for PatchBrowser {
         g.draw_rect(0, TAB_BODY_SIZE);
         self.draw_children(g);
 
-        let y = GP + CG + GP;
+        let y = CG + GP;
         g.set_color(&COLOR_BG0);
         let panel_height = TAB_BODY_HEIGHT - y - GP;
         g.draw_rounded_rect((GP, y), (HW, panel_height), CORNER_SIZE);
