@@ -2,7 +2,9 @@
 
 pub mod graph;
 mod header;
+mod note_graph;
 mod patch_browser;
 
 pub use header::Header;
+pub use note_graph::*;
 pub use patch_browser::*;

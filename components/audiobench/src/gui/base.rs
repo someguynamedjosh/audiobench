@@ -123,9 +123,11 @@ impl Root {
     fn new(parent: &impl RootParent) -> Rc<Self> {
         let state = RootState {};
         let this = Rc::new(Self::create(parent, state));
-        let tab = Rc::new(PatchBrowser::new(&this));
+        let tab1 = Rc::new(PatchBrowser::new(&this));
+        let tab2 = Rc::new(NoteGraph::new(&this));
         this.with_gui_state_mut(|state| {
-            state.add_tab(tab);
+            state.add_tab(tab1);
+            state.add_tab(tab2);
         });
         let header = Header::new(&this);
         this.children.borrow_mut().header = Some(header);
