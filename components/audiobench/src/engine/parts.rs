@@ -1,53 +1,8 @@
-use super::static_controls::Staticon;
 use crate::registry::module_template::ModuleTemplate;
+use crate::engine::controls::AnyControl;
 use shared_util::prelude::*;
 use std::collections::{HashMap, HashSet};
-
-#[derive(Clone, Debug)]
-pub struct AutomationLane {
-    pub connection: (Rcrc<Module>, usize),
-    pub range: (f32, f32),
-}
-
-#[derive(Clone, Debug)]
-pub struct Autocon {
-    pub code_name: String,
-    pub range: (f32, f32),
-    pub default: f32,
-    pub value: f32,
-    pub automation: Vec<AutomationLane>,
-    pub suffix: String,
-}
-
-impl Autocon {
-    pub fn create(code_name: String, min: f32, max: f32, default: f32, suffix: String) -> Self {
-        Self {
-            code_name,
-            range: (min, max),
-            default,
-            value: default,
-            automation: Vec::new(),
-            suffix,
-        }
-    }
-
-    pub fn sever_connections_with(&mut self, module: &Rcrc<Module>) {
-        for index in (0..self.automation.len()).rev() {
-            if std::ptr::eq(
-                self.automation[index].connection.0.as_ref(),
-                module.as_ref(),
-            ) {
-                self.automation.remove(index);
-            }
-        }
-    }
-}
-
-#[derive(Clone, Debug)]
-pub enum InputConnection {
-    Wire(Rcrc<Module>, usize),
-    Default(usize),
-}
+use crate::registry::yaml::YamlNode;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum JackType {
@@ -57,20 +12,13 @@ pub enum JackType {
     Trigger,
 }
 
-struct DefaultInputDescription {
-    name: &'static str,
-    code: &'static str,
-    icon: &'static str,
-}
-
-#[derive(Clone, Debug)]
-pub struct DefaultInput {
-    pub name: &'static str,
-    pub code: &'static str,
-    pub icon: usize,
-}
-
 impl JackType {
+    pub fn from_yaml(yaml: &YamlNode) -> Result<Self, String> {
+        let names = vec!["pitch", "waveform", "audio", "trigger"];
+        let values = vec![Self::Pitch, Self::Waveform, Self::Audio, Self::Trigger];
+        Ok(values[yaml.parse_enumerated(&names[..])?])
+    }
+
     pub fn from_str(input: &str) -> Result<Self, ()> {
         match input {
             "pitch" => Ok(Self::Pitch),
@@ -98,77 +46,6 @@ impl JackType {
             Self::Trigger => "<TRIGGER_BUFFER>",
         }
     }
-
-    fn default_option_descriptions(&self) -> &'static [DefaultInputDescription] {
-        match self {
-            Self::Pitch => &[DefaultInputDescription {
-                name: "Note Pitch",
-                code: "StaticControlSignal(note_input.pitch)",
-                icon: "Factory:note",
-            }],
-            Self::Waveform => &[
-                DefaultInputDescription {
-                    name: "Silence",
-                    code: "flat_waveform",
-                    // TODO: Better icon.
-                    icon: "Factory:nothing",
-                },
-                DefaultInputDescription {
-                    name: "Ramp Up",
-                    code: "ramp_up_waveform",
-                    icon: "Factory:ramp_up",
-                },
-                DefaultInputDescription {
-                    name: "Ramp Down",
-                    code: "ramp_down_waveform",
-                    icon: "Factory:ramp_down",
-                },
-                DefaultInputDescription {
-                    name: "Sine Wave",
-                    code: "sine_waveform",
-                    icon: "Factory:sine_wave",
-                },
-            ],
-            Self::Audio => &[DefaultInputDescription {
-                name: "Silence",
-                code: "StaticMonoAudio(0f0)",
-                icon: "Factory:nothing",
-            }],
-            Self::Trigger => &[
-                DefaultInputDescription {
-                    name: "Note Start",
-                    code: "global_start_trigger",
-                    icon: "Factory:note_down",
-                },
-                DefaultInputDescription {
-                    name: "Note Release",
-                    code: "global_release_trigger",
-                    icon: "Factory:note_up",
-                },
-                DefaultInputDescription {
-                    name: "Never",
-                    code: "StaticTrigger(False)",
-                    icon: "Factory:nothing",
-                },
-            ],
-        }
-    }
-
-    fn default_options(&self, icon_indexes: &HashMap<String, usize>) -> Vec<DefaultInput> {
-        self.default_option_descriptions()
-            .iter()
-            .map(|desc| DefaultInput {
-                name: desc.name,
-                code: desc.code,
-                // The factory library should have all the listed icons.
-                icon: *icon_indexes.get(desc.icon).unwrap(),
-            })
-            .collect()
-    }
-
-    pub fn get_num_defaults(&self) -> usize {
-        self.default_option_descriptions().len()
-    }
 }
 
 #[derive(Clone, Debug)]
@@ -179,7 +56,6 @@ pub struct IOJack {
     code_name: String,
     label: String,
     tooltip: String,
-    default_options: Vec<DefaultInput>,
 }
 
 impl IOJack {
@@ -199,7 +75,6 @@ impl IOJack {
             code_name,
             label,
             tooltip,
-            default_options: typ.default_options(icon_indexes),
         }
     }
 
@@ -226,57 +101,25 @@ impl IOJack {
     pub fn borrow_tooltip(&self) -> &str {
         &self.tooltip
     }
-
-    pub fn borrow_default_options(&self) -> &[DefaultInput] {
-        &self.default_options[..]
-    }
 }
 
 #[derive(Debug)]
 pub struct Module {
     pub template: Rcrc<ModuleTemplate>,
-    pub autocons: Vec<Rcrc<Autocon>>,
-    pub staticons: Vec<Rcrc<Staticon>>,
+    pub controls: Vec<AnyControl>,
     pub pos: (f32, f32),
-    pub inputs: Vec<InputConnection>,
     pub feedback_data: Option<Rcrc<Vec<f32>>>,
-}
-
-impl Clone for Module {
-    fn clone(&self) -> Self {
-        // gui_outline should point to the same data, but controls should point to unique copies
-        // of the controls.
-        Self {
-            template: Rc::clone(&self.template),
-            autocons: self
-                .autocons
-                .imc(|control_ref| rcrc((*control_ref.borrow()).clone())),
-            staticons: self
-                .staticons
-                .imc(|control_ref| rcrc((*control_ref.borrow()).clone())),
-            pos: self.pos,
-            inputs: self.inputs.clone(),
-            feedback_data: None,
-        }
-    }
 }
 
 impl Module {
     pub fn create(
         template: Rcrc<ModuleTemplate>,
-        autocons: Vec<Rcrc<Autocon>>,
-        staticons: Vec<Rcrc<Staticon>>,
-        default_inputs: Vec<usize>,
     ) -> Self {
+        let controls = template.borrow().default_controls.imc(|(_, c)| c.deep_clone());
         Self {
             template,
-            autocons,
-            staticons,
+            controls,
             pos: (0.0, 0.0),
-            inputs: default_inputs
-                .into_iter()
-                .map(|i| InputConnection::Default(i))
-                .collect(),
             feedback_data: None,
         }
     }
@@ -285,24 +128,13 @@ impl Module {
     /// It is still required to manually remove references to this module that exist in other
     /// modules.
     pub fn sever(&mut self) {
-        self.inputs.clear();
-        self.autocons.clear();
-        self.staticons.clear();
+        self.controls.clear();
         self.feedback_data = None;
     }
 
     pub fn sever_connections_with(&mut self, other: &Rcrc<Module>) {
         let template_ref = self.template.borrow();
-        for (index, input) in self.inputs.iter_mut().enumerate() {
-            if let InputConnection::Wire(module, ..) = input {
-                if std::ptr::eq(module.as_ref(), other.as_ref()) {
-                    *input = InputConnection::Default(template_ref.default_inputs[index]);
-                }
-            }
-        }
-        for control in &mut self.autocons {
-            control.borrow_mut().sever_connections_with(other);
-        }
+        unimplemented!();
     }
 }
 
@@ -362,16 +194,11 @@ impl ModuleGraph {
         for module in self.modules.iter() {
             let module_ref = module.borrow();
             let mut dependencies = HashSet::new();
-            for input in &module_ref.inputs {
-                if let InputConnection::Wire(module_ref, _) = &input {
-                    dependencies.insert(self.index_of_module(module_ref).ok_or(())?);
-                }
-            }
-            for control in &module_ref.autocons {
-                let control_ref = control.borrow();
-                for lane in &control_ref.automation {
-                    dependencies.insert(self.index_of_module(&lane.connection.0).ok_or(())?);
-                }
+            for control in &module_ref.controls {
+                unimplemented!();
+                // for lane in &control_ref.automation {
+                //     dependencies.insert(self.index_of_module(&lane.connection.0).ok_or(())?);
+                // }
             }
             let flat_dependencies = dependencies.iter().cloned().collect();
             module_reprs.push(ModuleRepr {

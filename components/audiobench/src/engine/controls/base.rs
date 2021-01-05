@@ -1,11 +1,13 @@
 use crate::registry::mini_bin;
+use crate::engine::codegen::AutomationCode;
 use crate::registry::yaml::YamlNode;
+use crate::engine::parts::{JackType, Module};
 use shared_util::prelude::*;
 use std::cell::{Ref, RefMut};
 use std::fmt::Debug;
+use super::{InputControl, FloatInRangeControl};
 
-// TODO: REMOVE
-
+use paste::paste;
 
 /// Represents the data type of a variable which is either an input or output in the generated
 /// program. E.G. `IOType::FloatArray(20)` would be the type of `input [20]FLOAT some_data;`.
@@ -92,8 +94,8 @@ impl<'a> From<&'a [f32]> for IODataPtr<'a> {
     }
 }
 
-impl<'a> From<&'a OwnedIOData> for IODataPtr<'a> {
-    fn from(data: &'a OwnedIOData) -> Self {
+impl<'a> From<&'a IOData> for IODataPtr<'a> {
+    fn from(data: &'a IOData) -> Self {
         data.borrow()
     }
 }
@@ -110,19 +112,19 @@ impl<'a> IODataPtr<'a> {
         }
     }
 
-    pub fn to_owned(&self) -> OwnedIOData {
+    pub fn to_owned(&self) -> IOData {
         match self {
-            Self::Bool(value) => OwnedIOData::Bool(*value),
-            Self::Int(value) => OwnedIOData::Int(*value),
-            Self::Float(value) => OwnedIOData::Float(*value),
+            Self::Bool(value) => IOData::Bool(*value),
+            Self::Int(value) => IOData::Int(*value),
+            Self::Float(value) => IOData::Float(*value),
             Self::BoolArray(slice_ptr) => {
-                OwnedIOData::BoolArray(Vec::from(*slice_ptr).into_boxed_slice())
+                IOData::BoolArray(Vec::from(*slice_ptr).into_boxed_slice())
             }
             Self::IntArray(slice_ptr) => {
-                OwnedIOData::IntArray(Vec::from(*slice_ptr).into_boxed_slice())
+                IOData::IntArray(Vec::from(*slice_ptr).into_boxed_slice())
             }
             Self::FloatArray(slice_ptr) => {
-                OwnedIOData::FloatArray(Vec::from(*slice_ptr).into_boxed_slice())
+                IOData::FloatArray(Vec::from(*slice_ptr).into_boxed_slice())
             }
         }
     }
@@ -217,7 +219,7 @@ impl<'a> IODataPtr<'a> {
 }
 
 #[derive(PartialEq, Debug)]
-pub enum OwnedIOData {
+pub enum IOData {
     Bool(bool),
     Int(i32),
     Float(f32),
@@ -226,7 +228,7 @@ pub enum OwnedIOData {
     FloatArray(Box<[f32]>),
 }
 
-impl OwnedIOData {
+impl IOData {
     pub fn borrow(&self) -> IODataPtr {
         match self {
             Self::Bool(value) => IODataPtr::Bool(*value),
@@ -240,19 +242,19 @@ impl OwnedIOData {
 }
 
 #[derive(Debug)]
-pub enum StaticonUpdateRequest {
+pub enum UpdateRequest {
     /// For when a particular change does not require any action to be expressed.
     Nothing,
-    /// For when a particular change can be expressed by updating global_staticon_dyn_data
+    /// For when a particular change can be expressed by updating global_dyn_data
     UpdateDynData,
     /// For when a particular change requires the entire code to be reocmpiled to be expressed.
     UpdateCode,
 }
 
-impl StaticonUpdateRequest {
+impl UpdateRequest {
     /// Returns `UpdateDynData` if `for_data` allows dynamically updating data (I.E.
     /// `is_static_only` returns `false`.) Otherwise, returns `UpdateCode`.
-    fn dyn_update_if_allowed(for_data: &impl ControlledData) -> Self {
+    fn dyn_update_if_allowed(for_data: &impl Control) -> Self {
         if for_data.is_static_only() {
             Self::UpdateCode
         } else {
@@ -261,27 +263,53 @@ impl StaticonUpdateRequest {
     }
 }
 
-pub trait ControlledData: Debug {
+#[derive(Clone, Debug)]
+pub struct AutomationSource {
+    module: Rcrc<Module>,
+    output_index: usize,
+    output_type: JackType,
+}
+
+impl AutomationSource {
+    pub fn get_type(&self) -> JackType {
+        self.output_type
+    }
+}
+
+pub trait Control: Debug {
     /// Returns true if the control's value must be available at compile time. This will cause the
     /// code to be recompiled every time the user changes the value, so it should be avoided if at
     /// all possible.
     fn is_static_only(&self) -> bool;
 
-    /// Returns the data type this control has in the generated code.
-    fn get_data_type(&self) -> String;
+    /// Returns a vector of output types that this control accepts automation wires from. Default
+    /// implementation returns an empty vector.
+    fn acceptable_automation(&self) -> Vec<JackType> {
+        vec![]
+    }
 
-    /// Returns the IOType that should be used when dynamically transferring data. This should never
-    /// be called if is_static_only is false.
-    fn get_io_type(&self) -> IOType;
+    /// Called when the user connects some automation of a type given by acceptable_automation.
+    fn connect_automation(&mut self, from: AutomationSource) {
+        if self.acceptable_automation().len() == 0 {
+            panic!("connect_automation called on control that does not accept automation.");
+        } else {
+            panic!(
+                "Control says it accepts automation but has not implemented connect_automation."
+            );
+        }
+    }
 
-    /// Returns code that provides the current value of this control without allowing it to change
-    /// in real time.
-    fn generate_static_code(&self) -> String;
+    /// Returns a list of parameter types that should be transferred to the code for this control.
+    fn get_parameter_types(&self) -> Vec<IOType>;
 
-    /// Returns an IODataPtr containing an up-to-date value that can be passed in to the program
-    /// dynamically to update the value of the static control. This should never be called if
-    /// is_static_only is false.
-    fn package_dyn_data(&self) -> IODataPtr;
+    /// Returns the value for each parameter as defined by get_parameter_types.
+    fn get_parameter_values(&self) -> Vec<IOData>;
+
+    /// Returns code that provides the current value of this control. The provided string array
+    /// contains code which provides the value of each parameter as defined in get_parameter_types.
+    /// automation_code.of(automation_source) can be used to get the value of a particular
+    /// automation source.
+    fn generate_code(&self, params: &[&str], automation_code: &AutomationCode) -> String;
 
     fn serialize(&self, buffer: &mut Vec<u8>);
 
@@ -299,13 +327,13 @@ macro_rules! require_static_only_boilerplate {
 }
 
 #[derive(Clone, Debug)]
-pub struct ControlledInt {
+pub struct IntControl {
     require_static_only: bool,
     value: i16,
     range: (i16, i16),
 }
 
-impl ControlledInt {
+impl IntControl {
     fn from_yaml(yaml: &YamlNode) -> Result<Self, String> {
         let min = yaml.unique_child("min")?.parse()?;
         let max = yaml.unique_child("max")?.parse_ranged(Some(min), None)?;
@@ -326,14 +354,14 @@ impl ControlledInt {
         self.value
     }
 
-    pub fn set_value(&mut self, value: i16) -> StaticonUpdateRequest {
+    pub fn set_value(&mut self, value: i16) -> UpdateRequest {
         assert!(value >= self.range.0);
         assert!(value <= self.range.1);
         if self.value == value {
-            return StaticonUpdateRequest::Nothing;
+            return UpdateRequest::Nothing;
         }
         self.value = value;
-        StaticonUpdateRequest::dyn_update_if_allowed(self)
+        UpdateRequest::dyn_update_if_allowed(self)
     }
 
     pub fn get_range(&self) -> (i16, i16) {
@@ -342,12 +370,13 @@ impl ControlledInt {
 }
 
 #[rustfmt::skip] // Keeps trying to ruin my perfectly fine one-line functions.
-impl ControlledData for ControlledInt {
+impl Control for IntControl {
     fn is_static_only(&self) -> bool { self.require_static_only }
-    fn get_data_type(&self) -> String { "INT".to_owned() }
-    fn get_io_type(&self) -> IOType { IOType::Int }
-    fn generate_static_code(&self) -> String { self.value.to_string() }
-    fn package_dyn_data(&self) -> IODataPtr { IODataPtr::Int(self.value as _) }
+    fn get_parameter_types(&self) -> Vec<IOType> { vec![IOType::Int] }
+    fn get_parameter_values(&self) -> Vec<IOData> { unimplemented!() }
+    fn generate_code(&self, params: &[&str], automation_code: &AutomationCode) -> String { 
+        unimplemented!() 
+    }
     fn serialize(&self, buffer: &mut Vec<u8>) { mini_bin::ser_i16(buffer, self.value); }
     fn deserialize(&mut self, slice: &mut &[u8]) -> Result<(), ()> { 
         self.value = mini_bin::des_i16(slice)?;
@@ -360,7 +389,7 @@ impl ControlledData for ControlledInt {
 }
 
 #[derive(Clone, Debug)]
-pub struct ControlledDuration {
+pub struct DurationControl {
     require_static_only: bool,
     decimal_value: f32,
     fraction_mode: bool,
@@ -368,7 +397,7 @@ pub struct ControlledDuration {
     fraction_denominator: u8,
 }
 
-impl ControlledDuration {
+impl DurationControl {
     fn from_yaml(yaml: &YamlNode) -> Result<Self, String> {
         let fraction_mode = if let Ok(child) = yaml.unique_child("default_format") {
             child.parse_enumerated(&["decimal", "fractional"])? == 1
@@ -439,57 +468,54 @@ impl ControlledDuration {
         self.decimal_value
     }
 
-    pub fn set_decimal_value(&mut self, value: f32) -> StaticonUpdateRequest {
+    pub fn set_decimal_value(&mut self, value: f32) -> UpdateRequest {
         // This assert does not protect anything but it *is* indicative of a bug.
         debug_assert!(!self.fraction_mode);
         if self.decimal_value == value {
-            return StaticonUpdateRequest::Nothing;
+            return UpdateRequest::Nothing;
         }
         self.decimal_value = value;
-        StaticonUpdateRequest::dyn_update_if_allowed(self)
+        UpdateRequest::dyn_update_if_allowed(self)
     }
 
     pub fn get_fractional_value(&self) -> (u8, u8) {
         (self.fraction_numerator, self.fraction_denominator)
     }
 
-    pub fn set_fractional_value(
-        &mut self,
-        (numerator, denominator): (u8, u8),
-    ) -> StaticonUpdateRequest {
+    pub fn set_fractional_value(&mut self, (numerator, denominator): (u8, u8)) -> UpdateRequest {
         // This assert does not protect anything but it *is* indicative of a bug.
         debug_assert!(self.fraction_mode);
         if self.fraction_numerator == numerator && self.fraction_denominator == denominator {
-            return StaticonUpdateRequest::Nothing;
+            return UpdateRequest::Nothing;
         }
         self.fraction_numerator = numerator;
         self.fraction_denominator = denominator;
-        StaticonUpdateRequest::dyn_update_if_allowed(self)
+        UpdateRequest::dyn_update_if_allowed(self)
     }
 
     pub fn is_using_fractional_mode(&self) -> bool {
         self.fraction_mode
     }
 
-    pub fn use_decimal_mode(&mut self) -> StaticonUpdateRequest {
+    pub fn use_decimal_mode(&mut self) -> UpdateRequest {
         // This assert does not protect anything but it *is* indicative of a bug.
         debug_assert!(self.fraction_mode);
         self.fraction_mode = false;
         self.decimal_value = self.fraction_numerator as f32 / self.fraction_denominator as f32;
-        StaticonUpdateRequest::dyn_update_if_allowed(self)
+        UpdateRequest::dyn_update_if_allowed(self)
     }
 
-    pub fn use_fractional_mode(&mut self) -> StaticonUpdateRequest {
+    pub fn use_fractional_mode(&mut self) -> UpdateRequest {
         // This assert does not protect anything but it *is* indicative of a bug.
         debug_assert!(!self.fraction_mode);
         self.fraction_mode = true;
         // TODO: Try to convert the decimal value back to fractional?
         self.fraction_numerator = 1;
         self.fraction_denominator = 4;
-        StaticonUpdateRequest::dyn_update_if_allowed(self)
+        UpdateRequest::dyn_update_if_allowed(self)
     }
 
-    pub fn toggle_mode(&mut self) -> StaticonUpdateRequest {
+    pub fn toggle_mode(&mut self) -> UpdateRequest {
         if self.fraction_mode {
             self.use_decimal_mode()
         } else {
@@ -499,12 +525,13 @@ impl ControlledDuration {
 }
 
 #[rustfmt::skip] 
-impl ControlledData for ControlledDuration {
+impl Control for DurationControl {
     fn is_static_only(&self) -> bool { self.require_static_only }
-    fn get_data_type(&self) -> String { "FLOAT".to_owned() }
-    fn get_io_type(&self) -> IOType { IOType::Float }
-    fn generate_static_code(&self) -> String { format!("{:.05}", self.get_raw_value()) }
-    fn package_dyn_data(&self) -> IODataPtr { IODataPtr::Float(self.get_raw_value()) }
+    fn get_parameter_types(&self) -> Vec<IOType> { unimplemented!() }
+    fn get_parameter_values(&self) -> Vec<IOData> { unimplemented!() }
+    fn generate_code(&self, params: &[&str], automation_code: &AutomationCode) -> String { 
+        unimplemented!() 
+    }
     fn serialize(&self, buffer: &mut Vec<u8>) { 
         if self.fraction_mode {
             mini_bin::ser_u8(buffer, 1);
@@ -530,7 +557,7 @@ impl ControlledData for ControlledDuration {
 }
 
 #[derive(Clone, Debug)]
-pub struct ControlledTimingMode {
+pub struct TimingModeControl {
     require_static_only: bool,
     /// True if time should be measured against how long the song has been running, false if time
     /// should be measured against how long the note has been running.
@@ -539,7 +566,7 @@ pub struct ControlledTimingMode {
     beat_synchronized: bool,
 }
 
-impl ControlledTimingMode {
+impl TimingModeControl {
     fn from_yaml(yaml: &YamlNode) -> Result<Self, String> {
         let use_elapsed_time = if let Ok(child) = yaml.unique_child("default_source") {
             child.parse_enumerated(&["note", "song"])? == 1
@@ -568,28 +595,29 @@ impl ControlledTimingMode {
         self.use_elapsed_time
     }
 
-    pub fn toggle_source(&mut self) -> StaticonUpdateRequest {
+    pub fn toggle_source(&mut self) -> UpdateRequest {
         self.use_elapsed_time = !self.use_elapsed_time;
-        StaticonUpdateRequest::dyn_update_if_allowed(self)
+        UpdateRequest::dyn_update_if_allowed(self)
     }
 
     pub fn is_beat_synchronized(&self) -> bool {
         self.beat_synchronized
     }
 
-    pub fn toggle_units(&mut self) -> StaticonUpdateRequest {
+    pub fn toggle_units(&mut self) -> UpdateRequest {
         self.beat_synchronized = !self.beat_synchronized;
-        StaticonUpdateRequest::dyn_update_if_allowed(self)
+        UpdateRequest::dyn_update_if_allowed(self)
     }
 }
 
 #[rustfmt::skip] 
-impl ControlledData for ControlledTimingMode {
+impl Control for TimingModeControl {
     fn is_static_only(&self) -> bool { self.require_static_only }
-    fn get_data_type(&self) -> String { "INT".to_owned() }
-    fn get_io_type(&self) -> IOType { IOType::Int }
-    fn generate_static_code(&self) -> String { self.get_raw_value().to_string() }
-    fn package_dyn_data(&self) -> IODataPtr { IODataPtr::Int(self.get_raw_value() as _) }
+    fn get_parameter_types(&self) -> Vec<IOType> { unimplemented!() }
+    fn get_parameter_values(&self) -> Vec<IOData> { unimplemented!() }
+    fn generate_code(&self, params: &[&str], automation_code: &AutomationCode) -> String { 
+        unimplemented!() 
+    }
     fn serialize(&self, buffer: &mut Vec<u8>) { mini_bin::ser_u8(buffer, self.get_raw_value()); }
     fn deserialize(&mut self, slice: &mut &[u8]) -> Result<(), ()> { 
         let raw_value = mini_bin::des_u8(slice)?;
@@ -603,12 +631,12 @@ impl ControlledData for ControlledTimingMode {
 }
 
 #[derive(Clone, Debug)]
-pub struct ControlledTriggerSequence {
+pub struct TriggerSequenceControl {
     require_static_only: bool,
     sequence: Vec<bool>,
 }
 
-impl ControlledTriggerSequence {
+impl TriggerSequenceControl {
     fn from_yaml(yaml: &YamlNode) -> Result<Self, String> {
         Ok(Self {
             require_static_only: require_static_only_boilerplate!(yaml),
@@ -620,14 +648,14 @@ impl ControlledTriggerSequence {
         self.sequence.len()
     }
 
-    pub fn set_len(&mut self, len: usize) -> StaticonUpdateRequest {
+    pub fn set_len(&mut self, len: usize) -> UpdateRequest {
         if self.sequence.len() == len {
-            return StaticonUpdateRequest::Nothing;
+            return UpdateRequest::Nothing;
         }
         self.sequence.resize(len, false);
         // Changing the length changes the data type of the information dynamically passed in for
         // this control, so the code has to be updated.
-        StaticonUpdateRequest::UpdateCode
+        UpdateRequest::UpdateCode
     }
 
     pub fn get_trigger(&self, index: usize) -> bool {
@@ -635,27 +663,21 @@ impl ControlledTriggerSequence {
         self.sequence[index]
     }
 
-    pub fn toggle_trigger(&mut self, index: usize) -> StaticonUpdateRequest {
+    pub fn toggle_trigger(&mut self, index: usize) -> UpdateRequest {
         assert!(index < self.get_len());
         self.sequence[index] = !self.sequence[index];
-        StaticonUpdateRequest::dyn_update_if_allowed(self)
+        UpdateRequest::dyn_update_if_allowed(self)
     }
 }
 
 #[rustfmt::skip] 
-impl ControlledData for ControlledTriggerSequence {
+impl Control for TriggerSequenceControl {
     fn is_static_only(&self) -> bool { self.require_static_only }
-    fn get_data_type(&self) -> String { format!("[{}]BOOL", self.sequence.len()) }
-    fn get_io_type(&self) -> IOType { IOType::BoolArray(self.sequence.len()) }
-    fn generate_static_code(&self) -> String {
-        let mut result = "[".to_owned();
-        for value in &self.sequence {
-            result.push_str(if *value { "TRUE," } else { "FALSE," });
-        }
-        result.push_str("]");
-        result
+    fn get_parameter_types(&self) -> Vec<IOType> { unimplemented!() }
+    fn get_parameter_values(&self) -> Vec<IOData> { unimplemented!() }
+    fn generate_code(&self, params: &[&str], automation_code: &AutomationCode) -> String { 
+        unimplemented!() 
     }
-    fn package_dyn_data(&self) -> IODataPtr { IODataPtr::BoolArray(&self.sequence[..]) }
     fn serialize(&self, buffer: &mut Vec<u8>) { 
         assert!(self.sequence.len() <= 0xFF);
         mini_bin::ser_u8(buffer, self.sequence.len() as u8); 
@@ -669,12 +691,12 @@ impl ControlledData for ControlledTriggerSequence {
 }
 
 #[derive(Clone, Debug)]
-pub struct ControlledValueSequence {
+pub struct ValueSequenceControl {
     require_static_only: bool,
     sequence: Vec<f32>,
 }
 
-impl ControlledValueSequence {
+impl ValueSequenceControl {
     fn from_yaml(yaml: &YamlNode) -> Result<Self, String> {
         Ok(Self {
             require_static_only: require_static_only_boilerplate!(yaml),
@@ -686,14 +708,14 @@ impl ControlledValueSequence {
         self.sequence.len()
     }
 
-    pub fn set_len(&mut self, len: usize) -> StaticonUpdateRequest {
+    pub fn set_len(&mut self, len: usize) -> UpdateRequest {
         if self.sequence.len() == len {
-            return StaticonUpdateRequest::Nothing;
+            return UpdateRequest::Nothing;
         }
         self.sequence.resize(len, -1.0);
         // Changing the length changes the data type of the information dynamically passed in for
         // this control, so the code has to be updated.
-        StaticonUpdateRequest::UpdateCode
+        UpdateRequest::UpdateCode
     }
 
     pub fn get_value(&self, index: usize) -> f32 {
@@ -701,30 +723,24 @@ impl ControlledValueSequence {
         self.sequence[index]
     }
 
-    pub fn set_value(&mut self, index: usize, value: f32) -> StaticonUpdateRequest {
+    pub fn set_value(&mut self, index: usize, value: f32) -> UpdateRequest {
         assert!(index < self.get_len());
         if self.sequence[index] == value {
-            return StaticonUpdateRequest::Nothing;
+            return UpdateRequest::Nothing;
         }
         self.sequence[index] = value;
-        StaticonUpdateRequest::dyn_update_if_allowed(self)
+        UpdateRequest::dyn_update_if_allowed(self)
     }
 }
 
 #[rustfmt::skip] 
-impl ControlledData for ControlledValueSequence {
+impl Control for ValueSequenceControl {
     fn is_static_only(&self) -> bool { self.require_static_only }
-    fn get_data_type(&self) -> String { format!("[{}]FLOAT", self.sequence.len()) }
-    fn get_io_type(&self) -> IOType { IOType::FloatArray(self.sequence.len()) }
-    fn generate_static_code(&self) -> String {
-        let mut result = "[".to_owned();
-        for value in &self.sequence {
-            result.push_str(&format!("{:.02},", value));
-        }
-        result.push_str("]");
-        result
+    fn get_parameter_types(&self) -> Vec<IOType> { unimplemented!() }
+    fn get_parameter_values(&self) -> Vec<IOData> { unimplemented!() }
+    fn generate_code(&self, params: &[&str], automation_code: &AutomationCode) -> String { 
+        unimplemented!() 
     }
-    fn package_dyn_data(&self) -> IODataPtr { IODataPtr::FloatArray(&self.sequence[..]) }
     fn serialize(&self, buffer: &mut Vec<u8>) { 
         assert!(self.sequence.len() <= 0xFF);
         mini_bin::ser_u8(buffer, self.sequence.len() as u8); 
@@ -745,13 +761,13 @@ impl ControlledData for ControlledValueSequence {
 }
 
 #[derive(Clone, Debug)]
-pub struct ControlledOptionChoice {
+pub struct OptionChoiceControl {
     require_static_only: bool,
     options: Vec<String>,
     selected_option: usize,
 }
 
-impl ControlledOptionChoice {
+impl OptionChoiceControl {
     fn from_yaml(yaml: &YamlNode) -> Result<Self, String> {
         let mut options = Vec::new();
         for child in &yaml.unique_child("options")?.children {
@@ -783,23 +799,24 @@ impl ControlledOptionChoice {
         self.selected_option
     }
 
-    pub fn set_selected_option(&mut self, selected_option: usize) -> StaticonUpdateRequest {
+    pub fn set_selected_option(&mut self, selected_option: usize) -> UpdateRequest {
         assert!(selected_option < self.options.len());
         if self.selected_option == selected_option {
-            return StaticonUpdateRequest::Nothing;
+            return UpdateRequest::Nothing;
         }
         self.selected_option = selected_option;
-        StaticonUpdateRequest::dyn_update_if_allowed(self)
+        UpdateRequest::dyn_update_if_allowed(self)
     }
 }
 
 #[rustfmt::skip] 
-impl ControlledData for ControlledOptionChoice {
+impl Control for OptionChoiceControl {
     fn is_static_only(&self) -> bool { self.require_static_only }
-    fn get_data_type(&self) -> String { "INT".to_owned() }
-    fn get_io_type(&self) -> IOType { IOType::Int }
-    fn generate_static_code(&self) -> String { self.selected_option.to_string() }
-    fn package_dyn_data(&self) -> IODataPtr { IODataPtr::Int(self.selected_option as _) }
+    fn get_parameter_types(&self) -> Vec<IOType> { unimplemented!() }
+    fn get_parameter_values(&self) -> Vec<IOData> { unimplemented!() }
+    fn generate_code(&self, params: &[&str], automation_code: &AutomationCode) -> String { 
+        unimplemented!() 
+    }
     fn serialize(&self, buffer: &mut Vec<u8>) { 
         mini_bin::ser_u8(buffer, self.selected_option as _); 
     }
@@ -814,12 +831,12 @@ impl ControlledData for ControlledOptionChoice {
 }
 
 #[derive(Clone, Debug)]
-pub struct ControlledFrequency {
+pub struct FrequencyControl {
     require_static_only: bool,
     value: f32,
 }
 
-impl ControlledFrequency {
+impl FrequencyControl {
     pub const MIN_FREQUENCY: f32 = 0.0003;
     pub const MAX_FREQUENCY: f32 = 99_999.999;
 
@@ -839,14 +856,14 @@ impl ControlledFrequency {
         self.value
     }
 
-    pub fn set_value(&mut self, value: f32) -> StaticonUpdateRequest {
+    pub fn set_value(&mut self, value: f32) -> UpdateRequest {
         assert!(value >= Self::MIN_FREQUENCY);
         assert!(value <= Self::MAX_FREQUENCY);
         if value == self.value {
-            return StaticonUpdateRequest::Nothing;
+            return UpdateRequest::Nothing;
         }
         self.value = value;
-        StaticonUpdateRequest::dyn_update_if_allowed(self)
+        UpdateRequest::dyn_update_if_allowed(self)
     }
 
     pub fn get_formatted_value(&self) -> String {
@@ -872,12 +889,13 @@ impl ControlledFrequency {
 }
 
 #[rustfmt::skip]
-impl ControlledData for ControlledFrequency {
+impl Control for FrequencyControl {
     fn is_static_only(&self) -> bool { self.require_static_only }
-    fn get_data_type(&self) -> String { "FLOAT".to_owned() }
-    fn get_io_type(&self) -> IOType { IOType::Float }
-    fn generate_static_code(&self) -> String { self.value.to_string() }
-    fn package_dyn_data(&self) -> IODataPtr { IODataPtr::Float(self.value) }
+    fn get_parameter_types(&self) -> Vec<IOType> { unimplemented!() }
+    fn get_parameter_values(&self) -> Vec<IOData> { unimplemented!() }
+    fn generate_code(&self, params: &[&str], automation_code: &AutomationCode) -> String { 
+        unimplemented!() 
+    }
     fn serialize(&self, buffer: &mut Vec<u8>) { 
         mini_bin::ser_f32(buffer, self.value);
     }
@@ -891,145 +909,57 @@ impl ControlledData for ControlledFrequency {
     }
 }
 
-#[derive(Debug)]
-pub enum ArbitraryStaticonData {
-    Int(Rcrc<ControlledInt>),
-    Duration(Rcrc<ControlledDuration>),
-    TimingMode(Rcrc<ControlledTimingMode>),
-    TriggerSequence(Rcrc<ControlledTriggerSequence>),
-    ValueSequence(Rcrc<ControlledValueSequence>),
-    OptionChoice(Rcrc<ControlledOptionChoice>),
-    Frequency(Rcrc<ControlledFrequency>),
-}
+macro_rules! any_control_enum {
+    ($($control_types:ident),* $(,)?) => {
+        paste! {
+            #[derive(Debug)]
+            pub enum AnyControl {
+                $($control_types (Rcrc<[<$control_types Control>]>)),*
+            }
+            
+            impl AnyControl {
+                pub fn as_dyn_ptr(&self) -> Rcrc<dyn Control> {
+                    match self {
+                        $(Self::$control_types(ptr) => Rc::clone(ptr) as _),*
+                    }
+                }
+                
+                pub fn deep_clone(&self) -> Self {
+                    match self {
+                        $(Self::$control_types(ptr) 
+                            => Self::$control_types(rcrc((*ptr.borrow()).clone()))),*
+                    }
+                }
+            }
 
-impl ArbitraryStaticonData {
-    fn make_dyn_ptr(&self) -> Rcrc<dyn ControlledData> {
-        match self {
-            Self::Int(ptr) => Rc::clone(ptr) as _,
-            Self::Duration(ptr) => Rc::clone(ptr) as _,
-            Self::TimingMode(ptr) => Rc::clone(ptr) as _,
-            Self::TriggerSequence(ptr) => Rc::clone(ptr) as _,
-            Self::ValueSequence(ptr) => Rc::clone(ptr) as _,
-            Self::OptionChoice(ptr) => Rc::clone(ptr) as _,
-            Self::Frequency(ptr) => Rc::clone(ptr) as _,
+            pub fn from_yaml(yaml: &YamlNode) -> Result<(String, AnyControl), String> {
+                let name = yaml.name.clone();
+                let typ = yaml.value.trim();
+                let control = match typ {
+                    $(stringify!($control_types) => AnyControl::$control_types(rcrc(
+                        [<$control_types Control>]::from_yaml(yaml)?
+                    ))),*,
+                    _ => {
+                        return Err(format!(
+                            "ERROR: '{}' is an invalid control type (found at {}).",
+                            typ, &yaml.full_name
+                        ))
+                    }
+                };
+                Ok((name, control))
+            }
         }
-    }
-
-    fn deep_clone(&self) -> Self {
-        match self {
-            Self::Int(ptr) => Self::Int(rcrc((*ptr.borrow()).clone())),
-            Self::Duration(ptr) => Self::Duration(rcrc((*ptr.borrow()).clone())),
-            Self::TimingMode(ptr) => Self::TimingMode(rcrc((*ptr.borrow()).clone())),
-            Self::TriggerSequence(ptr) => Self::TriggerSequence(rcrc((*ptr.borrow()).clone())),
-            Self::ValueSequence(ptr) => Self::ValueSequence(rcrc((*ptr.borrow()).clone())),
-            Self::OptionChoice(ptr) => Self::OptionChoice(rcrc((*ptr.borrow()).clone())),
-            Self::Frequency(ptr) => Self::Frequency(rcrc((*ptr.borrow()).clone())),
-        }
-    }
-}
-
-pub fn from_yaml(yaml: &YamlNode) -> Result<Staticon, String> {
-    let name = yaml.name.clone();
-    let typ = yaml.value.trim();
-    let data = match typ {
-        "Int" => ArbitraryStaticonData::Int(rcrc(ControlledInt::from_yaml(yaml)?)),
-        "Duration" => ArbitraryStaticonData::Duration(rcrc(ControlledDuration::from_yaml(yaml)?)),
-        "TimingMode" => {
-            ArbitraryStaticonData::TimingMode(rcrc(ControlledTimingMode::from_yaml(yaml)?))
-        }
-        "TriggerSequence" => ArbitraryStaticonData::TriggerSequence(rcrc(
-            ControlledTriggerSequence::from_yaml(yaml)?,
-        )),
-        "ValueSequence" => {
-            ArbitraryStaticonData::ValueSequence(rcrc(ControlledValueSequence::from_yaml(yaml)?))
-        }
-        "OptionChoice" => {
-            ArbitraryStaticonData::OptionChoice(rcrc(ControlledOptionChoice::from_yaml(yaml)?))
-        }
-        "Frequency" => {
-            ArbitraryStaticonData::Frequency(rcrc(ControlledFrequency::from_yaml(yaml)?))
-        }
-        _ => {
-            return Err(format!(
-                "ERROR: '{}' is an invalid staticon type (found at {}).",
-                typ, &yaml.full_name
-            ))
-        }
-    };
-    Ok(Staticon {
-        code_name: name.clone(),
-        data: data.make_dyn_ptr(),
-        statically_typed_data: data,
-    })
-}
-
-/// Static control, I.E. one that cannot be automated.
-#[derive(Debug)]
-pub struct Staticon {
-    code_name: String,
-    data: Rcrc<dyn ControlledData>,
-    statically_typed_data: ArbitraryStaticonData,
-}
-
-impl Staticon {
-    pub fn is_static_only(&self) -> bool {
-        self.data.borrow().is_static_only()
-    }
-
-    pub fn get_io_type(&self) -> IOType {
-        self.data.borrow().get_io_type()
-    }
-
-    pub fn generate_static_code(&self) -> String {
-        format!(
-            "{} {} = {};",
-            self.data.borrow().get_data_type(),
-            self.code_name,
-            self.data.borrow().generate_static_code()
-        )
-    }
-
-    /// The first string is a line that should be added to the inputs. The second string is a line
-    /// that should be added to the actual module code where this control is used.
-    pub fn generate_dynamic_code(&self, unique_input_name: &str) -> (String, String) {
-        assert!(!self.is_static_only());
-        let data = self.data.borrow();
-        (
-            format!("input {} {};", data.get_data_type(), unique_input_name,),
-            format!(
-                "{} {} = {};",
-                data.get_data_type(),
-                self.code_name,
-                unique_input_name,
-            ),
-        )
-    }
-
-    pub fn borrow_code_name(&self) -> &str {
-        &self.code_name
-    }
-
-    pub fn borrow_data(&self) -> Ref<dyn ControlledData> {
-        self.data.borrow()
-    }
-
-    pub fn borrow_data_mut(&self) -> RefMut<dyn ControlledData> {
-        self.data.borrow_mut()
-    }
-
-    pub fn borrow_statically_typed_data(&self) -> &ArbitraryStaticonData {
-        &self.statically_typed_data
     }
 }
 
-impl Clone for Staticon {
-    fn clone(&self) -> Self {
-        let new_static_data = self.statically_typed_data.deep_clone();
-        let new_data = new_static_data.make_dyn_ptr();
-        Self {
-            code_name: self.code_name.clone(),
-            data: new_data,
-            statically_typed_data: new_static_data,
-        }
-    }
+any_control_enum! {
+    Input,
+    FloatInRange,
+    Int,
+    Duration,
+    TimingMode,
+    TriggerSequence,
+    ValueSequence,
+    OptionChoice,
+    Frequency,
 }

@@ -1,7 +1,7 @@
 use super::ModuleWidget;
 use super::{IntBoxBase, IntBoxImpl};
+use crate::engine::controls::{FloatInRangeControl, UpdateRequest, ValueSequenceControl};
 use crate::engine::parts as ep;
-use crate::engine::static_controls as staticons;
 use crate::gui::action::MouseAction;
 use crate::gui::constants::*;
 use crate::gui::graphics::GrahpicsWrapper;
@@ -14,8 +14,8 @@ yaml_widget_boilerplate::make_widget_outline! {
     constructor: create(
         pos: GridPos,
         size: GridSize,
-        sequence_control: ControlledValueSequenceRef,
-        ramping_control: AutoconRef,
+        sequence_control: ValueSequenceControlRef,
+        ramping_control: FloatInRangeControlRef,
         tooltip: String,
     ),
     // Feedback for playhead and ramping amount.
@@ -25,8 +25,8 @@ yaml_widget_boilerplate::make_widget_outline! {
 #[derive(Clone)]
 pub struct ValueSequence {
     tooltip: String,
-    sequence_control: Rcrc<staticons::ControlledValueSequence>,
-    ramping_control: Rcrc<ep::Autocon>,
+    sequence_control: Rcrc<ValueSequenceControl>,
+    ramping_control: Rcrc<FloatInRangeControl>,
     pos: (f32, f32),
     width: f32,
 }
@@ -38,8 +38,8 @@ impl ValueSequence {
     pub fn create(
         pos: (f32, f32),
         size: (f32, f32),
-        sequence_control: Rcrc<staticons::ControlledValueSequence>,
-        ramping_control: Rcrc<ep::Autocon>,
+        sequence_control: Rcrc<ValueSequenceControl>,
+        ramping_control: Rcrc<FloatInRangeControl>,
         tooltip: String,
     ) -> ValueSequence {
         ValueSequence {
@@ -88,7 +88,7 @@ impl ModuleWidget for ValueSequence {
             };
             (update, Some(tooltip))
         });
-        MouseAction::ContinuouslyMutateStaticon {
+        MouseAction::ContinuouslyMutateControl {
             mutator,
             code_reload_requested: false,
         }
@@ -173,7 +173,7 @@ yaml_widget_boilerplate::make_widget_outline! {
     constructor: create(
         registry: RegistryRef,
         pos: GridPos,
-        sequence_control: ControlledValueSequenceRef,
+        sequence_control: ValueSequenceControlRef,
         label: String,
         tooltip: String,
     ),
@@ -181,14 +181,14 @@ yaml_widget_boilerplate::make_widget_outline! {
 
 pub struct ValueSequenceLength {
     base: IntBoxBase,
-    sequence_control: Rcrc<staticons::ControlledValueSequence>,
+    sequence_control: Rcrc<ValueSequenceControl>,
 }
 
 impl ValueSequenceLength {
     pub fn create(
         registry: &Registry,
         pos: (f32, f32),
-        sequence_control: Rcrc<staticons::ControlledValueSequence>,
+        sequence_control: Rcrc<ValueSequenceControl>,
         label: String,
         tooltip: String,
     ) -> Self {
@@ -208,7 +208,7 @@ impl IntBoxImpl for ValueSequenceLength {
         self.sequence_control.borrow().get_len() as _
     }
 
-    fn make_callback(&self) -> Box<dyn FnMut(i32) -> staticons::StaticonUpdateRequest> {
+    fn make_callback(&self) -> Box<dyn FnMut(i32) -> UpdateRequest> {
         let sequence_control = Rc::clone(&self.sequence_control);
         Box::new(move |new_length| {
             assert!(new_length >= 1);

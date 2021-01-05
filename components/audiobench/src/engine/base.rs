@@ -1,5 +1,5 @@
 use super::codegen::{self, CodeGenResult};
-use super::data_routing::{AutoconDynDataCollector, FeedbackDisplayer, StaticonDynDataCollector};
+use super::data_routing::{FeedbackDisplayer, ControlDynDataCollector};
 use super::data_transfer::{DataFormat, GlobalData, GlobalParameters};
 use super::julia_thread;
 use super::parts::ModuleGraph;
@@ -20,8 +20,7 @@ type PreferredPerfCounter = shared_util::perf_counter::SimplePerfCounter;
 
 struct UiThreadData {
     module_graph: Rcrc<ModuleGraph>,
-    autocon_dyn_data_collector: AutoconDynDataCollector,
-    staticon_dyn_data_collector: StaticonDynDataCollector,
+    dyn_data_collector: ControlDynDataCollector,
     feedback_displayer: FeedbackDisplayer,
     current_patch_save_data: Rcrc<Patch>,
 }
@@ -34,8 +33,7 @@ pub(super) struct CrossThreadData {
     pub julia_request_input: SyncSender<julia_thread::Request>,
     pub global_params: GlobalParameters,
     // new_source: Option<(GeneratedCode, DataFormat)>,
-    // new_autocon_dyn_data: Option<Vec<f32>>,
-    // new_staticon_dyn_data: Option<Vec<()>>, // Previously OwnedIOData
+    // new_dyn_data: Option<Vec<()>>, // Previously OwnedIOData
     // new_feedback_data: Option<Vec<f32>>,
     pub critical_error: Option<String>,
     pub perf_counter: PreferredPerfCounter,
@@ -87,8 +85,7 @@ impl Engine {
             })?;
         let CodeGenResult {
             code,
-            autocon_dyn_data_collector,
-            staticon_dyn_data_collector,
+            dyn_data_collector,
             feedback_displayer,
             data_format,
         } = codegen::generate_code(&module_graph, &global_params).map_err(|_| {
@@ -104,8 +101,7 @@ impl Engine {
 
         let utd = UiThreadData {
             module_graph: rcrc(module_graph),
-            autocon_dyn_data_collector,
-            staticon_dyn_data_collector,
+            dyn_data_collector,
             feedback_displayer,
             current_patch_save_data: default_patch,
         };
@@ -229,41 +225,24 @@ impl Engine {
             .map_err(|_| format!("The note graph cannot contain feedback loops"))?;
         ctd.perf_counter.end_section(section);
         drop(module_graph_ref);
-        // ctd.new_source = Some((new_gen.code, new_gen.data_format.clone()));
         let section = ctd
             .perf_counter
-            .begin_section(&sections::COLLECT_AUTOCON_DATA);
-        // ctd.new_autocon_dyn_data = Some(new_gen.autocon_dyn_data_collector.collect_data());
-        ctd.perf_counter.end_section(section);
-        let section = ctd
-            .perf_counter
-            .begin_section(&sections::COLLECT_STATICON_DATA);
-        // ctd.new_staticon_dyn_data = Some(new_gen.staticon_dyn_data_collector.collect_data());
+            .begin_section(&sections::COLLECT_CONTROL_DATA);
+        // ctd.new_dyn_data = Some(new_gen.dyn_data_collector.collect_data());
         ctd.perf_counter.end_section(section);
         // ctd.new_feedback_data = None;
-        self.utd.autocon_dyn_data_collector = new_gen.autocon_dyn_data_collector;
-        self.utd.staticon_dyn_data_collector = new_gen.staticon_dyn_data_collector;
+        self.utd.dyn_data_collector = new_gen.dyn_data_collector;
         self.utd.feedback_displayer = new_gen.feedback_displayer;
         Ok(())
     }
 
-    pub fn reload_autocon_dyn_data(&mut self) {
+    pub fn reload_dyn_data(&mut self) {
         let mut ctd = self.ctd_mux.lock().unwrap();
 
         let section = ctd
             .perf_counter
-            .begin_section(&sections::COLLECT_AUTOCON_DATA);
-        // ctd.new_autocon_dyn_data = Some(self.utd.autocon_dyn_data_collector.collect_data());
-        ctd.perf_counter.end_section(section);
-    }
-
-    pub fn reload_staticon_dyn_data(&mut self) {
-        let mut ctd = self.ctd_mux.lock().unwrap();
-
-        let section = ctd
-            .perf_counter
-            .begin_section(&sections::COLLECT_STATICON_DATA);
-        // ctd.new_staticon_dyn_data = Some(self.utd.staticon_dyn_data_collector.collect_data());
+            .begin_section(&sections::COLLECT_CONTROL_DATA);
+        // ctd.new_dyn_data = Some(self.utd.dyn_data_collector.collect_data());
         ctd.perf_counter.end_section(section);
     }
 
@@ -370,11 +349,8 @@ impl Engine {
         // TODO: This.
         // if let Some(program) = &mut self.atd.current_program {
         //     let mut input_packer = program.get_input_packer();
-        //     if let Some(new_autocon_dyn_data) = ctd.new_autocon_dyn_data.take() {
-        //         input_packer.set_autocon_dyn_data(&new_autocon_dyn_data[..]);
-        //     }
-        //     if let Some(new_staticon_dyn_data) = ctd.new_staticon_dyn_data.take() {
-        //         input_packer.set_staticon_dyn_data(&new_staticon_dyn_data[..]);
+        //     if let Some(new_dyn_data) = ctd.new_dyn_data.take() {
+        //         input_packer.set_dyn_data(&new_dyn_data[..]);
         //     }
         // }
         let update_feedback_data =

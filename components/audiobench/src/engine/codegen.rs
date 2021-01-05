@@ -1,6 +1,6 @@
-use super::data_routing::{AutoconDynDataCollector, FeedbackDisplayer, StaticonDynDataCollector};
+use super::controls::{AnyControl, Control, AutomationSource};
+use super::data_routing::{ControlDynDataCollector, FeedbackDisplayer};
 use super::data_transfer::{DataFormat, GlobalParameters};
-use super::static_controls::Staticon;
 use crate::engine::parts::*;
 use crate::gui::module_widgets::FeedbackDataRequirement;
 use julia_helper::GeneratedCode;
@@ -8,10 +8,28 @@ use shared_util::prelude::*;
 
 pub(super) struct CodeGenResult {
     pub code: GeneratedCode,
-    pub autocon_dyn_data_collector: AutoconDynDataCollector,
-    pub staticon_dyn_data_collector: StaticonDynDataCollector,
+    pub dyn_data_collector: ControlDynDataCollector,
     pub feedback_displayer: FeedbackDisplayer,
     pub data_format: DataFormat,
+}
+
+pub struct AutomationCode {
+
+}
+
+impl AutomationCode {
+    fn of(source: &AutomationSource) -> String {
+        unimplemented!();
+    }
+}
+
+struct CodeGenerator<'a> {
+    graph: &'a ModuleGraph,
+    execution_order: Vec<usize>,
+    dyn_data_control_order: Vec<AnyControl>,
+    dyn_data_types: Vec<()>, // Previously IOType
+    dyn_data_parameter_defs: Vec<String>,
+    feedback_data_len: usize,
 }
 
 pub(super) fn generate_code(
@@ -22,25 +40,12 @@ pub(super) fn generate_code(
     let generator = CodeGenerator {
         graph: for_graph,
         execution_order,
-        current_autocon_dyn_data_item: 0,
-        autocon_dyn_data_control_order: Vec::new(),
-        staticon_input_code: Vec::new(),
-        staticon_dyn_data_control_order: Vec::new(),
-        staticon_dyn_data_types: Vec::new(),
+        dyn_data_types: Vec::new(),
+        dyn_data_control_order: Vec::new(),
+        dyn_data_parameter_defs: Vec::new(),
         feedback_data_len: 0,
     };
     Ok(generator.generate_code(global_params))
-}
-
-struct CodeGenerator<'a> {
-    graph: &'a ModuleGraph,
-    execution_order: Vec<usize>,
-    current_autocon_dyn_data_item: usize,
-    autocon_dyn_data_control_order: Vec<Rcrc<Autocon>>,
-    staticon_input_code: Vec<String>,
-    staticon_dyn_data_control_order: Vec<Rcrc<Staticon>>,
-    staticon_dyn_data_types: Vec<()>, // Previously IOType
-    feedback_data_len: usize,
 }
 
 fn snake_case_to_pascal_case(snake_case: &str) -> String {
@@ -60,75 +65,37 @@ fn snake_case_to_pascal_case(snake_case: &str) -> String {
 }
 
 impl<'a> CodeGenerator<'a> {
-    fn next_aux_value(&mut self) -> String {
-        self.current_autocon_dyn_data_item += 1;
-        format!(
-            "global_autocon_dyn_data[{}]",
-            self.current_autocon_dyn_data_item - 1 + 1 // Julia indexes start at 1.
-        )
+    fn generate_code_for_control(&mut self, control: &AnyControl) -> String {
+        let control_ptr = control.as_dyn_ptr();
+        let control_ref = control_ptr.borrow();
+        unimplemented!();
+        // if control_ref.is_static_only() {
+        //     format!("    {}\n", control_ref.generate_static_code())
+        // } else {
+        //     let unique_input_name = format!(
+        //         "control_dyn_data_{}",
+        //         self.control_dyn_data_control_order.len(),
+        //     );
+        //     // let (input_code, body_code) = control_ref.generate_dynamic_code(&unique_input_name);
+        //     self.dyn_data_control_order.push(Rc::clone(control));
+        //     self.dyn_data_types.push(()); //control_ref.get_io_type());
+        //     // self.control_input_code.push(input_code);
+        //     format!("    {}\n", body_code)
+        // }
     }
 
-    fn generate_code_for_lane(&mut self, lane: &AutomationLane) -> String {
-        let mod_index = self
-            .graph
-            .index_of_module(&lane.connection.0)
-            .unwrap_or(3999999);
-        // The two values in the aux data are computed based on the min and max of the automation
-        // channel such that mulitplying by the first and adding the second will generate the
-        // appropriate transformation. See AutoconDynDataCollector::collect_data for more.
-        format!(
-            "a2cs(module_{}_output_{}) .* StaticControlSignal({}) .+ StaticControlSignal({})",
-            mod_index,
-            lane.connection.1,
-            self.next_aux_value(),
-            self.next_aux_value(),
-        )
-    }
-
-    fn generate_code_for_control(&mut self, control: &Rcrc<Autocon>) -> String {
-        self.autocon_dyn_data_control_order.push(Rc::clone(control));
-        let control_ref = control.borrow();
-        if control_ref.automation.len() == 0 {
-            format!("StaticControlSignal({})", self.next_aux_value())
-        } else {
-            let mut code = self.generate_code_for_lane(&control_ref.automation[0]);
-            for lane in &control_ref.automation[1..] {
-                code.push_str(" .+ ");
-                code.push_str(&self.generate_code_for_lane(lane));
-            }
-            code
-        }
-    }
-
-    fn generate_code_for_staticon(&mut self, control: &Rcrc<Staticon>) -> String {
-        let control_ref = control.borrow();
-        if control_ref.is_static_only() {
-            format!("    {}\n", control_ref.generate_static_code())
-        } else {
-            let unique_input_name = format!(
-                "staticon_dyn_data_{}",
-                self.staticon_dyn_data_control_order.len(),
-            );
-            let (input_code, body_code) = control_ref.generate_dynamic_code(&unique_input_name);
-            self.staticon_dyn_data_control_order
-                .push(Rc::clone(control));
-            self.staticon_dyn_data_types.push(()); //control_ref.get_io_type());
-            self.staticon_input_code.push(input_code);
-            format!("    {}\n", body_code)
-        }
-    }
-
-    fn generate_code_for_input(&mut self, connection: &InputConnection, jack: &IOJack) -> String {
-        match connection {
-            InputConnection::Wire(module, output_index) => format!(
-                "module_{}_output_{}",
-                self.graph.index_of_module(&module).unwrap_or(2999999),
-                output_index
-            ),
-            InputConnection::Default(index) => {
-                jack.borrow_default_options()[*index].code.to_owned()
-            }
-        }
+    fn generate_code_for_input(&mut self, connection: &(), jack: &IOJack) -> String {
+        unimplemented!();
+        // match connection {
+        //     InputConnection::Wire(module, output_index) => format!(
+        //         "module_{}_output_{}",
+        //         self.graph.index_of_module(&module).unwrap_or(2999999),
+        //         output_index
+        //     ),
+        //     InputConnection::Default(index) => {
+        //         jack.borrow_default_options()[*index].code.to_owned()
+        //     }
+        // }
     }
 
     fn generate_code(mut self, global_params: &GlobalParameters) -> CodeGenResult {
@@ -207,20 +174,6 @@ impl<'a> CodeGenerator<'a> {
                 "    Main.Registry.{}.{}Module.exec(\n      context,\n",
                 template_ref.lib_name, template_ref.module_name
             ));
-            for (input, jack) in module_ref.inputs.iter().zip(template_ref.inputs.iter()) {
-                code.push_str(&format!(
-                    "      {}, # {}\n",
-                    self.generate_code_for_input(input, jack),
-                    jack.borrow_code_name()
-                ));
-            }
-            for control in &module_ref.autocons {
-                code.push_str(&format!(
-                    "      {}, # {}\n",
-                    self.generate_code_for_control(control),
-                    &control.borrow().code_name
-                ));
-            }
             code.push_str(&format!(
                 "      static_container[static_index].for_module_{}\n    )\n",
                 index
@@ -232,32 +185,24 @@ impl<'a> CodeGenerator<'a> {
         let code = GeneratedCode::from_unique_source("Generated/note_graph.jl", &code);
 
         let Self {
-            autocon_dyn_data_control_order,
-            current_autocon_dyn_data_item,
-            staticon_dyn_data_control_order,
-            staticon_dyn_data_types,
+            dyn_data_control_order,
+            dyn_data_types,
             feedback_data_len,
             ..
         } = self;
         let data_format = DataFormat {
             global_params: global_params.clone(),
-            autocon_dyn_data_len: current_autocon_dyn_data_item,
-            staticon_dyn_data_types,
+            dyn_data_types,
             feedback_data_len,
         };
-        let autocon_dyn_data_collector = AutoconDynDataCollector::new(
-            autocon_dyn_data_control_order,
-            data_format.autocon_dyn_data_len,
-        );
-        let staticon_dyn_data_collector =
-            StaticonDynDataCollector::new(staticon_dyn_data_control_order);
+        let dyn_data_collector =
+            ControlDynDataCollector::new(dyn_data_control_order);
         let feedback_displayer =
             FeedbackDisplayer::new(ordered_modules, data_format.feedback_data_len);
 
         CodeGenResult {
             code,
-            autocon_dyn_data_collector,
-            staticon_dyn_data_collector,
+            dyn_data_collector,
             feedback_displayer,
             data_format,
         }

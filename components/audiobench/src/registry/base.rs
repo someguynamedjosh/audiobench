@@ -1,4 +1,5 @@
 use super::library_preload::{self, PreloadedLibrary, ZippedLibraryContentProvider};
+use super::module_template::ModuleTemplate;
 use super::save_data::Patch;
 use super::update_check::{self, UpdateInfo};
 use super::yaml;
@@ -15,7 +16,7 @@ use std::sync::mpsc::{self, Receiver, TryRecvError};
 pub use super::library_preload::LibraryInfo;
 
 pub struct Registry {
-    modules: Vec<Module>,
+    module_templates: Vec<Rcrc<ModuleTemplate>>,
     modules_by_resource_id: HashMap<String, usize>,
     modules_by_serialized_id: HashMap<(String, usize), usize>,
 
@@ -55,7 +56,7 @@ impl Registry {
         })?;
         let yaml = yaml::parse_yaml(&buffer_as_text, name)?;
         let resource_id = format!("{}:{}", lib_name, module_id);
-        let module = super::module_template::create_module_prototype_from_yaml(
+        let template = super::module_template::create_module_template_from_yaml(
             &self.icon_indexes,
             lib_name.clone(),
             module_id.clone(),
@@ -67,11 +68,9 @@ impl Registry {
                 module_id, err
             )
         })?;
-        let index = self.modules.len();
-        let template_ref = module.template.borrow();
-        let ser_id = (template_ref.lib_name.clone(), template_ref.template_id);
-        drop(template_ref);
-        self.modules.push(module);
+        let index = self.module_templates.len();
+        let ser_id = (template.lib_name.clone(), template.template_id);
+        self.module_templates.push(rcrc(template));
         self.modules_by_resource_id.insert(resource_id, index);
         let delayed_error = if self.modules_by_serialized_id.contains_key(&ser_id) {
             Some(DelayedError::DuplicateSaveId(ser_id.1))
@@ -353,7 +352,7 @@ impl Registry {
         update_check::spawn_update_checker(update_urls, sender);
 
         let mut registry = Self {
-            modules: Vec::new(),
+            module_templates: Vec::new(),
             modules_by_resource_id: HashMap::new(),
             modules_by_serialized_id: HashMap::new(),
 
@@ -377,14 +376,17 @@ impl Registry {
         (registry, result)
     }
 
-    pub fn borrow_modules(&self) -> &[Module] {
-        &self.modules
+    pub fn borrow_templates(&self) -> &[Rcrc<ModuleTemplate>] {
+        &self.module_templates
     }
 
-    pub fn borrow_module_by_serialized_id(&self, id: &(String, usize)) -> Option<&Module> {
+    pub fn borrow_template_by_serialized_id(
+        &self,
+        id: &(String, usize),
+    ) -> Option<&Rcrc<ModuleTemplate>> {
         self.modules_by_serialized_id
             .get(id)
-            .map(|idx| &self.modules[*idx])
+            .map(|idx| &self.module_templates[*idx])
     }
 
     pub fn borrow_general_scripts_from_library(&self, lib_name: &str) -> &[FileClip] {

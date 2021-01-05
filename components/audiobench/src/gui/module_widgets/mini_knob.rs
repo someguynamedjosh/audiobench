@@ -1,4 +1,5 @@
 use super::{KnobEditor, ModuleWidget};
+use crate::engine::controls::FloatInRangeControl;
 use crate::engine::parts as ep;
 use crate::gui::action::{DropTarget, MouseAction};
 use crate::gui::constants::*;
@@ -12,7 +13,7 @@ yaml_widget_boilerplate::make_widget_outline! {
     widget_struct: MiniKnob,
     constructor: create(
         pos: GridPos,
-        control: AutoconRef,
+        control: FloatInRangeControlRef,
         label: String,
         tooltip: String,
     ),
@@ -21,7 +22,7 @@ yaml_widget_boilerplate::make_widget_outline! {
 
 #[derive(Clone)]
 pub struct MiniKnob {
-    control: Rcrc<ep::Autocon>,
+    control: Rcrc<FloatInRangeControl>,
     // This allows the knob to share feedback data with the right-click menu when it it open.
     value: Rcrc<f32>,
     pos: (f32, f32),
@@ -32,7 +33,7 @@ pub struct MiniKnob {
 impl MiniKnob {
     pub fn create(
         pos: (f32, f32),
-        control: Rcrc<ep::Autocon>,
+        control: Rcrc<FloatInRangeControl>,
         label: String,
         tooltip: String,
     ) -> MiniKnob {
@@ -79,7 +80,7 @@ impl ModuleWidget for MiniKnob {
     }
 
     fn get_drop_target_at(&self, _local_pos: (f32, f32)) -> DropTarget {
-        DropTarget::Autocon(Rc::clone(&self.control))
+        DropTarget::FloatInRangeControl(Rc::clone(&self.control))
     }
 
     fn get_tooltip_at(&self, _local_pos: (f32, f32)) -> Option<Tooltip> {
@@ -94,11 +95,12 @@ impl ModuleWidget for MiniKnob {
     fn add_wires(&self, wire_tracker: &mut WireTracker) {
         let (cx, cy) = (self.pos.0 + grid(1) / 2.0, self.pos.1 + grid(1) / 2.0);
         for lane in self.control.borrow().automation.iter() {
-            let (module, output_index) = &lane.connection;
-            let output_index = *output_index as i32;
-            let module_ref = module.borrow();
-            let (ox, oy) = Module::output_position(&*module_ref, output_index);
-            wire_tracker.add_wire((ox, oy), (cx, cy));
+            unimplemented!();
+            // let (module, output_index) = &lane.connection;
+            // let output_index = *output_index as i32;
+            // let module_ref = module.borrow();
+            // let (ox, oy) = Module::output_position(&*module_ref, output_index);
+            // wire_tracker.add_wire((ox, oy), (cx, cy));
         }
     }
 

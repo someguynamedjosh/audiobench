@@ -1,5 +1,5 @@
 use super::ModuleWidget;
-use crate::engine::static_controls as staticons;
+use crate::engine::controls as controls;
 use crate::gui::action::MouseAction;
 use crate::gui::constants::*;
 use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
@@ -10,8 +10,8 @@ yaml_widget_boilerplate::make_widget_outline! {
     widget_struct: DurationBox,
     constructor: create(
         pos: GridPos,
-        duration_control: ControlledDurationRef,
-        mode_control: ControlledTimingModeRef,
+        duration_control: DurationControlRef,
+        mode_control: TimingModeControlRef,
         label: String,
         tooltip: String,
     ),
@@ -20,8 +20,8 @@ yaml_widget_boilerplate::make_widget_outline! {
 #[derive(Clone)]
 pub struct DurationBox {
     tooltip: String,
-    duration_control: Rcrc<staticons::ControlledDuration>,
-    mode_control: Rcrc<staticons::ControlledTimingMode>,
+    duration_control: Rcrc<controls::DurationControl>,
+    mode_control: Rcrc<controls::TimingModeControl>,
     pos: (f32, f32),
     label: String,
 }
@@ -31,8 +31,8 @@ impl DurationBox {
     const HEIGHT: f32 = grid(2) - FONT_SIZE - GRID_P / 2.0;
     pub fn create(
         pos: (f32, f32),
-        duration_control: Rcrc<staticons::ControlledDuration>,
-        mode_control: Rcrc<staticons::ControlledTimingMode>,
+        duration_control: Rcrc<controls::DurationControl>,
+        mode_control: Rcrc<controls::TimingModeControl>,
         label: String,
         tooltip: String,
     ) -> DurationBox {
@@ -64,12 +64,12 @@ impl ModuleWidget for DurationBox {
         let duration = self.duration_control.borrow();
         let cref = Rc::clone(&self.duration_control);
         if mods.right_click {
-            MouseAction::MutateStaticon(Box::new(move || cref.borrow_mut().toggle_mode()))
+            MouseAction::MutateControl(Box::new(move || cref.borrow_mut().toggle_mode()))
         } else if duration.is_using_fractional_mode() {
             let (num, den) = duration.get_fractional_value();
             let use_denominator = local_pos.0 >= Self::WIDTH / 2.0;
             let mutator: Box<
-                dyn FnMut(f32, Option<f32>) -> (staticons::StaticonUpdateRequest, Option<Tooltip>),
+                dyn FnMut(f32, Option<f32>) -> (controls::UpdateRequest, Option<Tooltip>),
             > = if use_denominator {
                 let mut float_value = den as f32;
                 Box::new(move |delta, _steps| {
@@ -91,7 +91,7 @@ impl ModuleWidget for DurationBox {
                     (update, None)
                 })
             };
-            MouseAction::ContinuouslyMutateStaticon {
+            MouseAction::ContinuouslyMutateControl {
                 mutator,
                 code_reload_requested: false,
             }
@@ -103,7 +103,7 @@ impl ModuleWidget for DurationBox {
                 let update = cref.borrow_mut().set_decimal_value(float_value);
                 (update, None)
             });
-            MouseAction::ContinuouslyMutateStaticon {
+            MouseAction::ContinuouslyMutateControl {
                 mutator,
                 code_reload_requested: false,
             }

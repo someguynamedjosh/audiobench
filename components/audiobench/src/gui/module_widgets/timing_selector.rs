@@ -1,5 +1,5 @@
 use super::ModuleWidget;
-use crate::engine::static_controls as staticons;
+use crate::engine::controls as controls;
 use crate::gui::action::MouseAction;
 use crate::gui::constants::*;
 use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
@@ -12,13 +12,13 @@ yaml_widget_boilerplate::make_widget_outline! {
     constructor: create(
         registry: RegistryRef,
         pos: GridPos,
-        control: ControlledTimingModeRef,
+        control: TimingModeControlRef,
     ),
 }
 
 #[derive(Clone)]
 pub struct TimingSelector {
-    control: Rcrc<staticons::ControlledTimingMode>,
+    control: Rcrc<controls::TimingModeControl>,
     pos: (f32, f32),
     note_icon: usize,
     song_icon: usize,
@@ -30,7 +30,7 @@ impl TimingSelector {
     pub fn create(
         registry: &Registry,
         pos: (f32, f32),
-        control: Rcrc<staticons::ControlledTimingMode>,
+        control: Rcrc<controls::TimingModeControl>,
     ) -> Self {
         Self {
             control,
@@ -68,9 +68,9 @@ impl ModuleWidget for TimingSelector {
     ) -> MouseAction {
         let cref = Rc::clone(&self.control);
         if local_pos.0 < grid(2) / 2.0 {
-            MouseAction::MutateStaticon(Box::new(move || cref.borrow_mut().toggle_source()))
+            MouseAction::MutateControl(Box::new(move || cref.borrow_mut().toggle_source()))
         } else {
-            MouseAction::MutateStaticon(Box::new(move || cref.borrow_mut().toggle_units()))
+            MouseAction::MutateControl(Box::new(move || cref.borrow_mut().toggle_units()))
         }
     }
 

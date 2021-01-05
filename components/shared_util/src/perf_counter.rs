@@ -39,11 +39,11 @@ pub mod sections {
     };
     pub const COLLECT_AUTOCON_DATA: PerfCountSection = PerfCountSection {
         index: 6,
-        name: "Collect Autocon Data",
+        name: "Collect FloatInRangeControl Data",
     };
-    pub const COLLECT_STATICON_DATA: PerfCountSection = PerfCountSection {
+    pub const COLLECT_CONTROL_DATA: PerfCountSection = PerfCountSection {
         index: 7,
-        name: "Collect Staticon Data",
+        name: "Collect Control Data",
     };
     pub const COMPILER_AST_PHASE: PerfCountSection = PerfCountSection {
         index: 9,
@@ -76,7 +76,7 @@ pub mod sections {
         &COMPILER_TRIVIAL_PHASE,
         &COMPILER_LLVMIR_PHASE,
         &COLLECT_AUTOCON_DATA,
-        &COLLECT_STATICON_DATA,
+        &COLLECT_CONTROL_DATA,
         &GLOBAL_SETUP,
         &NOTE_SETUP,
         &NODESPEAK_EXEC,

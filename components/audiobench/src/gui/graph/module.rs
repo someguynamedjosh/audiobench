@@ -9,6 +9,7 @@ use crate::registry::Registry;
 use shared_util::prelude::*;
 use std::f32::consts::PI;
 
+/*
 struct InputJack {
     label: String,
     tooltip: Tooltip,
@@ -115,6 +116,7 @@ impl InputJack {
         g.pop_state();
     }
 }
+*/
 
 struct OutputJack {
     label: String,
@@ -201,7 +203,6 @@ pub struct Module {
     pub(super) module: Rcrc<ep::Module>,
     pub(super) size: (f32, f32),
     label: String,
-    inputs: Vec<InputJack>,
     outputs: Vec<OutputJack>,
     widgets: Vec<(Box<dyn ModuleWidget>, usize)>,
 }
@@ -241,29 +242,17 @@ impl Module {
         let template_ref = module_ref.template.borrow();
         let grid_size = template_ref.size;
         let label = template_ref.label.clone();
-        let module_autocons = &module_ref.autocons;
-        let module_staticons = &module_ref.staticons;
+        let module_controls = &module_ref.controls;
         let widgets = template_ref
             .widget_outlines
             .iter()
-            .map(|wo| wo.instantiate(registry, module_autocons, module_staticons))
+            .map(|wo| wo.instantiate(registry, module_controls))
             .collect();
 
         let size = (
             fatgrid(grid_size.0) + MIW * 2.0 + JACK_SIZE,
             fatgrid(grid_size.1),
         );
-        let mut inputs = Vec::new();
-        for (index, input) in template_ref.inputs.iter().enumerate() {
-            inputs.push(InputJack::create(
-                input.borrow_label().to_owned(),
-                input.borrow_tooltip().to_owned(),
-                input.get_icon_index(),
-                input.get_custom_icon_index(),
-                JACK_SIZE,
-                coord(index as i32),
-            ));
-        }
         let mut outputs = Vec::new();
         for (index, output) in template_ref.outputs.iter().enumerate() {
             outputs.push(OutputJack::create(
@@ -287,7 +276,6 @@ impl Module {
             module,
             size,
             label,
-            inputs,
             outputs,
             widgets,
         }
@@ -312,11 +300,6 @@ impl Module {
                 if !action.is_none() {
                     return action;
                 }
-            }
-        }
-        for (index, input) in self.inputs.iter().enumerate() {
-            if input.mouse_in_bounds(mouse_pos) {
-                return MouseAction::ConnectInput(Rc::clone(&self.module), index);
             }
         }
         for (index, output) in self.outputs.iter().enumerate() {
@@ -347,11 +330,6 @@ impl Module {
                 }
             }
         }
-        for (index, input) in self.inputs.iter().enumerate() {
-            if input.mouse_in_bounds(mouse_pos) {
-                return DropTarget::Input(Rc::clone(&self.module), index);
-            }
-        }
         for (index, output) in self.outputs.iter().enumerate() {
             if output.mouse_in_bounds(mouse_pos) {
                 return DropTarget::Output(Rc::clone(&self.module), index);
@@ -376,11 +354,6 @@ impl Module {
                 }
             }
         }
-        for input in self.inputs.iter() {
-            if input.mouse_in_bounds(mouse_pos) {
-                return Some(input.tooltip.clone());
-            }
-        }
         for output in self.outputs.iter() {
             if output.mouse_in_bounds(mouse_pos) {
                 return Some(output.tooltip.clone());
@@ -399,15 +372,16 @@ impl Module {
             widget.add_wires(&mut wire_tracker);
         }
         wire_tracker.draw_wires(g, pos);
-        for (index, jack) in self.module.borrow().inputs.iter().enumerate() {
-            let y = coord(index as i32) + grid(1) / 2.0;
-            if let ep::InputConnection::Wire(module, output_index) = jack {
-                let output_index = *output_index as i32;
-                let module_ref = module.borrow();
-                let (ox, oy) = Self::output_position(&*module_ref, output_index);
-                super::draw_io_wire(g, pos.0 + JACK_SIZE, pos.1 + y, ox, oy);
-            }
-        }
+        unimplemented!();
+        // for (index, jack) in self.module.borrow().inputs.iter().enumerate() {
+        //     let y = coord(index as i32) + grid(1) / 2.0;
+        //     if let ep::InputConnection::Wire(module, output_index) = jack {
+        //         let output_index = *output_index as i32;
+        //         let module_ref = module.borrow();
+        //         let (ox, oy) = Self::output_position(&*module_ref, output_index);
+        //         super::draw_io_wire(g, pos.0 + JACK_SIZE, pos.1 + y, ox, oy);
+        //     }
+        // }
     }
 
     pub(super) fn draw(
@@ -461,26 +435,27 @@ impl Module {
             let module_ref = self.module.borrow();
             let template_ref = module_ref.template.borrow();
             let hovering = mouse_pos.inside(self.size);
-            for input_index in 0..self.inputs.len() {
-                let input = &self.inputs[input_index];
-                let jack = &template_ref.inputs[input_index];
-                let mute = if let Some((outs, typ)) = highlight {
-                    outs || typ != jack.get_type()
-                } else {
-                    false
-                };
-                if let ep::InputConnection::Default(default_index) = module_ref.inputs[input_index]
-                {
-                    input.draw(
-                        g,
-                        Some(&jack.borrow_default_options()[default_index]),
-                        hovering,
-                        mute,
-                    );
-                } else {
-                    input.draw(g, None, hovering, mute);
-                }
-            }
+                unimplemented!();
+            // for input_index in 0..self.inputs.len() {
+            //     let input = &self.inputs[input_index];
+            //     let jack = &template_ref.inputs[input_index];
+            //     let mute = if let Some((outs, typ)) = highlight {
+            //         outs || typ != jack.get_type()
+            //     } else {
+            //         false
+            //     };
+            //     if let ep::InputConnection::Default(default_index) = module_ref.inputs[input_index]
+            //     {
+            //         input.draw(
+            //             g,
+            //             Some(&jack.borrow_default_options()[default_index]),
+            //             hovering,
+            //             mute,
+            //         );
+            //     } else {
+            //         input.draw(g, None, hovering, mute);
+            //     }
+            // }
             for output_index in 0..self.outputs.len() {
                 let output = &self.outputs[output_index];
                 let jack = &template_ref.outputs[output_index];

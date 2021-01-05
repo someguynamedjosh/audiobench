@@ -11,8 +11,7 @@ pub struct GlobalParameters {
 #[derive(Clone, PartialEq, Eq)]
 pub struct DataFormat {
     pub global_params: GlobalParameters,
-    pub autocon_dyn_data_len: usize,
-    pub staticon_dyn_data_types: Vec<()>, // Previously IOType
+    pub dyn_data_types: Vec<()>, // Previously IOType
     pub feedback_data_len: usize,
 }
 
@@ -88,7 +87,7 @@ impl<'a> InputPacker<'a> {
     const GPI_elapsed_beats: usize = 8;
     const GPI_MIDI_CONTROLS: usize = 9;
     const GPI_AUTOCON_DYN_DATA: usize = 10;
-    const GPI_STATICON_DYN_DATA_START: usize = 11;
+    const GPI_CONTROL_DYN_DATA_START: usize = 11;
 
     pub fn new(data_format: &'a DataFormat) -> Self {
         Self {
@@ -179,12 +178,12 @@ impl<'a> InputPacker<'a> {
         //     .set_argument(Self::GPI_AUTOCON_DYN_DATA, IODataPtr::FloatArray(data));
     }
 
-    pub fn set_staticon_dyn_data<T>(&mut self, data: &[T]) { // Previously OwnedIOData
-        assert!(self.data_format.staticon_dyn_data_types.len() == data.len());
+    pub fn set_dyn_data<T>(&mut self, data: &[T]) { // Previously OwnedIOData
+        assert!(self.data_format.dyn_data_types.len() == data.len());
         for (index, item) in data.iter().enumerate() {
             // let item_ptr = item.borrow();
             // self.real_packer
-            //     .set_argument(Self::GPI_STATICON_DYN_DATA_START + index, item_ptr);
+            //     .set_argument(Self::GPI_CONTROL_DYN_DATA_START + index, item_ptr);
         }
     }
 }

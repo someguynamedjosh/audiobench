@@ -1,5 +1,5 @@
 use super::ModuleWidget;
-use crate::engine::static_controls as staticons;
+use crate::engine::controls as controls;
 use crate::gui::action::MouseAction;
 use crate::gui::constants::*;
 use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
@@ -45,7 +45,7 @@ pub trait IntBoxImpl {
     fn get_current_value(&self) -> i32;
     // The callback will be called whenever the user changes the value and that change should be
     // shown on screen. The return value will tell the instance what to do with the change.
-    fn make_callback(&self) -> Box<dyn FnMut(i32) -> staticons::StaticonUpdateRequest>;
+    fn make_callback(&self) -> Box<dyn FnMut(i32) -> controls::UpdateRequest>;
 }
 
 impl<T: IntBoxImpl> ModuleWidget for T {
@@ -130,7 +130,7 @@ yaml_widget_boilerplate::make_widget_outline! {
     constructor: create(
         registry: RegistryRef,
         pos: GridPos,
-        control: ControlledIntRef,
+        control: IntControlRef,
         label: String,
         tooltip: String,
     ),
@@ -139,14 +139,14 @@ yaml_widget_boilerplate::make_widget_outline! {
 #[derive(Clone)]
 pub struct IntBox {
     base: IntBoxBase,
-    control: Rcrc<staticons::ControlledInt>,
+    control: Rcrc<controls::IntControl>,
 }
 
 impl IntBox {
     pub fn create(
         registry: &Registry,
         pos: (f32, f32),
-        control: Rcrc<staticons::ControlledInt>,
+        control: Rcrc<controls::IntControl>,
         label: String,
         tooltip: String,
     ) -> IntBox {
@@ -165,7 +165,7 @@ impl IntBoxImpl for IntBox {
         self.control.borrow().get_value() as _
     }
 
-    fn make_callback(&self) -> Box<dyn FnMut(i32) -> staticons::StaticonUpdateRequest> {
+    fn make_callback(&self) -> Box<dyn FnMut(i32) -> controls::UpdateRequest> {
         let control = Rc::clone(&self.control);
         Box::new(move |new_value| control.borrow_mut().set_value(new_value as i16))
     }

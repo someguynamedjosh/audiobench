@@ -196,9 +196,10 @@ impl ModuleGraph {
         let highlight = if gui_state.is_dragging() {
             let cma = gui_state.borrow_current_mouse_action();
             if let MouseAction::ConnectInput(module, index) = cma {
-                let typ = module.borrow().template.borrow().inputs[*index].get_type();
+                // let typ = module.borrow().template.borrow().inputs[*index].get_type();
                 // Highlight outputs with typ.
-                Some((true, typ))
+                // Some((true, typ))
+                unimplemented!();
             } else if let MouseAction::ConnectOutput(module, index) = cma {
                 let typ = module.borrow().template.borrow().outputs[*index].get_type();
                 // Highlight inputs with typ.

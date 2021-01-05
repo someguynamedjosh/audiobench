@@ -1,5 +1,5 @@
+use crate::engine::controls::{FloatInRangeControl, UpdateRequest};
 use crate::engine::parts as ep;
-use crate::engine::static_controls as staticons;
 use crate::gui::constants::*;
 use crate::gui::module_widgets;
 use crate::gui::ui_widgets::TextField;
@@ -13,8 +13,8 @@ pub enum InstanceAction {
     /// Indicates the structure of the graph has changed and it should be reloaded.
     ReloadStructure,
     /// Indicates a value has changed, so the aux input data should be recollected.
-    ReloadAutoconDynData,
-    ReloadStaticonDynData,
+    ReloadFloatInRangeControlDynData,
+    ReloadControlDynData,
     /// Changes the name of the current patch. Asserts if the current patch is not writable.
     RenamePatch(String),
     SavePatch(Box<dyn FnMut(&Rcrc<Patch>)>),
@@ -42,12 +42,12 @@ pub enum GuiAction {
 pub enum MouseAction {
     None,
     Sequence(Vec<MouseAction>),
-    ManipulateControl(Rcrc<ep::Autocon>, f32),
-    ManipulateLane(Rcrc<ep::Autocon>, usize),
-    ManipulateLaneStart(Rcrc<ep::Autocon>, usize, f32),
-    ManipulateLaneEnd(Rcrc<ep::Autocon>, usize, f32),
+    ManipulateControl(Rcrc<FloatInRangeControl>, f32),
+    ManipulateLane(Rcrc<FloatInRangeControl>, usize),
+    ManipulateLaneStart(Rcrc<FloatInRangeControl>, usize, f32),
+    ManipulateLaneEnd(Rcrc<FloatInRangeControl>, usize, f32),
     ManipulateIntBox {
-        callback: Box<dyn FnMut(i32) -> staticons::StaticonUpdateRequest>,
+        callback: Box<dyn FnMut(i32) -> UpdateRequest>,
         min: i32,
         max: i32,
         click_delta: i32,
@@ -56,10 +56,9 @@ pub enum MouseAction {
         float_value: f32,
         code_reload_requested: bool,
     },
-    MutateStaticon(Box<dyn FnOnce() -> staticons::StaticonUpdateRequest>),
-    ContinuouslyMutateStaticon {
-        mutator:
-            Box<dyn FnMut(f32, Option<f32>) -> (staticons::StaticonUpdateRequest, Option<Tooltip>)>,
+    MutateControl(Box<dyn FnOnce() -> UpdateRequest>),
+    ContinuouslyMutateControl {
+        mutator: Box<dyn FnMut(f32, Option<f32>) -> (UpdateRequest, Option<Tooltip>)>,
         code_reload_requested: bool,
     },
     MoveModule(Rcrc<ep::Module>, (f32, f32)),
@@ -70,7 +69,7 @@ pub enum MouseAction {
     SwitchScreen(GuiScreen),
     AddModule(ep::Module),
     RemoveModule(Rcrc<ep::Module>),
-    RemoveLane(Rcrc<ep::Autocon>, usize),
+    RemoveLane(Rcrc<FloatInRangeControl>, usize),
     RenamePatch(String),
     SavePatch(Box<dyn FnMut(&Rcrc<Patch>)>),
     NewPatch(Box<dyn FnMut(&Rcrc<Patch>)>),
@@ -157,7 +156,7 @@ impl MouseAction {
                     lane.range.1 = (lane.range.1 + delta).clam(range.0, range.1);
                 }
                 return (
-                    Some(GuiAction::Elevate(InstanceAction::ReloadAutoconDynData)),
+                    Some(GuiAction::Elevate(InstanceAction::ReloadFloatInRangeControlDynData)),
                     Some(Tooltip {
                         text: format!(
                             "{}{}",
@@ -190,7 +189,7 @@ impl MouseAction {
                     control_ref.suffix,
                 );
                 return (
-                    Some(GuiAction::Elevate(InstanceAction::ReloadAutoconDynData)),
+                    Some(GuiAction::Elevate(InstanceAction::ReloadFloatInRangeControlDynData)),
                     Some(Tooltip {
                         text: tttext,
                         interaction: InteractionHint::LeftClickAndDrag.into(),
@@ -217,7 +216,7 @@ impl MouseAction {
                     control_ref.suffix,
                 );
                 return (
-                    Some(GuiAction::Elevate(InstanceAction::ReloadAutoconDynData)),
+                    Some(GuiAction::Elevate(InstanceAction::ReloadFloatInRangeControlDynData)),
                     Some(Tooltip {
                         text: tttext,
                         interaction: InteractionHint::LeftClickAndDrag
@@ -246,7 +245,7 @@ impl MouseAction {
                     control_ref.suffix,
                 );
                 return (
-                    Some(GuiAction::Elevate(InstanceAction::ReloadAutoconDynData)),
+                    Some(GuiAction::Elevate(InstanceAction::ReloadFloatInRangeControlDynData)),
                     Some(Tooltip {
                         text: tttext,
                         interaction: InteractionHint::LeftClickAndDrag
@@ -255,7 +254,7 @@ impl MouseAction {
                     }),
                 );
             }
-            Self::ContinuouslyMutateStaticon {
+            Self::ContinuouslyMutateControl {
                 mutator,
                 code_reload_requested,
             } => {
@@ -265,11 +264,11 @@ impl MouseAction {
                 }
                 let (update, tooltip) = mutator(delta, get_snap_steps(mods));
                 let action = match update {
-                    staticons::StaticonUpdateRequest::Nothing => None,
-                    staticons::StaticonUpdateRequest::UpdateDynData => {
-                        Some(GuiAction::Elevate(InstanceAction::ReloadStaticonDynData))
+                    UpdateRequest::Nothing => None,
+                    UpdateRequest::UpdateDynData => {
+                        Some(GuiAction::Elevate(InstanceAction::ReloadControlDynData))
                     }
-                    staticons::StaticonUpdateRequest::UpdateCode => {
+                    UpdateRequest::UpdateCode => {
                         *code_reload_requested = true;
                         None
                     }
@@ -293,14 +292,14 @@ impl MouseAction {
                 *float_value = float_value.min(*max as f32);
                 *float_value = float_value.max(*min as f32);
                 match callback(*float_value as i32) {
-                    staticons::StaticonUpdateRequest::Nothing => (),
-                    staticons::StaticonUpdateRequest::UpdateDynData => {
+                    UpdateRequest::Nothing => (),
+                    UpdateRequest::UpdateDynData => {
                         return (
-                            Some(GuiAction::Elevate(InstanceAction::ReloadStaticonDynData)),
+                            Some(GuiAction::Elevate(InstanceAction::ReloadControlDynData)),
                             None,
                         );
                     }
-                    staticons::StaticonUpdateRequest::UpdateCode => {
+                    UpdateRequest::UpdateCode => {
                         *code_reload_requested = true;
                     }
                 }
@@ -347,42 +346,44 @@ impl MouseAction {
                 ));
             }
             Self::ConnectInput(in_module, in_index) => {
-                let mut in_ref = in_module.borrow_mut();
-                let template_ref = in_ref.template.borrow();
-                let in_type = template_ref.inputs[in_index].get_type();
-                drop(template_ref);
-                if let DropTarget::Output(out_module, out_index) = target {
-                    let out_type =
-                        out_module.borrow().template.borrow().outputs[out_index].get_type();
-                    if in_type == out_type {
-                        in_ref.inputs[in_index] = ep::InputConnection::Wire(out_module, out_index);
-                    }
-                // Only change to a default if it used to be connected.
-                } else if let ep::InputConnection::Wire(..) = &in_ref.inputs[in_index] {
-                    let default = in_ref.template.borrow().default_inputs[in_index];
-                    in_ref.inputs[in_index] = ep::InputConnection::Default(default);
-                }
-                return Some(GuiAction::Elevate(InstanceAction::ReloadStructure));
+                unimplemented!();
+                // let mut in_ref = in_module.borrow_mut();
+                // let template_ref = in_ref.template.borrow();
+                // let in_type = template_ref.inputs[in_index].get_type();
+                // drop(template_ref);
+                // if let DropTarget::Output(out_module, out_index) = target {
+                //     let out_type =
+                //         out_module.borrow().template.borrow().outputs[out_index].get_type();
+                //     if in_type == out_type {
+                //         in_ref.inputs[in_index] = ep::InputConnection::Wire(out_module, out_index);
+                //     }
+                // // Only change to a default if it used to be connected.
+                // } else if let ep::InputConnection::Wire(..) = &in_ref.inputs[in_index] {
+                //     let default = in_ref.template.borrow().default_inputs[in_index];
+                //     in_ref.inputs[in_index] = ep::InputConnection::Default(default);
+                // }
+                // return Some(GuiAction::Elevate(InstanceAction::ReloadStructure));
             }
             Self::ConnectOutput(out_module, out_index) => {
-                let out_type = out_module.borrow().template.borrow().outputs[out_index].get_type();
-                if let DropTarget::Input(in_module, in_index) = target {
-                    let mut in_ref = in_module.borrow_mut();
-                    let in_type = in_ref.template.borrow().inputs[in_index].get_type();
-                    if in_type == out_type {
-                        in_ref.inputs[in_index] = ep::InputConnection::Wire(out_module, out_index);
-                    }
-                } else if let DropTarget::Autocon(control) = target {
-                    if out_type == ep::JackType::Audio {
-                        let mut control_ref = control.borrow_mut();
-                        let range = control_ref.range;
-                        control_ref.automation.push(ep::AutomationLane {
-                            connection: (out_module, out_index),
-                            range,
-                        });
-                    }
-                }
-                return Some(GuiAction::Elevate(InstanceAction::ReloadStructure));
+                unimplemented!();
+                // let out_type = out_module.borrow().template.borrow().outputs[out_index].get_type();
+                // if let DropTarget::Input(in_module, in_index) = target {
+                //     let mut in_ref = in_module.borrow_mut();
+                //     let in_type = in_ref.template.borrow().inputs[in_index].get_type();
+                //     if in_type == out_type {
+                //         in_ref.inputs[in_index] = ep::InputConnection::Wire(out_module, out_index);
+                //     }
+                // } else if let DropTarget::FloatInRangeControl(control) = target {
+                //     if out_type == ep::JackType::Audio {
+                //         let mut control_ref = control.borrow_mut();
+                //         let range = control_ref.range;
+                //         control_ref.automation.push(ep::AutomationLane {
+                //             connection: (out_module, out_index),
+                //             range,
+                //         });
+                //     }
+                // }
+                // return Some(GuiAction::Elevate(InstanceAction::ReloadStructure));
             }
             Self::ManipulateIntBox {
                 mut callback,
@@ -396,11 +397,11 @@ impl MouseAction {
                     return Some(GuiAction::Elevate(InstanceAction::ReloadStructure));
                 }
                 return match request {
-                    staticons::StaticonUpdateRequest::Nothing => None,
-                    staticons::StaticonUpdateRequest::UpdateDynData => {
-                        Some(GuiAction::Elevate(InstanceAction::ReloadStaticonDynData))
+                    UpdateRequest::Nothing => None,
+                    UpdateRequest::UpdateDynData => {
+                        Some(GuiAction::Elevate(InstanceAction::ReloadControlDynData))
                     }
-                    staticons::StaticonUpdateRequest::UpdateCode => {
+                    UpdateRequest::UpdateCode => {
                         Some(GuiAction::Elevate(InstanceAction::ReloadStructure))
                     }
                 };
@@ -450,15 +451,16 @@ impl MouseAction {
                 return Some(GuiAction::Elevate(InstanceAction::ReloadStructure));
             }
             Self::ConnectInput(module, input_index) => {
-                let mut module_ref = module.borrow_mut();
-                let num_options = module_ref.template.borrow().inputs[input_index]
-                    .borrow_default_options()
-                    .len();
-                if let ep::InputConnection::Default(index) = &mut module_ref.inputs[input_index] {
-                    *index += 1;
-                    *index %= num_options;
-                }
-                return Some(GuiAction::Elevate(InstanceAction::ReloadStructure));
+                unimplemented!();
+                // let mut module_ref = module.borrow_mut();
+                // let num_options = module_ref.template.borrow().inputs[input_index]
+                //     .borrow_default_options()
+                //     .len();
+                // if let ep::InputConnection::Default(index) = &mut module_ref.inputs[input_index] {
+                //     *index += 1;
+                //     *index %= num_options;
+                // }
+                // return Some(GuiAction::Elevate(InstanceAction::ReloadStructure));
             }
             Self::ManipulateIntBox {
                 mut callback,
@@ -477,22 +479,22 @@ impl MouseAction {
                     return Some(GuiAction::Elevate(InstanceAction::ReloadStructure));
                 }
                 return match request {
-                    staticons::StaticonUpdateRequest::Nothing => None,
-                    staticons::StaticonUpdateRequest::UpdateDynData => {
-                        Some(GuiAction::Elevate(InstanceAction::ReloadStaticonDynData))
+                    UpdateRequest::Nothing => None,
+                    UpdateRequest::UpdateDynData => {
+                        Some(GuiAction::Elevate(InstanceAction::ReloadControlDynData))
                     }
-                    staticons::StaticonUpdateRequest::UpdateCode => {
+                    UpdateRequest::UpdateCode => {
                         Some(GuiAction::Elevate(InstanceAction::ReloadStructure))
                     }
                 };
             }
-            Self::MutateStaticon(mutator) => {
+            Self::MutateControl(mutator) => {
                 return match mutator() {
-                    staticons::StaticonUpdateRequest::Nothing => None,
-                    staticons::StaticonUpdateRequest::UpdateDynData => {
-                        Some(GuiAction::Elevate(InstanceAction::ReloadStaticonDynData))
+                    UpdateRequest::Nothing => None,
+                    UpdateRequest::UpdateDynData => {
+                        Some(GuiAction::Elevate(InstanceAction::ReloadControlDynData))
                     }
-                    staticons::StaticonUpdateRequest::UpdateCode => {
+                    UpdateRequest::UpdateCode => {
                         Some(GuiAction::Elevate(InstanceAction::ReloadStructure))
                     }
                 };
@@ -530,22 +532,22 @@ impl MouseAction {
             Self::ManipulateControl(control, ..) => {
                 let mut cref = control.borrow_mut();
                 cref.value = cref.default;
-                return Some(GuiAction::Elevate(InstanceAction::ReloadAutoconDynData));
+                return Some(GuiAction::Elevate(InstanceAction::ReloadFloatInRangeControlDynData));
             }
             Self::ManipulateLane(control, lane) => {
                 let mut cref = control.borrow_mut();
                 cref.automation[lane].range = cref.range;
-                return Some(GuiAction::Elevate(InstanceAction::ReloadAutoconDynData));
+                return Some(GuiAction::Elevate(InstanceAction::ReloadFloatInRangeControlDynData));
             }
             Self::ManipulateLaneStart(control, lane, ..) => {
                 let mut cref = control.borrow_mut();
                 cref.automation[lane].range.0 = cref.range.0;
-                return Some(GuiAction::Elevate(InstanceAction::ReloadAutoconDynData));
+                return Some(GuiAction::Elevate(InstanceAction::ReloadFloatInRangeControlDynData));
             }
             Self::ManipulateLaneEnd(control, lane, ..) => {
                 let mut cref = control.borrow_mut();
                 cref.automation[lane].range.1 = cref.range.1;
-                return Some(GuiAction::Elevate(InstanceAction::ReloadAutoconDynData));
+                return Some(GuiAction::Elevate(InstanceAction::ReloadFloatInRangeControlDynData));
             }
             Self::Scaled(base, ..) => {
                 return base.on_double_click();
@@ -561,7 +563,7 @@ impl MouseAction {
 #[derive(Clone)]
 pub enum DropTarget {
     None,
-    Autocon(Rcrc<ep::Autocon>),
+    FloatInRangeControl(Rcrc<FloatInRangeControl>),
     Input(Rcrc<ep::Module>, usize),
     Output(Rcrc<ep::Module>, usize),
 }

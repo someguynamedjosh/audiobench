@@ -1,5 +1,5 @@
 use super::ModuleWidget;
-use crate::engine::static_controls as staticons;
+use crate::engine::controls as controls;
 use crate::gui::action::MouseAction;
 use crate::gui::constants::*;
 use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
@@ -11,7 +11,7 @@ yaml_widget_boilerplate::make_widget_outline! {
     constructor: create(
         pos: GridPos,
         size: GridSize,
-        control: ControlledOptionChoiceRef,
+        control: OptionChoiceControlRef,
         label: String,
         tooltip: String,
     ),
@@ -21,7 +21,7 @@ yaml_widget_boilerplate::make_widget_outline! {
 pub struct OptionBox {
     pos: (f32, f32),
     size: (f32, f32),
-    control: Rcrc<staticons::ControlledOptionChoice>,
+    control: Rcrc<controls::OptionChoiceControl>,
     label: String,
     tooltip: String,
 }
@@ -30,7 +30,7 @@ impl OptionBox {
     pub fn create(
         pos: (f32, f32),
         size: (f32, f32),
-        control: Rcrc<staticons::ControlledOptionChoice>,
+        control: Rcrc<controls::OptionChoiceControl>,
         label: String,
         tooltip: String,
     ) -> OptionBox {
@@ -64,7 +64,7 @@ impl ModuleWidget for OptionBox {
         let option = (local_pos.1 / height_per_option) as usize;
         if option < num_options {
             let cref = Rc::clone(&self.control);
-            MouseAction::MutateStaticon(Box::new(move || {
+            MouseAction::MutateControl(Box::new(move || {
                 cref.borrow_mut().set_selected_option(option)
             }))
         } else {

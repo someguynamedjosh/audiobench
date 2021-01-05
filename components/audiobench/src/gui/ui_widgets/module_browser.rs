@@ -3,6 +3,7 @@ use crate::gui::action::MouseAction;
 use crate::gui::constants::*;
 use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
 use crate::gui::{InteractionHint, MouseMods, Tooltip};
+use crate::registry::module_template::ModuleTemplate;
 use crate::registry::Registry;
 use shared_util::prelude::*;
 use std::collections::HashSet;
@@ -12,22 +13,23 @@ struct ModuleBrowserEntry {
     category: String,
     input_icons: Vec<usize>,
     output_icons: Vec<usize>,
-    prototype: ep::Module,
+    template: Rcrc<ModuleTemplate>,
 }
 
 impl ModuleBrowserEntry {
     const WIDTH: f32 = fatgrid(6);
     const HEIGHT: f32 = fatgrid(1);
 
-    fn from(module: &ep::Module) -> Self {
-        let template_ref = module.template.borrow();
+    fn from(template: &Rcrc<ModuleTemplate>) -> Self {
+        let template_ref = template.borrow();
         let name = template_ref.label.clone();
         let category = template_ref.category.clone();
-        let input_icons = template_ref
-            .inputs
-            .iter()
-            .map(|jack| jack.get_icon_index())
-            .collect();
+        let input_icons = unimplemented!();
+        // let input_icons = template_ref
+        //     .inputs
+        //     .iter()
+        //     .map(|jack| jack.get_icon_index())
+        //     .collect();
         let output_icons = template_ref
             .outputs
             .iter()
@@ -38,7 +40,7 @@ impl ModuleBrowserEntry {
             category,
             input_icons,
             output_icons,
-            prototype: module.clone(),
+            template: Rc::clone(template),
         }
     }
 
@@ -107,7 +109,7 @@ pub struct ModuleBrowser {
 impl ModuleBrowser {
     pub fn create(registry: &Registry, pos: (f32, f32), size: (f32, f32)) -> Self {
         let entries: Vec<_> = registry
-            .borrow_modules()
+            .borrow_templates()
             .imc(|module| ModuleBrowserEntry::from(module));
         let vertical_stacking = (size.1 / (ModuleBrowserEntry::HEIGHT + GRID_P)).floor() as usize;
 
@@ -179,7 +181,7 @@ impl ModuleBrowser {
     pub fn get_tooltip_at(&self, mouse_pos: (f32, f32)) -> Option<Tooltip> {
         if let Some(entry) = self.get_entry_at(mouse_pos) {
             Some(Tooltip {
-                text: entry.prototype.template.borrow().tooltip.clone(),
+                text: entry.template.borrow().tooltip.clone(),
                 interaction: InteractionHint::LeftClick.into(),
             })
         } else {
@@ -193,7 +195,8 @@ impl ModuleBrowser {
         _mods: &MouseMods,
     ) -> MouseAction {
         if let Some(entry) = self.get_entry_at(mouse_pos) {
-            MouseAction::AddModule(entry.prototype.clone())
+            unimplemented!();
+        // MouseAction::AddModule(entry.template.clone())
         } else {
             MouseAction::None
         }

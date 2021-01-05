@@ -32,7 +32,7 @@ systems with the following command:
 ```bash
 sudo apt -y install \
   git python3 make gcc cmake \
-  libxrandr-dev libxinerama-dev libxcursor-dev libasound-dev \
+  libxrandr-dev libxinerama-dev libxcursor-dev libasound-dev libtinfo-dev \
   extra-cmake-modules libxcb-shape0-dev libxcb-xfixes0-dev libclang-dev
 ```
 

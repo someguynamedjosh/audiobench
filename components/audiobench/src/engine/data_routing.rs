@@ -1,53 +1,15 @@
-use super::parts::{Autocon, Module};
-use super::static_controls::Staticon;
+use super::controls::{AnyControl, FloatInRangeControl};
+use super::parts::Module;
 use shared_util::prelude::*;
-
-// This packages changes made by the user to knobs and automation into a format that can be read
-// by the nodespeak parameter, so that trivial changes don't necessitate a recompile.
-pub(super) struct AutoconDynDataCollector {
-    ordered_controls: Vec<Rcrc<Autocon>>,
-    data_length: usize,
-}
-
-impl AutoconDynDataCollector {
-    pub(super) fn new(ordered_controls: Vec<Rcrc<Autocon>>, data_length: usize) -> Self {
-        Self {
-            ordered_controls,
-            data_length,
-        }
-    }
-
-    pub(super) fn collect_data(&self) -> Vec<f32> {
-        let mut data = Vec::with_capacity(self.data_length);
-        for control in &self.ordered_controls {
-            let control_ref = control.borrow();
-            if control_ref.automation.len() == 0 {
-                data.push(control_ref.value);
-            } else {
-                let num_lanes = control_ref.automation.len();
-                let multiplier = 1.0 / num_lanes as f32;
-                for lane in &control_ref.automation {
-                    // algebraic simplification of remapping value [-1, 1] -> [0, 1] -> [min, max]
-                    let a = (lane.range.1 - lane.range.0) / 2.0;
-                    let b = a + lane.range.0;
-                    data.push(a * multiplier);
-                    data.push(b * multiplier);
-                }
-            }
-        }
-        debug_assert!(data.len() == self.data_length);
-        data
-    }
-}
 
 // This packages changes made by the user to static controls into a format that can be read
 // by the nodespeak parameter, so that trivial changes don't necessitate a recompile.
-pub(super) struct StaticonDynDataCollector {
-    ordered_controls: Vec<Rcrc<Staticon>>,
+pub(super) struct ControlDynDataCollector {
+    ordered_controls: Vec<AnyControl>,
 }
 
-impl StaticonDynDataCollector {
-    pub(super) fn new(ordered_controls: Vec<Rcrc<Staticon>>) -> Self {
+impl ControlDynDataCollector {
+    pub(super) fn new(ordered_controls: Vec<AnyControl>) -> Self {
         Self { ordered_controls }
     }
 
@@ -55,13 +17,13 @@ impl StaticonDynDataCollector {
     pub(super) fn collect_data(&self) -> Vec<()> {
         self.ordered_controls
             .iter()
-            .filter_map(|staticon| {
+            .filter_map(|control| {
                 None
-                // let staticon = staticon.borrow();
-                // if staticon.is_static_only() {
+                // let control = control.borrow();
+                // if control.is_static_only() {
                 //     None
                 // } else {
-                //     Some(staticon.borrow_data().package_dyn_data().to_owned())
+                //     Some(control.borrow_data().package_dyn_data().to_owned())
                 // }
             })
             .collect()

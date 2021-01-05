@@ -1,5 +1,6 @@
 use super::{ModuleWidget, PopupMenu};
 use crate::engine::parts as ep;
+use crate::engine::controls::FloatInRangeControl;
 use crate::gui::action::{DropTarget, MouseAction};
 use crate::gui::constants::*;
 use crate::gui::graph::{Module, WireTracker};
@@ -12,7 +13,7 @@ yaml_widget_boilerplate::make_widget_outline! {
     constructor: create(
         pos: GridPos,
         size: GridSize,
-        control: AutoconRef,
+        control: FloatInRangeControlRef,
         label: String,
         tooltip: String,
     ),
@@ -23,7 +24,7 @@ yaml_widget_boilerplate::make_widget_outline! {
 pub struct HSlider {
     pos: (f32, f32),
     width: f32,
-    control: Rcrc<ep::Autocon>,
+    control: Rcrc<FloatInRangeControl>,
     // This allows the slider to share feedback data with the right-click menu when it it open.
     value: Rcrc<f32>,
     label: String,
@@ -34,7 +35,7 @@ impl HSlider {
     pub fn create(
         pos: (f32, f32),
         size: (f32, f32),
-        control: Rcrc<ep::Autocon>,
+        control: Rcrc<FloatInRangeControl>,
         label: String,
         tooltip: String,
     ) -> HSlider {
@@ -83,7 +84,7 @@ impl ModuleWidget for HSlider {
     }
 
     fn get_drop_target_at(&self, _local_pos: (f32, f32)) -> DropTarget {
-        DropTarget::Autocon(Rc::clone(&self.control))
+        DropTarget::FloatInRangeControl(Rc::clone(&self.control))
     }
 
     fn get_tooltip_at(&self, _local_pos: (f32, f32)) -> Option<Tooltip> {
@@ -98,11 +99,12 @@ impl ModuleWidget for HSlider {
     fn add_wires(&self, wire_tracker: &mut WireTracker) {
         let (cx, cy) = (self.pos.0 + grid(2) / 2.0, self.pos.1 + grid(2) / 2.0);
         for lane in self.control.borrow().automation.iter() {
-            let (module, output_index) = &lane.connection;
-            let output_index = *output_index as i32;
-            let module_ref = module.borrow();
-            let (ox, oy) = Module::output_position(&*module_ref, output_index);
-            wire_tracker.add_wire((ox, oy), (cx, cy));
+            unimplemented!();
+            // let (module, output_index) = &lane.connection;
+            // let output_index = *output_index as i32;
+            // let module_ref = module.borrow();
+            // let (ox, oy) = Module::output_position(&*module_ref, output_index);
+            // wire_tracker.add_wire((ox, oy), (cx, cy));
         }
     }
 
@@ -179,7 +181,7 @@ impl ModuleWidget for HSlider {
 
 #[derive(Clone)]
 pub struct HSliderEditor {
-    control: Rcrc<ep::Autocon>,
+    control: Rcrc<FloatInRangeControl>,
     value: Rcrc<f32>,
     pos: (f32, f32),
     size: (f32, f32),
@@ -189,7 +191,7 @@ pub struct HSliderEditor {
 
 impl HSliderEditor {
     fn create(
-        control: Rcrc<ep::Autocon>,
+        control: Rcrc<FloatInRangeControl>,
         value: Rcrc<f32>,
         // Bottom left position.
         center_pos: (f32, f32),

@@ -1,6 +1,6 @@
 use super::ModuleWidget;
 use super::{IntBoxBase, IntBoxImpl};
-use crate::engine::static_controls as staticons;
+use crate::engine::controls as controls;
 use crate::gui::action::MouseAction;
 use crate::gui::constants::*;
 use crate::gui::graphics::GrahpicsWrapper;
@@ -13,7 +13,7 @@ yaml_widget_boilerplate::make_widget_outline! {
     constructor: create(
         pos: GridPos,
         size: GridSize,
-        sequence_control: ControlledTriggerSequenceRef,
+        sequence_control: TriggerSequenceControlRef,
         tooltip: String,
     ),
     // Feedback for playhead
@@ -23,7 +23,7 @@ yaml_widget_boilerplate::make_widget_outline! {
 #[derive(Clone)]
 pub struct TriggerSequence {
     tooltip: String,
-    sequence_control: Rcrc<staticons::ControlledTriggerSequence>,
+    sequence_control: Rcrc<controls::TriggerSequenceControl>,
     pos: (f32, f32),
     width: f32,
 }
@@ -36,7 +36,7 @@ impl TriggerSequence {
     pub fn create(
         pos: (f32, f32),
         size: (f32, f32),
-        sequence_control: Rcrc<staticons::ControlledTriggerSequence>,
+        sequence_control: Rcrc<controls::TriggerSequenceControl>,
         tooltip: String,
     ) -> TriggerSequence {
         TriggerSequence {
@@ -67,7 +67,7 @@ impl ModuleWidget for TriggerSequence {
         let step_width = (self.width + TriggerSequence::STEP_GAP) / num_steps as f32;
         let clicked_step = (local_pos.0 / step_width) as usize;
         let cref = Rc::clone(&self.sequence_control);
-        MouseAction::MutateStaticon(Box::new(move || {
+        MouseAction::MutateControl(Box::new(move || {
             cref.borrow_mut().toggle_trigger(clicked_step)
         }))
     }
@@ -127,7 +127,7 @@ yaml_widget_boilerplate::make_widget_outline! {
     constructor: create(
         registry: RegistryRef,
         pos: GridPos,
-        sequence_control: ControlledTriggerSequenceRef,
+        sequence_control: TriggerSequenceControlRef,
         label: String,
         tooltip: String,
     ),
@@ -135,14 +135,14 @@ yaml_widget_boilerplate::make_widget_outline! {
 
 pub struct TriggerSequenceLength {
     base: IntBoxBase,
-    sequence_control: Rcrc<staticons::ControlledTriggerSequence>,
+    sequence_control: Rcrc<controls::TriggerSequenceControl>,
 }
 
 impl TriggerSequenceLength {
     pub fn create(
         registry: &Registry,
         pos: (f32, f32),
-        sequence_control: Rcrc<staticons::ControlledTriggerSequence>,
+        sequence_control: Rcrc<controls::TriggerSequenceControl>,
         label: String,
         tooltip: String,
     ) -> Self {
@@ -162,7 +162,7 @@ impl IntBoxImpl for TriggerSequenceLength {
         self.sequence_control.borrow().get_len() as _
     }
 
-    fn make_callback(&self) -> Box<dyn FnMut(i32) -> staticons::StaticonUpdateRequest> {
+    fn make_callback(&self) -> Box<dyn FnMut(i32) -> controls::UpdateRequest> {
         let sequence_control = Rc::clone(&self.sequence_control);
         Box::new(move |new_length| {
             assert!(new_length >= 1);

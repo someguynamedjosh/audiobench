@@ -21,7 +21,7 @@ autocons:
     min: 0
     max: 1
     default: 1.0
-staticons:
+controls:
   timing_mode: TimingMode
   attack_time: Duration
     default: 0.005
