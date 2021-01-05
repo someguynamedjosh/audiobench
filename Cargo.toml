@@ -7,6 +7,8 @@ members = [
     "components/julia_helper",
     "components/nodespeak",
     "components/nodespeak_cli",
+    "components/scui",
+    "components/scui_macros",
     "components/shared_util",
     "components/yaml_widget_boilerplate",
 ]

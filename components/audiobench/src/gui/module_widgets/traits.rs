@@ -1,45 +1,23 @@
-use crate::gui::action::{DropTarget, MouseAction};
-use crate::gui::graph::WireTracker;
 use crate::gui::graphics::GrahpicsWrapper;
-use crate::gui::{MouseMods, Tooltip};
+use crate::gui::top_level::graph::WireTracker;
+use crate::scui_config::{DropTarget, Renderer};
+use scui::{Vec2D, Widget, WidgetImpl};
+use shared_util::prelude::*;
 
-pub trait ModuleWidget {
-    fn get_position(&self) -> (f32, f32);
-    fn get_bounds(&self) -> (f32, f32);
-    fn draw(
-        &self,
-        g: &mut GrahpicsWrapper,
-        highlight: bool,
-        parent_pos: (f32, f32),
-        feedback_data: &[f32],
-    );
-
-    fn respond_to_mouse_press(
-        &self,
-        _local_pos: (f32, f32),
-        _mods: &MouseMods,
-        _parent_pos: (f32, f32),
-    ) -> MouseAction {
-        MouseAction::None
-    }
-    fn get_drop_target_at(&self, _local_pos: (f32, f32)) -> DropTarget {
-        DropTarget::None
-    }
-    fn get_tooltip_at(&self, _local_pos: (f32, f32)) -> Option<Tooltip> {
-        None
-    }
-    fn add_wires(&self, _wire_tracker: &mut WireTracker) {}
+pub trait ModuleWidgetImpl: WidgetImpl<Renderer, DropTarget> {
+    fn add_wires(self: &Rc<Self>, _wire_tracker: &mut WireTracker) {}
 }
 
-pub trait PopupMenu {
-    fn get_pos(&self) -> (f32, f32);
-    fn get_bounds(&self) -> (f32, f32);
-    fn draw(&self, g: &mut GrahpicsWrapper);
+pub trait ModuleWidget: Widget<Renderer, DropTarget> {
+    fn add_wires(self: &Self, wire_tracker: &mut WireTracker);
+}
 
-    fn respond_to_mouse_press(&self, _local_pos: (f32, f32), _mods: &MouseMods) -> MouseAction {
-        MouseAction::None
-    }
-    fn get_tooltip_at(&self, _local_pos: (f32, f32)) -> Option<Tooltip> {
-        None
+impl<T> ModuleWidget for Rc<T>
+where
+    T: ModuleWidgetImpl,
+    Rc<T>: Widget<Renderer, DropTarget>,
+{
+    fn add_wires(self: &Self, wire_tracker: &mut WireTracker) {
+        ModuleWidgetImpl::add_wires(self, wire_tracker);
     }
 }

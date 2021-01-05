@@ -1,14 +1,17 @@
-use super::ModuleWidget;
+use super::ModuleWidgetImpl;
 use crate::engine::controls as controls;
-use crate::gui::action::MouseAction;
+use crate::gui::mouse_behaviors::{ContinuouslyMutateStaticon};
 use crate::gui::constants::*;
 use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
-use crate::gui::{InteractionHint, MouseMods, Tooltip};
+use crate::gui::{InteractionHint, Tooltip};
+use crate::scui_config::{DropTarget, Renderer, MaybeMouseBehavior};
+use scui::{MouseMods, Vec2D, WidgetImpl};
 use shared_util::prelude::*;
 
 yaml_widget_boilerplate::make_widget_outline! {
     widget_struct: FrequencyBox,
-    constructor: create(
+    constructor: new(
+        parent: ParentRef,
         pos: GridPos,
         control: FrequencyControlRef,
         label: String,
@@ -16,109 +19,94 @@ yaml_widget_boilerplate::make_widget_outline! {
     ),
 }
 
-#[derive(Clone)]
-pub struct FrequencyBox {
-    tooltip: String,
-    control: Rcrc<controls::FrequencyControl>,
-    pos: (f32, f32),
-    label: String,
+scui::widget! {
+    pub FrequencyBox
+    State {
+        pos: Vec2D,
+        control: Rcrc<staticons::ControlledFrequency>,
+        label: String,
+        tooltip: String,
+    }
 }
 
 impl FrequencyBox {
     const WIDTH: f32 = grid(2);
     const HEIGHT: f32 = grid(2) - FONT_SIZE - GRID_P / 2.0;
-    pub fn create(
-        pos: (f32, f32),
-        control: Rcrc<controls::FrequencyControl>,
+    fn new(
+        parent: &impl FrequencyBoxParent,
+        pos: Vec2D,
+        control: Rcrc<staticons::ControlledFrequency>,
         label: String,
         tooltip: String,
-    ) -> FrequencyBox {
-        FrequencyBox {
-            tooltip,
-            control,
+    ) -> Rc<Self> {
+        let state = FrequencyBoxState {
             pos,
+            control,
             label,
-        }
+            tooltip,
+        };
+        Rc::new(Self::create(parent, state))
     }
 }
 
-impl ModuleWidget for FrequencyBox {
-    fn get_position(&self) -> (f32, f32) {
-        self.pos
+impl WidgetImpl<Renderer, DropTarget> for FrequencyBox {
+    fn get_pos_impl(self: &Rc<Self>) -> Vec2D {
+        self.state.borrow().pos
     }
 
-    fn get_bounds(&self) -> (f32, f32) {
-        (grid(2), grid(2))
+    fn get_size_impl(self: &Rc<Self>) -> Vec2D {
+        grid(2).into()
     }
 
-    fn respond_to_mouse_press(
-        &self,
-        _local_pos: (f32, f32),
-        _mods: &MouseMods,
-        _parent_pos: (f32, f32),
-    ) -> MouseAction {
-        let frequency = self.control.borrow();
-        let cref = Rc::clone(&self.control);
+    fn get_mouse_behavior_impl(self: &Rc<Self>, _pos: Vec2D, _mods: &MouseMods) -> MaybeMouseBehavior {
+        let state = self.state.borrow();
+        let frequency = state.control.borrow();
+        let cref = Rc::clone(&state.control);
         let mut float_value = frequency.get_value();
-        let mutator = Box::new(move |delta, _steps| {
+        ContinuouslyMutateStaticon::wrap(self, move |delta, _steps| {
             float_value *= (2.0f32).powf(delta / LOG_OCTAVE_PIXELS);
             float_value = float_value.clam(controls::FrequencyControl::MIN_FREQUENCY, 99_000.0);
             let update = cref.borrow_mut().set_value(float_value);
             (update, None)
-        });
-        MouseAction::ContinuouslyMutateControl {
-            mutator,
-            code_reload_requested: false,
-        }
-    }
-
-    fn get_tooltip_at(&self, _local_pos: (f32, f32)) -> Option<Tooltip> {
-        Some(Tooltip {
-            text: self.tooltip.clone(),
-            interaction: InteractionHint::LeftClickAndDrag | InteractionHint::RightClick,
         })
     }
 
-    fn draw(
-        &self,
-        g: &mut GrahpicsWrapper,
-        _highlight: bool,
-        _parent_pos: (f32, f32),
-        _feedback_data: &[f32],
-    ) {
-        g.push_state();
-        g.apply_offset(self.pos.0, self.pos.1);
+    fn on_hover_impl(self: &Rc<Self>, _pos: Vec2D) -> Option<()> {
+        let this_state = self.state.borrow();
+        self.with_gui_state_mut(|state| {
+            state.set_tooltip(Tooltip {
+                text: this_state.tooltip.clone(),
+                interaction: InteractionHint::LeftClickAndDrag | InteractionHint::RightClick,
+            });
+        });
+        Some(())
+    }
 
+    fn draw_impl(self: &Rc<Self>, g: &mut Renderer) {
+        let state = self.state.borrow();
         const W: f32 = FrequencyBox::WIDTH;
         const H: f32 = FrequencyBox::HEIGHT;
         const CS: f32 = CORNER_SIZE;
         g.set_color(&COLOR_BG0);
-        g.fill_rounded_rect(0.0, 0.0, W, H, CS);
+        g.draw_rounded_rect(0, (W, H), CS);
         {
-            let val = self.control.borrow().get_formatted_value();
-            const HA: HAlign = HAlign::Right;
-            const VA: VAlign = VAlign::Center;
+            let val = state.control.borrow().get_formatted_value();
             g.set_color(&COLOR_FG1);
-            g.write_text(
+            g.draw_text(
                 BIG_FONT_SIZE,
-                GRID_P,
-                0.0,
-                W - GRID_P * 2.0,
-                H,
-                HA,
-                VA,
+                (GRID_P, 0.0),
+                (W - GRID_P * 2.0, H),
+                (-1, 0),
                 1,
                 &val,
             );
         }
         {
-            let val = &self.label;
-            const HA: HAlign = HAlign::Center;
-            const VA: VAlign = VAlign::Bottom;
+            let val = &state.label;
             g.set_color(&COLOR_FG1);
-            g.write_text(FONT_SIZE, 0.0, 0.0, W, grid(2), HA, VA, 1, val);
+            g.draw_text(FONT_SIZE, 0, (W, grid(2)), (0, 1), 1, val);
         }
-
-        g.pop_state();
     }
 }
+
+impl ModuleWidgetImpl for FrequencyBox {}

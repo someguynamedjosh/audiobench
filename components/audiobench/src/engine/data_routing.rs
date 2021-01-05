@@ -44,7 +44,7 @@ impl FeedbackDisplayer {
     }
 
     pub(super) fn display_feedback(&mut self, feedback_data: &[f32]) {
-        assert!(feedback_data.len() == self.data_length);
+        assert_eq!(feedback_data.len(), self.data_length);
         let mut data_pos = 0;
         for module in &self.ordered_modules {
             let module_ref = module.borrow_mut();
@@ -55,6 +55,6 @@ impl FeedbackDisplayer {
             }
             data_pos += module_data_length;
         }
-        debug_assert!(data_pos == self.data_length);
+        debug_assert_eq!(data_pos, self.data_length);
     }
 }

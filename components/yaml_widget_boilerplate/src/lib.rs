@@ -9,7 +9,7 @@ use syn::{parenthesized, Expr, Ident, Token};
 
 #[derive(PartialEq)]
 enum ConstructorItemType {
-    RegistryRef,
+    ParentRef,
     GridPos,
     GridSize,
     ControlRef(String),
@@ -27,14 +27,23 @@ struct ConstructorItem {
 impl ConstructorItem {
     pub fn get_outline_fields(&self) -> Vec<(Ident, TokenStream2)> {
         match &self.typ {
+<<<<<<< HEAD
             ConstructorItemType::RegistryRef => vec![],
             ConstructorItemType::ControlRef(_type_name) => {
+=======
+            ConstructorItemType::ParentRef => vec![],
+            ConstructorItemType::AutoconRef => {
+                vec![(format_ident!("{}_index", self.name), quote! {usize})]
+            }
+            ConstructorItemType::ControlledDataRef(_type_name) => {
+>>>>>>> dev
                 vec![(format_ident!("{}_index", self.name), quote! {usize})]
             }
             ConstructorItemType::IntRange => vec![(self.name.clone(), quote! { (i32, i32)})],
-            ConstructorItemType::GridPos
-            | ConstructorItemType::GridSize
-            | ConstructorItemType::FloatRange => vec![(self.name.clone(), quote! { (f32, f32)})],
+            ConstructorItemType::GridPos | ConstructorItemType::GridSize => {
+                vec![(self.name.clone(), quote! { Vec2D })]
+            }
+            ConstructorItemType::FloatRange => vec![(self.name.clone(), quote! { (f32, f32) })],
             ConstructorItemType::String => {
                 vec![(self.name.clone(), quote! {::std::string::String})]
             }
@@ -47,11 +56,11 @@ impl ConstructorItem {
 
     pub fn create_from_yaml_code(&self) -> TokenStream2 {
         match &self.typ {
-            ConstructorItemType::RegistryRef => quote! {},
+            ConstructorItemType::ParentRef => quote! {},
             ConstructorItemType::GridPos => {
                 let name = self.name.clone();
                 quote! {
-                    let #name = (
+                    let #name = Vec2D::new(
                         crate::gui::constants::coord(yaml.unique_child("x")?.parse()?)
                             + crate::gui::constants::JACK_SIZE
                             + crate::gui::constants::MODULE_IO_WIDTH,
@@ -62,7 +71,7 @@ impl ConstructorItem {
             ConstructorItemType::GridSize => {
                 let name = self.name.clone();
                 quote! {
-                    let #name = (
+                    let #name = Vec2D::new(
                         crate::gui::constants::grid(yaml.unique_child("w")?.parse()?),
                         crate::gui::constants::grid(yaml.unique_child("h")?.parse()?),
                     );
@@ -139,7 +148,7 @@ impl ConstructorItem {
 
     pub fn create_constructor_argument(&self) -> TokenStream2 {
         match &self.typ {
-            ConstructorItemType::RegistryRef => quote! { registry },
+            ConstructorItemType::ParentRef => quote! { parent },
             ConstructorItemType::GridPos
             | ConstructorItemType::GridSize
             | ConstructorItemType::IntRange
@@ -180,7 +189,7 @@ impl Parse for ConstructorItem {
             });
         }
         let typ = match &type_name_str[..] {
-            "RegistryRef" => ConstructorItemType::RegistryRef,
+            "ParentRef" => ConstructorItemType::ParentRef,
             "GridPos" => ConstructorItemType::GridPos,
             "GridSize" => ConstructorItemType::GridSize,
             "IntRange" => ConstructorItemType::IntRange,
@@ -270,6 +279,7 @@ pub fn make_widget_outline(args: TokenStream) -> TokenStream {
     } = syn::parse_macro_input!(args);
 
     let widget_struct_name = widget_struct_name.expect("widget_struct not specified");
+    let widget_parent_trait = format_ident!("{}Parent", widget_struct_name);
     let constructor_description = constructor_description.expect("constructor not specified");
     let outline_name = format_ident!("Generated{}Outline", widget_struct_name);
 
@@ -391,6 +401,13 @@ impl Parse for ClassList {
 pub fn make_widget_outline_enum(args: TokenStream) -> TokenStream {
     let ClassList { class_names } = syn::parse_macro_input!(args);
 
+    let parent_traits: Vec<_> = class_names
+        .iter()
+        .map(|name| {
+            let trait_name = format_ident!("{}Parent", name);
+            quote! { #trait_name }
+        })
+        .collect();
     let enum_body: Vec<_> = class_names
         .iter()
         .map(|name| {
@@ -421,7 +438,11 @@ pub fn make_widget_outline_enum(args: TokenStream) -> TokenStream {
         .map(|name| {
             quote! {
                 Self::#name(outline) => Box::new(
+<<<<<<< HEAD
                     outline.instantiate(registry, controls)
+=======
+                    outline.instantiate(parent, controls, staticons)
+>>>>>>> dev
                 )
             }
         })
@@ -455,11 +476,21 @@ pub fn make_widget_outline_enum(args: TokenStream) -> TokenStream {
                 })
             }
 
-            pub fn instantiate(
+            pub fn instantiate<P>(
                 &self,
+<<<<<<< HEAD
                 registry: &crate::registry::Registry,
                 controls: &::std::vec::Vec<crate::engine::controls::AnyControl>,
             ) -> (::std::boxed::Box<dyn crate::gui::module_widgets::ModuleWidget>, usize) {
+=======
+                parent: &P,
+                controls: & ::std::vec::Vec<::std::rc::Rc<::std::cell::RefCell<crate::engine::parts::Autocon>>>,
+                staticons: & ::std::vec::Vec<::std::rc::Rc<::std::cell::RefCell<crate::engine::static_controls::Staticon>>>,
+            ) -> (::std::boxed::Box<dyn crate::gui::module_widgets::ModuleWidget>, usize)
+            where
+                P: #(#parent_traits)+*
+            {
+>>>>>>> dev
                 (
                     match self {
                         #(#instantiate_body),*

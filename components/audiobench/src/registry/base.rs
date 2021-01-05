@@ -340,7 +340,7 @@ impl Registry {
         Ok(())
     }
 
-    pub fn new() -> (Self, Result<(), String>) {
+    pub fn new() -> (Rcrc<Self>, Result<(), String>) {
         let library_path = {
             let user_dirs = directories::UserDirs::new().unwrap();
             let document_dir = user_dirs.document_dir().unwrap();
@@ -373,7 +373,7 @@ impl Registry {
         };
         let result = registry.initialize();
 
-        (registry, result)
+        (rcrc(registry), result)
     }
 
     pub fn borrow_templates(&self) -> &[Rcrc<ModuleTemplate>] {

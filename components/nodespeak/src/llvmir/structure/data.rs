@@ -1,6 +1,6 @@
 /// Represents the data type of a variable which is either an input or output in the generated
 /// program. E.G. `IOType::FloatArray(20)` would be the type of `input [20]FLOAT some_data;`.
-#[derive(Eq, PartialEq, Clone, Copy)]
+#[derive(Debug, Eq, PartialEq, Clone, Copy)]
 pub enum IOType {
     Bool,
     Int,
@@ -263,6 +263,10 @@ impl DataPacker {
     pub(crate) fn borrow_packed_data(&mut self) -> &mut [u8] {
         &mut self.data[..]
     }
+
+    pub fn borrow_format(&self) -> &[IOType] {
+        &self.format[..]
+    }
 }
 
 pub struct DataUnpacker {
@@ -321,5 +325,9 @@ impl DataUnpacker {
 
     pub(crate) fn borrow_packed_data(&mut self) -> &mut [u8] {
         &mut self.data[..]
+    }
+
+    pub fn borrow_format(&self) -> &[IOType] {
+        &self.format[..]
     }
 }

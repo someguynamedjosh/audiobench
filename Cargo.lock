@@ -79,6 +79,8 @@ dependencies = [
  "paste",
  "rand",
  "reqwest",
+ "scones",
+ "scui",
  "serde",
  "serde_json",
  "shared_util",
@@ -95,6 +97,7 @@ name = "audiobench_clib"
 version = "0.1.0"
 dependencies = [
  "audiobench",
+ "shared_util",
 ]
 
 [[package]]
@@ -1238,9 +1241,9 @@ dependencies = [
 
 [[package]]
 name = "ouroboros"
-version = "0.2.0"
+version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0724e3ae2d154c01fd5ab74ffeff8b7108514370fbb477d381a03680d72f7e0e"
+checksum = "14c35968fa888f477f8836421c4d8f2ef243f4684334f0803b260abecc24235b"
 dependencies = [
  "ouroboros_macro",
  "stable_deref_trait",
@@ -1248,9 +1251,9 @@ dependencies = [
 
 [[package]]
 name = "ouroboros_macro"
-version = "0.2.0"
+version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1e374c9d4cc35f74ee3e5b73b4ec17e5c831e33c366be8e2c9361c1778329ea1"
+checksum = "77cb63e282343037499f6fd51c1e1964b6c40113b422f076632d0d192a4180de"
 dependencies = [
  "Inflector",
  "proc-macro2",
@@ -1666,6 +1669,24 @@ checksum = "e3042af939fca8c3453b7af0f1c66e533a15a86169e39de2657310ade8f98d3c"
 dependencies = [
  "ring",
  "untrusted",
+]
+
+[[package]]
+name = "scui"
+version = "0.1.0"
+dependencies = [
+ "scui_macros",
+ "shared_util",
+]
+
+[[package]]
+name = "scui_macros"
+version = "0.1.0"
+dependencies = [
+ "Inflector",
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]

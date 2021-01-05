@@ -289,6 +289,7 @@ AudiobenchAudioProcessorEditor::AudiobenchAudioProcessorEditor(AudiobenchAudioPr
 AudiobenchAudioProcessorEditor::~AudiobenchAudioProcessorEditor()
 {
     ABDestroyUI(processor.ab);
+    delete this->constrainer;
 }
 
 //==============================================================================

@@ -8,7 +8,7 @@ pub struct GlobalParameters {
     pub sample_rate: usize,
 }
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DataFormat {
     pub global_params: GlobalParameters,
     pub dyn_data_types: Vec<()>, // Previously IOType

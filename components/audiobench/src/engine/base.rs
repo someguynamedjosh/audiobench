@@ -19,6 +19,7 @@ const FEEDBACK_UPDATE_INTERVAL: Duration = Duration::from_millis(50);
 type PreferredPerfCounter = shared_util::perf_counter::SimplePerfCounter;
 
 struct UiThreadData {
+    registry: Rcrc<Registry>,
     module_graph: Rcrc<ModuleGraph>,
     dyn_data_collector: ControlDynDataCollector,
     feedback_displayer: FeedbackDisplayer,
@@ -52,12 +53,12 @@ pub struct Engine {
     atd: AudioThreadData,
 }
 
-impl Engine {
-    // MISC METHODS ================================================================================
-    pub fn perf_counter_report(&self) -> String {
-        self.ctd_mux.lock().unwrap().perf_counter.report()
-    }
+pub struct AudioThreadEngine {
+    data: AudioThreadData,
+    ctd_mux: Arcmux<CrossThreadData>,
+}
 
+impl Engine {
     pub fn new(registry: &mut Registry) -> Result<Self, String> {
         let mut module_graph = ModuleGraph::new();
         let global_params = GlobalParameters {
@@ -150,80 +151,94 @@ impl Engine {
         self.ctd_mux.lock().unwrap().julia_thread_status == julia_thread::Status::Busy
     }
 
-    // UI THREAD METHODS ===========================================================================
     pub fn rename_current_patch(&mut self, name: String) {
-        assert!(self.utd.current_patch_save_data.borrow().is_writable());
-        let mut patch_ref = self.utd.current_patch_save_data.borrow_mut();
+        assert!(self.data.current_patch_save_data.borrow().is_writable());
+        let mut patch_ref = self.data.current_patch_save_data.borrow_mut();
         patch_ref.set_name(name);
         patch_ref.write().unwrap();
     }
 
-    pub fn save_current_patch(&mut self, registry: &Registry) {
-        assert!(self.utd.current_patch_save_data.borrow().is_writable());
-        let mut patch_ref = self.utd.current_patch_save_data.borrow_mut();
-        patch_ref.save_note_graph(&*self.utd.module_graph.borrow(), registry);
+    pub fn borrow_registry(&self) -> &Rcrc<Registry> {
+        &self.data.registry
+    }
+
+    pub fn save_current_patch(&mut self) {
+        assert!(self.data.current_patch_save_data.borrow().is_writable());
+        let mut patch_ref = self.data.current_patch_save_data.borrow_mut();
+        let reg = self.data.registry.borrow();
+        patch_ref.save_note_graph(&*self.data.module_graph.borrow(), &*reg);
         patch_ref.write().unwrap();
     }
 
     pub fn borrow_current_patch(&self) -> &Rcrc<Patch> {
-        &self.utd.current_patch_save_data
+        &self.data.current_patch_save_data
     }
 
-    pub fn serialize_current_patch(&self, registry: &Registry) -> String {
-        let mut patch_ref = self.utd.current_patch_save_data.borrow_mut();
-        patch_ref.save_note_graph(&*self.utd.module_graph.borrow(), registry);
+    pub fn serialize_current_patch(&self) -> String {
+        let mut patch_ref = self.data.current_patch_save_data.borrow_mut();
+        let reg = self.data.registry.borrow();
+        patch_ref.save_note_graph(&*self.data.module_graph.borrow(), &*reg);
         patch_ref.serialize()
     }
 
-    pub fn new_patch(&mut self, registry: &mut Registry) -> &Rcrc<Patch> {
-        let new_patch = Rc::clone(registry.create_new_user_patch());
+    pub fn save_current_patch_with_new_name(&mut self) -> &Rcrc<Patch> {
+        let mut reg = self.data.registry.borrow_mut();
+        let patch = self.borrow_current_patch().borrow();
+        let name = shared_util::increment_name(patch.borrow_name());
+        let new_patch = Rc::clone(reg.create_new_user_patch());
         let mut new_patch_ref = new_patch.borrow_mut();
-        new_patch_ref.set_name("New Patch".to_owned());
-        new_patch_ref.save_note_graph(&*self.utd.module_graph.borrow(), registry);
+        new_patch_ref.set_name(name);
+        new_patch_ref.save_note_graph(&*self.data.module_graph.borrow(), &*reg);
         new_patch_ref.write().unwrap();
         drop(new_patch_ref);
+        drop(patch);
+        drop(reg);
         // Don't reload anything because we are just copying the current patch data.
-        self.utd.current_patch_save_data = new_patch;
-        &self.utd.current_patch_save_data
+        self.data.current_patch_save_data = new_patch;
+        &self.data.current_patch_save_data
     }
 
     pub fn new_patch_from_clipboard(
         &mut self,
-        registry: &mut Registry,
         clipboard_data: &[u8],
     ) -> Result<&Rcrc<Patch>, String> {
-        let new_patch = Rc::clone(registry.create_new_user_patch());
+        let mut reg = self.data.registry.borrow_mut();
+        let new_patch = Rc::clone(reg.create_new_user_patch());
         let mut new_patch_ref = new_patch.borrow_mut();
-        new_patch_ref.load_from_serialized_data(clipboard_data, registry)?;
+        new_patch_ref.load_from_serialized_data(clipboard_data, &*reg)?;
         let name = format!("{} (pasted)", new_patch_ref.borrow_name());
         new_patch_ref.set_name(name);
         drop(new_patch_ref);
-        self.load_patch(registry, Rc::clone(&new_patch))?;
-        Ok(&self.utd.current_patch_save_data)
+        drop(reg);
+        self.load_patch(Rc::clone(&new_patch))?;
+        Ok(&self.data.current_patch_save_data)
     }
 
-    pub fn load_patch(&mut self, registry: &Registry, patch: Rcrc<Patch>) -> Result<(), String> {
-        self.utd.current_patch_save_data = patch;
-        self.utd
+    pub fn load_patch(&mut self, patch: Rcrc<Patch>) -> Result<(), String> {
+        let reg = self.data.registry.borrow();
+        self.data.current_patch_save_data = patch;
+        self.data
             .current_patch_save_data
             .borrow()
-            .restore_note_graph(&mut *self.utd.module_graph.borrow_mut(), registry)?;
-        self.recompile()?;
+            .restore_note_graph(&mut *self.data.module_graph.borrow_mut(), &*reg)?;
+        drop(reg);
+        self.recompile();
         Ok(())
     }
 
     pub fn borrow_module_graph_ref(&self) -> &Rcrc<ModuleGraph> {
-        &self.utd.module_graph
+        &self.data.module_graph
     }
 
-    pub fn recompile(&mut self) -> Result<(), String> {
+    pub fn recompile(&mut self) {
         let mut ctd = self.ctd_mux.lock().unwrap();
 
-        let module_graph_ref = self.utd.module_graph.borrow();
+        let module_graph_ref = self.data.module_graph.borrow();
         let section = ctd.perf_counter.begin_section(&sections::GENERATE_CODE);
         let new_gen = codegen::generate_code(&*module_graph_ref, &ctd.global_params)
             .map_err(|_| format!("The note graph cannot contain feedback loops"))?;
         ctd.perf_counter.end_section(section);
+        let new_gen = new_gen.expect("TODO: Nice error.");
         drop(module_graph_ref);
         let section = ctd
             .perf_counter
@@ -257,7 +272,9 @@ impl Engine {
             // }
         }
     }
+}
 
+impl AudioThreadEngine {
     // AUDIO THREAD METHODS ========================================================================
     pub fn set_global_params(&mut self, buffer_length: usize, sample_rate: usize) {
         let mut ctd = self.ctd_mux.lock().unwrap();
@@ -354,9 +371,9 @@ impl Engine {
         //     }
         // }
         let update_feedback_data =
-            self.atd.last_feedback_data_update.elapsed() > FEEDBACK_UPDATE_INTERVAL;
+            self.data.last_feedback_data_update.elapsed() > FEEDBACK_UPDATE_INTERVAL;
         if update_feedback_data {
-            self.atd.last_feedback_data_update = Instant::now();
+            self.data.last_feedback_data_update = Instant::now();
         }
         let mut ctd = self.ctd_mux.lock().unwrap();
         let ok = ctd

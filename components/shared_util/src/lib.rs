@@ -120,10 +120,26 @@ impl<T: Float + Display> FloatUtil for T {
     }
 }
 
+// Turns "Name" to "Name 2", "Name 3", .. "Name 15", etc.
+pub fn increment_name(old_name: &str) -> String {
+    let old_name = old_name.trim();
+    if let Some(last_space) = old_name.rfind(' ') {
+        let (prefix, number) = old_name.split_at(last_space);
+        if let Ok(number) = number.trim().parse::<i32>() {
+            return format!("{} {}", prefix, number + 1);
+        }
+    }
+    format!("{} 2", old_name)
+}
+
 pub trait TupleUtil: Sized + Copy {
     fn add(self, other: Self) -> Self;
     fn sub(self, other: Self) -> Self;
     fn inside(self, bounds: Self) -> bool;
+}
+
+pub trait TupleScale<E>: Sized + Copy {
+    fn scale(self, factor: E) -> Self;
 }
 
 impl TupleUtil for (i32, i32) {
@@ -140,6 +156,13 @@ impl TupleUtil for (i32, i32) {
     #[inline]
     fn inside(self, bounds: Self) -> bool {
         self.0 >= 0 && self.1 >= 0 && self.0 <= bounds.0 && self.1 <= bounds.1
+    }
+}
+
+impl TupleScale<i32> for (i32, i32) {
+    #[inline]
+    fn scale(self, factor: i32) -> Self {
+        (self.0 * factor, self.1 * factor)
     }
 }
 
@@ -160,6 +183,13 @@ impl TupleUtil for (f32, f32) {
     }
 }
 
+impl TupleScale<f32> for (f32, f32) {
+    #[inline]
+    fn scale(self, factor: f32) -> Self {
+        (self.0 * factor, self.1 * factor)
+    }
+}
+
 pub fn format_decimal(value: f32, digits: i32) -> String {
     let digits = match value {
         v if v <= 0.0 => digits,
@@ -174,6 +204,13 @@ use std::{cell::RefCell, rc::Rc};
 pub type Rcrc<T> = Rc<RefCell<T>>;
 pub fn rcrc<T>(content: T) -> Rcrc<T> {
     Rc::new(RefCell::new(content))
+}
+
+use std::sync::{Arc, Mutex};
+
+pub type Arcmux<T> = Arc<Mutex<T>>;
+pub fn arcmux<T>(content: T) -> Arcmux<T> {
+    Arc::new(Mutex::new(content))
 }
 
 pub trait IterMapCollect<Item> {
@@ -217,4 +254,14 @@ impl<T: Sized> RawDataSource for Vec<T> {
             std::slice::from_raw_parts_mut(self.as_mut_ptr() as *mut u8, out_len)
         }
     }
+}
+
+/// "Return If Some", use it like the `try!` macro.
+#[macro_export]
+macro_rules! ris {
+    ($value:expr) => {
+        if let ::std::option::Option::Some(value) = $value {
+            return Some(::std::convert::Into::into(value));
+        }
+    };
 }
