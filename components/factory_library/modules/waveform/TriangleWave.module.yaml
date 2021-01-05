@@ -1,12 +1,11 @@
 save_id: 10
-inputs:
 outputs:
   waveform:
     type: waveform
     label: Waveform
     tooltip: The triangle wave
-autocons:
-  peak_phase:
+controls:
+  peak_phase: FloatInRange
     min: 0.0
     max: 1.0
     default: 1.0
@@ -17,13 +16,13 @@ gui:
   width: 5
   height: 2
   widgets:
-    knob:
+    Knob:
       control: peak_phase
       label: Peak Phase
       tooltip: The place where the peak of the waveform should be
       x: 0
       y: 0
-    waveform_graph:
+    WaveformGraph:
       x: 2
       y: 0
       w: 3

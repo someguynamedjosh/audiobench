@@ -416,10 +416,10 @@ pub fn make_widget_outline_enum(args: TokenStream) -> TokenStream {
     let from_yaml_body: Vec<_> = class_names
         .iter()
         .map(|name| {
-            let snake_case_string = name.to_string().to_snake_case();
+            let name_string = name.to_string();
             let outline_struct_name = format_ident!("Generated{}Outline", name);
             quote! {
-                #snake_case_string => Self::#name(#outline_struct_name::from_yaml(
+                #name_string => Self::#name(#outline_struct_name::from_yaml(
                     yaml, controls
                 )?)
             }

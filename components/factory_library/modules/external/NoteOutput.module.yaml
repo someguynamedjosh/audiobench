@@ -1,12 +1,11 @@
 save_id: 5
-inputs:
-  audio:
+outputs:
+controls:
+  audio: Input
     type: audio
     label: Audio
     tooltip: The audio that will be played for the current note
-outputs:
-autocons:
-  volume:
+  volume: FloatInRange
     min: 0
     max: 1
     default: 0.25
@@ -17,7 +16,7 @@ gui:
   width: 2
   height: 2
   widgets:
-    knob:
+    Knob:
       control: volume
       label: Master Vol
       tooltip: Control how loud the overall output is

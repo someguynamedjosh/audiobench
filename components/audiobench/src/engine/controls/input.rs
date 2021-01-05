@@ -94,7 +94,11 @@ pub struct InputControl {
 impl InputControl {
     pub fn from_yaml(yaml: &YamlNode) -> Result<Self, String> {
         let typ = JackType::from_yaml(yaml.unique_child("type")?)?;
-        let default = unimplemented!();
+        let default = if let Ok(child) = yaml.unique_child("default") {
+            child.parse()?
+        } else {
+            0
+        };
         Ok(Self {
             typ,
             default,

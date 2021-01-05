@@ -1,27 +1,25 @@
 save_id: 14
-inputs:
-  reset_trigger:
-    type: trigger 
-    icon: Factory:reset
-    label: Reset Trigger
-    tooltip: Trigger to reset the envelope to the beginning
-  release_trigger:
-    type: trigger 
-    icon: Factory:note_up
-    label: Release Trigger
-    default: 1
-    tooltip: Trigger to switch to the release section of the envelope
 outputs:
   signal:
     type: audio
     label: Signal
     tooltip: The current value of the envelope
-autocons:
-  sustain:
+controls:
+  reset_trigger: Input
+    type: trigger 
+    icon: Factory:reset
+    label: Reset Trigger
+    tooltip: Trigger to reset the envelope to the beginning
+  release_trigger: Input
+    type: trigger 
+    icon: Factory:note_up
+    label: Release Trigger
+    default: 1
+    tooltip: Trigger to switch to the release section of the envelope
+  sustain: FloatInRange
     min: 0
     max: 1
     default: 1.0
-controls:
   timing_mode: TimingMode
   attack_time: Duration
     default: 0.005
@@ -36,38 +34,38 @@ gui:
   width: 8
   height: 4
   widgets:
-    knob:
+    Knob:
       x: 0
       y: 0
       control: sustain
       label: Sustain
       tooltip: What value the envelope should hold while waiting for the release trigger
-    timing_selector:
+    TimingSelector:
       x: 0
       y: 2
       control: timing_mode
-    duration_box:
+    DurationBox:
       x: 2
       y: 2
       duration_control: attack_time
       mode_control: timing_mode
       label: Attack
       tooltip: How long the envelope takes to rise to full volume
-    duration_box:
+    DurationBox:
       x: 4
       y: 2
       duration_control: decay_time
       mode_control: timing_mode
       label: Decay
       tooltip: How long the envelope takes to fall back down to the sustain value after the attack ends
-    duration_box:
+    DurationBox:
       x: 6
       y: 2
       duration_control: release_time
       mode_control: timing_mode
       label: Release
       tooltip: How long the envelope takes to fade out after receiving the release trigger
-    envelope_graph:
+    EnvelopeGraph:
       x: 2
       y: 0
       w: 6
