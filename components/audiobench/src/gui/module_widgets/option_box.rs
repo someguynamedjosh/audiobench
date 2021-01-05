@@ -1,4 +1,4 @@
-use crate::engine::controls as controls;
+use crate::engine::controls::{OptionChoiceControl, UpdateRequest};
 use super::ModuleWidgetImpl;
 use crate::gui::constants::*;
 use crate::gui::mouse_behaviors::MutateStaticon;
@@ -24,7 +24,7 @@ scui::widget! {
     State {
         pos: Vec2D,
         size: Vec2D,
-        control: Rcrc<staticons::ControlledOptionChoice>,
+        control: Rcrc<OptionChoiceControl>,
         label: String,
         tooltip: String,
     }
@@ -35,7 +35,7 @@ impl OptionBox {
         parent: &impl OptionBoxParent,
         pos: Vec2D,
         size: Vec2D,
-        control: Rcrc<staticons::ControlledOptionChoice>,
+        control: Rcrc<OptionChoiceControl>,
         label: String,
         tooltip: String,
     ) -> Rc<Self> {

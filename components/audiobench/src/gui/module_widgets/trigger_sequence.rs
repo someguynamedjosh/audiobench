@@ -1,6 +1,5 @@
 use super::ModuleWidgetImpl;
-use super::{IntBoxBase, IntBoxImpl};
-use crate::engine::controls as controls;
+use crate::engine::controls::{TriggerSequenceControl, UpdateRequest};
 use crate::gui::constants::*;
 use crate::gui::graphics::GrahpicsWrapper;
 use crate::gui::mouse_behaviors::MutateStaticon;
@@ -28,7 +27,7 @@ scui::widget! {
     State {
         pos: Vec2D,
         size: Vec2D,
-        sequence_control: Rcrc<staticons::ControlledTriggerSequence>,
+        sequence_control: Rcrc<TriggerSequenceControl>,
         tooltip: String,
     }
 }
@@ -42,7 +41,7 @@ impl TriggerSequence {
         parent: &impl TriggerSequenceParent,
         pos: Vec2D,
         size: Vec2D,
-        sequence_control: Rcrc<staticons::ControlledTriggerSequence>,
+        sequence_control: Rcrc<TriggerSequenceControl>,
         tooltip: String,
     ) -> Rc<Self> {
         let state = TriggerSequenceState {
@@ -123,8 +122,8 @@ impl WidgetImpl<Renderer, DropTarget> for TriggerSequence {
 
 crate::make_int_box_widget! {
     pub TriggerSequenceLength {
-        sequence_control: ControlledTriggerSequenceRef
-            as Rcrc<staticons::ControlledTriggerSequence>
+        sequence_control: TriggerSequenceControlRef
+            as Rcrc<TriggerSequenceControl>
     }
 }
 
@@ -137,7 +136,7 @@ impl TriggerSequenceLength {
         self.state.borrow().sequence_control.borrow().get_len() as _
     }
 
-    fn make_callback(&self) -> Box<dyn FnMut(i32) -> staticons::StaticonUpdateRequest> {
+    fn make_callback(&self) -> Box<dyn FnMut(i32) -> UpdateRequest> {
         let sequence_control = Rc::clone(&self.state.borrow().sequence_control);
         Box::new(move |new_length| {
             assert!(new_length >= 1);

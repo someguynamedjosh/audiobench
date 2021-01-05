@@ -27,7 +27,7 @@ scui::widget! {
     pub Knob
     State {
         pos: Vec2D,
-        control: Rcrc<ep::Autocon>,
+        control: Rcrc<FloatInRangeControl>,
         // This allows the knob to share feedback data with the right-click menu when it it open.
         value: Rcrc<f32>,
         label: String,
@@ -43,7 +43,7 @@ impl Knob {
     fn new(
         parent: &impl KnobParent,
         pos: Vec2D,
-        control: Rcrc<ep::Autocon>,
+        control: Rcrc<FloatInRangeControl>,
         label: String,
         tooltip: String,
     ) -> Rc<Self> {
@@ -181,10 +181,7 @@ impl ModuleWidgetImpl for Knob {
         let state = self.state.borrow();
         let center = state.pos + grid(2) / 2.0;
         for lane in state.control.borrow().automation.iter() {
-            let (module, output_index) = &lane.connection;
-            let module_ref = module.borrow();
-            let out_pos = Module::output_position(&*module_ref, *output_index);
-            wire_tracker.add_wire(out_pos, center);
+            unimplemented!();
         }
     }
 }
@@ -192,7 +189,7 @@ impl ModuleWidgetImpl for Knob {
 scui::widget! {
     pub(super) KnobEditor
     State {
-        control: Rcrc<ep::Autocon>,
+        control: Rcrc<FloatInRangeControl>,
         value: Rcrc<f32>,
         pos: Vec2D,
         size: Vec2D,
@@ -204,7 +201,7 @@ scui::widget! {
 impl KnobEditor {
     pub(super) fn new(
         parent: &impl KnobEditorParent,
-        control: Rcrc<ep::Autocon>,
+        control: Rcrc<FloatInRangeControl>,
         value: Rcrc<f32>,
         center_pos: Vec2D,
         label: String,

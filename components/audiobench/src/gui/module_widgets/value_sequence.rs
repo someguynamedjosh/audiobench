@@ -1,5 +1,4 @@
 use super::ModuleWidgetImpl;
-use super::{IntBoxBase, IntBoxImpl};
 use crate::engine::controls::{FloatInRangeControl, UpdateRequest, ValueSequenceControl};
 use crate::engine::parts as ep;
 use crate::gui::constants::*;
@@ -29,8 +28,8 @@ scui::widget! {
     pub ValueSequence
     State {
         tooltip: String,
-        sequence_control: Rcrc<staticons::ControlledValueSequence>,
-        ramping_control: Rcrc<Autocon>,
+        sequence_control: Rcrc<ValueSequenceControl>,
+        ramping_control: Rcrc<FloatInRangeControl>,
         pos: Vec2D,
         size: Vec2D,
     }
@@ -44,8 +43,8 @@ impl ValueSequence {
         parent: &impl ValueSequenceParent,
         pos: Vec2D,
         size: Vec2D,
-        sequence_control: Rcrc<staticons::ControlledValueSequence>,
-        ramping_control: Rcrc<Autocon>,
+        sequence_control: Rcrc<ValueSequenceControl>,
+        ramping_control: Rcrc<FloatInRangeControl>,
         tooltip: String,
     ) -> Rc<Self> {
         let state = ValueSequenceState {
@@ -167,8 +166,8 @@ impl WidgetImpl<Renderer, DropTarget> for ValueSequence {
 
 crate::make_int_box_widget! {
     pub ValueSequenceLength {
-        sequence_control: ControlledValueSequenceRef
-            as Rcrc<staticons::ControlledValueSequence>
+        sequence_control: ValueSequenceControlRef
+            as Rcrc<ValueSequenceControl>
     }
 }
 
@@ -181,7 +180,7 @@ impl ValueSequenceLength {
         self.state.borrow().sequence_control.borrow().get_len() as _
     }
 
-    fn make_callback(&self) -> Box<dyn FnMut(i32) -> staticons::StaticonUpdateRequest> {
+    fn make_callback(&self) -> Box<dyn FnMut(i32) -> UpdateRequest> {
         let sequence_control = Rc::clone(&self.state.borrow().sequence_control);
         Box::new(move |new_length| {
             assert!(new_length >= 1);

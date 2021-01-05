@@ -93,121 +93,8 @@ impl Instance {
         ));
     }
 
-    fn perform_action(&mut self, action: gui::action::InstanceAction) {
-        match action {
-            gui::action::InstanceAction::Sequence(actions) => {
-                for action in actions {
-                    self.perform_action(action);
-                }
-            }
-            gui::action::InstanceAction::ReloadFloatInRangeControlDynData => {
-                unimplemented!();
-            }
-            gui::action::InstanceAction::ReloadControlDynData => {
-                self.engine.as_mut().map(|e| e.reload_dyn_data());
-            }
-            gui::action::InstanceAction::ReloadStructure => {
-                if let Some(e) = self.engine.as_mut() {
-                    let res = e.recompile();
-                    if let Err(err) = res {
-                        if let Some(gui) = &mut self.gui {
-                            gui.display_error(err.clone());
-                        }
-                        self.set_structure_error(err);
-                    } else {
-                        if let Some(gui) = &mut self.gui {
-                            gui.clear_status();
-                        }
-                        self.structure_error = None;
-                    }
-                }
-            }
-            gui::action::InstanceAction::RenamePatch(name) => {
-                self.engine.as_mut().map(|e| e.rename_current_patch(name));
-            }
-            gui::action::InstanceAction::SavePatch(mut callback) => {
-                if let Some(engine) = self.engine.as_mut() {
-                    engine.save_current_patch(&self.registry);
-                    callback(engine.borrow_current_patch());
-                }
-                self.gui
-                    .as_mut()
-                    .map(|g| g.display_success("Saved successfully!".to_owned()));
-            }
-            gui::action::InstanceAction::NewPatch(mut callback) => {
-                if let Some(e) = self.engine.as_mut() {
-                    callback(e.new_patch(&mut self.registry));
-                }
-            }
-            gui::action::InstanceAction::LoadPatch(patch, mut callback) => {
-                if let Some(e) = self.engine.as_mut() {
-                    let res = e.load_patch(&self.registry, patch);
-                    if res.is_ok() {
-                        callback();
-                    }
-                    if let Some(gui) = &mut self.gui {
-                        if let Err(err) = res {
-                            gui.display_error(err);
-                        }
-                        gui.on_patch_change(&self.registry);
-                    }
-                }
-            }
-            gui::action::InstanceAction::SimpleCallback(mut callback) => {
-                (callback)();
-            }
-            gui::action::InstanceAction::CopyPatchToClipboard => {
-                if let Some(e) = self.engine.as_mut() {
-                    use clipboard::ClipboardProvider;
-                    let patch_data = e.serialize_current_patch(&self.registry);
-                    let mut clipboard: clipboard::ClipboardContext =
-                        clipboard::ClipboardProvider::new().unwrap();
-                    clipboard.set_contents(patch_data).unwrap();
-                    if let Some(gui) = &mut self.gui {
-                        gui.display_success("Patch data copied to clipboard!".to_owned());
-                    }
-                }
-            }
-            gui::action::InstanceAction::PastePatchFromClipboard(mut callback) => {
-                if let Some(e) = self.engine.as_mut() {
-                    use clipboard::ClipboardProvider;
-                    let mut clipboard: clipboard::ClipboardContext =
-                        clipboard::ClipboardProvider::new().unwrap();
-                    let data = clipboard.get_contents().unwrap();
-                    // We use the URL-safe dataset, so letters, numbers, - and _.
-                    // is_digit(36) checks for numbers and a-z case insensitive.
-                    let data: String = data
-                        .chars()
-                        .filter(|character| {
-                            character.is_digit(36) || *character == '-' || *character == '_'
-                        })
-                        .collect();
-                    let err = match e.new_patch_from_clipboard(&mut self.registry, data.as_bytes())
-                    {
-                        Ok(patch) => {
-                            callback(patch);
-                            None
-                        }
-                        Err(err) => Some(err),
-                    };
-                    if let Some(gui) = &mut self.gui {
-                        if let Some(err) = err {
-                            gui.display_error(err);
-                        } else {
-                            gui.display_success("Patch data loaded from clipboard! (Click the save button if you want to keep it)".to_owned());
-                        }
-                        gui.on_patch_change(&self.registry);
-                    }
-                }
-            }
-        }
-    }
-
     pub fn perf_report(&self) -> String {
-        self.engine
-            .as_ref()
-            .map(|(engine, _)| engine.borrow().perf_counter_report())
-            .unwrap_or("Engine failed to initialize.".to_owned())
+        unimplemented!()
     }
 
     pub fn get_num_icons(&self) -> usize {
@@ -220,8 +107,10 @@ impl Instance {
     }
 
     pub fn set_global_params(&mut self, buffer_length: usize, sample_rate: usize) {
-        if let Some(engine) = self.engine.as_mut() {
-            engine.set_global_params(buffer_length, sample_rate)
+        if let Some((_, engine)) = self.engine.as_mut() {
+            engine
+                .borrow_mut()
+                .set_global_params(buffer_length, sample_rate)
         } else {
             self.silence.resize(buffer_length as usize * 2, 0.0);
         }
@@ -299,16 +188,20 @@ impl Instance {
     }
 
     pub fn set_elapsed_time(&mut self, time: f32) {
-        self.engine.as_mut().map(|e| e.set_elapsed_time(time));
+        self.engine
+            .as_mut()
+            .map(|(_, e)| e.borrow_mut().set_elapsed_time(time));
     }
 
     pub fn set_elapsed_beats(&mut self, beats: f32) {
-        self.engine.as_mut().map(|e| e.set_elapsed_beats(beats));
+        self.engine
+            .as_mut()
+            .map(|(_, e)| e.borrow_mut().set_elapsed_beats(beats));
     }
 
     pub fn render_audio(&mut self) -> Vec<f32> {
-        if let Some(engine) = self.engine.as_mut() {
-            engine.render_audio()
+        if let Some((_, engine)) = self.engine.as_mut() {
+            engine.borrow_mut().render_audio()
         } else {
             self.silence.clone()
         }
@@ -333,34 +226,38 @@ impl Instance {
             g.set_color(&(255, 255, 255));
             g.draw_console_text((640, 480), err);
         // If there is no critical error, then the engine initialized successfully.
-        } else if let Some(err) = self.engine.as_ref().unwrap().clone_critical_error() {
-            g.set_color(&(0, 0, 0));
-            g.fill_rect(0.0, 0.0, 640.0, 480.0);
-            g.set_color(&(255, 255, 255));
-            g.write_console_text(640.0, 480.0, &err);
-            // This way we don't have to copy it in the future.
-            self.set_critical_error(err.clone());
         } else {
-            // If the engine has new feedback data (from audio being played) then copy it over before
-            // we render the UI so it will show up in the UI.
-            let engine_ref = self.engine.as_mut().unwrap();
-            engine_ref.display_new_feedback_data();
-            let is_compiling = engine_ref.is_julia_thread_busy();
-            g.set_color(&gui::constants::COLOR_BG0);
-            g.clear();
-            if let Some(gui) = &mut self.gui {
-                gui.draw(&mut g, &mut self.registry, is_compiling);
+            let mut uengine = self.engine.as_ref().unwrap().0.borrow_mut();
+            if let Some(err) = uengine.clone_critical_error() {
+                g.set_color(&(0, 0, 0));
+                g.draw_rect((0, 0), (640, 480));
+                g.set_color(&(255, 255, 255));
+                g.draw_console_text((640, 480), &err);
+                drop(uengine);
+                // This way we don't have to copy it in the future.
+                let err = err.clone();
+                self.set_critical_error(err);
             } else {
                 // If the engine has new feedback data (from audio being played) then copy it over before
                 // we render the UI so it will show up in the UI.
-                engine.display_new_feedback_data();
-                engine.recompile_if_requested_by_audio_thread();
+                uengine.display_new_feedback_data();
+                let is_compiling = uengine.is_julia_thread_busy();
                 g.set_color(&gui::constants::COLOR_BG0);
                 g.clear();
                 if let Some(gui) = &mut self.gui {
                     gui.draw(&mut g);
                 } else {
-                    panic!("draw_ui called before GUI was created!");
+                    // If the engine has new feedback data (from audio being played) then copy it over before
+                    // we render the UI so it will show up in the UI.
+                    uengine.display_new_feedback_data();
+                    uengine.recompile_if_requested_by_audio_thread();
+                    g.set_color(&gui::constants::COLOR_BG0);
+                    g.clear();
+                    if let Some(gui) = &mut self.gui {
+                        gui.draw(&mut g);
+                    } else {
+                        panic!("draw_ui called before GUI was created!");
+                    }
                 }
             }
         }

@@ -1,7 +1,7 @@
 use jlrs_derive::IntoJulia;
 use julia_helper::{DataType, Frame, JlrsResult, JuliaStruct, Value};
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct GlobalParameters {
     pub channels: usize,
     pub buffer_length: usize,

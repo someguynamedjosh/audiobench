@@ -6,7 +6,6 @@ use crate::gui::module_widgets::ModuleWidget;
 use crate::gui::{InteractionHint, Tooltip};
 use crate::registry::Registry;
 use crate::scui_config::{DropTarget, MaybeMouseBehavior, Renderer};
-use owning_ref::OwningRef;
 use scui::{ChildHolder, MouseMods, OnClickBehavior, Vec2D, Widget, WidgetImpl};
 use shared_util::prelude::*;
 use std::cell::Ref;
@@ -202,7 +201,6 @@ scui::widget! {
         module: Rcrc<ep::Module>,
         size: Vec2D,
         label: String,
-        inputs: Vec<InputJack>,
         outputs: Vec<OutputJack>,
         widgets: Vec<(Box<dyn ModuleWidget>, usize)>
     }
@@ -248,23 +246,12 @@ impl Module {
         let template_ref = module_ref.template.borrow();
         let grid_size = template_ref.size;
         let label = template_ref.label.clone();
-        let module_autocons = &module_ref.autocons;
-        let module_staticons = &module_ref.staticons;
+        let module_controls = &module_ref.controls;
 
         let size = Vec2D::new(
             fatgrid(grid_size.0) + MIW * 2.0 + JACK_SIZE,
             fatgrid(grid_size.1),
         );
-        let mut inputs = Vec::new();
-        for (index, input) in template_ref.inputs.iter().enumerate() {
-            inputs.push(InputJack::create(
-                input.borrow_label().to_owned(),
-                input.borrow_tooltip().to_owned(),
-                input.get_icon_index(),
-                input.get_custom_icon_index(),
-                (JACK_SIZE, coord(index as i32)).into(),
-            ));
-        }
         let mut outputs = Vec::new();
         for (index, output) in template_ref.outputs.iter().enumerate() {
             outputs.push(OutputJack::create(
@@ -280,7 +267,6 @@ impl Module {
             module: Rc::clone(&module),
             size,
             label,
-            inputs,
             outputs,
             widgets: Vec::new(),
         };
@@ -289,7 +275,7 @@ impl Module {
         let widgets = template_ref
             .widget_outlines
             .iter()
-            .map(|wo| wo.instantiate(&this, module_autocons, module_staticons))
+            .map(|wo| wo.instantiate(&this, module_controls))
             .collect();
         this.state.borrow_mut().widgets = widgets;
 
@@ -339,15 +325,7 @@ impl Module {
             widget.add_wires(&mut wire_tracker);
         }
         wire_tracker.draw_wires(g, pos);
-        for (index, jack) in state.module.borrow().inputs.iter().enumerate() {
-            let y = coord(index as i32) + grid(1) / 2.0;
-            if let ep::InputConnection::Wire(module, output_index) = jack {
-                let output_index = *output_index;
-                let module_ref = module.borrow();
-                let op = Self::output_position(&*module_ref, output_index);
-                super::draw_io_wire(g, pos + (JACK_SIZE, y), pos);
-            }
-        }
+        unimplemented!();
     }
 
     pub fn represents_module(&self, module: &Rcrc<ep::Module>) -> bool {
@@ -379,11 +357,6 @@ impl WidgetImpl<Renderer, DropTarget> for Module {
                 if !action.is_none() {
                     return action;
                 }
-            }
-        }
-        for (index, input) in state.inputs.iter().enumerate() {
-            if input.mouse_in_bounds(mouse_pos) {
-                // return MouseAction::ConnectInput(Rc::clone(&state.module), index);
             }
         }
         for (index, output) in state.outputs.iter().enumerate() {
@@ -468,23 +441,6 @@ impl WidgetImpl<Renderer, DropTarget> for Module {
             let module_ref = state.module.borrow();
             let template_ref = module_ref.template.borrow();
             let hovering = mouse_pos.inside(size);
-            for input_index in 0..state.inputs.len() {
-                let input = &state.inputs[input_index];
-                let jack = &template_ref.inputs[input_index];
-                let mute = highlight.is_some()
-                    && highlight != Some(GraphHighlightMode::ReceivesType(jack.get_type()));
-                if let ep::InputConnection::Default(default_index) = module_ref.inputs[input_index]
-                {
-                    input.draw(
-                        g,
-                        Some(&jack.borrow_default_options()[default_index]),
-                        hovering,
-                        mute,
-                    );
-                } else {
-                    input.draw(g, None, hovering, mute);
-                }
-            }
             for output_index in 0..state.outputs.len() {
                 let output = &state.outputs[output_index];
                 let jack = &template_ref.outputs[output_index];

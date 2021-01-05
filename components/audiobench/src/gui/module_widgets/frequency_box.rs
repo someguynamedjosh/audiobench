@@ -1,5 +1,5 @@
 use super::ModuleWidgetImpl;
-use crate::engine::controls as controls;
+use crate::engine::controls::{FrequencyControl, UpdateRequest};
 use crate::gui::mouse_behaviors::{ContinuouslyMutateStaticon};
 use crate::gui::constants::*;
 use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
@@ -23,7 +23,7 @@ scui::widget! {
     pub FrequencyBox
     State {
         pos: Vec2D,
-        control: Rcrc<staticons::ControlledFrequency>,
+        control: Rcrc<FrequencyControl>,
         label: String,
         tooltip: String,
     }
@@ -35,7 +35,7 @@ impl FrequencyBox {
     fn new(
         parent: &impl FrequencyBoxParent,
         pos: Vec2D,
-        control: Rcrc<staticons::ControlledFrequency>,
+        control: Rcrc<FrequencyControl>,
         label: String,
         tooltip: String,
     ) -> Rc<Self> {
@@ -65,7 +65,7 @@ impl WidgetImpl<Renderer, DropTarget> for FrequencyBox {
         let mut float_value = frequency.get_value();
         ContinuouslyMutateStaticon::wrap(self, move |delta, _steps| {
             float_value *= (2.0f32).powf(delta / LOG_OCTAVE_PIXELS);
-            float_value = float_value.clam(controls::FrequencyControl::MIN_FREQUENCY, 99_000.0);
+            float_value = float_value.clam(FrequencyControl::MIN_FREQUENCY, 99_000.0);
             let update = cref.borrow_mut().set_value(float_value);
             (update, None)
         })

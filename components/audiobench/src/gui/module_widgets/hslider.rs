@@ -1,5 +1,6 @@
 use super::ModuleWidgetImpl;
 use crate::engine::parts as ep;
+use crate::engine::controls::FloatInRangeControl;
 use crate::gui::constants::*;
 use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
 use crate::gui::mouse_behaviors::{ManipulateControl, ManipulateLane};
@@ -27,7 +28,7 @@ scui::widget! {
     State {
         pos: Vec2D,
         size: Vec2D,
-        control: Rcrc<ep::Autocon>,
+        control: Rcrc<FloatInRangeControl>,
         // This allows the slider to share feedback data with the right-click menu when it it open.
         value: Rcrc<f32>,
         label: String,
@@ -46,7 +47,7 @@ impl HSlider {
         parent: &impl HSliderParent,
         pos: Vec2D,
         size: Vec2D,
-        control: Rcrc<ep::Autocon>,
+        control: Rcrc<FloatInRangeControl>,
         label: String,
         tooltip: String,
     ) -> Rc<Self> {
@@ -186,10 +187,7 @@ impl ModuleWidgetImpl for HSlider {
         let state = self.state.borrow();
         let center = state.pos + grid(2) / 2.0;
         for lane in state.control.borrow().automation.iter() {
-            let (module, output_index) = &lane.connection;
-            let module_ref = module.borrow();
-            let output = Module::output_position(&*module_ref, *output_index);
-            wire_tracker.add_wire(output, center);
+            unimplemented!();
         }
     }
 }
@@ -197,7 +195,7 @@ impl ModuleWidgetImpl for HSlider {
 scui::widget! {
     pub HSliderEditor
     State {
-        control: Rcrc<ep::Autocon>,
+        control: Rcrc<FloatInRangeControl>,
         value: Rcrc<f32>,
         pos: Vec2D,
         size: Vec2D,
@@ -209,7 +207,7 @@ scui::widget! {
 impl HSliderEditor {
     fn new(
         parent: &impl HSliderEditorParent,
-        control: Rcrc<ep::Autocon>,
+        control: Rcrc<FloatInRangeControl>,
         value: Rcrc<f32>,
         // Bottom left position.
         center_pos: Vec2D,

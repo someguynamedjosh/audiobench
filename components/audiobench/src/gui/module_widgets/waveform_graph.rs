@@ -1,6 +1,4 @@
 use super::ModuleWidgetImpl;
-use crate::engine::static_controls as staticons;
-use crate::gui::action::{MouseAction, MutateStaticon};
 use crate::gui::constants::*;
 use crate::gui::graphics::GrahpicsWrapper;
 use crate::gui::{InteractionHint, Tooltip};

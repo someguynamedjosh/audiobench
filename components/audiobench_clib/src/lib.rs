@@ -107,11 +107,7 @@ pub unsafe extern "C" fn ABSongBeats(instance: *mut Instance, beats: f32) {
 
 #[no_mangle]
 pub unsafe extern "C" fn ABRenderAudio(instance: *mut Instance) -> *const f32 {
-    if let Some(audio) = (*instance).render_audio() {
-        audio.as_ptr()
-    } else {
-        std::ptr::null()
-    }
+    (*instance).render_audio().as_ptr()
 }
 
 #[no_mangle]

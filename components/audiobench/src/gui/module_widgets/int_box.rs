@@ -1,5 +1,5 @@
 use super::ModuleWidgetImpl;
-use crate::engine::controls as controls;
+use crate::engine::controls::{IntControl, UpdateRequest};
 use crate::gui::constants::*;
 use crate::gui::graphics::{HAlign, VAlign};
 use crate::gui::mouse_behaviors::ManipulateIntBox;
@@ -13,7 +13,7 @@ pub const HEIGHT: f32 = grid(2) - FONT_SIZE - GRID_P / 2.0;
 
 /// Use this to create a widget which displays an integer and can be clicked / dragged to modify
 /// that integer. You must implement get_current_value(self: &Rc<Self>) -> i32,
-/// make_callback(self: &Rc<Self>) -> Box<dyn FnMut(i32) -> staticons::StaticonUpdateRequest>,
+/// make_callback(self: &Rc<Self>) -> Box<dyn FnMut(i32) -> UpdateRequest>,
 /// and get_range() -> (i32, i32) for the generated widget.
 #[macro_export]
 macro_rules! make_int_box_widget {
@@ -147,7 +147,7 @@ macro_rules! make_int_box_widget {
 
 make_int_box_widget! {
     pub IntBox {
-        control: ControlledIntRef as Rcrc<staticons::ControlledInt>
+        control: IntControlRef as Rcrc<IntControl>
     }
 }
 
@@ -161,7 +161,7 @@ impl IntBox {
         self.state.borrow().control.borrow().get_value() as _
     }
 
-    fn make_callback(self: &Rc<Self>) -> Box<dyn FnMut(i32) -> staticons::StaticonUpdateRequest> {
+    fn make_callback(self: &Rc<Self>) -> Box<dyn FnMut(i32) -> UpdateRequest> {
         let control = Rc::clone(&self.state.borrow().control);
         Box::new(move |new_value| control.borrow_mut().set_value(new_value as i16))
     }

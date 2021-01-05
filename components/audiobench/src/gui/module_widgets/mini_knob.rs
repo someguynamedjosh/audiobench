@@ -27,7 +27,7 @@ scui::widget! {
     pub MiniKnob
     State {
         pos: Vec2D,
-        control: Rcrc<ep::Autocon>,
+        control: Rcrc<FloatInRangeControl>,
         // This allows the knob to share feedback data with the right-click menu when it it open.
         value: Rcrc<f32>,
         label: String,
@@ -43,7 +43,7 @@ impl MiniKnob {
     fn new(
         parent: &impl MiniKnobParent,
         pos: Vec2D,
-        control: Rcrc<ep::Autocon>,
+        control: Rcrc<FloatInRangeControl>,
         label: String,
         tooltip: String,
     ) -> Rc<Self> {
@@ -181,10 +181,7 @@ impl ModuleWidgetImpl for MiniKnob {
         let state = self.state.borrow();
         let center = state.pos + grid(1) / 2.0;
         for lane in state.control.borrow().automation.iter() {
-            let (module, output_index) = &lane.connection;
-            let module_ref = module.borrow();
-            let out_pos = Module::output_position(&*module_ref, *output_index);
-            wire_tracker.add_wire(out_pos, center);
+            unimplemented!();
         }
     }
 }

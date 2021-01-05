@@ -27,16 +27,8 @@ struct ConstructorItem {
 impl ConstructorItem {
     pub fn get_outline_fields(&self) -> Vec<(Ident, TokenStream2)> {
         match &self.typ {
-<<<<<<< HEAD
-            ConstructorItemType::RegistryRef => vec![],
-            ConstructorItemType::ControlRef(_type_name) => {
-=======
             ConstructorItemType::ParentRef => vec![],
-            ConstructorItemType::AutoconRef => {
-                vec![(format_ident!("{}_index", self.name), quote! {usize})]
-            }
-            ConstructorItemType::ControlledDataRef(_type_name) => {
->>>>>>> dev
+            ConstructorItemType::ControlRef(_type_name) => {
                 vec![(format_ident!("{}_index", self.name), quote! {usize})]
             }
             ConstructorItemType::IntRange => vec![(self.name.clone(), quote! { (i32, i32)})],
@@ -376,9 +368,9 @@ pub fn make_widget_outline(args: TokenStream) -> TokenStream {
 
             pub fn instantiate(
                 &self,
-                registry: &crate::registry::Registry,
+                parent: &impl #widget_parent_trait,
                 controls: & ::std::vec::Vec<crate::engine::controls::AnyControl>,
-            ) -> #widget_struct_name {
+            ) -> ::std::rc::Rc<#widget_struct_name> {
                 #widget_struct_name::#constructor_name(#(#constructor_arg_values),*)
             }
         }
@@ -438,11 +430,7 @@ pub fn make_widget_outline_enum(args: TokenStream) -> TokenStream {
         .map(|name| {
             quote! {
                 Self::#name(outline) => Box::new(
-<<<<<<< HEAD
-                    outline.instantiate(registry, controls)
-=======
-                    outline.instantiate(parent, controls, staticons)
->>>>>>> dev
+                    outline.instantiate(parent, controls)
                 )
             }
         })
@@ -478,19 +466,12 @@ pub fn make_widget_outline_enum(args: TokenStream) -> TokenStream {
 
             pub fn instantiate<P>(
                 &self,
-<<<<<<< HEAD
-                registry: &crate::registry::Registry,
-                controls: &::std::vec::Vec<crate::engine::controls::AnyControl>,
-            ) -> (::std::boxed::Box<dyn crate::gui::module_widgets::ModuleWidget>, usize) {
-=======
                 parent: &P,
-                controls: & ::std::vec::Vec<::std::rc::Rc<::std::cell::RefCell<crate::engine::parts::Autocon>>>,
-                staticons: & ::std::vec::Vec<::std::rc::Rc<::std::cell::RefCell<crate::engine::static_controls::Staticon>>>,
-            ) -> (::std::boxed::Box<dyn crate::gui::module_widgets::ModuleWidget>, usize)
+                controls: &::std::vec::Vec<crate::engine::controls::AnyControl>,
+            ) -> (::std::boxed::Box<dyn crate::gui::module_widgets::ModuleWidget>, usize) 
             where
                 P: #(#parent_traits)+*
             {
->>>>>>> dev
                 (
                     match self {
                         #(#instantiate_body),*

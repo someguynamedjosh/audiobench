@@ -1,5 +1,5 @@
 use super::ModuleWidgetImpl;
-use crate::engine::controls as controls;
+use crate::engine::controls::{TimingModeControl, UpdateRequest};
 use crate::gui::constants::*;
 use crate::gui::mouse_behaviors::MutateStaticon;
 use crate::gui::{InteractionHint, Tooltip};
@@ -20,7 +20,7 @@ scui::widget! {
     pub TimingSelector
     State {
         pos: Vec2D,
-        control: Rcrc<staticons::ControlledTimingMode>,
+        control: Rcrc<TimingModeControl>,
         note_icon: usize,
         song_icon: usize,
         time_icon: usize,
@@ -32,7 +32,7 @@ impl TimingSelector {
     pub fn new(
         parent: &impl TimingSelectorParent,
         pos: Vec2D,
-        control: Rcrc<staticons::ControlledTimingMode>,
+        control: Rcrc<TimingModeControl>,
     ) -> Rc<Self> {
         let int = parent.provide_gui_interface();
         let gui_state = int.state.borrow();
@@ -49,7 +49,7 @@ impl TimingSelector {
     }
 
     fn source_value(&self) -> bool {
-        self.state.borrow().control.borrow().uses_song_time()
+        self.state.borrow().control.borrow().uses_elapsed_time()
     }
 
     fn type_value(&self) -> bool {

@@ -1,5 +1,5 @@
+use crate::engine::controls::{FloatInRangeControl, UpdateRequest};
 use crate::engine::parts as ep;
-use crate::engine::static_controls as staticons;
 use crate::engine::UiThreadEngine;
 use crate::gui::constants::*;
 use crate::gui::module_widgets;
@@ -13,7 +13,7 @@ use shared_util::prelude::*;
 #[derive(Clone, Debug)]
 pub enum DropTarget {
     None,
-    Autocon(Rcrc<ep::Autocon>),
+    Autocon(Rcrc<FloatInRangeControl>),
     Input(Rcrc<ep::Module>, usize),
     Output(Rcrc<ep::Module>, usize),
 }
@@ -65,14 +65,14 @@ fn range_value_tooltip(value: f32, suffix: &str) -> Tooltip {
     }
 }
 
-#[make_constructor((widget: &impl GuiInterfaceProvider<GuiState, DropTarget>, control: Rcrc<ep::Autocon>))]
+#[make_constructor((widget: &impl GuiInterfaceProvider<GuiState, DropTarget>, control: Rcrc<FloatInRangeControl>))]
 pub struct ManipulateControl {
     #[value(Rc::clone(&widget.provide_gui_interface().state.borrow().engine))]
     engine: Rcrc<UiThreadEngine>,
     #[value(Rc::clone(&widget.provide_gui_interface()))]
     gui_interface: Rc<GuiInterface<GuiState, DropTarget>>,
     #[value(Rc::clone(&control))]
-    control: Rcrc<ep::Autocon>,
+    control: Rcrc<FloatInRangeControl>,
     #[value(control.borrow().value)]
     current_value: f32,
 }
@@ -89,7 +89,7 @@ impl MouseBehavior<DropTarget> for ManipulateControl {
             lane.range.0 = (lane.range.0 + delta).clam(range.0, range.1);
             lane.range.1 = (lane.range.1 + delta).clam(range.0, range.1);
         }
-        self.engine.borrow_mut().reload_autocon_dyn_data();
+        self.engine.borrow_mut().reload_dyn_data();
         let tooltip = range_value_tooltip(control_ref.value, &control_ref.suffix);
         self.gui_interface.state.borrow_mut().set_tooltip(tooltip);
     }
@@ -97,7 +97,7 @@ impl MouseBehavior<DropTarget> for ManipulateControl {
     fn on_double_click(self: Box<Self>) {
         let mut cref = self.control.borrow_mut();
         cref.value = cref.default;
-        self.engine.borrow_mut().reload_autocon_dyn_data();
+        self.engine.borrow_mut().reload_dyn_data();
     }
 }
 
@@ -109,7 +109,7 @@ pub struct ManipulateLane {
     engine: Rcrc<UiThreadEngine>,
     #[value(Rc::clone(&widget.provide_gui_interface()))]
     gui_interface: Rc<GuiInterface<GuiState, DropTarget>>,
-    control: Rcrc<ep::Autocon>,
+    control: Rcrc<FloatInRangeControl>,
     lane: usize,
     #[value(true)]
     #[value(false for end_only)]
@@ -147,7 +147,7 @@ impl MouseBehavior<DropTarget> for ManipulateLane {
                 | InteractionHint::SnappingModifier,
         };
         self.gui_interface.state.borrow_mut().set_tooltip(tooltip);
-        self.engine.borrow_mut().reload_autocon_dyn_data();
+        self.engine.borrow_mut().reload_dyn_data();
     }
 
     fn on_double_click(self: Box<Self>) {
@@ -160,7 +160,7 @@ impl MouseBehavior<DropTarget> for ManipulateLane {
         if self.end {
             lane.range.1 = range.1
         };
-        self.engine.borrow_mut().reload_autocon_dyn_data();
+        self.engine.borrow_mut().reload_dyn_data();
     }
 }
 
@@ -168,7 +168,7 @@ impl MouseBehavior<DropTarget> for ManipulateLane {
 pub struct ManipulateIntBox {
     #[value(Rc::clone(&widget.provide_gui_interface().state.borrow().engine))]
     engine: Rcrc<UiThreadEngine>,
-    callback: Box<dyn FnMut(i32) -> staticons::StaticonUpdateRequest>,
+    callback: Box<dyn FnMut(i32) -> UpdateRequest>,
     min: i32,
     max: i32,
     click_delta: i32,
@@ -186,11 +186,11 @@ impl MouseBehavior<DropTarget> for ManipulateIntBox {
         self.float_value += delta;
         self.float_value = self.float_value.clam(self.min as f32, self.max as f32);
         match (self.callback)(self.float_value as i32) {
-            staticons::StaticonUpdateRequest::Nothing => (),
-            staticons::StaticonUpdateRequest::UpdateDynData => {
-                self.engine.borrow_mut().reload_staticon_dyn_data();
+            UpdateRequest::Nothing => (),
+            UpdateRequest::UpdateDynData => {
+                self.engine.borrow_mut().reload_dyn_data();
             }
-            staticons::StaticonUpdateRequest::UpdateCode => {
+            UpdateRequest::UpdateCode => {
                 self.code_reload_requested = true;
             }
         }
@@ -202,13 +202,11 @@ impl MouseBehavior<DropTarget> for ManipulateIntBox {
             self.engine.borrow_mut().recompile()
         } else {
             match request {
-                staticons::StaticonUpdateRequest::Nothing => (),
-                staticons::StaticonUpdateRequest::UpdateDynData => {
-                    self.engine.borrow_mut().reload_staticon_dyn_data();
+                UpdateRequest::Nothing => (),
+                UpdateRequest::UpdateDynData => {
+                    self.engine.borrow_mut().reload_dyn_data();
                 }
-                staticons::StaticonUpdateRequest::UpdateCode => {
-                    self.engine.borrow_mut().recompile()
-                }
+                UpdateRequest::UpdateCode => self.engine.borrow_mut().recompile(),
             }
         }
     }
@@ -222,13 +220,11 @@ impl MouseBehavior<DropTarget> for ManipulateIntBox {
             self.engine.borrow_mut().recompile()
         } else {
             match request {
-                staticons::StaticonUpdateRequest::Nothing => (),
-                staticons::StaticonUpdateRequest::UpdateDynData => {
-                    self.engine.borrow_mut().reload_staticon_dyn_data();
+                UpdateRequest::Nothing => (),
+                UpdateRequest::UpdateDynData => {
+                    self.engine.borrow_mut().reload_dyn_data();
                 }
-                staticons::StaticonUpdateRequest::UpdateCode => {
-                    self.engine.borrow_mut().recompile()
-                }
+                UpdateRequest::UpdateCode => self.engine.borrow_mut().recompile(),
             }
         }
     }
@@ -237,14 +233,14 @@ impl MouseBehavior<DropTarget> for ManipulateIntBox {
 #[make_constructor(new)]
 pub struct MutateStaticon {
     engine: Rcrc<UiThreadEngine>,
-    mutator: Box<dyn FnOnce() -> staticons::StaticonUpdateRequest>,
+    mutator: Box<dyn FnOnce() -> UpdateRequest>,
 }
 
 impl MutateStaticon {
     pub fn wrap<W, M>(widget: &W, mutator: M) -> MaybeMouseBehavior
     where
         W: GuiInterfaceProvider<GuiState, DropTarget>,
-        M: FnOnce() -> staticons::StaticonUpdateRequest + 'static,
+        M: FnOnce() -> UpdateRequest + 'static,
     {
         let int = widget.provide_gui_interface();
         let engine = Rc::clone(&int.state.borrow().engine);
@@ -256,11 +252,11 @@ impl MouseBehavior<DropTarget> for MutateStaticon {
     fn on_click(self: Box<Self>) {
         let update = (self.mutator)();
         match update {
-            staticons::StaticonUpdateRequest::Nothing => (),
-            staticons::StaticonUpdateRequest::UpdateDynData => {
-                self.engine.borrow_mut().reload_staticon_dyn_data();
+            UpdateRequest::Nothing => (),
+            UpdateRequest::UpdateDynData => {
+                self.engine.borrow_mut().reload_dyn_data();
             }
-            staticons::StaticonUpdateRequest::UpdateCode => self.engine.borrow_mut().recompile(),
+            UpdateRequest::UpdateCode => self.engine.borrow_mut().recompile(),
         }
     }
 }
@@ -269,8 +265,7 @@ impl MouseBehavior<DropTarget> for MutateStaticon {
 pub struct ContinuouslyMutateStaticon {
     engine: Rcrc<UiThreadEngine>,
     gui_interface: Rc<GuiInterface<GuiState, DropTarget>>,
-    mutator:
-        Box<dyn FnMut(f32, Option<f32>) -> (staticons::StaticonUpdateRequest, Option<Tooltip>)>,
+    mutator: Box<dyn FnMut(f32, Option<f32>) -> (UpdateRequest, Option<Tooltip>)>,
     #[value(false)]
     code_reload_requested: bool,
 }
@@ -279,7 +274,7 @@ impl ContinuouslyMutateStaticon {
     pub fn wrap<W, M>(widget: &W, mutator: M) -> MaybeMouseBehavior
     where
         W: GuiInterfaceProvider<GuiState, DropTarget>,
-        M: FnMut(f32, Option<f32>) -> (staticons::StaticonUpdateRequest, Option<Tooltip>) + 'static,
+        M: FnMut(f32, Option<f32>) -> (UpdateRequest, Option<Tooltip>) + 'static,
     {
         let int = widget.provide_gui_interface();
         let engine = Rc::clone(&int.state.borrow().engine);
@@ -298,11 +293,11 @@ impl MouseBehavior<DropTarget> for ContinuouslyMutateStaticon {
             self.gui_interface.state.borrow_mut().set_tooltip(tooltip);
         }
         match update {
-            staticons::StaticonUpdateRequest::Nothing => (),
-            staticons::StaticonUpdateRequest::UpdateDynData => {
-                self.engine.borrow_mut().reload_staticon_dyn_data();
+            UpdateRequest::Nothing => (),
+            UpdateRequest::UpdateDynData => {
+                self.engine.borrow_mut().reload_dyn_data();
             }
-            staticons::StaticonUpdateRequest::UpdateCode => {
+            UpdateRequest::UpdateCode => {
                 self.code_reload_requested = true;
             }
         }

@@ -1,10 +1,10 @@
 use super::ModuleWidgetImpl;
-use crate::engine::controls as controls;
+use crate::engine::controls::{DurationControl, TimingModeControl, UpdateRequest};
 use crate::gui::constants::*;
 use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
 use crate::gui::mouse_behaviors::{ContinuouslyMutateStaticon, MutateStaticon};
 use crate::gui::{InteractionHint, Tooltip};
-use crate::scui_config::{DropTarget, Renderer, MaybeMouseBehavior};
+use crate::scui_config::{DropTarget, MaybeMouseBehavior, Renderer};
 use scui::{MouseMods, Vec2D, WidgetImpl};
 use shared_util::prelude::*;
 
@@ -25,8 +25,8 @@ scui::widget! {
     State {
         pos: Vec2D,
         tooltip: String,
-        duration_control: Rcrc<staticons::ControlledDuration>,
-        mode_control: Rcrc<staticons::ControlledTimingMode>,
+        duration_control: Rcrc<DurationControl>,
+        mode_control: Rcrc<TimingModeControl>,
         label: String,
     }
 }
@@ -38,8 +38,8 @@ impl DurationBox {
     pub fn new(
         parent: &impl DurationBoxParent,
         pos: Vec2D,
-        duration_control: Rcrc<staticons::ControlledDuration>,
-        mode_control: Rcrc<staticons::ControlledTimingMode>,
+        duration_control: Rcrc<DurationControl>,
+        mode_control: Rcrc<TimingModeControl>,
         label: String,
         tooltip: String,
     ) -> Rc<Self> {
