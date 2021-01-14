@@ -43,7 +43,8 @@ impl WidgetImpl<Renderer, DropTarget> for EnvelopeGraph {
     }
 
     fn draw_impl(self: &Rc<Self>, g: &mut Renderer) {
-        let feedback_data: &[f32] = unimplemented!();
+        // let feedback_data: &[f32] = unimplemented!();
+        let feedback_data: &[f32] = &[0.0, 0.0, 0.0, 1.0, 1.0, 1.0];
         let state = self.state.borrow();
 
         const CS: f32 = CORNER_SIZE;

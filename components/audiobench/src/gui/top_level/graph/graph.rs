@@ -2,10 +2,13 @@ use super::Module;
 use crate::engine::parts as ep;
 use crate::gui::constants::*;
 use crate::gui::graphics::GrahpicsWrapper;
+use crate::gui::top_level::ModuleBrowser;
 use crate::gui::{Gui, InteractionHint, Tooltip};
+use crate::registry::module_template::ModuleTemplate;
 use crate::registry::Registry;
 use crate::scui_config::{DropTarget, MaybeMouseBehavior, Renderer};
-use scui::{MouseMods, Vec2D, Widget, WidgetImpl};
+use scones::make_constructor;
+use scui::{GuiInterfaceProvider, MouseBehavior, MouseMods, Vec2D, Widget, WidgetImpl};
 use shared_util::prelude::*;
 
 scui::widget! {
@@ -94,7 +97,8 @@ impl ModuleGraph {
     }
 
     /// This also adds the module to the actual graph this widget represents.
-    pub fn add_module(self: &Rc<Self>, mut module: ep::Module) {
+    pub fn add_module(self: &Rc<Self>, template: Rcrc<ModuleTemplate>) {
+        let mut module = ep::Module::create(template);
         let state = self.state.borrow();
         let pos = state.offset * -1.0;
         module.pos = (pos.x, pos.y);
@@ -136,6 +140,21 @@ impl ModuleGraph {
     }
 }
 
+#[make_constructor]
+struct GraphInteract {
+    graph: Rc<ModuleGraph>,
+}
+
+impl MouseBehavior<DropTarget> for GraphInteract {
+    fn on_double_click(self: Box<Self>) {
+        let tab = ModuleBrowser::new(&self.graph, Rc::clone(&self.graph));
+        let interface = self.graph.provide_gui_interface();
+        let mut state = interface.state.borrow_mut();
+        state.add_tab(tab);
+        println!("Double click!");
+    }
+}
+
 impl WidgetImpl<Renderer, DropTarget> for ModuleGraph {
     fn get_pos_impl(self: &Rc<Self>) -> Vec2D {
         (0.0, HEADER_HEIGHT).into()
@@ -169,7 +188,7 @@ impl WidgetImpl<Renderer, DropTarget> for ModuleGraph {
         //     }
         // }
         // MouseAction::PanOffset(Rc::clone(&self.offset)).scaled(Rc::clone(&self.zoom))
-        None
+        Some(Box::new(GraphInteract::new(Rc::clone(self))))
     }
 
     fn draw_impl(self: &Rc<Self>, g: &mut GrahpicsWrapper) {

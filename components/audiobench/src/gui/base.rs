@@ -61,6 +61,7 @@ pub struct GuiState {
     pub engine: Rcrc<UiThreadEngine>,
     status: Option<Status>,
     tooltip: Tooltip,
+    // Yeah I know  this is doing Rc<Rc<Widget>> but I don't know what else to do at the moment.
     tabs: Vec<Rc<dyn GuiTab>>,
     current_tab_index: usize,
 }
@@ -85,8 +86,8 @@ impl GuiState {
         &self.tooltip
     }
 
-    pub fn add_tab(&mut self, tab: Rc<dyn GuiTab>) {
-        self.tabs.push(tab);
+    pub fn add_tab(&mut self, tab: impl GuiTab + 'static) {
+        self.tabs.push(Rc::new(tab));
     }
 
     pub fn all_tabs(&self) -> impl Iterator<Item = &Rc<dyn GuiTab>> {
@@ -123,8 +124,8 @@ impl Root {
     fn new(parent: &impl RootParent) -> Rc<Self> {
         let state = RootState {};
         let this = Rc::new(Self::create(parent, state));
-        let tab1 = Rc::new(PatchBrowser::new(&this));
-        let tab2 = Rc::new(NoteGraph::new(&this));
+        let tab1 = PatchBrowser::new(&this);
+        let tab2 = NoteGraph::new(&this);
         this.with_gui_state_mut(|state| {
             state.add_tab(tab1);
             state.add_tab(tab2);

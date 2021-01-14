@@ -115,8 +115,10 @@ impl WidgetImpl<Renderer, DropTarget> for Knob {
 
     fn draw_impl(self: &Rc<Self>, g: &mut Renderer) {
         let state = self.state.borrow();
-        let highlight = unimplemented!();
-        let feedback_data: &[f32] = unimplemented!();
+        // let highlight = unimplemented!();
+        let highlight = false;
+        // let feedback_data: &[f32] = unimplemented!();
+        let feedback_data: &[f32] = &[0.0];
         const MIN_ANGLE: f32 = PI * 1.10;
         const MAX_ANGLE: f32 = -PI * 0.10;
 

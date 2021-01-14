@@ -415,9 +415,9 @@ class Job:
 
 JOBS = {
     'jobs': Job('Print available jobs', [], print_jobs),
-    'env': Job('Run a terminal after setting variables and installing deps', ['pack_julia_deps'], open_terminal),
     'clean': Job('Delete all artifacts and intermediate files', [], clean),
     'deps': Job('Download or build necessary dependencies', [], get_dependencies),
+    'env': Job('Run a terminal after setting variables and installing deps', ['deps'], open_terminal),
     'remove_juce_splash': Job('Remove JUCE splash screen (Audiobench is GPLv3)', [], remove_juce_splash),
     'clib': Job('Build Audiobench as a static library', ['deps'], build_clib),
     'juce_frontend': Job('Build the JUCE frontend for Audiobench', ['remove_juce_splash', 'clib'], build_juce_frontend),

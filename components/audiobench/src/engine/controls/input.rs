@@ -105,6 +105,10 @@ impl InputControl {
             connection: None,
         })
     }
+
+    pub fn get_type(&self) -> JackType {
+        self.typ
+    }
 }
 
 #[rustfmt::skip]

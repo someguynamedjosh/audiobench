@@ -325,7 +325,7 @@ impl Module {
             widget.add_wires(&mut wire_tracker);
         }
         wire_tracker.draw_wires(g, pos);
-        unimplemented!();
+        // unimplemented!();
     }
 
     pub fn represents_module(&self, module: &Rcrc<ep::Module>) -> bool {
@@ -426,7 +426,7 @@ impl WidgetImpl<Renderer, DropTarget> for Module {
             g.set_color(&COLOR_BG1);
             g.draw_rounded_rect((JS, 0.0), size - (JS, 0.0), CS);
             g.set_color(&COLOR_BG2);
-            g.draw_rect((JS + MIW, 0.0), size - (MIW * 2.0 - JS, 0.0));
+            g.draw_rect((JS + MIW, 0.0), size - (MIW * 2.0 + JS, 0.0));
 
             g.set_color(&COLOR_FG1);
             g.draw_text(
@@ -457,7 +457,6 @@ impl WidgetImpl<Renderer, DropTarget> for Module {
                 fdi += segment_len;
             }
 
-            g.pop_state();
             g.set_color(&COLOR_FG1);
         } else if layer_index == 3 {
             g.set_color(&COLOR_FG1);
