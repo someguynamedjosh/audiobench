@@ -398,6 +398,11 @@ impl WidgetImpl<Renderer, DropTarget> for Module {
     }
     */
 
+    fn on_hover_impl(self: &Rc<Self>, pos: Vec2D) -> Option<()> {
+        self.parents.graph.set_hovered_module(Rc::clone(self));
+        Some(())
+    }
+
     fn draw_impl(self: &Rc<Self>, g: &mut Renderer) {
         let pos = self.get_pos();
         let size = self.get_size();
@@ -417,8 +422,6 @@ impl WidgetImpl<Renderer, DropTarget> for Module {
             g.set_color(&COLOR_FG1);
             self.draw_wires(g, pos);
         } else if layer_index == 2 {
-            let mouse_pos = self.parents.gui.get_mouse_pos() - pos;
-
             const CS: f32 = CORNER_SIZE;
             const JS: f32 = JACK_SIZE;
             const MIW: f32 = MODULE_IO_WIDTH;
@@ -440,7 +443,7 @@ impl WidgetImpl<Renderer, DropTarget> for Module {
 
             let module_ref = state.module.borrow();
             let template_ref = module_ref.template.borrow();
-            let hovering = mouse_pos.inside(size);
+            let hovering = self.parents.graph.is_hovered_module(self);
             for output_index in 0..state.outputs.len() {
                 let output = &state.outputs[output_index];
                 let jack = &template_ref.outputs[output_index];

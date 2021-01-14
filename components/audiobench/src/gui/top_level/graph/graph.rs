@@ -8,7 +8,9 @@ use crate::registry::module_template::ModuleTemplate;
 use crate::registry::Registry;
 use crate::scui_config::{DropTarget, MaybeMouseBehavior, Renderer};
 use scones::make_constructor;
-use scui::{GuiInterfaceProvider, MouseBehavior, MouseMods, Vec2D, Widget, WidgetImpl};
+use scui::{
+    GuiInterfaceProvider, MouseBehavior, MouseMods, OnClickBehavior, Vec2D, Widget, WidgetImpl,
+};
 use shared_util::prelude::*;
 
 scui::widget! {
@@ -20,10 +22,11 @@ scui::widget! {
         highlight_mode: Option<GraphHighlightMode>,
         current_draw_layer: usize,
         wire_preview_endpoint: Option<Vec2D>,
+        hovered_module: Option<Rc<Module>>,
     }
     Children {
         modules: Vec<Rc<Module>>,
-        popup_menu: Option<Box<dyn Widget<Renderer, DropTarget>>>
+        detail_menu: Option<Box<dyn Widget<Renderer, DropTarget>>>
     }
 }
 
@@ -42,6 +45,7 @@ impl ModuleGraph {
             highlight_mode: None,
             current_draw_layer: 0,
             wire_preview_endpoint: None,
+            hovered_module: None,
         };
         let this = Rc::new(Self::create(parent, state));
         let mut children = this.children.borrow_mut();
@@ -59,7 +63,7 @@ impl ModuleGraph {
     pub fn rebuild(self: &Rc<Self>) {
         let mut children = self.children.borrow_mut();
         children.modules.clear();
-        children.popup_menu = None;
+        children.detail_menu = None;
         let state = self.state.borrow();
         let mut top_left = Vec2D::from(std::f32::MAX);
         let mut bottom_right = Vec2D::from(std::f32::MIN);
@@ -127,8 +131,12 @@ impl ModuleGraph {
         mouse_pos / zoom - offset
     }
 
+    pub fn pan(self: &Rc<Self>, delta: Vec2D) {
+        self.state.borrow_mut().offset += delta;
+    }
+
     pub fn open_menu(self: &Rc<Self>, menu: Box<dyn Widget<Renderer, DropTarget>>) {
-        self.children.borrow_mut().popup_menu = Some(menu);
+        self.children.borrow_mut().detail_menu = Some(menu);
     }
 
     pub fn get_current_draw_layer(self: &Rc<Self>) -> usize {
@@ -138,6 +146,23 @@ impl ModuleGraph {
     pub fn get_highlight_mode(self: &Rc<Self>) -> Option<GraphHighlightMode> {
         self.state.borrow().highlight_mode
     }
+
+    pub fn set_hovered_module(self: &Rc<Self>, module: Rc<Module>) {
+        self.state.borrow_mut().hovered_module = Some(module);
+    }
+
+    pub fn clear_hovered_module(self: &Rc<Self>) {
+        self.state.borrow_mut().hovered_module = None;
+    }
+
+    pub fn is_hovered_module(self: &Rc<Self>, module: &Rc<Module>) -> bool {
+        let state = self.state.borrow();
+        if let Some(hovered) = &state.hovered_module {
+            Rc::ptr_eq(hovered, module)
+        } else {
+            false
+        }
+    }
 }
 
 #[make_constructor]
@@ -146,12 +171,15 @@ struct GraphInteract {
 }
 
 impl MouseBehavior<DropTarget> for GraphInteract {
+    fn on_drag(&mut self, delta: Vec2D, _mods: &MouseMods) {
+        self.graph.pan(delta);
+    }
+
     fn on_double_click(self: Box<Self>) {
         let tab = ModuleBrowser::new(&self.graph, Rc::clone(&self.graph));
         let interface = self.graph.provide_gui_interface();
         let mut state = interface.state.borrow_mut();
         state.add_tab(tab);
-        println!("Double click!");
     }
 }
 
@@ -169,26 +197,40 @@ impl WidgetImpl<Renderer, DropTarget> for ModuleGraph {
         pos: Vec2D,
         mods: &MouseMods,
     ) -> MaybeMouseBehavior {
-        ris!(self.get_mouse_behavior_children(pos, mods));
-        // let pos = self.translate_mouse_pos(pos);
-        // if let Some(widget) = &self.detail_menu_widget {
-        //     let local_pos = pos.sub(widget.get_pos());
-        //     if local_pos.inside(widget.get_bounds()) {
-        //         return widget
-        //             .respond_to_mouse_press(local_pos, mods)
-        //             .scaled(Rc::clone(&self.zoom));
-        //     } else {
-        //         self.detail_menu_widget = None;
-        //     }
-        // }
-        // for module in self.modules.iter().rev() {
-        //     let action = module.respond_to_mouse_press(pos, mods);
-        //     if !action.is_none() {
-        //         return action.scaled(Rc::clone(&self.zoom));
-        //     }
-        // }
-        // MouseAction::PanOffset(Rc::clone(&self.offset)).scaled(Rc::clone(&self.zoom))
+        let pos = self.translate_mouse_pos(pos);
+        let children = self.children.borrow();
+        if let Some(widget) = &children.detail_menu {
+            let local_pos = pos - widget.get_pos();
+            if local_pos.inside(widget.get_size()) {
+                return widget.get_mouse_behavior(pos, mods);
+            // .scaled(Rc::clone(&self.zoom));
+            } else {
+                let this = Rc::clone(self);
+                return OnClickBehavior::wrap(move || {
+                    this.children.borrow_mut().detail_menu = None;
+                });
+            }
+        }
+        for module in children.modules.iter().rev() {
+            ris!(module.get_mouse_behavior(pos, mods))
+        }
         Some(Box::new(GraphInteract::new(Rc::clone(self))))
+    }
+
+    fn on_hover_impl(self: &Rc<Self>, pos: Vec2D) -> Option<()> {
+        self.clear_hovered_module();
+        let pos = self.translate_mouse_pos(pos);
+        let children = self.children.borrow();
+        if let Some(widget) = &children.detail_menu {
+            let local_pos = pos - widget.get_pos();
+            if local_pos.inside(widget.get_size()) {
+                return widget.on_hover(pos);
+            }
+        }
+        for module in children.modules.iter().rev() {
+            ris!(module.on_hover(pos))
+        }
+        None
     }
 
     fn draw_impl(self: &Rc<Self>, g: &mut GrahpicsWrapper) {
@@ -206,8 +248,8 @@ impl WidgetImpl<Renderer, DropTarget> for ModuleGraph {
                 module.draw(g);
             }
         }
-        if let Some(popup) = &children.popup_menu {
-            popup.draw(g);
+        if let Some(widget) = &children.detail_menu {
+            widget.draw(g);
         }
         let state = self.state.borrow();
         if let Some(end) = &state.wire_preview_endpoint {
