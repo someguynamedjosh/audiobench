@@ -6,7 +6,7 @@ use crate::gui::module_widgets::ModuleWidget;
 use crate::gui::{InteractionHint, Tooltip};
 use crate::registry::Registry;
 use crate::scui_config::{DropTarget, MaybeMouseBehavior, Renderer};
-use scui::{ChildHolder, MouseMods, OnClickBehavior, Vec2D, Widget, WidgetImpl};
+use scui::{ChildHolder, MouseBehavior, MouseMods, OnClickBehavior, Vec2D, Widget, WidgetImpl};
 use shared_util::prelude::*;
 use std::cell::Ref;
 use std::f32::consts::PI;
@@ -328,8 +328,23 @@ impl Module {
         // unimplemented!();
     }
 
+    fn drag(self: &Rc<Self>, delta: Vec2D) {
+        let mut state = self.state.borrow_mut();
+        let mut module = state.module.borrow_mut();
+        module.pos.0 += delta.x;
+        module.pos.1 += delta.y;
+    }
+
     pub fn represents_module(&self, module: &Rcrc<ep::Module>) -> bool {
         Rc::ptr_eq(&self.state.borrow().module, module)
+    }
+}
+
+pub struct DragModule(Rc<Module>);
+
+impl MouseBehavior<DropTarget> for DragModule {
+    fn on_drag(&mut self, delta: Vec2D, _mods: &MouseMods) {
+        self.0.drag(delta);
     }
 }
 
@@ -350,14 +365,7 @@ impl WidgetImpl<Renderer, DropTarget> for Module {
     ) -> MaybeMouseBehavior {
         let state = self.state.borrow();
         for (widget, _) in &state.widgets {
-            let wpos = widget.get_pos();
-            let local_pos = mouse_pos - wpos;
-            if local_pos.inside(widget.get_size()) {
-                let action = widget.get_mouse_behavior(local_pos, mods);
-                if !action.is_none() {
-                    return action;
-                }
-            }
+            ris!(widget.get_mouse_behavior(mouse_pos, mods));
         }
         for (index, output) in state.outputs.iter().enumerate() {
             if output.mouse_in_bounds(mouse_pos) {
@@ -366,10 +374,10 @@ impl WidgetImpl<Renderer, DropTarget> for Module {
         }
         if mods.right_click {
             // MouseAction::RemoveModule(Rc::clone(&state.module))
+            unimplemented!()
         } else {
-            // MouseAction::MoveModule(Rc::clone(&state.module), state.module.borrow().pos)
+            Some(Box::new(DragModule(Rc::clone(self))))
         }
-        None
     }
 
     /*
