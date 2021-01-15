@@ -61,7 +61,6 @@ impl Control for FloatInRangeControl {
         Box::new(self.automation.iter().map(|item| &item.connection))
     }
 
-    fn is_static_only(&self) -> bool { false }
     fn get_parameter_types(&self) -> Vec<IOType> { 
         let length = 1 + self.automation.len() * 2;
         vec![IOType::FloatArray]

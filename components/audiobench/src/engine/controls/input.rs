@@ -1,9 +1,8 @@
-use shared_util::mini_serde::{MiniDes, MiniSer};
-
 use super::{AutomationSource, Control, IOData, IOType};
 use crate::engine::codegen::AutomationCode;
 use crate::engine::parts::JackType;
 use crate::registry::yaml::YamlNode;
+use shared_util::mini_serde::{MiniDes, MiniSer};
 use std::collections::HashMap;
 
 pub struct DefaultInputDescription {
@@ -134,7 +133,6 @@ impl InputControl {
 
 #[rustfmt::skip]
 impl Control for InputControl {
-    fn is_static_only(&self) -> bool { false }
     fn acceptable_automation(&self) -> Vec<JackType> { vec![self.typ] }
     fn connect_automation(&mut self, from: AutomationSource) {
         assert_eq!(from.get_type(), self.typ);
