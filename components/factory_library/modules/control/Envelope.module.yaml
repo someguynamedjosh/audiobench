@@ -7,15 +7,9 @@ outputs:
 controls:
   reset_trigger: Input
     type: trigger 
-    icon: Factory:reset
-    label: Reset Trigger
-    tooltip: Trigger to reset the envelope to the beginning
   release_trigger: Input
     type: trigger 
-    icon: Factory:note_up
-    label: Release Trigger
-    default: 1
-    tooltip: Trigger to switch to the release section of the envelope
+    default: note_release
   sustain: FloatInRange
     min: 0
     max: 1
@@ -34,6 +28,18 @@ gui:
   width: 8
   height: 4
   widgets:
+    Input:
+      y: 0
+      control: reset_trigger
+      icon: Factory:reset
+      label: Reset Trigger
+      tooltip: Trigger to reset the envelope to the beginning
+    Input:
+      y: 1
+      control: release_trigger
+      icon: Factory:note_up
+      label: Release Trigger
+      tooltip: Trigger to switch to the release section of the envelope
     Knob:
       x: 0
       y: 0

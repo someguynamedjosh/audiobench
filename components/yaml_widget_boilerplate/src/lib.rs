@@ -13,10 +13,12 @@ enum ConstructorItemType {
     GridPos,
     GridSize,
     ControlRef(String),
+    I32,
     IntRange,
     FloatRange,
     String,
     StringList,
+    OptionalString,
 }
 
 struct ConstructorItem {
@@ -31,6 +33,7 @@ impl ConstructorItem {
             ConstructorItemType::ControlRef(_type_name) => {
                 vec![(format_ident!("{}_index", self.name), quote! {usize})]
             }
+            ConstructorItemType::I32 => vec![(self.name.clone(), quote! { i32 })],
             ConstructorItemType::IntRange => vec![(self.name.clone(), quote! { (i32, i32)})],
             ConstructorItemType::GridPos | ConstructorItemType::GridSize => {
                 vec![(self.name.clone(), quote! { Vec2D })]
@@ -42,6 +45,10 @@ impl ConstructorItem {
             ConstructorItemType::StringList => vec![(
                 self.name.clone(),
                 quote! {::std::vec::Vec<::std::string::String>},
+            )],
+            ConstructorItemType::OptionalString => vec![(
+                self.name.clone(),
+                quote! {::std::option::Option<::std::string::String>},
             )],
         }
     }
@@ -91,6 +98,12 @@ impl ConstructorItem {
                     }
                 }
             }
+            ConstructorItemType::I32 => {
+                let name = self.name.clone();
+                quote! {
+                    let #name = yaml.unique_child(stringify!(#name))?.parse()?;
+                }
+            }
             ConstructorItemType::IntRange => {
                 let name = self.name.clone();
                 quote! {
@@ -135,6 +148,16 @@ impl ConstructorItem {
                     }
                 }
             }
+            ConstructorItemType::OptionalString => {
+                let name = self.name.clone();
+                quote! {
+                    let #name = if let Ok(child) = yaml.unique_child(stringify!(#name)) {
+                        Some(child.value.trim().to_owned())
+                    } else {
+                        None
+                    };
+                }
+            }
         }
     }
 
@@ -143,9 +166,11 @@ impl ConstructorItem {
             ConstructorItemType::ParentRef => quote! { parent },
             ConstructorItemType::GridPos
             | ConstructorItemType::GridSize
+            | ConstructorItemType::I32
             | ConstructorItemType::IntRange
             | ConstructorItemType::FloatRange
             | ConstructorItemType::String
+            | ConstructorItemType::OptionalString
             | ConstructorItemType::StringList => {
                 let name = self.name.clone();
                 quote! { self.#name.clone() }
@@ -184,9 +209,11 @@ impl Parse for ConstructorItem {
             "ParentRef" => ConstructorItemType::ParentRef,
             "GridPos" => ConstructorItemType::GridPos,
             "GridSize" => ConstructorItemType::GridSize,
+            "i32" => ConstructorItemType::I32,
             "IntRange" => ConstructorItemType::IntRange,
             "FloatRange" => ConstructorItemType::FloatRange,
             "String" => ConstructorItemType::String,
+            "OptionalString" => ConstructorItemType::OptionalString,
             "StringList" => ConstructorItemType::StringList,
             _ => panic!(
                 "{} is not a recognized constructor parameter type",
@@ -468,7 +495,7 @@ pub fn make_widget_outline_enum(args: TokenStream) -> TokenStream {
                 &self,
                 parent: &P,
                 controls: &::std::vec::Vec<crate::engine::controls::AnyControl>,
-            ) -> (::std::boxed::Box<dyn crate::gui::module_widgets::ModuleWidget>, usize) 
+            ) -> (::std::boxed::Box<dyn crate::gui::module_widgets::ModuleWidget>, usize)
             where
                 P: #(#parent_traits)+*
             {

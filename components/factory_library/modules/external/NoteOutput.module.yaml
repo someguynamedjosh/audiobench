@@ -3,8 +3,6 @@ outputs:
 controls:
   audio: Input
     type: audio
-    label: Audio
-    tooltip: The audio that will be played for the current note
   volume: FloatInRange
     min: 0
     max: 1
@@ -16,9 +14,14 @@ gui:
   width: 2
   height: 2
   widgets:
+    Input:
+      y: 0
+      control: audio
+      label: Audio
+      tooltip: The audio that will be played for the current note
     Knob:
+      x: 0
+      y: 0
       control: volume
       label: Master Vol
       tooltip: Control how loud the overall output is
-      x: 0
-      y: 0

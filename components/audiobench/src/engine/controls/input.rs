@@ -4,10 +4,10 @@ use crate::engine::parts::JackType;
 use crate::registry::yaml::YamlNode;
 use std::collections::HashMap;
 
-struct DefaultInputDescription {
-    name: &'static str,
-    code: &'static str,
-    icon: &'static str,
+pub struct DefaultInputDescription {
+    pub name: &'static str,
+    pub code: &'static str,
+    pub icon: &'static str,
 }
 
 fn default_option_descriptions_for(typ: JackType) -> &'static [DefaultInputDescription] {
@@ -95,10 +95,16 @@ impl InputControl {
     pub fn from_yaml(yaml: &YamlNode) -> Result<Self, String> {
         let typ = JackType::from_yaml(yaml.unique_child("type")?)?;
         let default = if let Ok(child) = yaml.unique_child("default") {
-            child.parse()?
+            let mut names = Vec::new();
+            for option in default_option_descriptions_for(typ) {
+                names.push(option.name.to_lowercase().replace(' ', "_"));
+            }
+            let name_refs: Vec<_> = names.iter().map(|e| &e[..]).collect();
+            child.parse_enumerated(&name_refs[..])?
         } else {
             0
         };
+
         Ok(Self {
             typ,
             default,
@@ -108,6 +114,19 @@ impl InputControl {
 
     pub fn get_type(&self) -> JackType {
         self.typ
+    }
+
+    /// Returns None if this input is connected and not using its default.
+    pub fn get_used_default(&self) -> Option<&'static DefaultInputDescription> {
+        if self.connection.is_none() {
+            Some(&default_option_descriptions_for(self.get_type())[self.default])
+        } else {
+            None
+        }
+    }
+
+    pub fn next_default(&mut self) {
+        self.default = (self.default + 1) % default_option_descriptions_for(self.get_type()).len();
     }
 }
 

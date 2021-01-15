@@ -11,113 +11,6 @@ use shared_util::prelude::*;
 use std::cell::Ref;
 use std::f32::consts::PI;
 
-/*
-struct InputJack {
-    label: String,
-    tooltip: Tooltip,
-    icon: usize,
-    small_icon: Option<usize>,
-    pos: Vec2D,
-}
-
-impl InputJack {
-    fn create(
-        label: String,
-        tooltip: String,
-        mut icon: usize,
-        custom_icon: Option<usize>,
-        pos: Vec2D,
-    ) -> Self {
-        let small_icon = if let Some(custom) = custom_icon {
-            let small_icon = icon;
-            icon = custom;
-            Some(small_icon)
-        } else {
-            None
-        };
-        Self {
-            label,
-            tooltip: Tooltip {
-                text: tooltip,
-                interaction: InteractionHint::LeftClickAndDrag | InteractionHint::LeftClick,
-            },
-            icon,
-            small_icon,
-            pos,
-        }
-    }
-
-    fn mouse_in_bounds(&self, mouse_pos: Vec2D) -> bool {
-        (mouse_pos - self.pos + (JACK_SIZE, 0.0)).inside((JACK_SIZE * 2.0, JACK_SIZE).into())
-    }
-
-    fn draw(
-        &self,
-        g: &mut Renderer,
-        default: Option<&ep::DefaultInput>,
-        show_label: bool,
-        mute: bool,
-    ) {
-        g.push_state();
-        g.translate(self.pos);
-        const JS: f32 = JACK_SIZE;
-        const CS: f32 = CORNER_SIZE;
-        const JIP: f32 = JACK_ICON_PADDING;
-
-        if mute {
-            g.set_color(&COLOR_FG0);
-        } else {
-            g.set_color(&COLOR_FG1);
-        }
-        if let Some(default) = &default {
-            const X: f32 = -JS;
-            const Y: f32 = (JS - JS) / 2.0;
-            g.draw_pie((-JS, 0.0), JS, 0.0, 0.0, PI * 2.0);
-            g.draw_rect((-JS / 2.0, 0.0), (JS / 2.0, JS));
-            g.draw_icon(default.icon, Vec2D::new(X, Y) + JIP, JS - JIP * 2.0);
-        }
-
-        g.draw_rounded_rect(0, JS, CS);
-        g.draw_rect(0, (CS, JS));
-
-        if let Some(small_icon) = self.small_icon {
-            const JSIS: f32 = JACK_SMALL_ICON_SIZE;
-            const MINI_COORD: Vec2D = Vec2D::new(JS - JSIS / 2.0, JS - JSIS - JIP);
-            g.draw_rounded_rect(MINI_COORD - JIP, JSIS + JIP * 2.0, CS);
-            g.draw_icon(small_icon, MINI_COORD, JSIS);
-        }
-        g.draw_icon(self.icon, JIP, JS - JIP * 2.0);
-
-        if show_label && !mute {
-            if let Some(default) = &default {
-                const X: f32 = -100.0 - GRID_P - JS;
-                g.draw_text(
-                    FONT_SIZE,
-                    (X, -JS / 2.0),
-                    (100.0, JS),
-                    (1, 1),
-                    1,
-                    &self.label,
-                );
-                let text = format!("({})", default.name);
-                g.draw_text(
-                    FONT_SIZE,
-                    (X, JS / 2.0),
-                    (100.0, JS),
-                    (1, 1),
-                    1,
-                    &self.label,
-                );
-            } else {
-                g.draw_text(FONT_SIZE, (-104, 0), (100.0, JS), (1, 0), 1, &self.label);
-            }
-        }
-
-        g.pop_state();
-    }
-}
-*/
-
 struct OutputJack {
     label: String,
     tooltip: Tooltip,
@@ -335,8 +228,12 @@ impl Module {
         module.pos.1 += delta.y;
     }
 
-    pub fn represents_module(&self, module: &Rcrc<ep::Module>) -> bool {
+    pub fn represents_module(self: &Rc<Self>, module: &Rcrc<ep::Module>) -> bool {
         Rc::ptr_eq(&self.state.borrow().module, module)
+    }
+
+    pub fn is_hovered(self: &Rc<Self>) -> bool {
+        self.parents.graph.is_hovered_module(self)
     }
 }
 
@@ -451,7 +348,7 @@ impl WidgetImpl<Renderer, DropTarget> for Module {
 
             let module_ref = state.module.borrow();
             let template_ref = module_ref.template.borrow();
-            let hovering = self.parents.graph.is_hovered_module(self);
+            let hovering = self.is_hovered();
             for output_index in 0..state.outputs.len() {
                 let output = &state.outputs[output_index];
                 let jack = &template_ref.outputs[output_index];

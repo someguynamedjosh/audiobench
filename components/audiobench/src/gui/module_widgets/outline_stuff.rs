@@ -21,6 +21,7 @@ yaml_widget_boilerplate::make_widget_outline_enum![
     EnvelopeGraph,
     FrequencyBox,
     HSlider,
+    Input,
     IntBox,
     Knob,
     MiniKnob,
