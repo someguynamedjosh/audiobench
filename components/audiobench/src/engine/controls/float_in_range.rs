@@ -45,9 +45,11 @@ impl FloatInRangeControl {
     }
 }
 
-#[rustfmt::skip]
 impl Control for FloatInRangeControl {
-    fn acceptable_automation(&self) -> Vec<JackType> { vec![JackType::Audio] }
+    fn acceptable_automation(&self) -> Vec<JackType> {
+        vec![JackType::Audio]
+    }
+
     fn connect_automation(&mut self, from: AutomationSource) {
         let range = self.range;
         self.automation.push(AutomationLane {
@@ -55,40 +57,62 @@ impl Control for FloatInRangeControl {
             range,
         });
     }
+
     fn get_connected_automation<'a>(
         &'a self,
     ) -> Box<dyn Iterator<Item = &'a AutomationSource> + 'a> {
         Box::new(self.automation.iter().map(|item| &item.connection))
     }
 
-    fn get_parameter_types(&self) -> Vec<IOType> { 
+    fn get_parameter_types(&self) -> Vec<IOType> {
         let length = 1 + self.automation.len() * 2;
         vec![IOType::FloatArray]
     }
-    fn get_parameter_values(&self) -> Vec<IOData> { 
+
+    fn get_parameter_values(&self) -> Vec<IOData> {
         let mut values = vec![self.value];
         for lane in &self.automation {
-            values.push(lane.range.0);
-            values.push(lane.range.1);
+            // This is the result of simplifying the expression
+            // (value + 1) * 0.5 * (max - min) + min
+            // so that computing it only requires one multiplication and one addition.
+            let a = (lane.range.1 - lane.range.0) * 0.5;
+            let b = (lane.range.1 + lane.range.0) * 0.5;
+            values.push(a);
+            values.push(b);
         }
-        vec![IOData::FloatArray(values)] 
+        vec![IOData::FloatArray(values)]
     }
+
     fn generate_code(&self, params: &[&str], automation_code: &AutomationCode) -> String {
-        let mut code = format!("{}[1]", params[0]);
-        let mut index = 2; // Julia indexing starts at 1.
-        for lane in &self.automation {
-            code.push_str(&format!(
-                " + ({}[{}] * {}[{}] * {})",
-                params[0],
-                index,
-                params[0],
-                index + 1,
-                automation_code.value_of(&lane.connection)
-            ));
-            index += 2;
+        if self.automation.len() == 0 {
+            format!("{}[1]", params[0])
+        } else {
+            let mut code = String::new();
+            let mut index = 2; // Julia indexing starts at 1.
+            let mut first = Some(());
+            for lane in &self.automation {
+                if !first.take().is_some() {
+                    code.push_str(" .+ ");
+                }
+                code.push_str(&format!(
+                    "({} .* {}[{}] .+ {}[{}])",
+                    automation_code.value_of(&lane.connection),
+                    params[0],
+                    index,
+                    params[0],
+                    index + 1,
+                ));
+                index += 2;
+            }
+            code
         }
-        code
     }
-    fn serialize(&self, ser: &mut MiniSer) { unimplemented!() }
-    fn deserialize(&mut self, des: &mut MiniDes) -> Result<(), ()> { unimplemented!() }
+
+    fn serialize(&self, ser: &mut MiniSer) {
+        unimplemented!()
+    }
+
+    fn deserialize(&mut self, des: &mut MiniDes) -> Result<(), ()> {
+        unimplemented!()
+    }
 }
