@@ -19,9 +19,7 @@ impl FrequencyControl {
         } else {
             1.0
         };
-        Ok(Self {
-            value,
-        })
+        Ok(Self { value })
     }
 
     pub fn get_value(&self) -> f32 {

@@ -1,5 +1,5 @@
-use std::time::Duration;
 use crate::Vec2D;
+use std::time::Duration;
 
 /// How many pixels the mouse must move across while being held down for dragging to start.
 pub const DRAG_DEADZONE: f32 = 4.0;

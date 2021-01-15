@@ -166,7 +166,8 @@ impl ToTokens for WidgetInfo {
 
         let gui_state = quote! { crate::scui_config::GuiState };
         let drop_target = quote! { crate::scui_config::DropTarget };
-        let gui_interface_provider = quote! { ::scui::GuiInterfaceProvider<#gui_state, #drop_target> };
+        let gui_interface_provider =
+            quote! { ::scui::GuiInterfaceProvider<#gui_state, #drop_target> };
         let renderer = quote! { crate::scui_config::Renderer };
         let widget_provider_bounds = quote! {
             #gui_interface_provider +
@@ -211,8 +212,8 @@ impl ToTokens for WidgetInfo {
                     }
                 }
 
-                /// Returns `Some()` if any of the children of this widget have a mouse behavior at 
-                /// the given position (as indicated by calling their `get_mouse_behavior` method.) 
+                /// Returns `Some()` if any of the children of this widget have a mouse behavior at
+                /// the given position (as indicated by calling their `get_mouse_behavior` method.)
                 /// Returns `None` if no children provided a mouse behavior.
                 fn get_mouse_behavior_children(self: &::std::rc::Rc<Self>, pos: ::scui::Vec2D, mods: &::scui::MouseMods) -> ::scui::MaybeMouseBehavior<#drop_target> {
                     let children = self.children.borrow();

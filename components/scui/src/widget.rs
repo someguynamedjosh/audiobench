@@ -65,7 +65,7 @@ pub trait WidgetImplDefaults<R: Renderer, DT> {
 }
 
 /// This is the trait you should implement if you are creating a widget. Most functions can be
-/// omitted to use a sensible default in its place. (E.G. on_scroll_impl's default will 
+/// omitted to use a sensible default in its place. (E.G. on_scroll_impl's default will
 /// automatically call self.on_scroll_children() for you.) If you provide a custom implementation of
 /// a function, make sure to call the *_children() variant at some point during the function or
 /// manually perform the job that the *_children() function would perform.

@@ -4,7 +4,7 @@ use crate::gui::constants::*;
 use crate::gui::graphics::{HAlign, VAlign};
 use crate::gui::mouse_behaviors::ManipulateIntBox;
 use crate::gui::{InteractionHint, Tooltip};
-use crate::scui_config::{DropTarget, Renderer, MaybeMouseBehavior};
+use crate::scui_config::{DropTarget, MaybeMouseBehavior, Renderer};
 use scui::{MouseMods, Vec2D, WidgetImpl};
 use shared_util::prelude::*;
 

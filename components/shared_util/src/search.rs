@@ -309,10 +309,7 @@ mod tests {
 
         let clip = Clip::from("start if elseif blahend endblah end end trailing");
         let mut searcher = clip.search();
-        searcher.skip_blocks(
-            &[("start", "end"), ("if", "end")],
-            "trailing",
-        );
+        searcher.skip_blocks(&[("start", "end"), ("if", "end")], "trailing");
         assert_eq!(searcher.remaining(), "trailing");
     }
 

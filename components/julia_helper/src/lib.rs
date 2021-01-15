@@ -234,7 +234,7 @@ impl ExecutionEngine {
                     candidate = (gen.clone(), og.clone());
                 }
             }
-            let real_line = line + candidate.1.position.line - candidate.0.line ;
+            let real_line = line + candidate.1.position.line - candidate.0.line;
             result.push_str(&format!("{}:{}", candidate.1.filename, real_line));
             error = &error[line_end..];
         }

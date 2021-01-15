@@ -5,7 +5,7 @@ use crate::gui::graphics::GrahpicsWrapper;
 use crate::gui::mouse_behaviors::MutateStaticon;
 use crate::gui::{InteractionHint, Tooltip};
 use crate::registry::Registry;
-use crate::scui_config::{DropTarget, Renderer, MaybeMouseBehavior};
+use crate::scui_config::{DropTarget, MaybeMouseBehavior, Renderer};
 use scui::{MouseMods, OnClickBehavior, Vec2D, WidgetImpl};
 use shared_util::prelude::*;
 

@@ -1,5 +1,5 @@
-use crate::engine::controls::FloatInRangeControl;
 use super::ModuleWidgetImpl;
+use crate::engine::controls::FloatInRangeControl;
 use crate::engine::parts as ep;
 use crate::gui::constants::*;
 use crate::gui::graphics::{HAlign, VAlign};

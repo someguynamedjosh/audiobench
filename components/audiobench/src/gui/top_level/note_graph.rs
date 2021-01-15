@@ -24,7 +24,7 @@ impl NoteGraph {
         let engine = state.engine.borrow();
         let graph = Rc::clone(engine.borrow_module_graph_ref());
 
-        let this = Rc::new(Self::create(parent, NoteGraphState { }));
+        let this = Rc::new(Self::create(parent, NoteGraphState {}));
         let mut children = this.children.borrow_mut();
         children.graph = ModuleGraph::new(parent, graph).into();
         drop(children);

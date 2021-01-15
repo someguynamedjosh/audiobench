@@ -1,8 +1,8 @@
-use crate::registry::module_template::ModuleTemplate;
 use crate::engine::controls::AnyControl;
+use crate::registry::module_template::ModuleTemplate;
+use crate::registry::yaml::YamlNode;
 use shared_util::prelude::*;
 use std::collections::{HashMap, HashSet};
-use crate::registry::yaml::YamlNode;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum JackType {
@@ -112,10 +112,11 @@ pub struct Module {
 }
 
 impl Module {
-    pub fn create(
-        template: Rcrc<ModuleTemplate>,
-    ) -> Self {
-        let controls = template.borrow().default_controls.imc(|(_, c)| c.deep_clone());
+    pub fn create(template: Rcrc<ModuleTemplate>) -> Self {
+        let controls = template
+            .borrow()
+            .default_controls
+            .imc(|(_, c)| c.deep_clone());
         Self {
             template,
             controls,

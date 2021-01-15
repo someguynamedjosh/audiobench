@@ -90,9 +90,7 @@ impl<'a> InputPacker<'a> {
     const GPI_CONTROL_DYN_DATA_START: usize = 11;
 
     pub fn new(data_format: &'a DataFormat) -> Self {
-        Self {
-            data_format,
-        }
+        Self { data_format }
     }
 
     fn set_timing_input(&mut self, index: usize, start: f32, increment: f32) {
@@ -178,7 +176,8 @@ impl<'a> InputPacker<'a> {
         //     .set_argument(Self::GPI_AUTOCON_DYN_DATA, IODataPtr::FloatArray(data));
     }
 
-    pub fn set_dyn_data<T>(&mut self, data: &[T]) { // Previously OwnedIOData
+    pub fn set_dyn_data<T>(&mut self, data: &[T]) {
+        // Previously OwnedIOData
         assert!(self.data_format.dyn_data_types.len() == data.len());
         for (index, item) in data.iter().enumerate() {
             // let item_ptr = item.borrow();
@@ -197,7 +196,7 @@ impl OutputUnpacker {
     const GPI_FEEDBACK_DATA: usize = 1;
 
     pub fn new() -> Self {
-        Self { }
+        Self {}
     }
 
     pub fn borrow_audio_out(&self) -> &[f32] {

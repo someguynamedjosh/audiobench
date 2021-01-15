@@ -1,13 +1,13 @@
+mod misc;
 mod mouse;
+mod top_level;
 mod vec;
 mod widget;
-mod misc;
-mod top_level;
 
+pub use misc::*;
 pub use mouse::*;
+pub use top_level::*;
 pub use vec::*;
 pub use widget::*;
-pub use misc::*;
-pub use top_level::*;
 
 pub use scui_macros::*;

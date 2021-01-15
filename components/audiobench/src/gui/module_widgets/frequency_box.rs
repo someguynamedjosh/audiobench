@@ -1,10 +1,10 @@
 use super::ModuleWidgetImpl;
 use crate::engine::controls::{FrequencyControl, UpdateRequest};
-use crate::gui::mouse_behaviors::{ContinuouslyMutateStaticon};
 use crate::gui::constants::*;
 use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
+use crate::gui::mouse_behaviors::ContinuouslyMutateStaticon;
 use crate::gui::{InteractionHint, Tooltip};
-use crate::scui_config::{DropTarget, Renderer, MaybeMouseBehavior};
+use crate::scui_config::{DropTarget, MaybeMouseBehavior, Renderer};
 use scui::{MouseMods, Vec2D, WidgetImpl};
 use shared_util::prelude::*;
 
@@ -58,7 +58,11 @@ impl WidgetImpl<Renderer, DropTarget> for FrequencyBox {
         grid(2).into()
     }
 
-    fn get_mouse_behavior_impl(self: &Rc<Self>, _pos: Vec2D, _mods: &MouseMods) -> MaybeMouseBehavior {
+    fn get_mouse_behavior_impl(
+        self: &Rc<Self>,
+        _pos: Vec2D,
+        _mods: &MouseMods,
+    ) -> MaybeMouseBehavior {
         let state = self.state.borrow();
         let frequency = state.control.borrow();
         let cref = Rc::clone(&state.control);
