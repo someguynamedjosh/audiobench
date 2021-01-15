@@ -1,11 +1,11 @@
-use crate::registry::mini_bin;
+use super::{FloatInRangeControl, InputControl};
 use crate::engine::codegen::AutomationCode;
-use crate::registry::yaml::YamlNode;
 use crate::engine::parts::{JackType, Module};
+use crate::registry::mini_bin;
+use crate::registry::yaml::YamlNode;
 use shared_util::prelude::*;
-use std::cell::{Ref, RefMut};
+use std::{cell::{Ref, RefMut}, fmt::{Display, Formatter}};
 use std::fmt::Debug;
-use super::{InputControl, FloatInRangeControl};
 
 use paste::paste;
 
@@ -16,204 +16,21 @@ pub enum IOType {
     Bool,
     Int,
     Float,
-    BoolArray(usize),
-    IntArray(usize),
-    FloatArray(usize),
+    BoolArray,
+    IntArray,
+    FloatArray,
 }
 
-impl IOType {
-    /// Returns an IOType which represents the type `[dimension]self`. For example, if dimension is
-    /// 5 and `self` is `BoolArray(20)`, `wrap()` will return `BoolArray(100)`.
-    pub(crate) fn wrap(self, dimension: usize) -> Self {
+impl Display for IOType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        use IOType::*;
         match self {
-            Self::Bool => Self::BoolArray(dimension),
-            Self::Int => Self::IntArray(dimension),
-            Self::Float => Self::FloatArray(dimension),
-            Self::BoolArray(size) => Self::BoolArray(dimension * size),
-            Self::IntArray(size) => Self::IntArray(dimension * size),
-            Self::FloatArray(size) => Self::FloatArray(dimension * size),
-        }
-    }
-
-    pub(crate) fn get_packed_size(&self) -> usize {
-        match self {
-            Self::Bool => 1,
-            Self::Int => 4,
-            Self::Float => 4,
-            Self::BoolArray(size) => *size,
-            Self::IntArray(size) => 4 * *size,
-            Self::FloatArray(size) => 4 * *size,
-        }
-    }
-}
-
-/// Represents data that can be passed to the program or received from the program.
-#[derive(PartialEq, Debug)]
-pub enum IODataPtr<'a> {
-    Bool(bool),
-    Int(i32),
-    Float(f32),
-    BoolArray(&'a [bool]),
-    IntArray(&'a [i32]),
-    FloatArray(&'a [f32]),
-}
-
-impl From<bool> for IODataPtr<'static> {
-    fn from(data: bool) -> Self {
-        Self::Bool(data)
-    }
-}
-
-impl From<i32> for IODataPtr<'static> {
-    fn from(data: i32) -> Self {
-        Self::Int(data)
-    }
-}
-
-impl From<f32> for IODataPtr<'static> {
-    fn from(data: f32) -> Self {
-        Self::Float(data)
-    }
-}
-
-impl<'a> From<&'a [bool]> for IODataPtr<'a> {
-    fn from(data: &'a [bool]) -> Self {
-        Self::BoolArray(data)
-    }
-}
-
-impl<'a> From<&'a [i32]> for IODataPtr<'a> {
-    fn from(data: &'a [i32]) -> Self {
-        Self::IntArray(data)
-    }
-}
-
-impl<'a> From<&'a [f32]> for IODataPtr<'a> {
-    fn from(data: &'a [f32]) -> Self {
-        Self::FloatArray(data)
-    }
-}
-
-impl<'a> From<&'a IOData> for IODataPtr<'a> {
-    fn from(data: &'a IOData) -> Self {
-        data.borrow()
-    }
-}
-
-impl<'a> IODataPtr<'a> {
-    pub fn get_data_type(&self) -> IOType {
-        match self {
-            Self::Bool(..) => IOType::Bool,
-            Self::Int(..) => IOType::Int,
-            Self::Float(..) => IOType::Float,
-            Self::BoolArray(arr) => IOType::BoolArray(arr.len()),
-            Self::IntArray(arr) => IOType::IntArray(arr.len()),
-            Self::FloatArray(arr) => IOType::FloatArray(arr.len()),
-        }
-    }
-
-    pub fn to_owned(&self) -> IOData {
-        match self {
-            Self::Bool(value) => IOData::Bool(*value),
-            Self::Int(value) => IOData::Int(*value),
-            Self::Float(value) => IOData::Float(*value),
-            Self::BoolArray(slice_ptr) => {
-                IOData::BoolArray(Vec::from(*slice_ptr).into_boxed_slice())
-            }
-            Self::IntArray(slice_ptr) => {
-                IOData::IntArray(Vec::from(*slice_ptr).into_boxed_slice())
-            }
-            Self::FloatArray(slice_ptr) => {
-                IOData::FloatArray(Vec::from(*slice_ptr).into_boxed_slice())
-            }
-        }
-    }
-
-    pub fn unwrap_bool(self) -> bool {
-        if let Self::Bool(value) = self {
-            value
-        } else {
-            panic!("Tried to call unwrap_bool on {:?}", self)
-        }
-    }
-
-    pub fn unwrap_int(self) -> i32 {
-        if let Self::Int(value) = self {
-            value
-        } else {
-            panic!("Tried to call unwrap_int on {:?}", self)
-        }
-    }
-
-    pub fn unwrap_float(self) -> f32 {
-        if let Self::Float(value) = self {
-            value
-        } else {
-            panic!("Tried to call unwrap_float on {:?}", self)
-        }
-    }
-
-    pub fn unwrap_bool_array(self) -> &'a [bool] {
-        if let Self::BoolArray(value) = self {
-            value
-        } else {
-            panic!("Tried to call unwrap_bool_array on {:?}", self)
-        }
-    }
-
-    pub fn unwrap_int_array(self) -> &'a [i32] {
-        if let Self::IntArray(value) = self {
-            value
-        } else {
-            panic!("Tried to call unwrap_int_array on {:?}", self)
-        }
-    }
-
-    pub fn unwrap_float_array(self) -> &'a [f32] {
-        if let Self::FloatArray(value) = self {
-            value
-        } else {
-            panic!("Tried to call unwrap_float_array on {:?}", self)
-        }
-    }
-
-    fn write_packed_data(&self, target: &mut [u8]) {
-        assert!(self.get_data_type().get_packed_size() == target.len());
-        match self {
-            Self::Bool(value) => target[0] = if *value { 1 } else { 0 },
-            Self::Int(value) => {
-                let bytes = value.to_ne_bytes();
-                for i in 0..4 {
-                    target[i] = bytes[i];
-                }
-            }
-            Self::Float(value) => {
-                let bytes = value.to_ne_bytes();
-                for i in 0..4 {
-                    target[i] = bytes[i];
-                }
-            }
-            Self::BoolArray(arr) => {
-                for (index, value) in arr.iter().enumerate() {
-                    target[index] = if *value { 1 } else { 0 };
-                }
-            }
-            Self::IntArray(arr) => {
-                for (index, value) in arr.iter().enumerate() {
-                    let bytes = value.to_ne_bytes();
-                    for i in 0..4 {
-                        target[index * 4 + i] = bytes[i];
-                    }
-                }
-            }
-            Self::FloatArray(arr) => {
-                for (index, value) in arr.iter().enumerate() {
-                    let bytes = value.to_ne_bytes();
-                    for i in 0..4 {
-                        target[index * 4 + i] = bytes[i];
-                    }
-                }
-            }
+            Bool => write!(f, "Bool"),
+            Int => write!(f, "Int32"),
+            Float => write!(f, "Float32"),
+            BoolArray => write!(f, "Vector{{Bool}}"),
+            IntArray => write!(f, "Vector{{Int32}}"),
+            FloatArray => write!(f, "Vector{{Float32}}"),
         }
     }
 }
@@ -223,22 +40,9 @@ pub enum IOData {
     Bool(bool),
     Int(i32),
     Float(f32),
-    BoolArray(Box<[bool]>),
-    IntArray(Box<[i32]>),
-    FloatArray(Box<[f32]>),
-}
-
-impl IOData {
-    pub fn borrow(&self) -> IODataPtr {
-        match self {
-            Self::Bool(value) => IODataPtr::Bool(*value),
-            Self::Int(value) => IODataPtr::Int(*value),
-            Self::Float(value) => IODataPtr::Float(*value),
-            Self::BoolArray(value) => IODataPtr::BoolArray(&value[..]),
-            Self::IntArray(value) => IODataPtr::IntArray(&value[..]),
-            Self::FloatArray(value) => IODataPtr::FloatArray(&value[..]),
-        }
-    }
+    BoolArray(Vec<bool>),
+    IntArray(Vec<i32>),
+    FloatArray(Vec<f32>),
 }
 
 #[derive(Debug)]
@@ -265,9 +69,9 @@ impl UpdateRequest {
 
 #[derive(Clone, Debug)]
 pub struct AutomationSource {
-    module: Rcrc<Module>,
-    output_index: usize,
-    output_type: JackType,
+    pub module: Rcrc<Module>,
+    pub output_index: usize,
+    pub output_type: JackType,
 }
 
 impl AutomationSource {
@@ -277,11 +81,6 @@ impl AutomationSource {
 }
 
 pub trait Control: Debug {
-    /// Returns true if the control's value must be available at compile time. This will cause the
-    /// code to be recompiled every time the user changes the value, so it should be avoided if at
-    /// all possible.
-    fn is_static_only(&self) -> bool;
-
     /// Returns a vector of output types that this control accepts automation wires from. Default
     /// implementation returns an empty vector.
     fn acceptable_automation(&self) -> Vec<JackType> {
@@ -298,6 +97,18 @@ pub trait Control: Debug {
             );
         }
     }
+
+    /// Called to retrieve a list of automation sources that should be serialized for this control.
+    fn get_connected_automation<'a>(
+        &'a self,
+    ) -> Box<dyn Iterator<Item = &'a AutomationSource> + 'a> {
+        Box::new(Vec::new().into_iter())
+    }
+
+    /// Returns true if the control's value must be available at compile time. This will cause the
+    /// code to be recompiled every time the user changes the value, so it should be avoided if at
+    /// all possible.
+    fn is_static_only(&self) -> bool;
 
     /// Returns a list of parameter types that should be transferred to the code for this control.
     fn get_parameter_types(&self) -> Vec<IOType>;
@@ -527,10 +338,11 @@ impl DurationControl {
 #[rustfmt::skip] 
 impl Control for DurationControl {
     fn is_static_only(&self) -> bool { self.require_static_only }
-    fn get_parameter_types(&self) -> Vec<IOType> { unimplemented!() }
-    fn get_parameter_values(&self) -> Vec<IOData> { unimplemented!() }
+    fn get_parameter_types(&self) -> Vec<IOType> { vec![IOType::Float] }
+    fn get_parameter_values(&self) -> Vec<IOData> { vec![IOData::Float(self.get_raw_value())] }
     fn generate_code(&self, params: &[&str], automation_code: &AutomationCode) -> String { 
-        unimplemented!() 
+        assert!(params.len() == 1);
+        params[0].to_owned()
     }
     fn serialize(&self, buffer: &mut Vec<u8>) { 
         if self.fraction_mode {
@@ -613,12 +425,15 @@ impl TimingModeControl {
 #[rustfmt::skip] 
 impl Control for TimingModeControl {
     fn is_static_only(&self) -> bool { self.require_static_only }
-    fn get_parameter_types(&self) -> Vec<IOType> { unimplemented!() }
-    fn get_parameter_values(&self) -> Vec<IOData> { unimplemented!() }
+    fn get_parameter_types(&self) -> Vec<IOType> { vec![IOType::Int] }
+    fn get_parameter_values(&self) -> Vec<IOData> { vec![IOData::Int(self.get_raw_value() as _)] }
     fn generate_code(&self, params: &[&str], automation_code: &AutomationCode) -> String { 
-        unimplemented!() 
+        assert!(params.len() == 1);
+        params[0].to_owned()
     }
-    fn serialize(&self, buffer: &mut Vec<u8>) { mini_bin::ser_u8(buffer, self.get_raw_value()); }
+    fn serialize(&self, buffer: &mut Vec<u8>) { 
+        mini_bin::ser_u8(buffer, self.get_raw_value()); 
+    }
     fn deserialize(&mut self, slice: &mut &[u8]) -> Result<(), ()> { 
         let raw_value = mini_bin::des_u8(slice)?;
         if raw_value > 0b11 {
@@ -916,17 +731,17 @@ macro_rules! any_control_enum {
             pub enum AnyControl {
                 $($control_types (Rcrc<[<$control_types Control>]>)),*
             }
-            
+
             impl AnyControl {
                 pub fn as_dyn_ptr(&self) -> Rcrc<dyn Control> {
                     match self {
                         $(Self::$control_types(ptr) => Rc::clone(ptr) as _),*
                     }
                 }
-                
+
                 pub fn deep_clone(&self) -> Self {
                     match self {
-                        $(Self::$control_types(ptr) 
+                        $(Self::$control_types(ptr)
                             => Self::$control_types(rcrc((*ptr.borrow()).clone()))),*
                     }
                 }

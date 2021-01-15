@@ -195,10 +195,11 @@ impl ModuleGraph {
             let module_ref = module.borrow();
             let mut dependencies = HashSet::new();
             for control in &module_ref.controls {
-                unimplemented!();
-                // for lane in &control_ref.automation {
-                //     dependencies.insert(self.index_of_module(&lane.connection.0).ok_or(())?);
-                // }
+                let ptr = control.as_dyn_ptr();
+                let control_ref = ptr.borrow();
+                for sauce in control_ref.get_connected_automation() {
+                    dependencies.insert(self.index_of_module(&sauce.module).ok_or(())?);
+                }
             }
             let flat_dependencies = dependencies.iter().cloned().collect();
             module_reprs.push(ModuleRepr {

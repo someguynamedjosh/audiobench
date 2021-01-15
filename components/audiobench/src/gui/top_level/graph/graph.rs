@@ -110,6 +110,9 @@ impl ModuleGraph {
         state.graph.borrow_mut().add_module(Rc::clone(&module));
         let mut children = self.children.borrow_mut();
         children.modules.push(Module::new(self, module));
+        self.with_gui_state_mut(|state| {
+            state.engine.borrow_mut().recompile();
+        })
     }
 
     pub fn remove_module(self: &Rc<Self>, module: &Rcrc<ep::Module>) {

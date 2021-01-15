@@ -1,4 +1,4 @@
-use super::controls::{AnyControl, Control, AutomationSource};
+use super::controls::{AnyControl, AutomationSource, Control};
 use super::data_routing::{ControlDynDataCollector, FeedbackDisplayer};
 use super::data_transfer::{DataFormat, GlobalParameters};
 use crate::engine::parts::*;
@@ -14,11 +14,11 @@ pub(super) struct CodeGenResult {
 }
 
 pub struct AutomationCode {
-
+    ordered_modules: Vec<Rcrc<Module>>,
 }
 
 impl AutomationCode {
-    fn of(source: &AutomationSource) -> String {
+    pub fn value_of(&self, source: &AutomationSource) -> String {
         unimplemented!();
     }
 }
@@ -65,39 +65,6 @@ fn snake_case_to_pascal_case(snake_case: &str) -> String {
 }
 
 impl<'a> CodeGenerator<'a> {
-    fn generate_code_for_control(&mut self, control: &AnyControl) -> String {
-        let control_ptr = control.as_dyn_ptr();
-        let control_ref = control_ptr.borrow();
-        unimplemented!();
-        // if control_ref.is_static_only() {
-        //     format!("    {}\n", control_ref.generate_static_code())
-        // } else {
-        //     let unique_input_name = format!(
-        //         "control_dyn_data_{}",
-        //         self.control_dyn_data_control_order.len(),
-        //     );
-        //     // let (input_code, body_code) = control_ref.generate_dynamic_code(&unique_input_name);
-        //     self.dyn_data_control_order.push(Rc::clone(control));
-        //     self.dyn_data_types.push(()); //control_ref.get_io_type());
-        //     // self.control_input_code.push(input_code);
-        //     format!("    {}\n", body_code)
-        // }
-    }
-
-    fn generate_code_for_input(&mut self, connection: &(), jack: &IOJack) -> String {
-        unimplemented!();
-        // match connection {
-        //     InputConnection::Wire(module, output_index) => format!(
-        //         "module_{}_output_{}",
-        //         self.graph.index_of_module(&module).unwrap_or(2999999),
-        //         output_index
-        //     ),
-        //     InputConnection::Default(index) => {
-        //         jack.borrow_default_options()[*index].code.to_owned()
-        //     }
-        // }
-    }
-
     fn generate_code(mut self, global_params: &GlobalParameters) -> CodeGenResult {
         let buffer_length = global_params.buffer_length;
         let sample_rate = global_params.sample_rate;
@@ -145,41 +112,69 @@ impl<'a> CodeGenerator<'a> {
         ));
         code.push_str("  end # function static_init\n\n");
 
+        let mut exec_body = String::new();
         code.push_str(concat!(
-            "  function exec(midi_controls::Vector{Float32}, pitch_wheel::Float32, bpm::Float32, ",
-            "elapsed_time::Float32, elapsed_beats::Float32, do_update::Bool, ",
-            "note_input::NoteInput, static_index::Integer)\n",
+            "  function exec(midi_controls::Vector{Float32}, pitch_wheel::Float32,\n",
+            "    bpm::Float32, elapsed_time::Float32, elapsed_beats::Float32,\n",
+            "    do_update::Bool, note_input::NoteInput, static_index::Integer,",
+        ));
+        exec_body.push_str(concat!(
             "    static_index += 1\n", // grumble grumble
             "    global_input = GlobalInput(midi_controls, pitch_wheel, bpm, elapsed_time, ",
             "elapsed_beats, do_update)\n",
-            "    global_start_trigger = Trigger(note_input.start_trigger, repeat([false], buffer_length - 1)...)\n",
-            "    global_release_trigger = Trigger(note_input.release_trigger, repeat([false], buffer_length - 1)...)\n",
-            "    global_autocon_dyn_data = SA_F32[0.25f0, 0.25f0, 0.25f0, 0.25f0, 0.25f0, 0.25f0, 0.25f0, 0.25f0, 0.25f0, 0.25f0, 0.25f0]\n",
+            "    start_trigger = Trigger(note_input.start_trigger, repeat([false], buffer_length - 1)...)\n",
+            "    release_trigger = Trigger(note_input.release_trigger, repeat([false], buffer_length - 1)...)\n",
             "    note_output = NoteOutput()\n",
             "    context = NoteContext(global_input, note_input, note_output)\n",
         ));
+        let automation_code = AutomationCode {
+            ordered_modules: ordered_modules.clone(),
+        };
         for index in std::mem::replace(&mut self.execution_order, Vec::new()) {
             let module_ref = self.graph.borrow_modules()[index].borrow();
             let template_ref = module_ref.template.borrow();
 
-            code.push_str("\n    ");
+            exec_body.push_str("\n    ");
             for output_index in 0..template_ref.outputs.len() {
-                code.push_str(&format!("module_{}_output_{}, ", index, output_index,));
+                exec_body.push_str(&format!("module_{}_output_{}, ", index, output_index,));
             }
-            code.push_str(&format!(
+            exec_body.push_str(&format!(
                 "static_container[static_index].for_module_{}, = \n",
                 index
             ));
-            code.push_str(&format!(
+            exec_body.push_str(&format!(
                 "    Main.Registry.{}.{}Module.exec(\n      context,\n",
                 template_ref.lib_name, template_ref.module_name
             ));
-            code.push_str(&format!(
-                "      static_container[static_index].for_module_{}\n    )\n",
+            exec_body.push_str(&format!(
+                "      static_container[static_index].for_module_{},\n",
                 index
             ));
+            let mut first = true;
+            for (control_index, control) in module_ref.controls.iter().enumerate() {
+                let control_ptr = control.as_dyn_ptr();
+                let control = control_ptr.borrow();
+                let mut idents = Vec::new();
+                for (parameter_index, ptype) in
+                    control.get_parameter_types().into_iter().enumerate()
+                {
+                    if first {
+                        first = false;
+                        code.push_str("\n   ");
+                    }
+                    let ident = format!("m{}c{}p{}", index, control_index, parameter_index);
+                    code.push_str(&format!(" {}: {},", ident, ptype));
+                    idents.push(ident);
+                }
+                let ident_refs: Vec<_> = idents.iter().map(|i| &i[..]).collect();
+                let code = control.generate_code(&ident_refs[..], &automation_code);
+                exec_body.push_str(&format!("      {},\n", code));
+            }
+            exec_body.push_str("    )");
         }
-        code.push_str("    (Array(context.note_out.audio),)\n");
+        code.push_str("\n  )\n");
+        code.push_str(&exec_body);
+        code.push_str("\n\n    (Array(context.note_out.audio),)\n");
         code.push_str("  end # function exec\n\n");
         code.push_str("end # module Generated\n");
         let code = GeneratedCode::from_unique_source("Generated/note_graph.jl", &code);
@@ -195,10 +190,11 @@ impl<'a> CodeGenerator<'a> {
             dyn_data_types,
             feedback_data_len,
         };
-        let dyn_data_collector =
-            ControlDynDataCollector::new(dyn_data_control_order);
+        let dyn_data_collector = ControlDynDataCollector::new(dyn_data_control_order);
         let feedback_displayer =
             FeedbackDisplayer::new(ordered_modules, data_format.feedback_data_len);
+
+        println!("{}", code.as_str());
 
         CodeGenResult {
             code,

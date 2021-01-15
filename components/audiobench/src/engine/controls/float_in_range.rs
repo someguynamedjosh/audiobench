@@ -1,7 +1,7 @@
 use super::{AutomationSource, Control, IOData, IOType};
+use crate::engine::codegen::AutomationCode;
 use crate::engine::parts::JackType;
 use crate::registry::yaml::YamlNode;
-use crate::engine::codegen::AutomationCode;
 
 #[derive(Clone, Debug)]
 pub struct AutomationLane {
@@ -45,15 +45,45 @@ impl FloatInRangeControl {
 
 #[rustfmt::skip]
 impl Control for FloatInRangeControl {
-    fn is_static_only(&self) -> bool { false }
     fn acceptable_automation(&self) -> Vec<JackType> { vec![JackType::Audio] }
     fn connect_automation(&mut self, from: AutomationSource) {
-        unimplemented!();
+        let range = self.range;
+        self.automation.push(AutomationLane {
+            connection: from,
+            range,
+        });
     }
-    fn get_parameter_types(&self) -> Vec<IOType> { vec![] }
-    fn get_parameter_values(&self) -> Vec<IOData> { vec![] }
-    fn generate_code(&self, params: &[&str], automation_code: &AutomationCode) -> String { 
-        unimplemented!() 
+    fn get_connected_automation<'a>(
+        &'a self,
+    ) -> Box<dyn Iterator<Item = &'a AutomationSource> + 'a> {
+        Box::new(self.automation.iter().map(|item| &item.connection))
+    }
+
+    fn is_static_only(&self) -> bool { false }
+    fn get_parameter_types(&self) -> Vec<IOType> { 
+        let length = 1 + self.automation.len() * 2;
+        vec![IOType::FloatArray]
+    }
+    fn get_parameter_values(&self) -> Vec<IOData> { 
+        let mut values = vec![self.value];
+        for lane in &self.automation {
+            values.push(lane.range.0);
+            values.push(lane.range.1);
+        }
+        vec![IOData::FloatArray(values)] 
+    }
+    fn generate_code(&self, params: &[&str], automation_code: &AutomationCode) -> String {
+        let mut code = params[0].to_owned();
+        let mut index = 1;
+        for lane in &self.automation {
+            code.push_str(&format!(
+                " + ({} * {} * {})",
+                params[index],
+                params[index + 1],
+                automation_code.value_of(&lane.connection)
+            ));
+        }
+        code
     }
     fn serialize(&self, buffer: &mut Vec<u8>) { unimplemented!() }
     fn deserialize(&mut self, data: &mut &[u8]) -> Result<(), ()> { unimplemented!() }

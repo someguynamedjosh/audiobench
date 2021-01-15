@@ -48,12 +48,12 @@ fn default_option_descriptions_for(typ: JackType) -> &'static [DefaultInputDescr
         JackType::Trigger => &[
             DefaultInputDescription {
                 name: "Note Start",
-                code: "global_start_trigger",
+                code: "start_trigger",
                 icon: "Factory:note_down",
             },
             DefaultInputDescription {
                 name: "Note Release",
-                code: "global_release_trigger",
+                code: "release_trigger",
                 icon: "Factory:note_up",
             },
             DefaultInputDescription {
@@ -141,7 +141,11 @@ impl Control for InputControl {
     fn get_parameter_types(&self) -> Vec<IOType> { vec![] }
     fn get_parameter_values(&self) -> Vec<IOData> { vec![] }
     fn generate_code(&self, params: &[&str], automation_code: &AutomationCode) -> String { 
-        unimplemented!() 
+        if let Some(connection) = &self.connection {
+            automation_code.value_of(connection)
+        } else {
+            self.get_used_default().unwrap().code.to_owned()
+        }
     }
     fn serialize(&self, buffer: &mut Vec<u8>) { unimplemented!() }
     fn deserialize(&mut self, data: &mut &[u8]) -> Result<(), ()> { unimplemented!() }
