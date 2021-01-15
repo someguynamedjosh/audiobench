@@ -1,11 +1,16 @@
 use super::{FloatInRangeControl, InputControl};
 use crate::engine::codegen::AutomationCode;
 use crate::engine::parts::{JackType, Module};
-use crate::registry::mini_bin;
 use crate::registry::yaml::YamlNode;
-use shared_util::prelude::*;
-use std::{cell::{Ref, RefMut}, fmt::{Display, Formatter}};
+use shared_util::{
+    mini_serde::{MiniDes, MiniSer},
+    prelude::*,
+};
 use std::fmt::Debug;
+use std::{
+    cell::{Ref, RefMut},
+    fmt::{Display, Formatter},
+};
 
 use paste::paste;
 
@@ -122,9 +127,9 @@ pub trait Control: Debug {
     /// automation source.
     fn generate_code(&self, params: &[&str], automation_code: &AutomationCode) -> String;
 
-    fn serialize(&self, buffer: &mut Vec<u8>);
+    fn serialize(&self, ser: &mut MiniSer);
 
-    fn deserialize(&mut self, data: &mut &[u8]) -> Result<(), ()>;
+    fn deserialize(&mut self, des: &mut MiniDes) -> Result<(), ()>;
 }
 
 macro_rules! require_static_only_boilerplate {
@@ -188,9 +193,9 @@ impl Control for IntControl {
     fn generate_code(&self, params: &[&str], automation_code: &AutomationCode) -> String { 
         unimplemented!() 
     }
-    fn serialize(&self, buffer: &mut Vec<u8>) { mini_bin::ser_i16(buffer, self.value); }
-    fn deserialize(&mut self, slice: &mut &[u8]) -> Result<(), ()> { 
-        self.value = mini_bin::des_i16(slice)?;
+    fn serialize(&self, ser: &mut MiniSer) { ser.i16(self.value); }
+    fn deserialize(&mut self, des: &mut MiniDes) -> Result<(), ()> { 
+        self.value = des.i16()?;
         if self.value < self.range.0 || self.value > self.range.1 {
             Err(())
         } else {
@@ -344,25 +349,25 @@ impl Control for DurationControl {
         assert!(params.len() == 1);
         params[0].to_owned()
     }
-    fn serialize(&self, buffer: &mut Vec<u8>) { 
+    fn serialize(&self, ser: &mut MiniSer) { 
         if self.fraction_mode {
-            mini_bin::ser_u8(buffer, 1);
-            mini_bin::ser_u8(buffer, self.fraction_numerator);
-            mini_bin::ser_u8(buffer, self.fraction_denominator);
+            ser.u8(1);
+            ser.u8(self.fraction_numerator);
+            ser.u8(self.fraction_denominator);
         } else {
-            mini_bin::ser_u8(buffer, 0);
-            mini_bin::ser_f32(buffer, self.decimal_value);
+            ser.u8(0);
+            ser.f32(self.decimal_value);
         }
     }
-    fn deserialize(&mut self, slice: &mut &[u8]) -> Result<(), ()> { 
-        let mode = mini_bin::des_u8(slice)?;
+    fn deserialize(&mut self, des: &mut MiniDes) -> Result<(), ()> { 
+        let mode = des.u8()?;
         if mode == 1 {
             self.fraction_mode = true;
-            self.fraction_numerator = mini_bin::des_u8(slice)?;
-            self.fraction_denominator = mini_bin::des_u8(slice)?;
+            self.fraction_numerator = des.u8()?;
+            self.fraction_denominator = des.u8()?;
         } else {
             self.fraction_mode = false;
-            self.decimal_value = mini_bin::des_f32(slice)?;
+            self.decimal_value = des.f32()?;
         }
         Ok(())
     }
@@ -431,11 +436,11 @@ impl Control for TimingModeControl {
         assert!(params.len() == 1);
         params[0].to_owned()
     }
-    fn serialize(&self, buffer: &mut Vec<u8>) { 
-        mini_bin::ser_u8(buffer, self.get_raw_value()); 
+    fn serialize(&self, ser: &mut MiniSer) { 
+        ser.u8(self.get_raw_value()); 
     }
-    fn deserialize(&mut self, slice: &mut &[u8]) -> Result<(), ()> { 
-        let raw_value = mini_bin::des_u8(slice)?;
+    fn deserialize(&mut self, des: &mut MiniDes) -> Result<(), ()> { 
+        let raw_value = des.u8()?;
         if raw_value > 0b11 {
             return Err(());
         }
@@ -493,14 +498,19 @@ impl Control for TriggerSequenceControl {
     fn generate_code(&self, params: &[&str], automation_code: &AutomationCode) -> String { 
         unimplemented!() 
     }
-    fn serialize(&self, buffer: &mut Vec<u8>) { 
+    fn serialize(&self, ser: &mut MiniSer) { 
         assert!(self.sequence.len() <= 0xFF);
-        mini_bin::ser_u8(buffer, self.sequence.len() as u8); 
-        mini_bin::ser_bool_slice(buffer, &self.sequence[..]); 
+        ser.u8(self.sequence.len() as u8); 
+        for bool in &self.sequence {
+            ser.bool(*bool);
+        }
     }
-    fn deserialize(&mut self, slice: &mut &[u8]) -> Result<(), ()> { 
-        let len = mini_bin::des_u8(slice)?;
-        self.sequence = mini_bin::des_bool_slice(slice, len as usize)?;
+    fn deserialize(&mut self, des: &mut MiniDes) -> Result<(), ()> { 
+        let len = des.u8()?;
+        self.sequence = Vec::new();
+        for _ in 0..len {
+            self.sequence.push(des.bool()?);
+        }
         Ok(())
     }
 }
@@ -556,20 +566,18 @@ impl Control for ValueSequenceControl {
     fn generate_code(&self, params: &[&str], automation_code: &AutomationCode) -> String { 
         unimplemented!() 
     }
-    fn serialize(&self, buffer: &mut Vec<u8>) { 
+    fn serialize(&self, ser: &mut MiniSer) { 
         assert!(self.sequence.len() <= 0xFF);
-        mini_bin::ser_u8(buffer, self.sequence.len() as u8); 
+        ser.u8(self.sequence.len() as u8); 
         for value in &self.sequence {
-            let packed = mini_bin::pack_value(*value, (-1.0, 1.0));
-            mini_bin::ser_u16(buffer, packed);
+            ser.f32_in_range(*value, -1.0, 1.0);
         }
     }
-    fn deserialize(&mut self, slice: &mut &[u8]) -> Result<(), ()> { 
-        let len = mini_bin::des_u8(slice)?;
+    fn deserialize(&mut self, des: &mut MiniDes) -> Result<(), ()> { 
+        let len = des.u8()?;
         self.sequence.clear();
         for _ in 0..len {
-            let packed = mini_bin::des_u16(slice)?;
-            self.sequence.push(mini_bin::unpack_value(packed, (-1.0, 1.0)));
+            self.sequence.push(des.f32_in_range(-1.0, 1.0)?);
         }
         Ok(())
     }
@@ -632,11 +640,11 @@ impl Control for OptionChoiceControl {
     fn generate_code(&self, params: &[&str], automation_code: &AutomationCode) -> String { 
         unimplemented!() 
     }
-    fn serialize(&self, buffer: &mut Vec<u8>) { 
-        mini_bin::ser_u8(buffer, self.selected_option as _); 
+    fn serialize(&self, ser: &mut MiniSer) { 
+        ser.u8(self.selected_option as _); 
     }
-    fn deserialize(&mut self, slice: &mut &[u8]) -> Result<(), ()> { 
-        self.selected_option = mini_bin::des_u8(slice)? as _;
+    fn deserialize(&mut self, des: &mut MiniDes) -> Result<(), ()> { 
+        self.selected_option = des.u8()? as _;
         if self.selected_option >= self.options.len() {
             Err(())
         } else {
@@ -711,11 +719,11 @@ impl Control for FrequencyControl {
     fn generate_code(&self, params: &[&str], automation_code: &AutomationCode) -> String { 
         unimplemented!() 
     }
-    fn serialize(&self, buffer: &mut Vec<u8>) { 
-        mini_bin::ser_f32(buffer, self.value);
+    fn serialize(&self, ser: &mut MiniSer) { 
+        ser.f32(self.value);
     }
-    fn deserialize(&mut self, slice: &mut &[u8]) -> Result<(), ()> { 
-        self.value = mini_bin::des_f32(slice)?;
+    fn deserialize(&mut self, des: &mut MiniDes) -> Result<(), ()> { 
+        self.value = des.f32()?;
         if self.value >= Self::MIN_FREQUENCY && self.value <= Self::MAX_FREQUENCY {
             Ok(())
         } else {

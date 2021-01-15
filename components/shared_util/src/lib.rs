@@ -4,6 +4,7 @@ use std::fmt::Display;
 mod nvec;
 mod search;
 
+pub mod mini_serde;
 pub mod perf_counter;
 pub mod prelude;
 pub use nvec::*;

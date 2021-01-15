@@ -1,3 +1,5 @@
+use shared_util::mini_serde::{MiniDes, MiniSer};
+
 use super::{AutomationSource, Control, IOData, IOType};
 use crate::engine::codegen::AutomationCode;
 use crate::engine::parts::JackType;
@@ -147,6 +149,6 @@ impl Control for InputControl {
             self.get_used_default().unwrap().code.to_owned()
         }
     }
-    fn serialize(&self, buffer: &mut Vec<u8>) { unimplemented!() }
-    fn deserialize(&mut self, data: &mut &[u8]) -> Result<(), ()> { unimplemented!() }
+    fn serialize(&self, ser: &mut MiniSer) { unimplemented!() }
+    fn deserialize(&mut self, des: &mut MiniDes) -> Result<(), ()> { unimplemented!() }
 }
