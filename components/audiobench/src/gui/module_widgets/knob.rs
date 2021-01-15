@@ -1,5 +1,5 @@
 use super::ModuleWidgetImpl;
-use crate::engine::controls::FloatInRangeControl;
+use crate::engine::controls::{Control, FloatInRangeControl};
 use crate::engine::parts as ep;
 use crate::gui::constants::*;
 use crate::gui::graphics::{HAlign, VAlign};
@@ -97,7 +97,9 @@ impl WidgetImpl<Renderer, DropTarget> for Knob {
     }
 
     fn get_drop_target_impl(self: &Rc<Self>, _pos: Vec2D) -> Option<DropTarget> {
-        Some(DropTarget::Autocon(Rc::clone(&self.state.borrow().control)))
+        Some(DropTarget::Control(
+            Rc::clone(&self.state.borrow().control) as _
+        ))
     }
 
     fn on_hover_impl(self: &Rc<Self>, _pos: Vec2D) -> Option<()> {
@@ -179,12 +181,8 @@ impl WidgetImpl<Renderer, DropTarget> for Knob {
 }
 
 impl ModuleWidgetImpl for Knob {
-    fn add_wires(self: &Rc<Self>, wire_tracker: &mut WireTracker) {
-        let state = self.state.borrow();
-        let center = state.pos + grid(2) / 2.0;
-        for lane in state.control.borrow().automation.iter() {
-            unimplemented!();
-        }
+    fn represented_control(self: &Rc<Self>) -> Option<Rcrc<dyn Control>> {
+        Some(Rc::clone(&self.state.borrow().control) as _)
     }
 }
 

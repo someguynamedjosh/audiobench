@@ -142,8 +142,10 @@ impl<State, DT, RW> Gui<State, DT, RW> {
         if let Some(behavior) = internal.mouse_behavior.take() {
             if internal.dragged {
                 let drop_target = self.root.get_drop_target(internal.mouse_pos);
+                let mouse_pos = internal.mouse_pos;
                 drop(internal);
                 behavior.on_drop(drop_target);
+                self.root.on_hover(mouse_pos);
             } else {
                 let time = internal.last_click.elapsed();
                 let distance = (internal.last_click_pos - internal.click_pos).length();

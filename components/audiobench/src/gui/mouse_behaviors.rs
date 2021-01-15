@@ -1,4 +1,4 @@
-use crate::engine::controls::{FloatInRangeControl, UpdateRequest};
+use crate::engine::controls::{Control, FloatInRangeControl, UpdateRequest};
 use crate::engine::parts as ep;
 use crate::engine::UiThreadEngine;
 use crate::gui::constants::*;
@@ -13,8 +13,7 @@ use shared_util::prelude::*;
 #[derive(Clone, Debug)]
 pub enum DropTarget {
     None,
-    Autocon(Rcrc<FloatInRangeControl>),
-    Input(Rcrc<ep::Module>, usize),
+    Control(Rcrc<dyn Control>),
     Output(Rcrc<ep::Module>, usize),
 }
 

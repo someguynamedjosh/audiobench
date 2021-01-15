@@ -113,15 +113,6 @@ impl Module {
         coord(index as i32) + JACK_SIZE / 2.0
     }
 
-    pub fn input_position(module: &ep::Module, input_index: usize) -> Vec2D {
-        let module_pos = (module.pos.0 as f32, module.pos.1 as f32);
-        (
-            module_pos.0 + JACK_SIZE,
-            module_pos.1 + Self::jack_y(input_index),
-        )
-            .into()
-    }
-
     pub fn output_position(module: &ep::Module, output_index: usize) -> Vec2D {
         let module_pos = (module.pos.0 as f32, module.pos.1 as f32);
         let module_size = module.template.borrow().size;
@@ -215,10 +206,17 @@ impl Module {
         let mut wire_tracker = WireTracker::new(self.get_size());
         let state = self.state.borrow();
         for (widget, _) in &state.widgets {
-            widget.add_wires(&mut wire_tracker);
+            let center = widget.get_pos() + widget.get_size() / 2.0;
+            let input_style = widget.use_input_style_wires();
+            if let Some(control) = widget.represented_control() {
+                for source in control.borrow().get_connected_automation() {
+                    let source_coord =
+                        Module::output_position(&*source.module.borrow(), source.output_index);
+                    wire_tracker.add_wire(source_coord, center, input_style);
+                }
+            }
         }
         wire_tracker.draw_wires(g, pos);
-        // unimplemented!();
     }
 
     fn drag(self: &Rc<Self>, delta: Vec2D) {
@@ -266,7 +264,8 @@ impl WidgetImpl<Renderer, DropTarget> for Module {
         }
         for (index, output) in state.outputs.iter().enumerate() {
             if output.mouse_in_bounds(mouse_pos) {
-                // return MouseAction::ConnectOutput(Rc::clone(&state.module), index);
+                let g = &self.parents.graph;
+                return Some(g.connect_from_source_behavior(Rc::clone(&state.module), index));
             }
         }
         if mods.right_click {
@@ -277,31 +276,26 @@ impl WidgetImpl<Renderer, DropTarget> for Module {
         }
     }
 
-    /*
-    fn get_drop_target_at(&self, mouse_pos: Vec2D) -> DropTarget {
-        let pos = self.get_pos();
-        let mouse_pos = (mouse_pos.0 - pos.0, mouse_pos.1 - pos.1);
-        if !mouse_pos.inside(self.size) {
-            return DropTarget::None;
-        }
-        for (widget, _) in &self.widgets {
-            let pos = widget.get_position();
-            let local_pos = (mouse_pos.0 - pos.0, mouse_pos.1 - pos.1);
-            if local_pos.inside(widget.get_bounds()) {
-                let target = widget.get_drop_target_at(local_pos);
-                if !target.is_none() {
-                    return target;
-                }
+    fn get_drop_target_impl(self: &Rc<Self>, mouse_pos: Vec2D) -> Option<DropTarget> {
+        let state = self.state.borrow();
+        for (widget, _) in &state.widgets {
+            if !(mouse_pos - widget.get_pos()).inside(widget.get_size()) {
+                continue;
+            }
+            if let Some(control) = widget.represented_control() {
+                return Some(DropTarget::Control(control));
             }
         }
-        for (index, output) in self.outputs.iter().enumerate() {
+        for (index, output) in state.outputs.iter().enumerate() {
             if output.mouse_in_bounds(mouse_pos) {
-                return DropTarget::Output(Rc::clone(&self.module), index);
+                return Some(DropTarget::Output(Rc::clone(&state.module), index));
             }
         }
-        DropTarget::None
+        for (widget, _) in &state.widgets {
+            ris!(widget.get_drop_target(mouse_pos));
+        }
+        None
     }
-    */
 
     fn on_hover_impl(self: &Rc<Self>, pos: Vec2D) -> Option<()> {
         self.parents.graph.set_hovered_module(Rc::clone(self));

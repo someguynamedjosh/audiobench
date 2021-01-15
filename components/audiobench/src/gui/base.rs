@@ -134,6 +134,10 @@ impl Root {
         this.children.borrow_mut().header = Some(header);
         this
     }
+
+    fn get_current_tab(self: &Rc<Self>) -> Rc<dyn GuiTab> {
+        self.with_gui_state(|state| Rc::clone(&state.tabs[state.get_current_tab_index()]))
+    }
 }
 
 impl WidgetImpl<Renderer, DropTarget> for Root {
@@ -145,23 +149,23 @@ impl WidgetImpl<Renderer, DropTarget> for Root {
         (ROOT_WIDTH, ROOT_HEIGHT).into()
     }
 
+    fn get_drop_target_impl(self: &Rc<Self>, pos: Vec2D) -> Option<DropTarget> {
+        ris!(self.get_drop_target_children(pos));
+        self.get_current_tab().get_drop_target(pos)
+    }
+
     fn get_mouse_behavior_impl(
         self: &Rc<Self>,
         mouse_pos: Vec2D,
         mods: &MouseMods,
     ) -> MaybeMouseBehavior {
         ris!(self.get_mouse_behavior_children(mouse_pos, mods));
-        self.with_gui_state(|state| {
-            let tab = &state.tabs[state.get_current_tab_index()];
-            tab.get_mouse_behavior(mouse_pos, mods)
-        })
+        self.get_current_tab().get_mouse_behavior(mouse_pos, mods)
     }
 
     fn on_scroll_impl(self: &Rc<Self>, mouse_pos: Vec2D, delta: f32) -> Option<()> {
         ris!(self.on_scroll_children(mouse_pos, delta));
-        let tab =
-            self.with_gui_state(|state| Rc::clone(&state.tabs[state.get_current_tab_index()]));
-        tab.on_scroll(mouse_pos, delta)
+        self.get_current_tab().on_scroll(mouse_pos, delta)
     }
 
     fn on_hover_impl(self: &Rc<Self>, mouse_pos: Vec2D) -> Option<()> {
@@ -169,17 +173,13 @@ impl WidgetImpl<Renderer, DropTarget> for Root {
             state.set_tooltip(Tooltip::default());
         });
         ris!(self.on_hover_children(mouse_pos));
-        let tab =
-            self.with_gui_state(|state| Rc::clone(&state.tabs[state.get_current_tab_index()]));
-        tab.on_hover(mouse_pos)
+        self.get_current_tab().on_hover(mouse_pos)
     }
 
     fn draw_impl(self: &Rc<Self>, renderer: &mut Renderer) {
         renderer.set_color(&COLOR_BG0);
         renderer.draw_rect(0, (ROOT_WIDTH, ROOT_HEIGHT));
-        self.with_gui_state(|state| {
-            state.tabs[state.get_current_tab_index()].draw(renderer);
-        });
+        self.get_current_tab().draw(renderer);
         self.draw_children(renderer);
     }
 }

@@ -1,12 +1,12 @@
 use super::ModuleWidgetImpl;
-use crate::engine::controls::{InputControl, UpdateRequest};
+use crate::engine::controls::{Control, InputControl, UpdateRequest};
 use crate::gui::constants::*;
 use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
 use crate::gui::mouse_behaviors::{ContinuouslyMutateStaticon, MutateStaticon};
-use crate::gui::top_level::graph::Module;
+use crate::gui::top_level::graph::{ConnectToControl, Module, ModuleGraph};
 use crate::gui::{InteractionHint, Tooltip};
 use crate::scui_config::{DropTarget, MaybeMouseBehavior, Renderer};
-use scui::{MouseBehavior, MouseMods, Vec2D, WidgetImpl};
+use scui::{MouseBehavior, MouseMods, Vec2D, Widget, WidgetImpl};
 use shared_util::prelude::*;
 use std::f32::consts::TAU;
 
@@ -34,6 +34,7 @@ scui::widget! {
     }
     Parents {
         module: Rc<Module>,
+        graph: Rc<ModuleGraph>,
     }
 }
 
@@ -75,7 +76,7 @@ impl Input {
     }
 }
 
-struct InputBehavior(Rcrc<InputControl>);
+struct InputBehavior(Rcrc<InputControl>, Box<ConnectToControl>);
 
 impl MouseBehavior<DropTarget> for InputBehavior {
     fn on_click(self: Box<Self>) {
@@ -83,6 +84,10 @@ impl MouseBehavior<DropTarget> for InputBehavior {
         if control.get_used_default().is_some() {
             control.next_default();
         }
+    }
+
+    fn on_drop(self: Box<Self>, drop_target: Option<DropTarget>) {
+        self.1.on_drop(drop_target)
     }
 }
 
@@ -101,7 +106,10 @@ impl WidgetImpl<Renderer, DropTarget> for Input {
         mods: &MouseMods,
     ) -> MaybeMouseBehavior {
         let control = Rc::clone(&self.state.borrow().control);
-        Some(Box::new(InputBehavior(control)))
+        let pos = self.get_pos() + self.parents.module.get_pos() + self.get_size() / 2.0;
+        let g = &self.parents.graph;
+        let connect = g.connect_to_control(Rc::clone(&control) as _, pos);
+        Some(Box::new(InputBehavior(control, connect)))
     }
 
     fn on_hover_impl(self: &Rc<Self>, _pos: Vec2D) -> Option<()> {
@@ -180,4 +188,12 @@ impl WidgetImpl<Renderer, DropTarget> for Input {
     }
 }
 
-impl ModuleWidgetImpl for Input {}
+impl ModuleWidgetImpl for Input {
+    fn represented_control(self: &Rc<Self>) -> Option<Rcrc<dyn Control>> {
+        Some(Rc::clone(&self.state.borrow().control) as _)
+    }
+
+    fn use_input_style_wires(self: &Rc<Self>) -> bool {
+        true
+    }
+}

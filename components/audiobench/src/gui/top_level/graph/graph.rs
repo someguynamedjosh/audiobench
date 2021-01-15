@@ -1,5 +1,8 @@
 use super::Module;
-use crate::engine::parts as ep;
+use crate::engine::{
+    controls::{AutomationSource, Control},
+    parts as ep,
+};
 use crate::gui::constants::*;
 use crate::gui::graphics::GrahpicsWrapper;
 use crate::gui::top_level::ModuleBrowser;
@@ -127,11 +130,11 @@ impl ModuleGraph {
         children.modules.remove(index).on_removed();
     }
 
-    fn translate_mouse_pos(self: &Rc<Self>, mouse_pos: Vec2D) -> Vec2D {
+    fn translate_pos(self: &Rc<Self>, pos: Vec2D) -> Vec2D {
         let state = self.state.borrow();
         let offset = state.offset;
         let zoom = state.zoom;
-        mouse_pos / zoom - offset
+        pos / zoom - offset
     }
 
     pub fn pan(self: &Rc<Self>, delta: Vec2D) {
@@ -166,6 +169,41 @@ impl ModuleGraph {
             false
         }
     }
+
+    fn clear_wire_preview(self: &Rc<Self>) {
+        self.state.borrow_mut().wire_preview_endpoint = None;
+    }
+
+    pub fn connect_from_source_behavior(
+        self: &Rc<Self>,
+        module: Rcrc<ep::Module>,
+        output_index: usize,
+    ) -> Box<ConnectFromSource> {
+        let mod_ref = module.borrow();
+        self.state.borrow_mut().wire_preview_endpoint =
+            Some(Module::output_position(&*mod_ref, output_index));
+        let output_type = mod_ref.template.borrow().outputs[output_index].get_type();
+        let graph = Rc::clone(self);
+        drop(mod_ref);
+        Box::new(ConnectFromSource {
+            graph,
+            source: AutomationSource {
+                module,
+                output_index,
+                output_type,
+            },
+        })
+    }
+
+    pub fn connect_to_control(
+        self: &Rc<Self>,
+        control: Rcrc<dyn Control>,
+        visual_pos: Vec2D,
+    ) -> Box<ConnectToControl> {
+        self.state.borrow_mut().wire_preview_endpoint = Some(visual_pos);
+        let graph = Rc::clone(self);
+        Box::new(ConnectToControl { graph, control })
+    }
 }
 
 #[make_constructor]
@@ -186,6 +224,60 @@ impl MouseBehavior<DropTarget> for GraphInteract {
     }
 }
 
+pub struct ConnectFromSource {
+    graph: Rc<ModuleGraph>,
+    source: AutomationSource,
+}
+
+impl MouseBehavior<DropTarget> for ConnectFromSource {
+    fn on_click(self: Box<Self>) {
+        self.on_drop(None);
+    }
+
+    fn on_drop(self: Box<Self>, drop_target: Option<DropTarget>) {
+        if let Some(DropTarget::Control(control)) = drop_target {
+            let types = control.borrow().acceptable_automation();
+            if types.into_iter().any(|t| t == self.source.output_type) {
+                control.borrow_mut().connect_automation(self.source);
+            }
+        }
+        self.graph.clear_wire_preview();
+        self.graph.with_gui_state_mut(|state| {
+            state.engine.borrow_mut().recompile();
+        })
+    }
+}
+
+pub struct ConnectToControl {
+    graph: Rc<ModuleGraph>,
+    control: Rcrc<dyn Control>,
+}
+
+impl MouseBehavior<DropTarget> for ConnectToControl {
+    fn on_click(self: Box<Self>) {
+        self.on_drop(None);
+    }
+
+    fn on_drop(self: Box<Self>, drop_target: Option<DropTarget>) {
+        if let Some(DropTarget::Output(module, output_index)) = drop_target {
+            let output_type = module.borrow().template.borrow().outputs[output_index].get_type();
+            let source = AutomationSource {
+                module,
+                output_index,
+                output_type,
+            };
+            let types = self.control.borrow().acceptable_automation();
+            if types.into_iter().any(|t| t == source.output_type) {
+                self.control.borrow_mut().connect_automation(source);
+            }
+        }
+        self.graph.clear_wire_preview();
+        self.graph.with_gui_state_mut(|state| {
+            state.engine.borrow_mut().recompile();
+        })
+    }
+}
+
 impl WidgetImpl<Renderer, DropTarget> for ModuleGraph {
     fn get_pos_impl(self: &Rc<Self>) -> Vec2D {
         (0.0, HEADER_HEIGHT).into()
@@ -200,7 +292,7 @@ impl WidgetImpl<Renderer, DropTarget> for ModuleGraph {
         pos: Vec2D,
         mods: &MouseMods,
     ) -> MaybeMouseBehavior {
-        let pos = self.translate_mouse_pos(pos);
+        let pos = self.translate_pos(pos);
         let children = self.children.borrow();
         if let Some(widget) = &children.detail_menu {
             let local_pos = pos - widget.get_pos();
@@ -222,7 +314,7 @@ impl WidgetImpl<Renderer, DropTarget> for ModuleGraph {
 
     fn on_hover_impl(self: &Rc<Self>, pos: Vec2D) -> Option<()> {
         self.clear_hovered_module();
-        let pos = self.translate_mouse_pos(pos);
+        let pos = self.translate_pos(pos);
         let children = self.children.borrow();
         if let Some(widget) = &children.detail_menu {
             let local_pos = pos - widget.get_pos();
@@ -236,8 +328,14 @@ impl WidgetImpl<Renderer, DropTarget> for ModuleGraph {
         None
     }
 
+    fn get_drop_target_impl(self: &Rc<Self>, pos: Vec2D) -> Option<DropTarget> {
+        let pos = self.translate_pos(pos);
+        self.get_drop_target_children(pos)
+    }
+
     fn draw_impl(self: &Rc<Self>, g: &mut GrahpicsWrapper) {
-        let mouse_pos = self.parents.gui.get_mouse_pos();
+        let mouse_pos = self.parents.gui.get_mouse_pos() - self.get_pos();
+        let mouse_pos = self.translate_pos(mouse_pos);
         let state = self.state.borrow();
         let children = self.children.borrow();
         g.scale(state.zoom);

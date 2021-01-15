@@ -13,7 +13,9 @@ pub trait MouseBehavior<DT> {
     fn on_drag(&mut self, _delta: Vec2D, _mods: &MouseMods) {}
     fn on_drop(self: Box<Self>, _drop_target: Option<DT>) {}
     fn on_click(self: Box<Self>) {}
-    fn on_double_click(self: Box<Self>) {}
+    fn on_double_click(self: Box<Self>) {
+        self.on_click()
+    }
 }
 
 pub struct OnClickBehavior<F: FnOnce()> {

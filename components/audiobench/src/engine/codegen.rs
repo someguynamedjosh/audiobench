@@ -19,7 +19,12 @@ pub struct AutomationCode {
 
 impl AutomationCode {
     pub fn value_of(&self, source: &AutomationSource) -> String {
-        unimplemented!();
+        let module_index = self
+            .ordered_modules
+            .iter()
+            .position(|mod_ptr| Rc::ptr_eq(mod_ptr, &source.module))
+            .unwrap(); // Our list should contain all the modules that exist.
+        format!("module_{}_output_{}", module_index, source.output_index)
     }
 }
 

@@ -138,6 +138,10 @@ impl Control for InputControl {
         assert_eq!(from.get_type(), self.typ);
         self.connection = Some(from);
     }
+    fn get_connected_automation<'a>(&'a self) -> Box<dyn Iterator<Item = &'a AutomationSource> + 'a> {
+        Box::new(self.connection.iter())
+    }
+
     fn get_parameter_types(&self) -> Vec<IOType> { vec![] }
     fn get_parameter_values(&self) -> Vec<IOData> { vec![] }
     fn generate_code(&self, params: &[&str], automation_code: &AutomationCode) -> String { 

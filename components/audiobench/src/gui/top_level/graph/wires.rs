@@ -264,6 +264,7 @@ pub struct WireTracker {
     top_slots: Vec<bool>,
     bottom_slots: Vec<bool>,
     wires: Vec<(Vec2D, Vec2D, bool)>,
+    input_style_wires: Vec<(Vec2D, Vec2D)>,
 }
 
 impl WireTracker {
@@ -274,9 +275,14 @@ impl WireTracker {
             top_slots: vec![false; num_slots as usize],
             bottom_slots: vec![false; num_slots as usize],
             wires: Vec::new(),
+            input_style_wires: Vec::new(),
         }
     }
-    pub fn add_wire(&mut self, source_coord: Vec2D, widget_coord: Vec2D) {
+    pub fn add_wire(&mut self, source_coord: Vec2D, widget_coord: Vec2D, input_style: bool) {
+        if input_style {
+            self.input_style_wires.push((source_coord, widget_coord));
+            return;
+        }
         let slot_index = ((widget_coord.x - MODULE_IO_WIDTH - JACK_SIZE) / WIRE_SPACING) as usize;
         let slot_index = slot_index.min(self.top_slots.len() - 1);
         let top = widget_coord.y <= self.module_height / 2.0;
@@ -320,6 +326,9 @@ impl WireTracker {
     pub fn draw_wires(self, g: &mut Renderer, target_offset: Vec2D) {
         for (source, target, face_down) in self.wires {
             draw_automation_wire(g, face_down, source, target + target_offset);
+        }
+        for (source, target) in self.input_style_wires {
+            draw_io_wire(g, target + target_offset, source);
         }
     }
 }

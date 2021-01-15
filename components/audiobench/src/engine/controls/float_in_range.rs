@@ -74,15 +74,18 @@ impl Control for FloatInRangeControl {
         vec![IOData::FloatArray(values)] 
     }
     fn generate_code(&self, params: &[&str], automation_code: &AutomationCode) -> String {
-        let mut code = params[0].to_owned();
-        let mut index = 1;
+        let mut code = format!("{}[1]", params[0]);
+        let mut index = 2; // Julia indexing starts at 1.
         for lane in &self.automation {
             code.push_str(&format!(
-                " + ({} * {} * {})",
-                params[index],
-                params[index + 1],
+                " + ({}[{}] * {}[{}] * {})",
+                params[0],
+                index,
+                params[0],
+                index + 1,
                 automation_code.value_of(&lane.connection)
             ));
+            index += 2;
         }
         code
     }
