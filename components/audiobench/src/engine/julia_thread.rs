@@ -122,6 +122,7 @@ impl JuliaThread {
                     self.global_params = params;
                 }
                 Request::ChangeGeneratedCode { code, dyn_data } => {
+                    self.notes.silence_all();
                     self.dyn_data = dyn_data;
                     let res = self.executor.change_generated_code(code).map_err(|err| {
                         format!("Error encountered while loading new patch code:\n{}", err)

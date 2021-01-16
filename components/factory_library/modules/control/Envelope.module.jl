@@ -11,12 +11,6 @@ end
 function exec()
     signal = similar(MonoAudio)
 
-    # TODO: Remove.
-    timing_mode = 0 
-    attack_time = 0.005f0
-    decay_time = 0.5f0
-    release_time = 0.2f0
-
     timing = get_timing(context, timing_mode)
     for i in sample_indices(signal)
         if !static.releasing
@@ -32,18 +26,18 @@ function exec()
         now = timing[i] - static.start
         value = Float32(0)
         if static.releasing
-            if now < release_time
-                value = static.last_value * (1f0 - now / release_time)
+            if now < release_time[%, i]
+                value = static.last_value * (1f0 - now / release_time[%, i])
             else
                 value = 0f0
             end
         else
-            if now < attack_time
-                value = now / attack_time
+            if now < attack_time[%, i]
+                value = now / attack_time[%, i]
             else
-                now = now - attack_time
-                if now < decay_time
-                    value = 1f0 - now / decay_time * (1f0 - sustain[%, i])
+                now = now - attack_time[%, i]
+                if now < decay_time[%, i]
+                    value = 1f0 - now / decay_time[%, i] * (1f0 - sustain[%, i])
                 else
                     value = sustain[%, i]
                 end
@@ -57,22 +51,22 @@ function exec()
     # if context.global_in.do_update
     #     now_time = first(timing) - static.start;
     #     if releasing
-    #         now_time = now_time + attack_time + decay_time;
-    #         if now_time > attack_time + decay_time + release_time
-    #             now_time = attack_time + decay_time + release_time;
+    #         now_time = now_time + attack_time[%, i] + decay_time[%, i];
+    #         if now_time > attack_time[%, i] + decay_time[%, i] + release_time[%, i]
+    #             now_time = attack_time[%, i] + decay_time[%, i] + release_time[%, i];
     #         end
-    #     elseif now_time > attack_time + decay_time
-    #         now_time = attack_time + decay_time;
+    #     elseif now_time > attack_time[%, i] + decay_time[%, i]
+    #         now_time = attack_time[%, i] + decay_time[%, i];
     #     end
     #     multiplier = 1f0
     #     if TimingModeIsBeatSynchronized(TIMING_MODE)
     #         multiplier = 60.0 / global_bpm;
     #     end
     #     SetGraphFeedback([
-    #         attack_time * multiplier,
-    #         decay_time * multiplier,
+    #         attack_time[%, i] * multiplier,
+    #         decay_time[%, i] * multiplier,
     #         first(sustain),
-    #         release_time * multiplier,
+    #         release_time[%, i] * multiplier,
     #         now_time * multiplier,
     #         first(signal),
     #     ])

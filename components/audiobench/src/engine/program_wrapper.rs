@@ -75,16 +75,15 @@ impl NoteTracker {
     }
 
     pub fn start_note(&mut self, index: usize, velocity: f32) -> usize {
-        println!("Start {}", index);
+        if let Some(note) = &self.held_notes[index] {
+            return note.static_index;
+        }
         let mut static_index = 0;
         while self.reserved_static_indexes.contains(&static_index) {
             static_index += 1;
         }
         self.reserved_static_indexes.insert(static_index);
         let static_index = static_index;
-        if let Some(note) = &self.held_notes[index] {
-            return note.static_index;
-        }
         self.held_notes[index] = Some(CompleteNoteData {
             data: NoteData {
                 pitch: Self::equal_tempered_tuning(index),
@@ -101,7 +100,6 @@ impl NoteTracker {
     }
 
     pub fn release_note(&mut self, index: usize) {
-        println!("Release {}", index);
         if let Some(mut note) = self.held_notes[index].take() {
             note.data.start_trigger = false;
             note.data.release_trigger = true;

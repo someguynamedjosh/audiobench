@@ -85,7 +85,7 @@ impl Control for FloatInRangeControl {
 
     fn generate_code(&self, params: &[&str], automation_code: &AutomationCode) -> String {
         if self.automation.len() == 0 {
-            format!("{}[1]", params[0])
+            format!("StaticControlSignal({}[1])", params[0])
         } else {
             let mut code = String::new();
             let mut index = 2; // Julia indexing starts at 1.
@@ -95,7 +95,7 @@ impl Control for FloatInRangeControl {
                     code.push_str(" .+ ");
                 }
                 code.push_str(&format!(
-                    "({} .* {}[{}] .+ {}[{}])",
+                    "(a2cs({}) .* {}[{}] .+ {}[{}])",
                     automation_code.value_of(&lane.connection),
                     params[0],
                     index,

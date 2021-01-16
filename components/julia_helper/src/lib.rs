@@ -3,6 +3,9 @@ use jlrs::traits::IntoJulia;
 use scones::make_constructor;
 use shared_util::{Clip, Position};
 
+// TODO: Find cases where the position of an error in a module's source code is
+// not annotated correctly. unimplemented!()
+
 const JULIA_DELIMS: &'static [(&'static str, &'static str)] = &[
     ("function", "end"),
     ("if", "end"),
