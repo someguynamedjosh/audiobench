@@ -1,5 +1,6 @@
-use super::{AutomationSource, Control, IOData, IOType};
+use super::{AutomationSource, Control};
 use crate::engine::codegen::AutomationCode;
+use crate::engine::data_transfer::{IOData, IOType};
 use crate::engine::parts::JackType;
 use crate::registry::yaml::YamlNode;
 use shared_util::mini_serde::{MiniDes, MiniSer};

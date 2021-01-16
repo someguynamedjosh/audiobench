@@ -1,4 +1,5 @@
-use super::{AutomationSource, Control, IOData, IOType, UpdateRequest};
+use super::{AutomationSource, Control, UpdateRequest};
+use crate::engine::data_transfer::{IOData, IOType};
 use crate::engine::codegen::AutomationCode;
 use crate::engine::parts::JackType;
 use crate::registry::yaml::YamlNode;
@@ -144,7 +145,7 @@ impl Control for DurationControl {
     fn get_parameter_values(&self) -> Vec<IOData> { vec![IOData::Float(self.get_raw_value())] }
     fn generate_code(&self, params: &[&str], automation_code: &AutomationCode) -> String { 
         assert!(params.len() == 1);
-        params[0].to_owned()
+        format!("StaticControlSignal({})", params[0])
     }
     fn serialize(&self, ser: &mut MiniSer) { 
         if self.fraction_mode {

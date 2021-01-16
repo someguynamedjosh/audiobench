@@ -1,6 +1,4 @@
-use crate::engine::data_transfer::{
-    DataFormat, GlobalData, GlobalParameters, InputPacker, NoteData, OutputUnpacker,
-};
+use crate::engine::data_transfer::{DataFormat, GlobalData, GlobalParameters, NoteData};
 use crate::registry::Registry;
 use array_macro::array;
 use jlrs_derive::IntoJulia;
@@ -9,6 +7,8 @@ use julia_helper::{
 };
 use shared_util::{perf_counter::sections, prelude::*};
 use std::collections::HashSet;
+
+use super::data_transfer::IOData;
 
 /// The MIDI protocol can provide notes at 128 different pitches.
 const NUM_MIDI_NOTES: usize = 128;
@@ -42,6 +42,7 @@ impl NoteInput {
     }
 }
 
+#[derive(Debug)]
 struct CompleteNoteData {
     data: NoteData,
     silent_samples: usize,
@@ -74,6 +75,7 @@ impl NoteTracker {
     }
 
     pub fn start_note(&mut self, index: usize, velocity: f32) -> usize {
+        println!("Start {}", index);
         let mut static_index = 0;
         while self.reserved_static_indexes.contains(&static_index) {
             static_index += 1;
@@ -99,6 +101,7 @@ impl NoteTracker {
     }
 
     pub fn release_note(&mut self, index: usize) {
+        println!("Release {}", index);
         if let Some(mut note) = self.held_notes[index].take() {
             note.data.start_trigger = false;
             note.data.release_trigger = true;
@@ -158,6 +161,11 @@ impl NoteTracker {
     }
 
     fn active_notes_mut(&mut self) -> impl Iterator<Item = &mut CompleteNoteData> {
+        // println!(
+        //     "{} held notes, {} decaying notes.",
+        //     self.held_notes.iter().filter(|i| i.is_some()).count(),
+        //     self.decaying_notes.len(),
+        // );
         let held_iter = self.held_notes.iter_mut().filter_map(|o| o.as_mut());
         let decaying_iter = self.decaying_notes.iter_mut();
         held_iter.chain(decaying_iter)
@@ -345,6 +353,7 @@ impl AudiobenchExecutor {
         update_feedback: bool,
         global_data: &GlobalData,
         notes: &mut NoteTracker,
+        dyn_data: &[IOData],
         audio_output: &mut [f32],
     ) -> Result<bool, String> {
         let channels = self.parameters.channels;
@@ -373,12 +382,14 @@ impl AudiobenchExecutor {
                     inputs.push(Value::new(frame, update_feedback)?);
                     inputs.push(Value::new(frame, note_input)?);
                     inputs.push(Value::new(frame, static_index)?);
+                    for item in dyn_data {
+                        inputs.push(item.as_julia_value(frame)?);
+                    }
                     Ok(())
                 },
                 |frame, output| {
                     // 0-based index, not Julia index.
-                    let audio = output.get_nth_field(frame, 0);
-                    let audio = match audio {
+                    let audio = match output.get_nth_field(frame, 0) {
                         Ok(v) => v,
                         Err(err) => {
                             return Ok(Err(format!(

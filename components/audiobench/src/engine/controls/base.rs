@@ -3,6 +3,7 @@ use super::{
     OptionChoiceControl, TimingModeControl, TriggerSequenceControl, ValueSequenceControl,
 };
 use crate::engine::codegen::AutomationCode;
+use crate::engine::data_transfer::{IOData, IOType};
 use crate::engine::parts::{JackType, Module};
 use crate::registry::yaml::YamlNode;
 use shared_util::{
@@ -16,42 +17,6 @@ use std::{
 };
 
 use paste::paste;
-
-/// Represents the data type of a variable which is either an input or output in the generated
-/// program. E.G. `IOType::FloatArray(20)` would be the type of `input [20]FLOAT some_data;`.
-#[derive(Eq, PartialEq, Clone, Copy)]
-pub enum IOType {
-    Bool,
-    Int,
-    Float,
-    BoolArray,
-    IntArray,
-    FloatArray,
-}
-
-impl Display for IOType {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        use IOType::*;
-        match self {
-            Bool => write!(f, "Bool"),
-            Int => write!(f, "Int32"),
-            Float => write!(f, "Float32"),
-            BoolArray => write!(f, "Vector{{Bool}}"),
-            IntArray => write!(f, "Vector{{Int32}}"),
-            FloatArray => write!(f, "Vector{{Float32}}"),
-        }
-    }
-}
-
-#[derive(PartialEq, Debug)]
-pub enum IOData {
-    Bool(bool),
-    Int(i32),
-    Float(f32),
-    BoolArray(Vec<bool>),
-    IntArray(Vec<i32>),
-    FloatArray(Vec<f32>),
-}
 
 #[derive(Debug)]
 pub enum UpdateRequest {

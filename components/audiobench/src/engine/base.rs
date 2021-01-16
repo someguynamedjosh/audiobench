@@ -1,6 +1,7 @@
 use super::codegen::{self, CodeGenResult};
-use super::data_routing::{ControlDynDataCollector, FeedbackDisplayer};
-use super::data_transfer::{DataFormat, GlobalData, GlobalParameters};
+use super::data_transfer::{
+    DataFormat, DynDataCollector, FeedbackDisplayer, GlobalData, GlobalParameters,
+};
 use super::julia_thread;
 use super::parts::ModuleGraph;
 use super::program_wrapper::{AudiobenchExecutor, AudiobenchExecutorBuilder, NoteTracker};
@@ -23,7 +24,7 @@ type PreferredPerfCounter = shared_util::perf_counter::SimplePerfCounter;
 struct UiThreadData {
     registry: Rcrc<Registry>,
     module_graph: Rcrc<ModuleGraph>,
-    dyn_data_collector: ControlDynDataCollector,
+    dyn_data_collector: DynDataCollector,
     feedback_displayer: FeedbackDisplayer,
     current_patch_save_data: Rcrc<Patch>,
 }
@@ -103,6 +104,7 @@ pub fn new_engine(
             "error.",
         ),)
     })?;
+    let dyn_data = dyn_data_collector.collect();
 
     let (reqi, reqo) = mpsc::sync_channel(0);
     let (audio_resi, audio_reso) = mpsc::sync_channel(0);
@@ -142,6 +144,7 @@ pub fn new_engine(
             global_params_2,
             executor_builder,
             code,
+            dyn_data,
             reqo,
             audio_resi,
         );
@@ -261,18 +264,14 @@ impl UiThreadEngine {
         let new_gen = new_gen.expect("TODO: Nice error.");
         drop(module_graph_ref);
         // ctd.new_source = Some((new_gen.code, new_gen.data_format.clone()));
-        let section = ctd
-            .perf_counter
-            .begin_section(&sections::COLLECT_AUTOCON_DATA);
-        ctd.perf_counter.end_section(section);
-        let section = ctd
-            .perf_counter
-            .begin_section(&sections::COLLECT_CONTROL_DATA);
         // ctd.new_staticon_dyn_data = Some(new_gen.dyn_data_collector.collect_data());
-        ctd.perf_counter.end_section(section);
         // ctd.new_feedback_data = None;
         // unimplemented!();
-        // ctd.julia_request_input.send(julia_thread::Request::)
+        let request = julia_thread::Request::ChangeGeneratedCode {
+            code: new_gen.code,
+            dyn_data: new_gen.dyn_data_collector.collect(),
+        };
+        ctd.julia_request_input.send(request).unwrap();
         drop(ctd);
         self.data.dyn_data_collector = new_gen.dyn_data_collector;
         self.data.feedback_displayer = new_gen.feedback_displayer;
@@ -294,7 +293,7 @@ impl UiThreadEngine {
         let section = ctd
             .perf_counter
             .begin_section(&sections::COLLECT_CONTROL_DATA);
-        // ctd.new_dyn_data = Some(self.data.dyn_data_collector.collect_data());
+        // ctd.new_dyn_data = Some(self.data.dyn_data_collector.collect_data()); unimplemented!()
         ctd.perf_counter.end_section(section);
     }
 
@@ -375,35 +374,6 @@ impl AudioThreadEngine {
     }
 
     pub fn render_audio(&mut self) -> Vec<f32> {
-        // TODO: Also this.
-        // if let Some((code, data_format)) = ctd.new_source.take() {
-        //     ctd.notes.set_data_format(data_format.clone());
-        //     let section = ctd.perf_counter.begin_section(&sections::COMPILE_CODE);
-        //     ctd.currently_compiling = true;
-        //     // Compilation takes a while. Drop ctd so that other threads can use it.
-        //     drop(ctd);
-        //     let res = self.data.executor.change_generated_code(code);
-        //     ctd = self.ctd_mux.lock().unwrap();
-        //     if let Err(err) = res {
-        //         ctd.critical_error = Some(format!(
-        //             concat!(
-        //                 "Note graph failed to compile!\n",
-        //                 "This is a critical error, please submit a bug report containing this error ",
-        //                 "message:\n\n{}",
-        //             ),
-        //             err
-        //         ));
-        //     }
-        //     ctd.currently_compiling = false;
-        //     ctd.perf_counter.end_section(section);
-        // }
-        // TODO: This.
-        // if let Some(program) = &mut self.data.current_program {
-        //     let mut input_packer = program.get_input_packer();
-        //     if let Some(new_dyn_data) = ctd.new_dyn_data.take() {
-        //         input_packer.set_dyn_data(&new_dyn_data[..]);
-        //     }
-        // }
         let update_feedback_data =
             self.data.last_feedback_data_update.elapsed() > FEEDBACK_UPDATE_INTERVAL;
         if update_feedback_data {
@@ -420,36 +390,11 @@ impl AudioThreadEngine {
         self.data.global_data.elapsed_time += buf_time;
         self.data.global_data.elapsed_beats += buf_time * self.data.global_data.bpm / 60.0;
         if ok {
-            if let Ok(result) = self.data.audio_response_output.recv() {
-                return result.audio;
-            }
+            self.data.audio_response_output.recv().unwrap().audio
+        } else {
+            let mut ctd = self.ctd_mux.lock().unwrap();
+            let size = ctd.global_params.channels * ctd.global_params.buffer_length;
+            vec![0.0; size]
         }
-        let mut ctd = self.ctd_mux.lock().unwrap();
-        let size = ctd.global_params.channels * ctd.global_params.buffer_length;
-        vec![0.0; size]
-        // if self.data.executor.is_generated_code_loaded() {
-        //     let CrossThreadData {
-        //         notes,
-        //         perf_counter,
-        //         ..
-        //     } = &mut *ctd;
-        //     let result = self.data.executor.execute(
-        //         update_feedback_data,
-        //         &mut self.data.global_data,
-        //         notes,
-        //         &mut self.data.audio_buffer[..],
-        //         perf_counter,
-        //     );
-        //     if let Err(err) = result {
-        //         ctd.critical_error = Some(err);
-        //     // TODO: Clear program?
-        //     } else if let Ok(true) = result {
-        //         // Returns true if new feedback data was written.
-        //         // TODO: This.
-        //         // ctd.new_feedback_data = Some(Vec::from(
-        //         //     program.get_output_unpacker().borrow_feedback_data(),
-        //         // ));
-        //     }
-        // }
     }
 }

@@ -1,6 +1,6 @@
 use super::controls::{AnyControl, AutomationSource, Control};
-use super::data_routing::{ControlDynDataCollector, FeedbackDisplayer};
 use super::data_transfer::{DataFormat, GlobalParameters};
+use super::data_transfer::{DynDataCollector, FeedbackDisplayer};
 use crate::engine::parts::*;
 use crate::gui::module_widgets::FeedbackDataRequirement;
 use julia_helper::GeneratedCode;
@@ -8,7 +8,7 @@ use shared_util::prelude::*;
 
 pub(super) struct CodeGenResult {
     pub code: GeneratedCode,
-    pub dyn_data_collector: ControlDynDataCollector,
+    pub dyn_data_collector: DynDataCollector,
     pub feedback_displayer: FeedbackDisplayer,
     pub data_format: DataFormat,
 }
@@ -31,7 +31,6 @@ impl AutomationCode {
 struct CodeGenerator<'a> {
     graph: &'a ModuleGraph,
     execution_order: Vec<usize>,
-    dyn_data_control_order: Vec<AnyControl>,
     dyn_data_types: Vec<()>, // Previously IOType
     dyn_data_parameter_defs: Vec<String>,
     feedback_data_len: usize,
@@ -46,7 +45,6 @@ pub(super) fn generate_code(
         graph: for_graph,
         execution_order,
         dyn_data_types: Vec::new(),
-        dyn_data_control_order: Vec::new(),
         dyn_data_parameter_defs: Vec::new(),
         feedback_data_len: 0,
     };
@@ -76,6 +74,7 @@ impl<'a> CodeGenerator<'a> {
 
         let mut code = "".to_owned();
         let mut ordered_modules = Vec::new();
+        let mut ordered_controls = Vec::new();
         for module_ptr in self.graph.borrow_modules() {
             ordered_modules.push(Rc::clone(module_ptr));
         }
@@ -111,6 +110,9 @@ impl<'a> CodeGenerator<'a> {
         code.push_str(concat!(
             "    if index >= length(static_container)\n",
             "      push!(static_container, data)\n",
+            "      if index > length(static_container)\n",
+            "        static_init(index)\n",
+            "      end\n",
             "    else\n",
             "      static_container[index + 1] = data\n",
             "    end\n",
@@ -124,6 +126,7 @@ impl<'a> CodeGenerator<'a> {
             "    do_update::Bool, note_input::NoteInput, static_index::Integer,",
         ));
         exec_body.push_str(concat!(
+            "    set_zero_subnormals(true)\n",
             "    static_index += 1\n", // grumble grumble
             "    global_input = GlobalInput(midi_controls, pitch_wheel, bpm, elapsed_time, ",
             "elapsed_beats, do_update)\n",
@@ -132,6 +135,7 @@ impl<'a> CodeGenerator<'a> {
             "    note_output = NoteOutput()\n",
             "    context = NoteContext(global_input, note_input, note_output)\n",
         ));
+        exec_body.push_str("\n\n    @. context.note_out.audio = 0.0\n");
         let automation_code = AutomationCode {
             ordered_modules: ordered_modules.clone(),
         };
@@ -151,10 +155,6 @@ impl<'a> CodeGenerator<'a> {
                 "    Main.Registry.{}.{}Module.exec(\n      context,\n",
                 template_ref.lib_name, template_ref.module_name
             ));
-            exec_body.push_str(&format!(
-                "      static_container[static_index].for_module_{},\n",
-                index
-            ));
             let mut first = true;
             for (control_index, control) in module_ref.controls.iter().enumerate() {
                 let control_ptr = control.as_dyn_ptr();
@@ -168,14 +168,19 @@ impl<'a> CodeGenerator<'a> {
                         code.push_str("\n   ");
                     }
                     let ident = format!("m{}c{}p{}", index, control_index, parameter_index);
-                    code.push_str(&format!(" {}: {},", ident, ptype));
+                    code.push_str(&format!(" {}::{},", ident, ptype));
                     idents.push(ident);
                 }
                 let ident_refs: Vec<_> = idents.iter().map(|i| &i[..]).collect();
                 let code = control.generate_code(&ident_refs[..], &automation_code);
                 exec_body.push_str(&format!("      {},\n", code));
+                drop(control);
+                ordered_controls.push(control_ptr);
             }
-            exec_body.push_str("    )");
+            exec_body.push_str(&format!(
+                "      static_container[static_index].for_module_{},\n    )",
+                index
+            ));
         }
         code.push_str("\n  )\n");
         code.push_str(&exec_body);
@@ -185,7 +190,6 @@ impl<'a> CodeGenerator<'a> {
         let code = GeneratedCode::from_unique_source("Generated/note_graph.jl", &code);
 
         let Self {
-            dyn_data_control_order,
             dyn_data_types,
             feedback_data_len,
             ..
@@ -195,9 +199,8 @@ impl<'a> CodeGenerator<'a> {
             dyn_data_types,
             feedback_data_len,
         };
-        let dyn_data_collector = ControlDynDataCollector::new(dyn_data_control_order);
-        let feedback_displayer =
-            FeedbackDisplayer::new(ordered_modules, data_format.feedback_data_len);
+        let dyn_data_collector = DynDataCollector::new(ordered_controls);
+        let feedback_displayer = FeedbackDisplayer::new(); //ordered_modules, data_format.feedback_data_len);
 
         println!("{}", code.as_str());
 

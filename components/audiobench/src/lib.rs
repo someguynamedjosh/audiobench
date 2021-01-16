@@ -21,7 +21,7 @@ pub struct Instance {
     gui: Option<Gui>,
     critical_error: Option<String>,
     structure_error: Option<String>,
-    silence: Vec<f32>,
+    audio: Vec<f32>,
 }
 
 fn copy_to_clipboard(text: String) {
@@ -65,7 +65,7 @@ impl Instance {
             gui: None,
             critical_error,
             structure_error: None,
-            silence: Vec::new(),
+            audio: Vec::new(),
         }
     }
 }
@@ -112,7 +112,7 @@ impl Instance {
                 .borrow_mut()
                 .set_global_params(buffer_length, sample_rate)
         } else {
-            self.silence.resize(buffer_length as usize * 2, 0.0);
+            self.audio.resize(buffer_length as usize * 2, 0.0);
         }
     }
 
@@ -199,12 +199,13 @@ impl Instance {
             .map(|(_, e)| e.borrow_mut().set_elapsed_beats(beats));
     }
 
-    pub fn render_audio(&mut self) -> Vec<f32> {
+    pub fn render_audio(&mut self) -> &[f32] {
         if let Some((_, engine)) = self.engine.as_mut() {
-            engine.borrow_mut().render_audio()
+            self.audio = engine.borrow_mut().render_audio();
         } else {
-            self.silence.clone()
-        }
+            self.audio = vec![0.0; self.audio.len()];
+        };
+        &self.audio[..]
     }
 
     pub fn create_ui(&mut self) {
