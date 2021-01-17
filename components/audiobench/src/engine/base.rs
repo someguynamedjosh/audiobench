@@ -357,7 +357,6 @@ impl AudioThreadEngine {
         }
 
         let mut ready = self.comms.julia_thread_status.load().is_ready();
-        println!("{}", ready);
         if ready {
             let data = self.data.global_data.clone();
             let request = julia_thread::Request::Render(data);

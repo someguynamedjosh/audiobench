@@ -88,8 +88,9 @@ impl MouseBehavior<DropTarget> for ManipulateControl {
             lane.range.0 = (lane.range.0 + delta).clam(range.0, range.1);
             lane.range.1 = (lane.range.1 + delta).clam(range.0, range.1);
         }
-        self.engine.borrow_mut().reload_dyn_data();
         let tooltip = range_value_tooltip(control_ref.value, &control_ref.suffix);
+        drop(control_ref);
+        self.engine.borrow_mut().reload_dyn_data();
         self.gui_interface.state.borrow_mut().set_tooltip(tooltip);
     }
 

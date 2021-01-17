@@ -136,7 +136,7 @@ impl Instance {
             let mut ui_engine = self.ui_engine.borrow_mut();
             ui_engine.display_new_feedback_data();
             ui_engine.recompile_if_requested_by_audio_thread();
-            let is_compiling = ui_engine.is_julia_thread_busy();
+            drop(ui_engine);
             g.set_color(&gui::constants::COLOR_BG0);
             g.clear();
             gui.draw(&mut g);

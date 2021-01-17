@@ -9,6 +9,7 @@ use std::sync::{Arc, Mutex};
 pub enum Status {
     Ready,
     Busy,
+    Rendering,
     Error,
 }
 
@@ -110,6 +111,8 @@ struct JuliaThread {
     audio_response_pipe: SyncSender<AudioResponse>,
 }
 
+// TODO: Preheat JIT unimplemented!()
+
 impl JuliaThread {
     fn set_status(&self, status: Status) {
         self.comms.julia_thread_status.store(status);
@@ -118,7 +121,6 @@ impl JuliaThread {
     fn entry(&mut self) {
         self.set_status(Status::Ready);
         while let Ok(request) = self.request_pipe.recv() {
-            self.set_status(Status::Busy);
             match request {
                 Request::PollComms => self.poll_comms(),
                 Request::Render(global_data) => self.render(global_data),
@@ -128,6 +130,7 @@ impl JuliaThread {
     }
 
     fn poll_comms(&mut self) {
+        self.set_status(Status::Busy);
         if let Some(_) = self.comms.new_global_params.take() {
             let params = self.comms.global_params.load();
             self.executor
@@ -155,6 +158,7 @@ impl JuliaThread {
     }
 
     fn render(&mut self, global_data: GlobalData) {
+        self.set_status(Status::Rendering);
         let mut nel = self.comms.note_events.lock().unwrap();
         let note_events = std::mem::replace(&mut *nel, Default::default());
         drop(nel);

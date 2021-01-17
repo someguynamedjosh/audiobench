@@ -181,6 +181,17 @@ impl WidgetImpl<Renderer, DropTarget> for Root {
         renderer.draw_rect(0, (ROOT_WIDTH, ROOT_HEIGHT));
         self.get_current_tab().draw(renderer);
         self.draw_children(renderer);
+
+        let julia_busy = self.with_gui_state(|state| state.engine.borrow().is_julia_thread_busy());
+        if julia_busy {
+            renderer.set_color(&COLOR_WARNING);
+            const F: f32 = BIG_FONT_SIZE;
+            let size = Vec2D::new(F * 7.0, F + GRID_P * 2.0);
+            let pos = Vec2D::new(ROOT_WIDTH, ROOT_HEIGHT) - size - GRID_P;
+            renderer.draw_rounded_rect(pos, size, CORNER_SIZE);
+            renderer.set_color(&COLOR_FG1);
+            renderer.draw_text(F, pos, size, (0, 0), 1, "Working...");
+        }
     }
 }
 
