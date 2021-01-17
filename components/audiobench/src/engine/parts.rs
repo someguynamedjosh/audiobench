@@ -108,7 +108,6 @@ pub struct Module {
     pub template: Rcrc<ModuleTemplate>,
     pub controls: Vec<AnyControl>,
     pub pos: (f32, f32),
-    pub feedback_data: Option<Rcrc<Vec<f32>>>,
 }
 
 impl Module {
@@ -121,7 +120,6 @@ impl Module {
             template,
             controls,
             pos: (0.0, 0.0),
-            feedback_data: None,
         }
     }
 
@@ -130,7 +128,6 @@ impl Module {
     /// modules.
     pub fn sever(&mut self) {
         self.controls.clear();
-        self.feedback_data = None;
     }
 
     pub fn sever_connections_with(&mut self, other: &Rcrc<Module>) {

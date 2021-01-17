@@ -68,10 +68,6 @@ pub(super) fn create_module_template_from_yaml(
         ));
     }
 
-    let feedback_data_len = widgets.iter().fold(0, |counter, item| {
-        counter + item.get_feedback_data_requirement().size()
-    });
-
     let name_start = yaml
         .name
         .rfind('/')
@@ -91,7 +87,6 @@ pub(super) fn create_module_template_from_yaml(
         tooltip,
         size: (width, height),
         widget_outlines: widgets,
-        feedback_data_len,
 
         default_controls: controls,
         outputs,
@@ -109,7 +104,6 @@ pub struct ModuleTemplate {
     pub tooltip: String,
     pub size: (i32, i32),
     pub widget_outlines: Vec<WidgetOutline>,
-    pub feedback_data_len: usize,
 
     /// First field is code name, second field is control.
     pub default_controls: Vec<(String, AnyControl)>,

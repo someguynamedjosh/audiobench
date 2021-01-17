@@ -80,7 +80,6 @@ struct GlobalInput
     bpm::Float32
     elapsed_time::Float32
     elapsed_beats::Float32
-    do_update::Bool
 end
 
 struct NoteInput

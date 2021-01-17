@@ -1,19 +1,10 @@
 use super::*;
 
-pub enum FeedbackDataRequirement {
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum FeedbackMode {
     None,
-    FloatInRangeControl { control_index: usize },
-    Custom { code_name: String, size: usize },
-}
-
-impl FeedbackDataRequirement {
-    pub fn size(&self) -> usize {
-        match self {
-            Self::None => 0,
-            Self::FloatInRangeControl { .. } => 1,
-            Self::Custom { size, .. } => *size,
-        }
-    }
+    ControlSignal { control_index: usize },
+    ManualValue { name: String },
 }
 
 yaml_widget_boilerplate::make_widget_outline_enum![

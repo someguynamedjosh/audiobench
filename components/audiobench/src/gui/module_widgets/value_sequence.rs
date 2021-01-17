@@ -21,7 +21,7 @@ yaml_widget_boilerplate::make_widget_outline! {
         tooltip: String,
     ),
     // Feedback for playhead and ramping amount.
-    feedback: custom(2),
+    feedback: ManualValue,
 }
 
 scui::widget! {

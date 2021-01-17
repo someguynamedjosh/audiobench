@@ -19,7 +19,7 @@ yaml_widget_boilerplate::make_widget_outline! {
         tooltip: String,
     ),
     // Feedback for playhead
-    feedback: custom(1),
+    feedback: ManualValue,
 }
 
 scui::widget! {

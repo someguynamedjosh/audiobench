@@ -95,16 +95,10 @@ scui::widget! {
         size: Vec2D,
         label: String,
         outputs: Vec<OutputJack>,
-        widgets: Vec<(Box<dyn ModuleWidget>, usize)>
+        widgets: Vec<Box<dyn ModuleWidget>>
     }
     Parents {
         graph: Rc<ModuleGraph>
-    }
-}
-
-impl Drop for Module {
-    fn drop(&mut self) {
-        self.state.borrow_mut().module.borrow_mut().feedback_data = None;
     }
 }
 
@@ -163,11 +157,7 @@ impl Module {
             .collect();
         this.state.borrow_mut().widgets = widgets;
 
-        let feedback_data_len = template_ref.feedback_data_len;
         drop(template_ref);
-        // There should only be one instance of the GUI at a time.
-        assert!(module_ref.feedback_data.is_none());
-        module_ref.feedback_data = Some(rcrc(vec![0.0; feedback_data_len]));
         drop(module_ref);
 
         this
@@ -175,7 +165,7 @@ impl Module {
 
     fn get_tooltip_at(&self, mouse_pos: Vec2D) -> Option<Tooltip> {
         // let state = self.state.borrow();
-        // for (widget, _) in &state.widgets {
+        // for widget in &state.widgets {
         //     let pos = widget.get_pos();
         //     let local_pos = mouse_pos - pos;
         //     if local_pos.inside(widget.get_size()) {
@@ -205,7 +195,7 @@ impl Module {
     fn draw_wires(self: &Rc<Self>, g: &mut Renderer, pos: Vec2D) {
         let mut wire_tracker = WireTracker::new(self.get_size());
         let state = self.state.borrow();
-        for (widget, _) in &state.widgets {
+        for widget in &state.widgets {
             let center = widget.get_pos() + widget.get_size() / 2.0;
             let input_style = widget.use_input_style_wires();
             if let Some(control) = widget.represented_control() {
@@ -259,7 +249,7 @@ impl WidgetImpl<Renderer, DropTarget> for Module {
         mods: &MouseMods,
     ) -> MaybeMouseBehavior {
         let state = self.state.borrow();
-        for (widget, _) in &state.widgets {
+        for widget in &state.widgets {
             ris!(widget.get_mouse_behavior(mouse_pos, mods));
         }
         for (index, output) in state.outputs.iter().enumerate() {
@@ -278,7 +268,7 @@ impl WidgetImpl<Renderer, DropTarget> for Module {
 
     fn get_drop_target_impl(self: &Rc<Self>, mouse_pos: Vec2D) -> Option<DropTarget> {
         let state = self.state.borrow();
-        for (widget, _) in &state.widgets {
+        for widget in &state.widgets {
             if !(mouse_pos - widget.get_pos()).inside(widget.get_size()) {
                 continue;
             }
@@ -291,7 +281,7 @@ impl WidgetImpl<Renderer, DropTarget> for Module {
                 return Some(DropTarget::Output(Rc::clone(&state.module), index));
             }
         }
-        for (widget, _) in &state.widgets {
+        for widget in &state.widgets {
             ris!(widget.get_drop_target(mouse_pos));
         }
         None
@@ -350,13 +340,8 @@ impl WidgetImpl<Renderer, DropTarget> for Module {
                     && highlight != Some(GraphHighlightMode::ProducesType(jack.get_type()));
                 output.draw(g, hovering, mute);
             }
-            let feedback_data_ref = module_ref.feedback_data.as_ref().unwrap().borrow();
-            let feedback_data = &feedback_data_ref[..];
-            let mut fdi = 0;
-            for (widget, segment_len) in &state.widgets {
-                let data = &feedback_data[fdi..fdi + segment_len];
+            for widget in &state.widgets {
                 widget.draw(g);
-                fdi += segment_len;
             }
 
             g.set_color(&COLOR_FG1);

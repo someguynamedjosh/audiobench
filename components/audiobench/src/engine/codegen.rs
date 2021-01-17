@@ -2,7 +2,7 @@ use super::controls::{AnyControl, AutomationSource, Control};
 use super::data_transfer::{DataFormat, GlobalParameters};
 use super::data_transfer::{DynDataCollector, FeedbackDisplayer};
 use crate::engine::parts::*;
-use crate::gui::module_widgets::FeedbackDataRequirement;
+use crate::gui::module_widgets::FeedbackMode;
 use julia_helper::GeneratedCode;
 use shared_util::prelude::*;
 
@@ -24,7 +24,7 @@ impl AutomationCode {
             .iter()
             .position(|mod_ptr| Rc::ptr_eq(mod_ptr, &source.module))
             .unwrap(); // Our list should contain all the modules that exist.
-        format!("module_{}_output_{}", module_index, source.output_index)
+        format!("m{}o{}", module_index, source.output_index)
     }
 }
 
@@ -75,6 +75,7 @@ impl<'a> CodeGenerator<'a> {
         let mut code = "".to_owned();
         let mut ordered_modules = Vec::new();
         let mut ordered_controls = Vec::new();
+        let mut feedback_widget_selectors = Vec::new();
         for module_ptr in self.graph.borrow_modules() {
             ordered_modules.push(Rc::clone(module_ptr));
         }
@@ -84,9 +85,8 @@ impl<'a> CodeGenerator<'a> {
         for (index, module) in self.graph.borrow_modules().iter().enumerate() {
             let module_ref = module.borrow();
             let template_ref = module_ref.template.borrow();
-            code.push_str("\n    for_module_");
             code.push_str(&format!(
-                "{}::Main.Registry.{}.{}Module.StaticData",
+                "\n    m{}::Main.Registry.{}.{}Module.StaticData",
                 index, template_ref.lib_name, template_ref.module_name
             ));
         }
@@ -119,72 +119,122 @@ impl<'a> CodeGenerator<'a> {
         ));
         code.push_str("  end # function static_init\n\n");
 
+        code.push_str("  mutable struct FeedbackData\n");
+        // code.push_str("    ");
+        for (module_index, module_ptr) in self.graph.borrow_modules().iter().enumerate() {
+            let module = module_ptr.borrow();
+            let template = module.template.borrow();
+            for (widget_index, outline) in template.widget_outlines.iter().enumerate() {
+                if outline.get_feedback_mode() != FeedbackMode::None {
+                    feedback_widget_selectors.push((Rc::clone(module_ptr), widget_index));
+                    code.push_str(&format!(
+                        "    m{}w{}::Vector{{Float32}}\n",
+                        module_index, widget_index
+                    ));
+                }
+            }
+        }
+        code.push_str("  end # struct FeedbackData\n\n");
+
         let mut exec_body = String::new();
         code.push_str(concat!(
             "  function exec(midi_controls::Vector{Float32}, pitch_wheel::Float32,\n",
             "    bpm::Float32, elapsed_time::Float32, elapsed_beats::Float32,\n",
-            "    do_update::Bool, note_input::NoteInput, static_index::Integer,",
+            "    do_feedback::Bool, note_input::NoteInput, static_index::Integer,",
         ));
         exec_body.push_str(concat!(
             "    set_zero_subnormals(true)\n",
             "    static_index += 1\n", // grumble grumble
             "    global_input = GlobalInput(midi_controls, pitch_wheel, bpm, elapsed_time, ",
-            "elapsed_beats, do_update)\n",
+            "elapsed_beats)\n",
             "    start_trigger = Trigger(note_input.start_trigger, repeat([false], buffer_length - 1)...)\n",
             "    release_trigger = Trigger(note_input.release_trigger, repeat([false], buffer_length - 1)...)\n",
             "    note_output = NoteOutput()\n",
             "    context = NoteContext(global_input, note_input, note_output)\n",
+            "    feedback = FeedbackData(",
         ));
-        exec_body.push_str("\n\n    @. context.note_out.audio = 0.0\n");
+        for _ in 0..feedback_widget_selectors.len() {
+            exec_body.push_str("Vector{Float32}(), ");
+        }
+        exec_body.push_str(")\n\n    @. context.note_out.audio = 0.0\n");
         let automation_code = AutomationCode {
             ordered_modules: ordered_modules.clone(),
         };
         for index in std::mem::replace(&mut self.execution_order, Vec::new()) {
             let module_ref = self.graph.borrow_modules()[index].borrow();
             let template_ref = module_ref.template.borrow();
+            exec_body.push_str("    \n");
 
-            exec_body.push_str("\n    ");
-            for output_index in 0..template_ref.outputs.len() {
-                exec_body.push_str(&format!("module_{}_output_{}, ", index, output_index,));
-            }
-            exec_body.push_str(&format!(
-                "static_container[static_index].for_module_{}, = \n",
-                index
-            ));
-            exec_body.push_str(&format!(
-                "    Main.Registry.{}.{}Module.exec(\n      context,\n",
-                template_ref.lib_name, template_ref.module_name
-            ));
-            let mut first = true;
             for (control_index, control) in module_ref.controls.iter().enumerate() {
                 let control_ptr = control.as_dyn_ptr();
                 let control = control_ptr.borrow();
                 let mut idents = Vec::new();
+                if control.get_parameter_types().len() > 0 {
+                    code.push_str("\n    ");
+                }
                 for (parameter_index, ptype) in
                     control.get_parameter_types().into_iter().enumerate()
                 {
-                    if first {
-                        first = false;
-                        code.push_str("\n   ");
-                    }
                     let ident = format!("m{}c{}p{}", index, control_index, parameter_index);
                     code.push_str(&format!(" {}::{},", ident, ptype));
                     idents.push(ident);
                 }
                 let ident_refs: Vec<_> = idents.iter().map(|i| &i[..]).collect();
                 let code = control.generate_code(&ident_refs[..], &automation_code);
-                exec_body.push_str(&format!("      {},\n", code));
                 drop(control);
+                exec_body.push_str(&format!("    m{}c{} = {}\n", index, control_index, code));
                 ordered_controls.push(control_ptr);
             }
+            let template = module_ref.template.borrow();
+            let mut first = true;
+            for (widget_index, widget) in template.widget_outlines.iter().enumerate() {
+                if let FeedbackMode::ControlSignal { control_index } = widget.get_feedback_mode() {
+                    if first {
+                        first = false;
+                        exec_body.push_str("    if do_feedback\n");
+                    }
+                    exec_body.push_str(&format!(
+                        "      push!(feedback.m{}w{}, m{}c{}[%, 1])\n",
+                        index, widget_index, index, control_index
+                    ));
+                }
+            }
+            if !first {
+                exec_body.push_str("    end\n");
+            }
+
+            exec_body.push_str("    ");
+            for output_index in 0..template_ref.outputs.len() {
+                exec_body.push_str(&format!("m{}o{}, ", index, output_index,));
+            }
+            exec_body.push_str(&format!("static_container[static_index].m{}, = \n", index));
             exec_body.push_str(&format!(
-                "      static_container[static_index].for_module_{},\n    )",
+                "    Main.Registry.{}.{}Module.exec(\n      context, do_feedback,\n",
+                template_ref.lib_name, template_ref.module_name
+            ));
+
+            exec_body.push_str("      ");
+            for (control_index, _) in module_ref.controls.iter().enumerate() {
+                exec_body.push_str(&format!("m{}c{}, ", index, control_index));
+            }
+            let mut first = true;
+            for (widget_index, widget) in template.widget_outlines.iter().enumerate() {
+                if let FeedbackMode::ManualValue { name } = widget.get_feedback_mode() {
+                    if first {
+                        first = false;
+                        exec_body.push_str("\n      ");
+                    }
+                    exec_body.push_str(&format!("feedback.m{}w{}, ", index, widget_index));
+                }
+            }
+            exec_body.push_str(&format!(
+                "\n      static_container[static_index].m{},\n    )\n",
                 index
             ));
         }
         code.push_str("\n  )\n");
         code.push_str(&exec_body);
-        code.push_str("\n\n    (Array(context.note_out.audio),)\n");
+        code.push_str("\n\n    (Array(context.note_out.audio), feedback)\n");
         code.push_str("  end # function exec\n\n");
         code.push_str("end # module Generated\n");
         let code = GeneratedCode::from_unique_source("Generated/note_graph.jl", &code);

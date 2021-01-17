@@ -20,7 +20,7 @@ yaml_widget_boilerplate::make_widget_outline! {
         label: String,
         tooltip: String,
     ),
-    feedback: control,
+    feedback: ControlSignal,
 }
 
 scui::widget! {

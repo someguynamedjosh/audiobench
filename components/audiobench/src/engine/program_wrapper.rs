@@ -1,4 +1,5 @@
 use crate::engine::data_transfer::{DataFormat, GlobalData, GlobalParameters, NoteData};
+use crate::gui::module_widgets::FeedbackMode;
 use crate::registry::Registry;
 use array_macro::array;
 use jlrs_derive::IntoJulia;
@@ -218,10 +219,16 @@ impl AudiobenchExecutorBuilder {
                     );
                 }
                 if let Some(exec_source) = file_content.clip_section("function exec()", "end") {
-                    let mut func_header = String::from("function exec(context, ");
+                    let mut func_header = String::from("function exec(context, do_feedback::Bool");
                     for (name, _) in &template.default_controls {
                         func_header.push_str(name);
                         func_header.push_str(", ");
+                    }
+                    for widget in &template.widget_outlines {
+                        if let FeedbackMode::ManualValue { name } = widget.get_feedback_mode() {
+                            func_header.push_str(&name);
+                            func_header.push_str("::Vector{Float32}, ");
+                        }
                     }
                     func_header.push_str("static::StaticData) ");
                     registry_source.append(&func_header, "generated");

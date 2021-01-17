@@ -15,7 +15,7 @@ yaml_widget_boilerplate::make_widget_outline! {
         size: GridSize,
     ),
     // 4 for parameters, 2 for cursor.
-    feedback: custom(6),
+    feedback: ManualValue,
 }
 
 scui::widget! {

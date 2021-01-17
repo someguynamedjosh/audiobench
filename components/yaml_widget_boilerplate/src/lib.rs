@@ -239,24 +239,18 @@ impl Parse for ConstructorDescription {
     }
 }
 
-enum FeedbackDescription {
-    FloatInRangeControl,
-    Custom { size: Expr },
+enum FeedbackMode {
+    ControlSignal,
+    ManualValue,
 }
 
-impl Parse for FeedbackDescription {
+impl Parse for FeedbackMode {
     fn parse(input: ParseStream) -> syn::parse::Result<Self> {
         let typ: Ident = input.parse()?;
         Ok(match &typ.to_string()[..] {
-            "control" => Self::FloatInRangeControl,
-            "custom" => {
-                let size_stream;
-                parenthesized!(size_stream in input);
-                Self::Custom {
-                    size: size_stream.parse()?,
-                }
-            }
-            _ => panic!("{} is not a valid feedback data mode", typ),
+            "ControlSignal" => Self::ControlSignal,
+            "ManualValue" => Self::ManualValue,
+            _ => panic!("{} is not a valid feedback mode", typ),
         })
     }
 }
@@ -264,7 +258,7 @@ impl Parse for FeedbackDescription {
 struct WidgetOutlineDescription {
     widget_struct_name: Option<Ident>,
     constructor_description: Option<ConstructorDescription>,
-    feedback_description: Option<FeedbackDescription>,
+    feedback_mode: Option<FeedbackMode>,
 }
 
 impl Parse for WidgetOutlineDescription {
@@ -272,7 +266,7 @@ impl Parse for WidgetOutlineDescription {
         let mut result = WidgetOutlineDescription {
             widget_struct_name: None,
             constructor_description: None,
-            feedback_description: None,
+            feedback_mode: None,
         };
         while !input.is_empty() {
             let name: Ident = input.parse()?;
@@ -280,7 +274,7 @@ impl Parse for WidgetOutlineDescription {
             match &name.to_string()[..] {
                 "widget_struct" => result.widget_struct_name = Some(input.parse()?),
                 "constructor" => result.constructor_description = Some(input.parse()?),
-                "feedback" => result.feedback_description = Some(input.parse()?),
+                "feedback" => result.feedback_mode = Some(input.parse()?),
                 _ => panic!("Unexpected identifier {}", name),
             }
             input.parse::<Token![,]>().ok(); // ignore because there might not be a trailing comma
@@ -294,7 +288,7 @@ pub fn make_widget_outline(args: TokenStream) -> TokenStream {
     let WidgetOutlineDescription {
         widget_struct_name,
         constructor_description,
-        feedback_description,
+        feedback_mode,
     } = syn::parse_macro_input!(args);
 
     let widget_struct_name = widget_struct_name.expect("widget_struct not specified");
@@ -307,21 +301,23 @@ pub fn make_widget_outline(args: TokenStream) -> TokenStream {
         outline_fields.append(&mut constructor_arg.get_outline_fields());
     }
 
-    let feedback_requirement_code = match &feedback_description {
-        None => quote! { crate::gui::module_widgets::FeedbackDataRequirement::None },
-        Some(FeedbackDescription::FloatInRangeControl) => {
-            // unimplemented!();
-            quote! { crate::gui::module_widgets::FeedbackDataRequirement::None }
+    let feedback_requirement_code = match &feedback_mode {
+        None => quote! { crate::gui::module_widgets::FeedbackMode::None },
+        Some(FeedbackMode::ControlSignal) => {
+            quote! {
+                crate::gui::module_widgets::FeedbackMode::ControlSignal {
+                    control_index: self.control_index,
+                }
+            }
         }
-        Some(FeedbackDescription::Custom { size }) => {
+        Some(FeedbackMode::ManualValue) => {
             outline_fields.push((
                 format_ident!("feedback_name"),
                 quote! {::std::string::String},
             ));
             quote! {
-                crate::gui::module_widgets::FeedbackDataRequirement::Custom {
-                    code_name: self.feedback_name.clone(),
-                    size: #size
+                crate::gui::module_widgets::FeedbackMode::ManualValue {
+                    name: self.feedback_name.clone(),
                 }
             }
         }
@@ -336,7 +332,7 @@ pub fn make_widget_outline(args: TokenStream) -> TokenStream {
         .iter()
         .map(|arg| arg.create_from_yaml_code())
         .collect();
-    if let Some(FeedbackDescription::Custom { .. }) = &feedback_description {
+    if let Some(FeedbackMode::ManualValue) = &feedback_mode {
         field_from_yaml_code.push(quote! {
             let feedback_name = yaml.unique_child("feedback_name")?.value.trim().to_owned();
         });
@@ -365,7 +361,7 @@ pub fn make_widget_outline(args: TokenStream) -> TokenStream {
 
         impl #outline_name {
             pub fn get_feedback_data_requirement(&self)
-                -> crate::gui::module_widgets::FeedbackDataRequirement {
+                -> crate::gui::module_widgets::FeedbackMode {
                 #feedback_requirement_code
             }
 
@@ -470,7 +466,7 @@ pub fn make_widget_outline_enum(args: TokenStream) -> TokenStream {
         }
 
         impl WidgetOutline {
-            pub fn get_feedback_data_requirement(&self) -> crate::gui::module_widgets::FeedbackDataRequirement {
+            pub fn get_feedback_mode(&self) -> crate::gui::module_widgets::FeedbackMode {
                 match self {
                     #(#feedback_body),*
                 }
@@ -495,16 +491,13 @@ pub fn make_widget_outline_enum(args: TokenStream) -> TokenStream {
                 &self,
                 parent: &P,
                 controls: &::std::vec::Vec<crate::engine::controls::AnyControl>,
-            ) -> (::std::boxed::Box<dyn crate::gui::module_widgets::ModuleWidget>, usize)
+            ) -> ::std::boxed::Box<dyn crate::gui::module_widgets::ModuleWidget>
             where
                 P: #(#parent_traits)+*
             {
-                (
-                    match self {
-                        #(#instantiate_body),*
-                    },
-                    self.get_feedback_data_requirement().size(),
-                )
+                match self {
+                    #(#instantiate_body),*
+                }
             }
         }
     })

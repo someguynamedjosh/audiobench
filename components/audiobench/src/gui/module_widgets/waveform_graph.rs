@@ -15,7 +15,7 @@ yaml_widget_boilerplate::make_widget_outline! {
         size: GridSize,
     ),
     // 42 pixels wide on normal zoom, +2 for cursor.
-    feedback: custom(44),
+    feedback: ManualValue,
 }
 
 scui::widget! {
