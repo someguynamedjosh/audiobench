@@ -287,7 +287,7 @@ impl WidgetImpl<Renderer, DropTarget> for HSliderEditor {
                 let engine = self.with_gui_state(|state| Rc::clone(&state.engine));
                 return OnClickBehavior::wrap(move || {
                     control.borrow_mut().automation.remove(lane);
-                    engine.borrow_mut().recompile()
+                    engine.borrow_mut().regenerate_code()
                 });
             } else {
                 return Some(Box::new(ManipulateLane::new(

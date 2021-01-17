@@ -159,7 +159,11 @@ pub unsafe extern "C" fn ABUiSetGraphicsFunctions(
     cr: *mut CreateResult,
     graphics_fns: GraphicsFunctions,
 ) {
-    with_ok(cr, |instance| instance.graphics_fns = Rc::new(graphics_fns));
+    let fns = Rc::new(graphics_fns);
+    match &mut *cr {
+        Ok(instance) => instance.graphics_fns = fns,
+        Err(error_drawer) => error_drawer.graphics_fns = fns,
+    }
 }
 
 #[no_mangle]

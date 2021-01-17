@@ -1,18 +1,23 @@
-use super::codegen::{self, CodeGenResult};
 use super::data_transfer::{
     DataFormat, DynDataCollector, FeedbackDisplayer, GlobalData, GlobalParameters,
 };
 use super::julia_thread;
 use super::parts::ModuleGraph;
 use super::program_wrapper::{AudiobenchExecutor, AudiobenchExecutorBuilder, NoteTracker};
+use super::{
+    codegen::{self, CodeGenResult},
+    data_transfer::IOData,
+};
 use crate::registry::{save_data::Patch, Registry};
+use crossbeam_utils::{atomic::AtomicCell, sync::Parker};
 use julia_helper::GeneratedCode;
+use mpsc::TrySendError;
 use shared_util::{perf_counter::sections, prelude::*};
-use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::mpsc::{self, Receiver, SyncSender};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
+use std::{path::PathBuf, sync::RwLock};
 
 const DEFAULT_CHANNELS: usize = 2;
 const DEFAULT_BUFFER_LENGTH: usize = 512;
@@ -29,20 +34,16 @@ struct UiThreadData {
     current_patch_save_data: Rcrc<Patch>,
 }
 
-pub(super) struct CrossThreadData {
-    pub julia_thread_status: julia_thread::Status,
-    /// We put this in with the other ctd instead of giving each thread its own copy so that we
-    /// don't get a situation where two threads send two requests at the same time thinking the
-    /// thread is not busy (julia_thread_status) and expecting to get a result back quickly.
-    pub julia_request_input: SyncSender<julia_thread::Request>,
-    pub global_params: GlobalParameters,
-    // new_source: Option<(GeneratedCode, DataFormat)>,
-    // new_dyn_data: Option<Vec<()>>, // Previously OwnedIOData
-    // new_feedback_data: Option<Vec<f32>>,
-    pub critical_error: Option<String>,
-    pub perf_counter: PreferredPerfCounter,
-    // Set if the audio thread has triggered something that requires recompiling.
-    pub request_recompile: bool,
+pub(super) struct Communication {
+    pub julia_thread_status: AtomicCell<julia_thread::Status>,
+
+    pub new_global_params: AtomicCell<Option<()>>,
+    pub new_note_graph_code: AtomicCell<Option<(GeneratedCode, Vec<IOData>)>>,
+    pub new_dyn_data: AtomicCell<Option<Vec<IOData>>>,
+
+    pub global_params: AtomicCell<GlobalParameters>,
+    pub note_events: Mutex<Vec<julia_thread::NoteEvent>>,
+    pub julia_pipe: SyncSender<julia_thread::Request>,
 }
 
 struct AudioThreadData {
@@ -54,12 +55,12 @@ struct AudioThreadData {
 
 pub struct UiThreadEngine {
     data: UiThreadData,
-    ctd_mux: Arcmux<CrossThreadData>,
+    comms: Arc<Communication>,
 }
 
 pub struct AudioThreadEngine {
     data: AudioThreadData,
-    ctd_mux: Arcmux<CrossThreadData>,
+    comms: Arc<Communication>,
 }
 
 pub fn new_engine(
@@ -124,21 +125,24 @@ pub fn new_engine(
     };
 
     let global_params_2 = global_params.clone();
-    let ctd = CrossThreadData {
-        julia_thread_status: julia_thread::Status::Busy,
-        julia_request_input: reqi,
-        global_params,
-        critical_error: None,
-        perf_counter: PreferredPerfCounter::new(),
-        request_recompile: false,
+    let comms = Communication {
+        julia_thread_status: AtomicCell::new(julia_thread::Status::Busy),
+
+        new_global_params: Default::default(),
+        new_note_graph_code: Default::default(),
+        new_dyn_data: Default::default(),
+
+        global_params: AtomicCell::new(global_params),
+        note_events: Default::default(),
+        julia_pipe: reqi,
     };
-    let ctd_mux = arcmux(ctd);
+    let comms = Arc::new(comms);
 
     let executor_builder = AudiobenchExecutorBuilder::new(&*registry);
-    let julia_ctd_mux = Arc::clone(&ctd_mux);
+    let comms2 = Arc::clone(&comms);
     let julia_executor = move || {
         julia_thread::entry(
-            julia_ctd_mux,
+            comms2,
             global_params_2,
             executor_builder,
             code,
@@ -154,22 +158,18 @@ pub fn new_engine(
     Ok((
         rcrc(UiThreadEngine {
             data: utd,
-            ctd_mux: Arc::clone(&ctd_mux),
+            comms: Arc::clone(&comms),
         }),
         rcrc(AudioThreadEngine {
             data: atd,
-            ctd_mux: Arc::clone(&ctd_mux),
+            comms: Arc::clone(&comms),
         }),
     ))
 }
 
 impl UiThreadEngine {
-    pub fn clone_critical_error(&self) -> Option<String> {
-        self.ctd_mux.lock().unwrap().critical_error.clone()
-    }
-
     pub fn is_julia_thread_busy(&self) -> bool {
-        self.ctd_mux.lock().unwrap().julia_thread_status == julia_thread::Status::Busy
+        self.comms.julia_thread_status.load() == julia_thread::Status::Busy
     }
 
     pub fn rename_current_patch(&mut self, name: String) {
@@ -243,7 +243,7 @@ impl UiThreadEngine {
             .borrow()
             .restore_note_graph(&mut *self.data.module_graph.borrow_mut(), &*reg)?;
         drop(reg);
-        self.recompile();
+        self.regenerate_code();
         Ok(())
     }
 
@@ -251,48 +251,37 @@ impl UiThreadEngine {
         &self.data.module_graph
     }
 
-    pub fn recompile(&mut self) {
-        let mut ctd = self.ctd_mux.lock().unwrap();
-
+    pub fn regenerate_code(&mut self) {
         let module_graph_ref = self.data.module_graph.borrow();
-        let section = ctd.perf_counter.begin_section(&sections::GENERATE_CODE);
-        let new_gen = codegen::generate_code(&*module_graph_ref, &ctd.global_params)
+        let params = self.comms.global_params.load();
+        let new_gen = codegen::generate_code(&*module_graph_ref, &params)
             .map_err(|_| format!("The note graph cannot contain feedback loops"));
-        ctd.perf_counter.end_section(section);
         let new_gen = new_gen.expect("TODO: Nice error.");
         drop(module_graph_ref);
         // ctd.new_source = Some((new_gen.code, new_gen.data_format.clone()));
         // ctd.new_staticon_dyn_data = Some(new_gen.dyn_data_collector.collect_data());
         // ctd.new_feedback_data = None;
         // unimplemented!();
-        let request = julia_thread::Request::ChangeGeneratedCode {
-            code: new_gen.code,
-            dyn_data: new_gen.dyn_data_collector.collect(),
-        };
-        ctd.julia_request_input.send(request).unwrap();
-        drop(ctd);
+        self.comms.new_dyn_data.store(None);
+        let dyn_data = new_gen.dyn_data_collector.collect();
+        self.comms
+            .new_note_graph_code
+            .store(Some((new_gen.code, dyn_data)));
+        self.comms.julia_pipe.send(julia_thread::Request::PollComms);
         self.data.dyn_data_collector = new_gen.dyn_data_collector;
         self.data.feedback_displayer = new_gen.feedback_displayer;
     }
+
     /// Recompiles everything if the audio thread has encountered something that requires
     /// recompiling. This method exists because compilation is started by the UI thread.
     pub fn recompile_if_requested_by_audio_thread(&mut self) {
-        let mut ctd = self.ctd_mux.lock().unwrap();
-        if ctd.request_recompile {
-            ctd.request_recompile = false;
-            drop(ctd);
-            self.recompile();
-        }
+        // unimplemented!()
     }
 
     pub fn reload_dyn_data(&mut self) {
-        let mut ctd = self.ctd_mux.lock().unwrap();
-
-        let section = ctd
-            .perf_counter
-            .begin_section(&sections::COLLECT_CONTROL_DATA);
-        // ctd.new_dyn_data = Some(self.data.dyn_data_collector.collect_data()); unimplemented!()
-        ctd.perf_counter.end_section(section);
+        let data = self.data.dyn_data_collector.collect();
+        self.comms.new_dyn_data.store(Some(data));
+        self.comms.julia_pipe.send(julia_thread::Request::PollComms);
     }
 
     /// Feedback data is generated on the audio thread. This method uses a mutex to retrieve that
@@ -300,44 +289,33 @@ impl UiThreadEngine {
     /// new data so this is okay to call relatively often. It also does not block on waiting for
     /// the mutex.
     pub fn display_new_feedback_data(&mut self) {
-        if let Ok(mut ctd) = self.ctd_mux.try_lock() {
-            // if let Some(data) = ctd.new_feedback_data.take() {
-            //     self.data.feedback_displayer.display_feedback(&data[..]);
-            // }
-        }
+        // unimplemented!()
     }
 }
 
 impl AudioThreadEngine {
     // AUDIO THREAD METHODS ========================================================================
     pub fn set_global_params(&mut self, buffer_length: usize, sample_rate: usize) {
-        let mut ctd = self.ctd_mux.lock().unwrap();
+        let mut params = self.comms.global_params.load();
 
         // Avoid recompiling if there was no change.
-        if buffer_length != ctd.global_params.buffer_length
-            || sample_rate != ctd.global_params.sample_rate
-        {
-            ctd.global_params.buffer_length = buffer_length;
-            ctd.global_params.sample_rate = sample_rate;
-            ctd.request_recompile = true;
-            drop(ctd);
+        if buffer_length != params.buffer_length || sample_rate != params.sample_rate {
+            params.buffer_length = buffer_length;
+            params.sample_rate = sample_rate;
+            self.comms.new_global_params.store(Some(()));
+            self.comms.global_params.store(params);
+            self.comms.julia_pipe.send(julia_thread::Request::PollComms);
         }
     }
 
     pub fn start_note(&mut self, index: usize, velocity: f32) {
-        // TODO: Don't wait for julia thread.
-        let mut ctd = self.ctd_mux.lock().unwrap();
-        ctd.julia_request_input
-            .send(julia_thread::Request::StartNote { index, velocity })
-            .unwrap();
+        let mut queue = self.comms.note_events.lock().unwrap();
+        queue.push(julia_thread::NoteEvent::StartNote { index, velocity });
     }
 
     pub fn release_note(&mut self, index: usize) {
-        // TODO: Don't wait for julia thread.
-        let mut ctd = self.ctd_mux.lock().unwrap();
-        ctd.julia_request_input
-            .send(julia_thread::Request::ReleaseNote { index })
-            .unwrap();
+        let mut queue = self.comms.note_events.lock().unwrap();
+        queue.push(julia_thread::NoteEvent::ReleaseNote { index });
     }
 
     pub fn set_pitch_wheel(&mut self, new_pitch_wheel: f32) {
@@ -377,21 +355,29 @@ impl AudioThreadEngine {
         if update_feedback_data {
             self.data.last_feedback_data_update = Instant::now();
         }
-        let mut ctd = self.ctd_mux.lock().unwrap();
-        let ok = ctd
-            .julia_request_input
-            .try_send(julia_thread::Request::Render(self.data.global_data.clone()))
-            .is_ok();
-        let buf_time =
-            ctd.global_params.buffer_length as f32 / ctd.global_params.sample_rate as f32;
-        drop(ctd);
+
+        let mut ready = self.comms.julia_thread_status.load().is_ready();
+        println!("{}", ready);
+        if ready {
+            let data = self.data.global_data.clone();
+            let request = julia_thread::Request::Render(data);
+            let res = self.comms.julia_pipe.try_send(request);
+            match res {
+                Ok(()) => (),
+                Err(TrySendError::Full(..)) => ready = false,
+                Err(TrySendError::Disconnected(..)) => panic!("Julia thread has shut down."),
+            }
+        }
+
+        let params = self.comms.global_params.load();
+        let buf_time = params.buffer_length as f32 / params.sample_rate as f32;
         self.data.global_data.elapsed_time += buf_time;
         self.data.global_data.elapsed_beats += buf_time * self.data.global_data.bpm / 60.0;
-        if ok {
+
+        if ready {
             self.data.audio_response_output.recv().unwrap().audio
         } else {
-            let mut ctd = self.ctd_mux.lock().unwrap();
-            let size = ctd.global_params.channels * ctd.global_params.buffer_length;
+            let size = params.channels * params.buffer_length;
             vec![0.0; size]
         }
     }

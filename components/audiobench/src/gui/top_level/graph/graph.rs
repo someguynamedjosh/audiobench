@@ -114,7 +114,7 @@ impl ModuleGraph {
         let mut children = self.children.borrow_mut();
         children.modules.push(Module::new(self, module));
         self.with_gui_state_mut(|state| {
-            state.engine.borrow_mut().recompile();
+            state.engine.borrow_mut().regenerate_code();
         })
     }
 
@@ -243,7 +243,7 @@ impl MouseBehavior<DropTarget> for ConnectFromSource {
         }
         self.graph.clear_wire_preview();
         self.graph.with_gui_state_mut(|state| {
-            state.engine.borrow_mut().recompile();
+            state.engine.borrow_mut().regenerate_code();
         })
     }
 }
@@ -273,7 +273,7 @@ impl MouseBehavior<DropTarget> for ConnectToControl {
         }
         self.graph.clear_wire_preview();
         self.graph.with_gui_state_mut(|state| {
-            state.engine.borrow_mut().recompile();
+            state.engine.borrow_mut().regenerate_code();
         })
     }
 }

@@ -1,6 +1,6 @@
-use super::base::CrossThreadData;
 use super::data_transfer::{GlobalData, GlobalParameters, IOData};
 use super::program_wrapper::{AudiobenchExecutor, AudiobenchExecutorBuilder, NoteTracker};
+use super::Communication;
 use julia_helper::GeneratedCode;
 use std::sync::mpsc::{Receiver, SyncSender};
 use std::sync::{Arc, Mutex};
@@ -12,20 +12,24 @@ pub enum Status {
     Error,
 }
 
+impl Status {
+    pub fn is_ready(&self) -> bool {
+        self == &Self::Ready
+    }
+}
+
+pub enum NoteEvent {
+    StartNote { index: usize, velocity: f32 },
+    ReleaseNote { index: usize },
+}
+
+pub struct RenderRequest {
+    data: GlobalData,
+}
+
 pub enum Request {
+    PollComms,
     Render(GlobalData),
-    ChangeGlobalParams(GlobalParameters),
-    ChangeGeneratedCode {
-        code: GeneratedCode,
-        dyn_data: Vec<IOData>,
-    },
-    StartNote {
-        index: usize,
-        velocity: f32,
-    },
-    ReleaseNote {
-        index: usize,
-    },
 }
 
 pub struct AudioResponse {
@@ -34,7 +38,7 @@ pub struct AudioResponse {
 }
 
 pub(super) fn entry(
-    ctd_mux: Arc<Mutex<CrossThreadData>>,
+    comms: Arc<Communication>,
     global_params: GlobalParameters,
     executor_builder: AudiobenchExecutorBuilder,
     default_patch_code: GeneratedCode,
@@ -55,10 +59,12 @@ pub(super) fn entry(
     let mut executor = match executor {
         Ok(value) => value,
         Err(err) => {
-            let mut ctd = ctd_mux.lock().unwrap();
-            ctd.julia_thread_status = Status::Error;
-            ctd.critical_error = Some(err);
-            return;
+            comms.julia_thread_status.store(Status::Error);
+            unimplemented!();
+            // let mut ctd = ctd_mux.lock().unwrap();
+            // ctd.julia_thread_status = Status::Error;
+            // ctd.critical_error = Some(err);
+            // return;
         }
     };
     let res = executor
@@ -74,14 +80,16 @@ pub(super) fn entry(
             )
         });
     if let Err(err) = res {
-        let mut ctd = ctd_mux.lock().unwrap();
-        ctd.julia_thread_status = Status::Error;
-        ctd.critical_error = Some(err);
-        return;
+        comms.julia_thread_status.store(Status::Error);
+        unimplemented!();
+        // let mut ctd = ctd_mux.lock().unwrap();
+        // ctd.julia_thread_status = Status::Error;
+        // ctd.critical_error = Some(err);
+        // return;
     }
 
     let mut thread = JuliaThread {
-        ctd_mux,
+        comms,
         executor,
         global_params,
         dyn_data,
@@ -93,7 +101,7 @@ pub(super) fn entry(
 }
 
 struct JuliaThread {
-    ctd_mux: Arc<Mutex<CrossThreadData>>,
+    comms: Arc<Communication>,
     executor: AudiobenchExecutor,
     global_params: GlobalParameters,
     dyn_data: Vec<IOData>,
@@ -103,10 +111,8 @@ struct JuliaThread {
 }
 
 impl JuliaThread {
-    fn set_status(&mut self, status: Status) {
-        // let mut ctd = self.ctd_mux.lock().unwrap();
-        // ctd.julia_thread_status = status;
-        // drop(ctd);
+    fn set_status(&self, status: Status) {
+        self.comms.julia_thread_status.store(status);
     }
 
     fn entry(&mut self) {
@@ -114,40 +120,58 @@ impl JuliaThread {
         while let Ok(request) = self.request_pipe.recv() {
             self.set_status(Status::Busy);
             match request {
+                Request::PollComms => self.poll_comms(),
                 Request::Render(global_data) => self.render(global_data),
-                Request::ChangeGlobalParams(params) => {
-                    self.executor
-                        .change_parameters(&params)
-                        .expect("TODO: Handle error.");
-                    self.global_params = params;
-                }
-                Request::ChangeGeneratedCode { code, dyn_data } => {
-                    self.notes.silence_all();
-                    self.dyn_data = dyn_data;
-                    let res = self.executor.change_generated_code(code).map_err(|err| {
-                        format!("Error encountered while loading new patch code:\n{}", err)
-                    });
-                    if let Err(err) = res {
-                        let mut ctd = self.ctd_mux.lock().unwrap();
-                        ctd.julia_thread_status = Status::Error;
-                        ctd.critical_error = Some(err);
-                        return;
-                    }
-                }
-                Request::StartNote { index, velocity } => {
+            }
+            self.set_status(Status::Ready);
+        }
+    }
+
+    fn poll_comms(&mut self) {
+        if let Some(_) = self.comms.new_global_params.take() {
+            let params = self.comms.global_params.load();
+            self.executor
+                .change_parameters(&params)
+                .expect("TODO: Handle error.");
+            self.global_params = params;
+        } else if let Some((code, dyn_data)) = self.comms.new_note_graph_code.take() {
+            self.notes.silence_all();
+            self.dyn_data = dyn_data;
+            let res = self
+                .executor
+                .change_generated_code(code)
+                .map_err(|err| format!("Error encountered while loading new patch code:\n{}", err));
+            if let Err(err) = res {
+                self.set_status(Status::Error);
+                unimplemented!("Julia error:\n{}", err);
+                // let mut ctd = self.ctd_mux.lock().unwrap();
+                // ctd.julia_thread_status = Status::Error;
+                // ctd.critical_error = Some(err);
+                // return;
+            }
+        } else if let Some(data) = self.comms.new_dyn_data.take() {
+            self.dyn_data = data;
+        }
+    }
+
+    fn render(&mut self, global_data: GlobalData) {
+        let mut nel = self.comms.note_events.lock().unwrap();
+        let note_events = std::mem::replace(&mut *nel, Default::default());
+        drop(nel);
+        for event in note_events {
+            match event {
+                NoteEvent::StartNote { index, velocity } => {
                     let static_index = self.notes.start_note(index, velocity);
                     self.executor
                         .reset_static_data(static_index)
                         .expect("TODO: Handle error.");
                 }
-                Request::ReleaseNote { index } => {
+                NoteEvent::ReleaseNote { index } => {
                     self.notes.release_note(index);
                 }
             }
         }
-    }
 
-    fn render(&mut self, global_data: GlobalData) {
         let mut output = vec![0.0; self.global_params.channels * self.global_params.buffer_length];
         let result = self.executor.execute(
             false,
@@ -163,6 +187,5 @@ impl JuliaThread {
         self.audio_response_pipe
             .send(AudioResponse { audio: output })
             .unwrap();
-        self.set_status(Status::Ready);
     }
 }

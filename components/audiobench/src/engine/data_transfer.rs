@@ -5,7 +5,7 @@ use std::fmt::{Display, Formatter};
 
 use super::controls::Control;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct GlobalParameters {
     pub channels: usize,
     pub buffer_length: usize,

@@ -198,14 +198,14 @@ impl MouseBehavior<DropTarget> for ManipulateIntBox {
     fn on_drop(mut self: Box<Self>, _target: Option<DropTarget>) {
         let request = (self.callback)(self.float_value as i32);
         if self.code_reload_requested {
-            self.engine.borrow_mut().recompile()
+            self.engine.borrow_mut().regenerate_code()
         } else {
             match request {
                 UpdateRequest::Nothing => (),
                 UpdateRequest::UpdateDynData => {
                     self.engine.borrow_mut().reload_dyn_data();
                 }
-                UpdateRequest::UpdateCode => self.engine.borrow_mut().recompile(),
+                UpdateRequest::UpdateCode => self.engine.borrow_mut().regenerate_code(),
             }
         }
     }
@@ -216,14 +216,14 @@ impl MouseBehavior<DropTarget> for ManipulateIntBox {
         self.float_value = self.float_value.max(self.min as f32);
         let request = (self.callback)(self.float_value as i32);
         if self.code_reload_requested {
-            self.engine.borrow_mut().recompile()
+            self.engine.borrow_mut().regenerate_code()
         } else {
             match request {
                 UpdateRequest::Nothing => (),
                 UpdateRequest::UpdateDynData => {
                     self.engine.borrow_mut().reload_dyn_data();
                 }
-                UpdateRequest::UpdateCode => self.engine.borrow_mut().recompile(),
+                UpdateRequest::UpdateCode => self.engine.borrow_mut().regenerate_code(),
             }
         }
     }
@@ -255,7 +255,7 @@ impl MouseBehavior<DropTarget> for MutateStaticon {
             UpdateRequest::UpdateDynData => {
                 self.engine.borrow_mut().reload_dyn_data();
             }
-            UpdateRequest::UpdateCode => self.engine.borrow_mut().recompile(),
+            UpdateRequest::UpdateCode => self.engine.borrow_mut().regenerate_code(),
         }
     }
 }
@@ -304,7 +304,7 @@ impl MouseBehavior<DropTarget> for ContinuouslyMutateStaticon {
 
     fn on_drop(self: Box<Self>, _target: Option<DropTarget>) {
         if self.code_reload_requested {
-            self.engine.borrow_mut().recompile()
+            self.engine.borrow_mut().regenerate_code()
         }
     }
 }
