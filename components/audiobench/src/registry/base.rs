@@ -340,7 +340,7 @@ impl Registry {
         Ok(())
     }
 
-    pub fn new() -> (Rcrc<Self>, Result<(), String>) {
+    pub fn new() -> Result<Self, String> {
         let library_path = {
             let user_dirs = directories::UserDirs::new().unwrap();
             let document_dir = user_dirs.document_dir().unwrap();
@@ -371,9 +371,8 @@ impl Registry {
             checked_updates: HashMap::new(),
             update_check_stream: receiver,
         };
-        let result = registry.initialize();
-
-        (rcrc(registry), result)
+        registry.initialize()?;
+        Ok(registry)
     }
 
     pub fn borrow_templates(&self) -> &[Rcrc<ModuleTemplate>] {

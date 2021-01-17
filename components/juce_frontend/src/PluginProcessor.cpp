@@ -84,7 +84,7 @@ void AudiobenchAudioProcessor::prepareToPlay(double sampleRate,
                                              int samplesPerBlock) {
     // Use this method as the place to do any pre-playback
     // initialisation that you need..
-    ABSetGlobalParameters(ab, samplesPerBlock, (int) sampleRate);
+    ABAudioSetGlobalParameters(ab, samplesPerBlock, (int) sampleRate);
 }
 
 void AudiobenchAudioProcessor::releaseResources() {
@@ -128,22 +128,22 @@ void AudiobenchAudioProcessor::processBlock(AudioBuffer<float>& buffer,
     for (auto meta : midiMessages) {
         auto message = meta.getMessage();
         if (message.isNoteOn()) {
-            ABStartNote(ab, message.getNoteNumber(),
+            ABAudioStartNote(ab, message.getNoteNumber(),
                         message.getFloatVelocity());
         } else if (message.isPitchWheel()) {
             float value = (message.getPitchWheelValue() - 0x2000 + 0.5f) /
                           (0x2000 - 0.5f);
-            ABPitchWheel(ab, value);
+            ABAudioPitchWheel(ab, value);
         } else if (message.isController()) {
             float value =
                 (message.getControllerValue() - 0x40 + 0.5f) / (0x40 - 0.5f);
-            ABControl(ab, message.getControllerNumber(), value);
+            ABAudioControl(ab, message.getControllerNumber(), value);
         }
     }
     for (auto meta : midiMessages) {
         auto message = meta.getMessage();
         if (message.isNoteOff()) {
-            ABReleaseNote(ab, message.getNoteNumber());
+            ABAudioReleaseNote(ab, message.getNoteNumber());
         }
     }
     // MIDI seems to do weird things, this may be helpful in the future.
@@ -181,7 +181,7 @@ void AudiobenchAudioProcessor::processBlock(AudioBuffer<float>& buffer,
     for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
         buffer.clear(i, 0, buffer.getNumSamples());
 
-    float* audioBuffer = ABRenderAudio(ab);
+    float* audioBuffer = ABAudioRenderAudio(ab);
 
     // This is the place where you'd normally do the guts of your plugin's
     // audio processing...
@@ -213,14 +213,16 @@ AudioProcessorEditor* AudiobenchAudioProcessor::createEditor() {
 void AudiobenchAudioProcessor::getStateInformation(MemoryBlock& destData) {
     char* dataPtr;
     uint32_t dataLen;
-    ABSerializePatch(ab, &dataPtr, &dataLen);
-    destData.append((void*)dataPtr, dataLen);
-    ABCleanupSerializedData(dataPtr, dataLen);
+    // TODO: This should not be called from audio thread. unimplemented!();
+    // ABUiSerializePatch(ab, &dataPtr, &dataLen);
+    // destData.append((void*)dataPtr, dataLen);
+    // ABUiCleanupSerializedData(dataPtr, dataLen);
 }
 
 void AudiobenchAudioProcessor::setStateInformation(const void* data,
                                                    int sizeInBytes) {
-    ABDeserializePatch(ab, (char*)data, sizeInBytes);
+    // TODO: This should not be called from audio thread. unimplemented!();
+    // ABUiDeserializePatch(ab, (char*)data, sizeInBytes);
 }
 
 //==============================================================================

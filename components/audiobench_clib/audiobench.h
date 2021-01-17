@@ -23,28 +23,29 @@ struct ABGraphicsFunctions {
 extern "C" {
     ABInstanceRef ABCreateInstance();
     void ABDestroyInstance(ABInstanceRef);
-    int ABGetNumIcons(ABInstanceRef);
-    void ABGetIconData(ABInstanceRef, int iconIndex, void **dataBufferPtr, int *sizePtr);
-    float *ABSetGlobalParameters(ABInstanceRef, int, int);
-    void ABSerializePatch(ABInstanceRef, char**, uint32_t*);
-    void ABCleanupSerializedData(char*, uint32_t);
-    void ABDeserializePatch(ABInstanceRef, char*, uint32_t);
-    void ABStartNote(ABInstanceRef, int, float);
-    void ABReleaseNote(ABInstanceRef, int);
-    void ABPitchWheel(ABInstanceRef, float);
-    void ABBpm(ABInstanceRef, float);
-    void ABSongTime(ABInstanceRef, float);
-    void ABSongBeats(ABInstanceRef, float);
-    void ABControl(ABInstanceRef, int, float);
-    float *ABRenderAudio(ABInstanceRef);
-    void ABSetGraphicsFunctions(ABInstanceRef, ABGraphicsFunctions);
+    int ABUiGetNumIcons(ABInstanceRef);
+    void ABUiGetIconData(ABInstanceRef, int iconIndex, void **dataBufferPtr, int *sizePtr);
+    float *ABAudioSetGlobalParameters(ABInstanceRef, int, int);
+    void ABUiSerializePatch(ABInstanceRef, char**, uint32_t*);
+    void ABUiCleanupSerializedData(char*, uint32_t);
+    void ABUiDeserializePatch(ABInstanceRef, char*, uint32_t);
 
-    void ABCreateUI(ABInstanceRef);
-    void ABDrawUI(ABInstanceRef, void *extraData, void *iconStore);
-    void ABDestroyUI(ABInstanceRef);
-    void ABUIMouseDown(ABInstanceRef, float, float, bool, bool, bool);
-    void ABUIMouseMove(ABInstanceRef, float, float, bool, bool, bool);
-    void ABUIMouseUp(ABInstanceRef);
-    void ABUIScroll(ABInstanceRef, float);
-    void ABUIKeyPress(ABInstanceRef, char);
+    void ABAudioStartNote(ABInstanceRef, int, float);
+    void ABAudioReleaseNote(ABInstanceRef, int);
+    void ABAudioPitchWheel(ABInstanceRef, float);
+    void ABAudioBpm(ABInstanceRef, float);
+    void ABAudioSongTime(ABInstanceRef, float);
+    void ABAudioSongBeats(ABInstanceRef, float);
+    void ABAudioControl(ABInstanceRef, int, float);
+    float *ABAudioRenderAudio(ABInstanceRef);
+
+    void ABUiSetGraphicsFunctions(ABInstanceRef, ABGraphicsFunctions);
+    void ABUiCreateUI(ABInstanceRef);
+    void ABUiDrawUI(ABInstanceRef, void *extraData, void *iconStore);
+    void ABUiDestroyUI(ABInstanceRef);
+    void ABUiMouseDown(ABInstanceRef, float, float, bool, bool, bool);
+    void ABUiMouseMove(ABInstanceRef, float, float, bool, bool, bool);
+    void ABUiMouseUp(ABInstanceRef);
+    void ABUiScroll(ABInstanceRef, float);
+    void ABUiKeyPress(ABInstanceRef, char);
 }

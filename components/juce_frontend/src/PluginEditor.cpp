@@ -249,14 +249,14 @@ AudiobenchAudioProcessorEditor::AudiobenchAudioProcessorEditor(AudiobenchAudioPr
     fns.writeConsoleText = writeConsoleText;
     fns.drawIcon = drawIcon;
     fns.drawDropShadow = drawDropShadow;
-    ABSetGraphicsFunctions(p.ab, fns);
+    ABUiSetGraphicsFunctions(p.ab, fns);
 
-    int numIcons = ABGetNumIcons(p.ab);
+    int numIcons = ABUiGetNumIcons(p.ab);
     for (int index = 0; index < numIcons; index++)
     {
         void *svgData;
         int dataSize;
-        ABGetIconData(p.ab, index, &svgData, &dataSize);
+        ABUiGetIconData(p.ab, index, &svgData, &dataSize);
         {
             iconStore.push_back(Drawable::createFromImageData(svgData, dataSize));
         }
@@ -277,7 +277,7 @@ AudiobenchAudioProcessorEditor::AudiobenchAudioProcessorEditor(AudiobenchAudioPr
     this->constrainer->setMinimumHeight(480 / 2);
     this->constrainer->setMaximumHeight(480 * 8);
     this->setConstrainer(this->constrainer);
-    ABCreateUI(processor.ab);
+    ABUiCreateUI(processor.ab);
     addKeyListener(this);
     setWantsKeyboardFocus(true);
     // Our timer method repaints the screen. The number here is then basically the (maximum) FPS
@@ -288,7 +288,7 @@ AudiobenchAudioProcessorEditor::AudiobenchAudioProcessorEditor(AudiobenchAudioPr
 
 AudiobenchAudioProcessorEditor::~AudiobenchAudioProcessorEditor()
 {
-    ABDestroyUI(processor.ab);
+    ABUiDestroyUI(processor.ab);
     delete this->constrainer;
 }
 
@@ -298,37 +298,37 @@ void AudiobenchAudioProcessorEditor::paint(Graphics &g)
     // Rust will pass the pointer to the Graphics object as the first argument to the drawing
     // functions whenever it uses them.
     g.addTransform(AffineTransform().scaled(this->windowScale));
-    ABDrawUI(processor.ab, (void *)&g, (void *)&iconStore);
+    ABUiDrawUI(processor.ab, (void *)&g, (void *)&iconStore);
 }
 
 void AudiobenchAudioProcessorEditor::mouseDown(const MouseEvent &event)
 {
-    ABUIMouseDown(processor.ab, event.x / this->windowScale, event.y / this->windowScale, event.mods.isPopupMenu(), event.mods.isShiftDown(), event.mods.isAltDown());
+    ABUiMouseDown(processor.ab, event.x / this->windowScale, event.y / this->windowScale, event.mods.isPopupMenu(), event.mods.isShiftDown(), event.mods.isAltDown());
 }
 
 void AudiobenchAudioProcessorEditor::mouseMove(const MouseEvent &event)
 {
-    ABUIMouseMove(processor.ab, event.x / this->windowScale, event.y / this->windowScale, event.mods.isPopupMenu(), event.mods.isShiftDown(), event.mods.isAltDown());
+    ABUiMouseMove(processor.ab, event.x / this->windowScale, event.y / this->windowScale, event.mods.isPopupMenu(), event.mods.isShiftDown(), event.mods.isAltDown());
 }
 
 void AudiobenchAudioProcessorEditor::mouseDrag(const MouseEvent &event)
 {
-    ABUIMouseMove(processor.ab, event.x / this->windowScale, event.y / this->windowScale, event.mods.isPopupMenu(), event.mods.isShiftDown(), event.mods.isAltDown());
+    ABUiMouseMove(processor.ab, event.x / this->windowScale, event.y / this->windowScale, event.mods.isPopupMenu(), event.mods.isShiftDown(), event.mods.isAltDown());
 }
 
 void AudiobenchAudioProcessorEditor::mouseUp(const MouseEvent &event)
 {
-    ABUIMouseUp(processor.ab);
+    ABUiMouseUp(processor.ab);
 }
 
 void AudiobenchAudioProcessorEditor::mouseWheelMove(const MouseEvent &event, const MouseWheelDetails &wheel)
 {
-    ABUIScroll(processor.ab, wheel.deltaY);
+    ABUiScroll(processor.ab, wheel.deltaY);
 }
 
 bool AudiobenchAudioProcessorEditor::keyPressed(const KeyPress &key, Component *originatingComponent)
 {
-    ABUIKeyPress(processor.ab, (char)key.getTextCharacter());
+    ABUiKeyPress(processor.ab, (char)key.getTextCharacter());
     return true;
 }
 

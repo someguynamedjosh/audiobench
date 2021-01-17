@@ -46,7 +46,6 @@ pub(super) struct CrossThreadData {
 }
 
 struct AudioThreadData {
-    registry: Rcrc<Registry>,
     audio_buffer: Vec<f32>,
     global_data: GlobalData,
     last_feedback_data_update: Instant,
@@ -118,7 +117,6 @@ pub fn new_engine(
     };
 
     let atd = AudioThreadData {
-        registry: Rc::clone(&registry_ptr),
         audio_buffer: vec![0.0; data_format.global_params.buffer_length * 2],
         global_data: GlobalData::new(),
         last_feedback_data_update: Instant::now(),

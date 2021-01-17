@@ -133,64 +133,6 @@ pub fn increment_name(old_name: &str) -> String {
     format!("{} 2", old_name)
 }
 
-pub trait TupleUtil: Sized + Copy {
-    fn add(self, other: Self) -> Self;
-    fn sub(self, other: Self) -> Self;
-    fn inside(self, bounds: Self) -> bool;
-}
-
-pub trait TupleScale<E>: Sized + Copy {
-    fn scale(self, factor: E) -> Self;
-}
-
-impl TupleUtil for (i32, i32) {
-    #[inline]
-    fn add(self, other: Self) -> Self {
-        (self.0 + other.0, self.1 + other.1)
-    }
-
-    #[inline]
-    fn sub(self, other: Self) -> Self {
-        (self.0 - other.0, self.1 - other.1)
-    }
-
-    #[inline]
-    fn inside(self, bounds: Self) -> bool {
-        self.0 >= 0 && self.1 >= 0 && self.0 <= bounds.0 && self.1 <= bounds.1
-    }
-}
-
-impl TupleScale<i32> for (i32, i32) {
-    #[inline]
-    fn scale(self, factor: i32) -> Self {
-        (self.0 * factor, self.1 * factor)
-    }
-}
-
-impl TupleUtil for (f32, f32) {
-    #[inline]
-    fn add(self, other: Self) -> Self {
-        (self.0 + other.0, self.1 + other.1)
-    }
-
-    #[inline]
-    fn sub(self, other: Self) -> Self {
-        (self.0 - other.0, self.1 - other.1)
-    }
-
-    #[inline]
-    fn inside(self, bounds: Self) -> bool {
-        self.0 >= 0.0 && self.1 >= 0.0 && self.0 <= bounds.0 && self.1 <= bounds.1
-    }
-}
-
-impl TupleScale<f32> for (f32, f32) {
-    #[inline]
-    fn scale(self, factor: f32) -> Self {
-        (self.0 * factor, self.1 * factor)
-    }
-}
-
 pub fn format_decimal(value: f32, digits: i32) -> String {
     let digits = match value {
         v if v <= 0.0 => digits,
@@ -207,11 +149,16 @@ pub fn rcrc<T>(content: T) -> Rcrc<T> {
     Rc::new(RefCell::new(content))
 }
 
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, RwLock};
 
 pub type Arcmux<T> = Arc<Mutex<T>>;
 pub fn arcmux<T>(content: T) -> Arcmux<T> {
     Arc::new(Mutex::new(content))
+}
+
+pub type Arclock<T> = Arc<RwLock<T>>;
+pub fn arclock<T>(content: T) -> Arclock<T> {
+    Arc::new(RwLock::new(content))
 }
 
 pub trait IterMapCollect<Item> {

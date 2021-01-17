@@ -1,157 +1,213 @@
 use audiobench::*;
 use shared_util::prelude::*;
 
+type CreateResult = Result<Instance, ErrorDrawer>;
+
 #[no_mangle]
-pub unsafe extern "C" fn ABCreateInstance() -> *mut Instance {
-    Box::into_raw(Box::new(Instance::new()))
+pub unsafe extern "C" fn ABCreateInstance() -> *mut CreateResult {
+    let value = Instance::new().map_err(ErrorDrawer::new);
+    Box::into_raw(Box::new(value))
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ABDestroyInstance(instance: *mut Instance) {
-    let data = Box::from_raw(instance);
+pub unsafe extern "C" fn ABDestroyInstance(cr: *mut CreateResult) {
+    let data = Box::from_raw(cr);
     drop(data);
 }
 
-#[no_mangle]
-pub unsafe extern "C" fn ABGetNumIcons(instance: *mut Instance) -> i32 {
-    (*instance).get_num_icons() as i32
+unsafe fn with_ok<T>(ptr: *mut CreateResult, op: impl FnOnce(&mut Instance) -> T) -> Option<T> {
+    (*ptr).as_mut().map(op).ok()
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ABGetIconData(
-    instance: *mut Instance,
+pub unsafe extern "C" fn ABUiGetNumIcons(cr: *mut CreateResult) -> i32 {
+    with_ok(cr, |instance| instance.registry.borrow().get_num_icons()).unwrap_or_default() as i32
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ABUiGetIconData(
+    cr: *mut CreateResult,
     icon_index: i32,
     data_buffer: *mut *const u8,
     data_length: *mut i32,
 ) {
-    let svg_data = (*instance).borrow_icon_data(icon_index as usize);
-    (*data_buffer) = svg_data.as_ptr();
-    (*data_length) = svg_data.len() as i32;
+    with_ok(cr, |instance| {
+        let registry = instance.registry.borrow();
+        let svg_data = registry.borrow_icon_data(icon_index as usize);
+        (*data_buffer) = svg_data.as_ptr();
+        (*data_length) = svg_data.len() as i32;
+    });
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ABSetGlobalParameters(
-    instance: *mut Instance,
+pub unsafe extern "C" fn ABAudioSetGlobalParameters(
+    cr: *mut CreateResult,
     buffer_length: i32,
     sample_rate: i32,
 ) {
-    (*instance).set_global_params(buffer_length as usize, sample_rate as usize)
+    with_ok(cr, |instance| {
+        instance
+            .audio_engine
+            .borrow_mut()
+            .set_global_params(buffer_length as usize, sample_rate as usize)
+    });
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ABSerializePatch(
-    instance: *mut Instance,
+pub unsafe extern "C" fn ABUiSerializePatch(
+    cr: *mut CreateResult,
     data_out: *mut *mut u8,
     size_out: *mut u32,
 ) {
-    let data = (*instance)
-        .serialize_patch()
-        .into_bytes()
-        .into_boxed_slice();
-    *size_out = data.len() as u32;
-    *data_out = Box::leak(data).as_mut_ptr();
+    with_ok(cr, |instance| {
+        let data = instance
+            .ui_engine
+            .borrow()
+            .serialize_current_patch()
+            .into_bytes()
+            .into_boxed_slice();
+        *size_out = data.len() as u32;
+        *data_out = Box::leak(data).as_mut_ptr();
+    });
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ABCleanupSerializedData(data: *mut u8, size: u32) {
+pub unsafe extern "C" fn ABUiCleanupSerializedData(data: *mut u8, size: u32) {
     let slice = std::slice::from_raw_parts_mut(data, size as usize);
     let boxed = Box::from_raw(slice);
     drop(boxed);
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ABDeserializePatch(
-    instance: *mut Instance,
+pub unsafe extern "C" fn ABUiDeserializePatch(
+    cr: *mut CreateResult,
     data_in: *mut u8,
     size_in: u32,
 ) {
-    let data = std::slice::from_raw_parts(data_in, size_in as usize);
-    let data = Vec::from(data);
-    (*instance).deserialize_patch(&data[..]);
+    with_ok(cr, |instance| {
+        let data = std::slice::from_raw_parts(data_in, size_in as usize);
+        let data = Vec::from(data);
+        instance.ui_deserialize_patch(&data[..]);
+    });
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ABStartNote(instance: *mut Instance, index: i32, velocity: f32) {
-    (*instance).start_note(index as usize, velocity)
+pub unsafe extern "C" fn ABAudioStartNote(cr: *mut CreateResult, index: i32, velocity: f32) {
+    with_ok(cr, |instance| {
+        instance
+            .audio_engine
+            .borrow_mut()
+            .start_note(index as usize, velocity)
+    });
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ABReleaseNote(instance: *mut Instance, index: i32) {
-    (*instance).release_note(index as usize)
+pub unsafe extern "C" fn ABAudioReleaseNote(cr: *mut CreateResult, index: i32) {
+    with_ok(cr, |instance| {
+        instance
+            .audio_engine
+            .borrow_mut()
+            .release_note(index as usize)
+    });
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ABPitchWheel(instance: *mut Instance, value: f32) {
-    (*instance).set_pitch_wheel(value)
+pub unsafe extern "C" fn ABAudioPitchWheel(cr: *mut CreateResult, value: f32) {
+    with_ok(cr, |instance| {
+        instance.audio_engine.borrow_mut().set_pitch_wheel(value)
+    });
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ABControl(instance: *mut Instance, index: i32, value: f32) {
-    (*instance).set_control(index as usize, value)
+pub unsafe extern "C" fn ABAudioControl(cr: *mut CreateResult, index: i32, value: f32) {
+    with_ok(cr, |instance| {
+        instance
+            .audio_engine
+            .borrow_mut()
+            .set_control(index as usize, value)
+    });
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ABBpm(instance: *mut Instance, bpm: f32) {
-    (*instance).set_bpm(bpm)
+pub unsafe extern "C" fn ABAudioBpm(cr: *mut CreateResult, bpm: f32) {
+    with_ok(cr, |instance| {
+        instance.audio_engine.borrow_mut().set_bpm(bpm)
+    });
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ABSongTime(instance: *mut Instance, time: f32) {
-    (*instance).set_elapsed_time(time)
+pub unsafe extern "C" fn ABAudioElapsedTime(cr: *mut CreateResult, time: f32) {
+    with_ok(cr, |instance| {
+        instance.audio_engine.borrow_mut().set_elapsed_time(time)
+    });
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ABSongBeats(instance: *mut Instance, beats: f32) {
-    (*instance).set_elapsed_beats(beats)
+pub unsafe extern "C" fn ABAudioElapsedBeats(cr: *mut CreateResult, beats: f32) {
+    with_ok(cr, |instance| {
+        instance.audio_engine.borrow_mut().set_elapsed_beats(beats)
+    });
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ABRenderAudio(instance: *mut Instance) -> *const f32 {
-    (*instance).render_audio().as_ptr()
+pub unsafe extern "C" fn ABAudioRenderAudio(cr: *mut CreateResult) -> *const f32 {
+    with_ok(cr, |instance| instance.audio_render_audio().as_ptr()).unwrap_or(std::ptr::null())
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ABSetGraphicsFunctions(
-    instance: *mut Instance,
+pub unsafe extern "C" fn ABUiSetGraphicsFunctions(
+    cr: *mut CreateResult,
     graphics_fns: GraphicsFunctions,
 ) {
-    (*instance).graphics_fns = Rc::new(graphics_fns);
+    with_ok(cr, |instance| instance.graphics_fns = Rc::new(graphics_fns));
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ABCreateUI(instance: *mut Instance) {
-    (*instance).create_ui();
+pub unsafe extern "C" fn ABUiCreateUI(cr: *mut CreateResult) {
+    with_ok(cr, |instance| instance.ui_create_ui());
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ABDrawUI(
-    instance: *mut Instance,
+pub unsafe extern "C" fn ABUiDrawUI(
+    cr: *mut CreateResult,
     graphics_data: *mut i8,
     icon_store: *mut i8,
 ) {
-    (*instance).draw_ui(graphics_data, icon_store);
+    match &mut *cr {
+        Ok(instance) => instance.ui_draw_ui(graphics_data, icon_store),
+        Err(error_drawer) => error_drawer.draw(graphics_data, icon_store),
+    }
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ABDestroyUI(instance: *mut Instance) {
-    (*instance).destroy_ui();
+pub unsafe extern "C" fn ABUiDestroyUI(cr: *mut CreateResult) {
+    with_ok(cr, |instance| {
+        instance.ui_destroy_ui();
+    });
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ABUIMouseDown(
-    instance: *mut Instance,
-    x: f32,
-    y: f32,
+pub unsafe extern "C" fn ABUiMouseDown(
+    cr: *mut CreateResult,
     right_click: bool,
     shift: bool,
     precise: bool,
 ) {
-    (*instance).mouse_down(x, y, right_click, shift, precise);
+    let mods = scui::MouseMods {
+        right_click,
+        snap: shift,
+        precise,
+    };
+    with_ok(cr, |instance| {
+        instance.ui_with_gui_mut(|gui| {
+            gui.on_mouse_down(&mods);
+        })
+    });
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ABUIMouseMove(
-    instance: *mut Instance,
+pub unsafe extern "C" fn ABUiMouseMove(
+    cr: *mut CreateResult,
     x: f32,
     y: f32,
     right_click: bool,
@@ -159,21 +215,41 @@ pub unsafe extern "C" fn ABUIMouseMove(
     precise: bool,
 ) {
     // TOTO: I don't think we're in canvas anymore
-    // TODO: Make ABI functions accept floats
-    (*instance).mouse_move(x, y, right_click, shift, precise);
+    let mods = scui::MouseMods {
+        right_click,
+        snap: shift,
+        precise,
+    };
+    with_ok(cr, |instance| {
+        instance.ui_with_gui_mut(|gui| {
+            gui.on_mouse_move((x, y).into(), &mods);
+        })
+    });
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ABUIMouseUp(instance: *mut Instance) {
-    (*instance).mouse_up();
+pub unsafe extern "C" fn ABUiMouseUp(cr: *mut CreateResult) {
+    with_ok(cr, |instance| {
+        instance.ui_with_gui_mut(|gui| {
+            gui.on_mouse_up();
+        })
+    });
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ABUIScroll(instance: *mut Instance, delta: f32) {
-    (*instance).scroll(delta);
+pub unsafe extern "C" fn ABUiScroll(cr: *mut CreateResult, delta: f32) {
+    with_ok(cr, |instance| {
+        instance.ui_with_gui_mut(|gui| {
+            gui.on_scroll(delta);
+        })
+    });
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ABUIKeyPress(instance: *mut Instance, key: u8) {
-    (*instance).key_press(key as char);
+pub unsafe extern "C" fn ABUiKeyPress(cr: *mut CreateResult, key: u8) {
+    with_ok(cr, |instance| {
+        instance.ui_with_gui_mut(|gui| {
+            gui.on_key_press(key as char);
+        })
+    });
 }
