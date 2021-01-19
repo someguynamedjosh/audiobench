@@ -194,7 +194,7 @@ impl<'a> CodeGenerator<'a> {
                         exec_body.push_str("    if do_feedback\n");
                     }
                     exec_body.push_str(&format!(
-                        "      push!(feedback.m{}w{}, m{}c{}[%, 1])\n",
+                        "      push!(feedback.m{}w{}, m{}c{}[%, 1, 1])\n",
                         index, widget_index, index, control_index
                     ));
                 }

@@ -84,6 +84,7 @@ impl MouseBehavior<DropTarget> for InputBehavior {
         if control.get_used_default().is_some() {
             control.next_default();
         }
+        self.1.on_click()
     }
 
     fn on_drop(self: Box<Self>, drop_target: Option<DropTarget>) {

@@ -97,6 +97,7 @@ impl MouseBehavior<DropTarget> for ManipulateControl {
     fn on_double_click(self: Box<Self>) {
         let mut cref = self.control.borrow_mut();
         cref.value = cref.default;
+        drop(cref);
         self.engine.borrow_mut().reload_dyn_data();
     }
 }
@@ -140,6 +141,7 @@ impl MouseBehavior<DropTarget> for ManipulateLane {
             format_decimal(lane.range.1, 4),
             control_ref.suffix,
         );
+        drop(control_ref);
         let tooltip = Tooltip {
             text: tttext,
             interaction: InteractionHint::LeftClickAndDrag
@@ -160,6 +162,7 @@ impl MouseBehavior<DropTarget> for ManipulateLane {
         if self.end {
             lane.range.1 = range.1
         };
+        drop(cref);
         self.engine.borrow_mut().reload_dyn_data();
     }
 }

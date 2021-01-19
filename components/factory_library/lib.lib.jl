@@ -18,15 +18,15 @@ const num_midi_controls = 128
 
 const MonoSample = SArray{Tuple{1},Float32,1,1}
 const StereoSample = SArray{Tuple{channels},Float32,1,channels}
-const StaticControlSignal = SArray{Tuple{1},Float32,1,1}
-const ControlSignal = SArray{Tuple{buffer_length},Float32,1,buffer_length}
 const StaticMonoAudio = SArray{Tuple{1,1},Float32,2,1}
 const StaticStereoAudio = SArray{Tuple{channels,1},Float32,2,channels}
 const MonoAudio = SArray{Tuple{1,buffer_length},Float32,2,buffer_length}
 const StereoAudio = SArray{Tuple{channels,buffer_length},Float32,2,channels * buffer_length}
+const StaticControlSignal = StaticMonoAudio
+const ControlSignal = MonoAudio
 
-const StaticTrigger = SArray{Tuple{1},Bool,1,1}
-const Trigger = SArray{Tuple{buffer_length},Bool,1,buffer_length}
+const StaticTrigger = SArray{Tuple{1,1},Bool,2,1}
+const Trigger = SArray{Tuple{1,buffer_length},Bool,2,buffer_length}
 const Waveform = Function
 
 const flat_waveform = (phase, _buffer_pos::Integer) -> mono_sample(0f0) 
@@ -46,31 +46,41 @@ function maybe_mutable_type(type::DataType)
     Union{Type{type}, Type{mutable(type)}}
 end
 
+# Sometimes Julia's typeof() gives an answer which is too specific.
 function typeof2(data::AbstractArray{Float32,1})
     dims = size(data)
     if dims[1] === 1
-        MonoSample # Also equivalent to StaticControlSignal
+        MonoSample
     elseif dims[1] === channels
         StereoSample
-    elseif dims[1] === buffer_length
-        ControlSignal
     else
-        @assert false "Invalid sample or control signal type"
+        @assert false "Invalid sample type"
     end
 end
 
 function typeof2(data::AbstractArray{Float32,2})
     dims = size(data)
-    if dims === [1, 1]
-        StaticMonoAudio
-    elseif dims === [channels, 1]
+    if dims === (1, 1)
+        StaticMonoAudio # Equivalent to StaticControlSignal
+    elseif dims === (channels, 1)
         StaticStereoAudio
-    elseif dims === [1, buffer_length]
-        MonoAudio
-    elseif dims === [channels, buffer_length]
+    elseif dims === (1, buffer_length)
+        MonoAudio # Equivalent to ControlSignal
+    elseif dims === (channels, buffer_length)
         StereoAudio
     else
-        @assert false "Invalid audio type"
+        @assert false "Invalid audio or control signal type"
+    end
+end
+
+function typeof2(data::AbstractArray{Bool,2})
+    dims = size(data)
+    if dims === (1, 1)
+        StaticTrigger
+    elseif dims === (1, buffer_length)
+        Trigger
+    else
+        @assert false "Invalid trigger type"
     end
 end
 
@@ -123,7 +133,7 @@ function get_timing(context::NoteContext, mode::Integer)::mutable(ControlSignal)
         1f0 / sample_rate
     end
     for i in 1:buffer_length
-        result[i] = value
+        result[1, i] = value
         value += per_sample
     end
     result
@@ -217,19 +227,12 @@ Base.getindex(from::maybe_mutable(StaticMonoAudio), _::typeof(%), channelidx::In
 Base.getindex(from::maybe_mutable(StereoSample), _::typeof(%), channelidx::Integer)::Float32 = from[channelidx]
 Base.getindex(from::maybe_mutable(MonoSample), _::typeof(%), channelidx::Integer)::Float32 = from[1]
 
-Base.getindex(from::maybe_mutable(ControlSignal), _::typeof(%), sampleidx::Integer)::Float32 = from[sampleidx]
-# Ambiguous with MonoSample, but same functionality.
-# Base.getindex(from::maybe_mutable(StaticControlSignal), _::typeof(%), sampleidx::Integer)::Float32 = from[1]
-
-Base.getindex(from::maybe_mutable(Trigger), _::typeof(%), sampleidx::Integer)::Bool = from[sampleidx]
-Base.getindex(from::maybe_mutable(StaticTrigger), _::typeof(%), sampleidx::Integer)::Bool = from[1]
+Base.getindex(from::maybe_mutable(Trigger), _::typeof(%), channelidx::Integer, sampleidx::Integer)::Bool = from[1, sampleidx]
+Base.getindex(from::maybe_mutable(StaticTrigger), _::typeof(%), channelidx::Integer, sampleidx::Integer)::Bool = from[1]
 
 # Allows accessing static data as a smaller data type. Cannot view small data as a bigger type.
 viewas(data::Union{maybe_mutable(MonoSample), maybe_mutable(StereoSample)}, type::maybe_mutable_type(MonoSample)) = @view data[1:1]
 viewas(data::maybe_mutable(StereoSample), type::maybe_mutable_type(StereoSample)) = @view data[:]
-
-viewas(data::Union{maybe_mutable(StaticControlSignal), maybe_mutable(ControlSignal)}, type::maybe_mutable_type(StaticControlSignal)) = @view data[1:1]
-viewas(data::maybe_mutable(ControlSignal), type::maybe_mutable_type(ControlSignal)) = @view data[:]
 
 viewas(data::Union{maybe_mutable(StaticTrigger), maybe_mutable(Trigger)}, type::maybe_mutable_type(StaticTrigger)) = @view data[1:1]
 viewas(data::maybe_mutable(Trigger), type::maybe_mutable_type(Trigger)) = @view data[:]
@@ -259,20 +262,13 @@ channel_indices(_buf::SizedArray{Tuple{C}, Float32, 1, N}) where {C, N} = Base.O
 channel_indices(_buf::Type{SArray{Tuple{C}, Float32, 1, N}}) where {C, N} = Base.OneTo(C)
 channel_indices(_buf::Type{MArray{Tuple{C}, Float32, 1, N}}) where {C, N} = Base.OneTo(C)
 channel_indices(_buf::Type{SizedArray{Tuple{C}, Float32, 1, N}}) where {C, N} = Base.OneTo(C)
-# ...control signals.
-sample_indices(_buf::SArray{Tuple{S}, Float32, 1, N}) where {S, N} = Base.OneTo(S)
-sample_indices(_buf::MArray{Tuple{S}, Float32, 1, N}) where {S, N} = Base.OneTo(S)
-sample_indices(_buf::SizedArray{Tuple{S}, Float32, 1, N}) where {S, N} = Base.OneTo(S)
-sample_indices(_buf::Type{SArray{Tuple{S}, Float32, 1, N}}) where {S, N} = Base.OneTo(S)
-sample_indices(_buf::Type{MArray{Tuple{S}, Float32, 1, N}}) where {S, N} = Base.OneTo(S)
-sample_indices(_buf::Type{SizedArray{Tuple{S}, Float32, 1, N}}) where {S, N} = Base.OneTo(S)
 # ...triggers.
-sample_indices(_buf::SArray{Tuple{S}, Bool, 1, N}) where {S, N} = Base.OneTo(S)
-sample_indices(_buf::MArray{Tuple{S}, Bool, 1, N}) where {S, N} = Base.OneTo(S)
-sample_indices(_buf::SizedArray{Tuple{S}, Float32, 1, N}) where {S, N} = Base.OneTo(S)
-sample_indices(_buf::Type{SArray{Tuple{S}, Bool, 1, N}}) where {S, N} = Base.OneTo(S)
-sample_indices(_buf::Type{MArray{Tuple{S}, Bool, 1, N}}) where {S, N} = Base.OneTo(S)
-sample_indices(_buf::Type{SizedArray{Tuple{S}, Float32, 1, N}}) where {S, N} = Base.OneTo(S)
+sample_indices(_buf::SArray{Tuple{1, S}, Bool, 2, N}) where {S, N} = Base.OneTo(S)
+sample_indices(_buf::MArray{Tuple{1, S}, Bool, 2, N}) where {S, N} = Base.OneTo(S)
+sample_indices(_buf::SizedArray{Tuple{1, S}, Bool, 2, N}) where {S, N} = Base.OneTo(S)
+sample_indices(_buf::Type{SArray{Tuple{1, S}, Bool, 2, N}}) where {S, N} = Base.OneTo(S)
+sample_indices(_buf::Type{MArray{Tuple{1, S}, Bool, 2, N}}) where {S, N} = Base.OneTo(S)
+sample_indices(_buf::Type{SizedArray{Tuple{1, S}, Bool, 2, N}}) where {S, N} = Base.OneTo(S)
 
 # export all
 # https://discourse.julialang.org/t/exportall/4970/16
