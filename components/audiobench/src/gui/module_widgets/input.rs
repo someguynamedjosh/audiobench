@@ -1,8 +1,6 @@
 use super::ModuleWidgetImpl;
-use crate::engine::controls::{Control, InputControl, UpdateRequest};
+use crate::engine::controls::{Control, InputControl, };
 use crate::gui::constants::*;
-use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
-use crate::gui::mouse_behaviors::{ContinuouslyMutateControl, MutateControl};
 use crate::gui::top_level::graph::{ConnectToControl, Module, ModuleGraph};
 use crate::gui::{InteractionHint, Tooltip};
 use crate::scui_config::{DropTarget, MaybeMouseBehavior, Renderer};
@@ -128,8 +126,6 @@ impl WidgetImpl<Renderer, DropTarget> for Input {
         let hovered = self.parents.module.is_hovered();
         let state = self.state.borrow();
         let control = state.control.borrow();
-        const W: f32 = WIDTH;
-        const H: f32 = HEIGHT;
         const CS: f32 = CORNER_SIZE;
         const JS: f32 = JACK_SIZE;
         const JIP: f32 = JACK_ICON_PADDING;

@@ -1,15 +1,13 @@
 use crate::engine::controls::AnyControl;
-use crate::engine::parts as ep;
 use crate::gui::constants::*;
-use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
-use crate::gui::mouse_behaviors;
+use crate::gui::graphics::GrahpicsWrapper;
 use crate::gui::top_level::graph::ModuleGraph;
 use crate::gui::{GuiTab, InteractionHint, Tooltip};
 use crate::registry::module_template::ModuleTemplate;
 use crate::registry::Registry;
 use crate::scui_config::{DropTarget, MaybeMouseBehavior, Renderer};
 use owning_ref::OwningRef;
-use scui::{MouseMods, OnClickBehavior, Vec2D, Widget, WidgetImpl};
+use scui::{MouseMods, OnClickBehavior, Vec2D, WidgetImpl};
 use shared_util::prelude::*;
 use std::cell::Ref;
 use std::collections::HashSet;
@@ -228,7 +226,7 @@ impl WidgetImpl<Renderer, DropTarget> for ModuleBrowser {
     fn get_mouse_behavior_impl(
         self: &Rc<Self>,
         pos: Vec2D,
-        mods: &MouseMods,
+        _mods: &MouseMods,
     ) -> MaybeMouseBehavior {
         if let Some(entry) = self.get_entry_at(pos) {
             let add_to_graph = Rc::clone(&self.state.borrow().add_to_graph);

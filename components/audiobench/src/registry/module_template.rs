@@ -2,8 +2,7 @@ use super::yaml::YamlNode;
 use crate::engine::controls::{self, AnyControl};
 use crate::engine::parts as ep;
 use crate::gui::module_widgets::WidgetOutline;
-use shared_util::prelude::*;
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap};
 
 pub(super) fn create_module_template_from_yaml(
     icon_indexes: &HashMap<String, usize>,

@@ -1,9 +1,7 @@
 use super::ModuleWidgetImpl;
 use crate::gui::constants::*;
-use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
-use crate::gui::{InteractionHint, Tooltip};
 use crate::scui_config::{DropTarget, Renderer};
-use scui::{MouseMods, Vec2D, WidgetImpl};
+use scui::{Vec2D, WidgetImpl};
 use shared_util::prelude::*;
 use std::f32::consts::PI;
 

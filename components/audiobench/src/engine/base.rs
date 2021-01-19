@@ -1,23 +1,23 @@
 use super::data_transfer::{
-    DataFormat, DynDataCollector, FeedbackData, FeedbackDisplayer, GlobalData, GlobalParameters,
+    DynDataCollector, FeedbackData, FeedbackDisplayer, GlobalData, GlobalParameters,
 };
 use super::julia_thread;
 use super::parts::ModuleGraph;
-use super::program_wrapper::{AudiobenchExecutor, AudiobenchExecutorBuilder, NoteTracker};
+use super::program_wrapper::AudiobenchExecutorBuilder;
 use super::{
     codegen::{self, CodeGenResult},
     data_transfer::IOData,
 };
 use crate::registry::{save_data::Patch, Registry};
-use crossbeam_utils::{atomic::AtomicCell, sync::Parker};
+use crossbeam_utils::atomic::AtomicCell;
 use julia_helper::GeneratedCode;
 use mpsc::TrySendError;
-use shared_util::{perf_counter::sections, prelude::*};
+use shared_util::prelude::*;
+use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::mpsc::{self, Receiver, SyncSender};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
-use std::{path::PathBuf, sync::RwLock};
 
 const DEFAULT_CHANNELS: usize = 2;
 const DEFAULT_BUFFER_LENGTH: usize = 512;
@@ -68,7 +68,7 @@ pub fn new_engine(
     registry_ptr: Rcrc<Registry>,
 ) -> Result<(Rcrc<UiThreadEngine>, Rcrc<AudioThreadEngine>), String> {
     let registry = registry_ptr.borrow_mut();
-    let mut module_graph = ModuleGraph::new();
+    let module_graph = ModuleGraph::new();
     let global_params = GlobalParameters {
         channels: DEFAULT_CHANNELS,
         buffer_length: DEFAULT_BUFFER_LENGTH,
@@ -155,7 +155,8 @@ pub fn new_engine(
     };
     std::thread::Builder::new()
         .name("julia_executor".to_owned())
-        .spawn(julia_executor);
+        .spawn(julia_executor)
+        .unwrap();
 
     Ok((
         rcrc(UiThreadEngine {
@@ -269,7 +270,10 @@ impl UiThreadEngine {
         self.comms
             .new_note_graph_code
             .store(Some((new_gen.code, dyn_data)));
-        self.comms.julia_pipe.send(julia_thread::Request::PollComms);
+        self.comms
+            .julia_pipe
+            .send(julia_thread::Request::PollComms)
+            .unwrap();
         self.data.dyn_data_collector = new_gen.dyn_data_collector;
         self.data.feedback_displayer = new_gen.feedback_displayer;
     }
@@ -277,7 +281,10 @@ impl UiThreadEngine {
     pub fn reload_dyn_data(&mut self) {
         let data = self.data.dyn_data_collector.collect();
         self.comms.new_dyn_data.store(Some(data));
-        self.comms.julia_pipe.send(julia_thread::Request::PollComms);
+        self.comms
+            .julia_pipe
+            .send(julia_thread::Request::PollComms)
+            .unwrap();
     }
 
     /// Feedback data is generated on the audio thread. This method uses a mutex to retrieve that
@@ -305,7 +312,10 @@ impl AudioThreadEngine {
             params.sample_rate = sample_rate;
             self.comms.new_global_params.store(Some(()));
             self.comms.global_params.store(params);
-            self.comms.julia_pipe.send(julia_thread::Request::PollComms);
+            self.comms
+                .julia_pipe
+                .send(julia_thread::Request::PollComms)
+                .unwrap();
         }
     }
 

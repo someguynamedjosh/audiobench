@@ -1,11 +1,10 @@
-use inflector::Inflector;
 use proc_macro::TokenStream;
 use proc_macro2::Span;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::{format_ident, quote};
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
-use syn::{parenthesized, Expr, Ident, Token};
+use syn::{parenthesized, Ident, Token};
 
 #[derive(PartialEq)]
 enum ConstructorItemType {

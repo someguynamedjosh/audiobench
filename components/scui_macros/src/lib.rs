@@ -1,15 +1,10 @@
-use inflector::Inflector;
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::{format_ident, quote, ToTokens};
-use std::collections::{HashMap, HashSet};
-use syn::parse::{Parse, ParseStream, Parser};
+use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
-use syn::token::{Comma, Paren};
 use syn::{
-    braced, parenthesized, parse_quote, Attribute, Error, Expr, Fields, GenericArgument,
-    GenericParam, Generics, Ident, ItemStruct, Lit, LitStr, Path, PathArguments, Token, Type,
-    Visibility,
+    braced, parse_quote, Error, GenericArgument, Ident, PathArguments, Token, Type, Visibility,
 };
 
 struct PartField(Ident, Type);

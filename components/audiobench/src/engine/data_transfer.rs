@@ -1,7 +1,6 @@
 use super::{controls::Control, parts::Module};
 use crate::gui::top_level::graph::ModuleGraph;
-use jlrs_derive::IntoJulia;
-use julia_helper::{DataType, Frame, JlrsResult, JuliaStruct, Value};
+use julia_helper::{Frame, JlrsResult, Value};
 use shared_util::prelude::*;
 use std::fmt::{Display, Formatter};
 

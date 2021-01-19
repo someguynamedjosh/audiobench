@@ -11,10 +11,6 @@ use shared_util::{
     prelude::*,
 };
 use std::fmt::Debug;
-use std::{
-    cell::{Ref, RefMut},
-    fmt::{Display, Formatter},
-};
 
 use paste::paste;
 
@@ -81,16 +77,6 @@ pub trait Control: Debug {
     fn serialize(&self, ser: &mut MiniSer);
 
     fn deserialize(&mut self, des: &mut MiniDes) -> Result<(), ()>;
-}
-
-macro_rules! require_static_only_boilerplate {
-    ($yaml:ident) => {
-        if let Ok(child) = $yaml.unique_child("require_static_only") {
-            child.parse_enumerated(&["false", "true"])? == 1
-        } else {
-            false
-        }
-    };
 }
 
 macro_rules! any_control_enum {

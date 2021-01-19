@@ -1,5 +1,5 @@
 pub use jlrs::prelude::*;
-use jlrs::traits::IntoJulia;
+
 use scones::make_constructor;
 use shared_util::{Clip, Position};
 

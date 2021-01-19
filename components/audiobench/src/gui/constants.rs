@@ -1,5 +1,4 @@
 use scui::Vec2D;
-use std::time::Duration;
 
 /// Pixels of padding between grid squares.
 const GRID_P_INT: i32 = 6;

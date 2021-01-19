@@ -1,13 +1,10 @@
 use super::data_transfer::{GlobalData, GlobalParameters, IOData};
 use super::program_wrapper::{AudiobenchExecutor, AudiobenchExecutorBuilder, NoteTracker};
 use super::Communication;
-use julia_helper::{GeneratedCode, Global};
-use std::{
-    sync::{
-        mpsc::{Receiver, SyncSender},
-        Arc, Mutex,
-    },
-    time::Instant,
+use julia_helper::GeneratedCode;
+use std::sync::{
+    mpsc::{Receiver, SyncSender},
+    Arc,
 };
 
 #[derive(Clone, Copy, Eq, PartialEq)]

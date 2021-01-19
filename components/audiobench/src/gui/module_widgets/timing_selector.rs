@@ -1,5 +1,5 @@
 use super::ModuleWidgetImpl;
-use crate::engine::controls::{TimingModeControl, UpdateRequest};
+use crate::engine::controls::{TimingModeControl, };
 use crate::gui::constants::*;
 use crate::gui::mouse_behaviors::MutateControl;
 use crate::gui::{InteractionHint, Tooltip};

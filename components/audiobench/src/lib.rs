@@ -8,14 +8,8 @@ use engine::{AudioThreadEngine, UiThreadEngine};
 use gui::graphics::GrahpicsWrapper;
 pub use gui::graphics::GraphicsFunctions;
 use gui::Gui;
-use owning_ref::{OwningRef, OwningRefMut};
 use registry::Registry;
-use scui::MouseMods;
 use shared_util::prelude::*;
-use std::{
-    cell::{Ref, RefMut},
-    sync::RwLockReadGuard,
-};
 
 pub struct ErrorDrawer {
     error: String,

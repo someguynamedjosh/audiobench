@@ -1,10 +1,8 @@
-use super::{AutomationSource, Control, UpdateRequest};
+use super::{Control, UpdateRequest};
 use crate::engine::codegen::AutomationCode;
 use crate::engine::data_transfer::{IOData, IOType};
-use crate::engine::parts::JackType;
 use crate::registry::yaml::YamlNode;
 use shared_util::mini_serde::{MiniDes, MiniSer};
-use std::collections::HashMap;
 
 #[derive(Clone, Debug)]
 pub struct ValueSequenceControl {

@@ -1,5 +1,5 @@
 use super::ModuleWidgetImpl;
-use crate::engine::controls::{OptionChoiceControl, UpdateRequest};
+use crate::engine::controls::{OptionChoiceControl, };
 use crate::gui::constants::*;
 use crate::gui::mouse_behaviors::MutateControl;
 use crate::gui::{InteractionHint, Tooltip};

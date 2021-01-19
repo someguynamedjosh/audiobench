@@ -6,9 +6,7 @@ use crate::engine::{
 use crate::gui::constants::*;
 use crate::gui::graphics::GrahpicsWrapper;
 use crate::gui::top_level::ModuleBrowser;
-use crate::gui::{Gui, InteractionHint, Tooltip};
 use crate::registry::module_template::ModuleTemplate;
-use crate::registry::Registry;
 use crate::scui_config::{DropTarget, MaybeMouseBehavior, Renderer};
 use scones::make_constructor;
 use scui::{

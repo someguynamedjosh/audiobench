@@ -1,14 +1,13 @@
 use crate::engine::data_transfer::{
-    DataFormat, FeedbackData, GlobalData, GlobalParameters, IOData, NoteData,
+    FeedbackData, GlobalData, GlobalParameters, IOData, NoteData,
 };
 use crate::gui::module_widgets::FeedbackMode;
 use crate::registry::Registry;
 use array_macro::array;
 use jlrs_derive::IntoJulia;
 use julia_helper::{
-    DataType, ExecutionEngine, Frame, GeneratedCode, JuliaStruct, TypedArray, Value,
+    DataType, ExecutionEngine, GeneratedCode, JuliaStruct, TypedArray, Value,
 };
-use shared_util::{perf_counter::sections, prelude::*};
 use std::collections::HashSet;
 
 /// The MIDI protocol can provide notes at 128 different pitches.
@@ -216,7 +215,8 @@ impl AudiobenchExecutorBuilder {
                     );
                 }
                 if let Some(exec_source) = file_content.clip_section("function exec()", "end") {
-                    let mut func_header = String::from("function exec(context, do_feedback::Bool, ");
+                    let mut func_header =
+                        String::from("function exec(context, do_feedback::Bool, ");
                     for (name, _) in &template.default_controls {
                         func_header.push_str(name);
                         func_header.push_str(", ");
@@ -289,14 +289,13 @@ pub(super) struct AudiobenchExecutor {
 }
 
 impl AudiobenchExecutor {
-    pub fn parameters_have_changed(&self, new_parameters: &GlobalParameters) -> bool {
-        &self.parameters != new_parameters
-    }
-
     pub fn change_parameters(&mut self, parameters: &GlobalParameters) -> Result<(), String> {
+        if &self.parameters == parameters {
+            return Ok(())
+        }
         self.loaded = false;
         self.parameters = parameters.clone();
-        let mut parameter_code = format!(
+        let parameter_code = format!(
             concat!(
                 "module Parameters\n",
                 "    const channels = {}\n",

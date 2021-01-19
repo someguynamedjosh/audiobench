@@ -1,8 +1,6 @@
 use super::ModuleWidgetImpl;
 use crate::engine::controls::{IntControl, UpdateRequest};
 use crate::gui::constants::*;
-use crate::gui::graphics::{HAlign, VAlign};
-use crate::gui::mouse_behaviors::ManipulateIntBox;
 use crate::gui::{InteractionHint, Tooltip};
 use crate::scui_config::{DropTarget, MaybeMouseBehavior, Renderer};
 use scui::{MouseMods, Vec2D, WidgetImpl};
@@ -86,7 +84,6 @@ macro_rules! make_int_box_widget {
                 pos: Vec2D,
                 _mods: &MouseMods,
             ) -> MaybeMouseBehavior {
-                let state = self.state.borrow();
                 let range = self.get_range();
                 let click_delta = if pos.y > HEIGHT / 2.0 {
                     -1

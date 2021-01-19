@@ -4,7 +4,6 @@ use crate::engine::data_transfer::{IOData, IOType};
 use crate::engine::parts::JackType;
 use crate::registry::yaml::YamlNode;
 use shared_util::mini_serde::{MiniDes, MiniSer};
-use std::collections::HashMap;
 
 pub struct DefaultInputDescription {
     pub name: &'static str,
@@ -65,25 +64,6 @@ fn default_option_descriptions_for(typ: JackType) -> &'static [DefaultInputDescr
             },
         ],
     }
-}
-
-#[derive(Clone, Debug)]
-pub struct DefaultInput {
-    pub name: &'static str,
-    pub code: &'static str,
-    pub icon: usize,
-}
-
-fn default_options_for(typ: JackType, icon_indexes: &HashMap<String, usize>) -> Vec<DefaultInput> {
-    default_option_descriptions_for(typ)
-        .iter()
-        .map(|desc| DefaultInput {
-            name: desc.name,
-            code: desc.code,
-            // The factory library should have all the listed icons.
-            icon: *icon_indexes.get(desc.icon).unwrap(),
-        })
-        .collect()
 }
 
 #[derive(Clone, Debug)]

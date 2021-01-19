@@ -1,10 +1,7 @@
 use super::ModuleWidgetImpl;
 use crate::gui::constants::*;
-use crate::gui::graphics::GrahpicsWrapper;
-use crate::gui::{InteractionHint, Tooltip};
-use crate::registry::Registry;
 use crate::scui_config::{DropTarget, Renderer};
-use scui::{MouseMods, OnClickBehavior, Vec2D, WidgetImpl};
+use scui::{Vec2D, WidgetImpl};
 use shared_util::prelude::*;
 
 yaml_widget_boilerplate::make_widget_outline! {

@@ -1,4 +1,4 @@
-use super::controls::{AnyControl, AutomationSource, Control};
+use super::controls::{AutomationSource, };
 use super::data_transfer::{DataFormat, GlobalParameters};
 use super::data_transfer::{DynDataCollector, FeedbackDisplayer};
 use crate::engine::parts::*;
@@ -49,22 +49,6 @@ pub(super) fn generate_code(
         feedback_data_len: 0,
     };
     Ok(generator.generate_code(global_params))
-}
-
-fn snake_case_to_pascal_case(snake_case: &str) -> String {
-    let mut result = "".to_owned();
-    let mut capitalize = true;
-    for c in snake_case.chars() {
-        if c == '_' {
-            capitalize = true;
-        } else if capitalize {
-            capitalize = false;
-            result.push(c.to_ascii_uppercase());
-        } else {
-            result.push(c);
-        }
-    }
-    result
 }
 
 impl<'a> CodeGenerator<'a> {

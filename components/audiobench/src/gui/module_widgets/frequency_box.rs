@@ -1,7 +1,6 @@
 use super::ModuleWidgetImpl;
-use crate::engine::controls::{FrequencyControl, UpdateRequest};
+use crate::engine::controls::{FrequencyControl, };
 use crate::gui::constants::*;
-use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
 use crate::gui::mouse_behaviors::ContinuouslyMutateControl;
 use crate::gui::{InteractionHint, Tooltip};
 use crate::scui_config::{DropTarget, MaybeMouseBehavior, Renderer};

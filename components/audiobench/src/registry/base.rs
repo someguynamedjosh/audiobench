@@ -4,7 +4,6 @@ use super::save_data::Patch;
 use super::update_check::{self, UpdateInfo};
 use super::yaml;
 use crate::config::*;
-use crate::engine::parts::Module;
 use julia_helper::FileClip;
 use rand::RngCore;
 use shared_util::prelude::*;

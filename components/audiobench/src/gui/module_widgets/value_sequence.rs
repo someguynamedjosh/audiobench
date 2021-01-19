@@ -1,13 +1,10 @@
 use super::ModuleWidgetImpl;
 use crate::engine::controls::{FloatInRangeControl, UpdateRequest, ValueSequenceControl};
-use crate::engine::parts as ep;
 use crate::gui::constants::*;
-use crate::gui::graphics::GrahpicsWrapper;
-use crate::gui::mouse_behaviors::{ContinuouslyMutateControl, MutateControl};
+use crate::gui::mouse_behaviors::{ContinuouslyMutateControl};
 use crate::gui::{InteractionHint, Tooltip};
-use crate::registry::Registry;
 use crate::scui_config::{DropTarget, MaybeMouseBehavior, Renderer};
-use scui::{MouseMods, OnClickBehavior, Vec2D, WidgetImpl};
+use scui::{MouseMods, Vec2D, WidgetImpl};
 use shared_util::prelude::*;
 
 yaml_widget_boilerplate::make_widget_outline! {

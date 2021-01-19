@@ -1,7 +1,6 @@
-use crate::gui::top_level::graph::WireTracker;
+use crate::engine::controls::Control;
 use crate::scui_config::{DropTarget, Renderer};
-use crate::{engine::controls::Control, gui::graphics::GrahpicsWrapper};
-use scui::{Vec2D, Widget, WidgetImpl};
+use scui::{Widget, WidgetImpl};
 use shared_util::prelude::*;
 
 pub trait ModuleWidgetImpl: WidgetImpl<Renderer, DropTarget> {
@@ -13,7 +12,7 @@ pub trait ModuleWidgetImpl: WidgetImpl<Renderer, DropTarget> {
         false
     }
 
-    fn take_feedback_data(self: &Rc<Self>, data: Vec<f32>) { }
+    fn take_feedback_data(self: &Rc<Self>, data: Vec<f32>) {}
 }
 
 pub trait ModuleWidget: Widget<Renderer, DropTarget> {

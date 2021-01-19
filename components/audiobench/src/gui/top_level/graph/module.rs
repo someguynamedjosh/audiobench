@@ -1,15 +1,11 @@
 use super::{GraphHighlightMode, ModuleGraph, WireTracker};
 use crate::engine::parts as ep;
 use crate::gui::constants::*;
-use crate::gui::graphics::{HAlign, VAlign};
 use crate::gui::module_widgets::ModuleWidget;
 use crate::gui::{InteractionHint, Tooltip};
-use crate::registry::Registry;
 use crate::scui_config::{DropTarget, MaybeMouseBehavior, Renderer};
-use scui::{ChildHolder, MouseBehavior, MouseMods, OnClickBehavior, Vec2D, Widget, WidgetImpl};
+use scui::{MouseBehavior, MouseMods, Vec2D, Widget, WidgetImpl};
 use shared_util::prelude::*;
-use std::cell::Ref;
-use std::f32::consts::PI;
 
 struct OutputJack {
     label: String,
@@ -120,7 +116,7 @@ impl Module {
 
     pub fn new(parent: &impl ModuleParent, module: Rcrc<ep::Module>) -> Rc<Self> {
         const MIW: f32 = MODULE_IO_WIDTH;
-        let mut module_ref = module.borrow_mut();
+        let module_ref = module.borrow_mut();
         let template_ref = module_ref.template.borrow();
         let grid_size = template_ref.size;
         let label = template_ref.label.clone();
@@ -214,7 +210,7 @@ impl Module {
     }
 
     fn drag(self: &Rc<Self>, delta: Vec2D) {
-        let mut state = self.state.borrow_mut();
+        let state = self.state.borrow_mut();
         let mut module = state.module.borrow_mut();
         module.pos.0 += delta.x;
         module.pos.1 += delta.y;
@@ -291,7 +287,7 @@ impl WidgetImpl<Renderer, DropTarget> for Module {
         None
     }
 
-    fn on_hover_impl(self: &Rc<Self>, pos: Vec2D) -> Option<()> {
+    fn on_hover_impl(self: &Rc<Self>, _pos: Vec2D) -> Option<()> {
         self.parents.graph.set_hovered_module(Rc::clone(self));
         Some(())
     }

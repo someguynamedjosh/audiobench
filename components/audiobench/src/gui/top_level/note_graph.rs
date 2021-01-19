@@ -1,11 +1,8 @@
-use crate::engine::parts as ep;
 use crate::gui::constants::*;
-use crate::gui::graphics::GrahpicsWrapper;
 use crate::gui::top_level::graph::ModuleGraph;
-use crate::gui::{Gui, GuiTab, InteractionHint, Tooltip};
-use crate::registry::Registry;
+use crate::gui::{GuiTab, };
 use crate::scui_config::{DropTarget, MaybeMouseBehavior, Renderer};
-use scui::{ChildHolder, MouseMods, Vec2D, Widget, WidgetImpl};
+use scui::{ChildHolder, MouseMods, Vec2D, WidgetImpl};
 use shared_util::prelude::*;
 
 scui::widget! {
@@ -18,7 +15,7 @@ scui::widget! {
 
 impl NoteGraph {
     pub fn new(parent: &impl NoteGraphParent) -> Rc<Self> {
-        let mut this = Rc::new(Self::create(parent, NoteGraphState {}));
+        let this = Rc::new(Self::create(parent, NoteGraphState {}));
         let inter = parent.provide_gui_interface();
         let state = inter.state.borrow();
         let engine = state.engine.borrow();
