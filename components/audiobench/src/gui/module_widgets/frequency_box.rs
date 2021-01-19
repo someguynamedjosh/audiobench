@@ -2,7 +2,7 @@ use super::ModuleWidgetImpl;
 use crate::engine::controls::{FrequencyControl, UpdateRequest};
 use crate::gui::constants::*;
 use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
-use crate::gui::mouse_behaviors::ContinuouslyMutateStaticon;
+use crate::gui::mouse_behaviors::ContinuouslyMutateControl;
 use crate::gui::{InteractionHint, Tooltip};
 use crate::scui_config::{DropTarget, MaybeMouseBehavior, Renderer};
 use scui::{MouseMods, Vec2D, WidgetImpl};
@@ -67,7 +67,7 @@ impl WidgetImpl<Renderer, DropTarget> for FrequencyBox {
         let frequency = state.control.borrow();
         let cref = Rc::clone(&state.control);
         let mut float_value = frequency.get_value();
-        ContinuouslyMutateStaticon::wrap(self, move |delta, _steps| {
+        ContinuouslyMutateControl::wrap(self, move |delta, _steps| {
             float_value *= (2.0f32).powf(delta / LOG_OCTAVE_PIXELS);
             float_value = float_value.clam(FrequencyControl::MIN_FREQUENCY, 99_000.0);
             let update = cref.borrow_mut().set_value(float_value);

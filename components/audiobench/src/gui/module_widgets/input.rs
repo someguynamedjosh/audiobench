@@ -2,7 +2,7 @@ use super::ModuleWidgetImpl;
 use crate::engine::controls::{Control, InputControl, UpdateRequest};
 use crate::gui::constants::*;
 use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
-use crate::gui::mouse_behaviors::{ContinuouslyMutateStaticon, MutateStaticon};
+use crate::gui::mouse_behaviors::{ContinuouslyMutateControl, MutateControl};
 use crate::gui::top_level::graph::{ConnectToControl, Module, ModuleGraph};
 use crate::gui::{InteractionHint, Tooltip};
 use crate::scui_config::{DropTarget, MaybeMouseBehavior, Renderer};

@@ -1,7 +1,7 @@
 use super::ModuleWidgetImpl;
 use crate::engine::controls::{TimingModeControl, UpdateRequest};
 use crate::gui::constants::*;
-use crate::gui::mouse_behaviors::MutateStaticon;
+use crate::gui::mouse_behaviors::MutateControl;
 use crate::gui::{InteractionHint, Tooltip};
 use crate::scui_config::{DropTarget, MaybeMouseBehavior, Renderer};
 use scui::{MouseMods, Vec2D, WidgetImpl};
@@ -73,9 +73,9 @@ impl WidgetImpl<Renderer, DropTarget> for TimingSelector {
     ) -> MaybeMouseBehavior {
         let cref = Rc::clone(&self.state.borrow().control);
         if pos.x < grid(2) / 2.0 {
-            MutateStaticon::wrap(self, move || cref.borrow_mut().toggle_source())
+            MutateControl::wrap(self, move || cref.borrow_mut().toggle_source())
         } else {
-            MutateStaticon::wrap(self, move || cref.borrow_mut().toggle_units())
+            MutateControl::wrap(self, move || cref.borrow_mut().toggle_units())
         }
     }
 

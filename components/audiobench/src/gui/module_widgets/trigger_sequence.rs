@@ -2,7 +2,7 @@ use super::ModuleWidgetImpl;
 use crate::engine::controls::{TriggerSequenceControl, UpdateRequest};
 use crate::gui::constants::*;
 use crate::gui::graphics::GrahpicsWrapper;
-use crate::gui::mouse_behaviors::MutateStaticon;
+use crate::gui::mouse_behaviors::MutateControl;
 use crate::gui::{InteractionHint, Tooltip};
 use crate::registry::Registry;
 use crate::scui_config::{DropTarget, MaybeMouseBehavior, Renderer};
@@ -73,7 +73,7 @@ impl WidgetImpl<Renderer, DropTarget> for TriggerSequence {
         let step_width = (state.size.x + STEP_GAP) / num_steps as f32;
         let clicked_step = (pos.x / step_width) as usize;
         let cref = Rc::clone(&state.sequence_control);
-        MutateStaticon::wrap(self, move || cref.borrow_mut().toggle_trigger(clicked_step))
+        MutateControl::wrap(self, move || cref.borrow_mut().toggle_trigger(clicked_step))
     }
 
     fn on_hover_impl(self: &Rc<Self>, _pos: Vec2D) -> Option<()> {

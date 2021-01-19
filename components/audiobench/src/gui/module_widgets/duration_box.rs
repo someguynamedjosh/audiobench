@@ -2,7 +2,7 @@ use super::ModuleWidgetImpl;
 use crate::engine::controls::{DurationControl, TimingModeControl, UpdateRequest};
 use crate::gui::constants::*;
 use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
-use crate::gui::mouse_behaviors::{ContinuouslyMutateStaticon, MutateStaticon};
+use crate::gui::mouse_behaviors::{ContinuouslyMutateControl, MutateControl};
 use crate::gui::{InteractionHint, Tooltip};
 use crate::scui_config::{DropTarget, MaybeMouseBehavior, Renderer};
 use scui::{MouseMods, Vec2D, WidgetImpl};
@@ -73,13 +73,13 @@ impl WidgetImpl<Renderer, DropTarget> for DurationBox {
         let duration = state.duration_control.borrow();
         let cref = Rc::clone(&state.duration_control);
         if mods.right_click {
-            MutateStaticon::wrap(self, move || cref.borrow_mut().toggle_mode())
+            MutateControl::wrap(self, move || cref.borrow_mut().toggle_mode())
         } else if duration.is_using_fractional_mode() {
             let (num, den) = duration.get_fractional_value();
             let use_denominator = pos.x >= WIDTH / 2.0;
             if use_denominator {
                 let mut float_value = den as f32;
-                ContinuouslyMutateStaticon::wrap(self, move |delta, _steps| {
+                ContinuouslyMutateControl::wrap(self, move |delta, _steps| {
                     float_value += delta / 12.0;
                     float_value = float_value.clam(1.0, 99.0);
                     let update = cref
@@ -89,7 +89,7 @@ impl WidgetImpl<Renderer, DropTarget> for DurationBox {
                 })
             } else {
                 let mut float_value = num as f32;
-                ContinuouslyMutateStaticon::wrap(self, move |delta, _steps| {
+                ContinuouslyMutateControl::wrap(self, move |delta, _steps| {
                     float_value += delta / 12.0;
                     float_value = float_value.clam(1.0, 99.0);
                     let update = cref
@@ -100,7 +100,7 @@ impl WidgetImpl<Renderer, DropTarget> for DurationBox {
             }
         } else {
             let mut float_value = duration.get_decimal_value();
-            ContinuouslyMutateStaticon::wrap(self, move |delta, _steps| {
+            ContinuouslyMutateControl::wrap(self, move |delta, _steps| {
                 float_value *= (2.0f32).powf(delta / LOG_OCTAVE_PIXELS);
                 float_value = float_value.clam(0.0003, 99.8);
                 let update = cref.borrow_mut().set_decimal_value(float_value);

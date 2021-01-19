@@ -3,7 +3,7 @@ use crate::engine::controls::{FloatInRangeControl, UpdateRequest, ValueSequenceC
 use crate::engine::parts as ep;
 use crate::gui::constants::*;
 use crate::gui::graphics::GrahpicsWrapper;
-use crate::gui::mouse_behaviors::{ContinuouslyMutateStaticon, MutateStaticon};
+use crate::gui::mouse_behaviors::{ContinuouslyMutateControl, MutateControl};
 use crate::gui::{InteractionHint, Tooltip};
 use crate::registry::Registry;
 use crate::scui_config::{DropTarget, MaybeMouseBehavior, Renderer};
@@ -79,7 +79,7 @@ impl WidgetImpl<Renderer, DropTarget> for ValueSequence {
         let clicked_step = (pos.x / step_width) as usize;
         let mut float_value = borrowed.get_value(clicked_step);
         let cref = Rc::clone(&state.sequence_control);
-        ContinuouslyMutateStaticon::wrap(self, move |delta, steps| {
+        ContinuouslyMutateControl::wrap(self, move |delta, steps| {
             float_value += delta / 100.0;
             float_value = float_value.clam(-1.0, 1.0);
             let final_value = if let Some(steps) = steps {

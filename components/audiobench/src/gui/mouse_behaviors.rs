@@ -234,12 +234,12 @@ impl MouseBehavior<DropTarget> for ManipulateIntBox {
 }
 
 #[make_constructor(new)]
-pub struct MutateStaticon {
+pub struct MutateControl {
     engine: Rcrc<UiThreadEngine>,
     mutator: Box<dyn FnOnce() -> UpdateRequest>,
 }
 
-impl MutateStaticon {
+impl MutateControl {
     pub fn wrap<W, M>(widget: &W, mutator: M) -> MaybeMouseBehavior
     where
         W: GuiInterfaceProvider<GuiState, DropTarget>,
@@ -251,7 +251,7 @@ impl MutateStaticon {
     }
 }
 
-impl MouseBehavior<DropTarget> for MutateStaticon {
+impl MouseBehavior<DropTarget> for MutateControl {
     fn on_click(self: Box<Self>) {
         let update = (self.mutator)();
         match update {
@@ -265,7 +265,7 @@ impl MouseBehavior<DropTarget> for MutateStaticon {
 }
 
 #[make_constructor(new)]
-pub struct ContinuouslyMutateStaticon {
+pub struct ContinuouslyMutateControl {
     engine: Rcrc<UiThreadEngine>,
     gui_interface: Rc<GuiInterface<GuiState, DropTarget>>,
     mutator: Box<dyn FnMut(f32, Option<f32>) -> (UpdateRequest, Option<Tooltip>)>,
@@ -273,7 +273,7 @@ pub struct ContinuouslyMutateStaticon {
     code_reload_requested: bool,
 }
 
-impl ContinuouslyMutateStaticon {
+impl ContinuouslyMutateControl {
     pub fn wrap<W, M>(widget: &W, mutator: M) -> MaybeMouseBehavior
     where
         W: GuiInterfaceProvider<GuiState, DropTarget>,
@@ -285,7 +285,7 @@ impl ContinuouslyMutateStaticon {
     }
 }
 
-impl MouseBehavior<DropTarget> for ContinuouslyMutateStaticon {
+impl MouseBehavior<DropTarget> for ContinuouslyMutateControl {
     fn on_drag(&mut self, delta: Vec2D, mods: &MouseMods) {
         let mut delta = delta.x - delta.y;
         if mods.precise {

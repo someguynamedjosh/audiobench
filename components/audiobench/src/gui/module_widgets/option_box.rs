@@ -1,7 +1,7 @@
 use super::ModuleWidgetImpl;
 use crate::engine::controls::{OptionChoiceControl, UpdateRequest};
 use crate::gui::constants::*;
-use crate::gui::mouse_behaviors::MutateStaticon;
+use crate::gui::mouse_behaviors::MutateControl;
 use crate::gui::{InteractionHint, Tooltip};
 use crate::scui_config::{DropTarget, MaybeMouseBehavior, Renderer};
 use scui::{MouseMods, Vec2D, WidgetImpl};
@@ -70,7 +70,7 @@ impl WidgetImpl<Renderer, DropTarget> for OptionBox {
         let option = (pos.y / height_per_option) as usize;
         if option < num_options {
             let cref = Rc::clone(&state.control);
-            MutateStaticon::wrap(self, move || cref.borrow_mut().set_selected_option(option))
+            MutateControl::wrap(self, move || cref.borrow_mut().set_selected_option(option))
         } else {
             None
         }
