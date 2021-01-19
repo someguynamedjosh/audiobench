@@ -12,11 +12,14 @@ pub trait ModuleWidgetImpl: WidgetImpl<Renderer, DropTarget> {
     fn use_input_style_wires(self: &Rc<Self>) -> bool {
         false
     }
+
+    fn take_feedback_data(self: &Rc<Self>, data: Vec<f32>) { }
 }
 
 pub trait ModuleWidget: Widget<Renderer, DropTarget> {
     fn represented_control(self: &Self) -> Option<Rcrc<dyn Control>>;
     fn use_input_style_wires(self: &Self) -> bool;
+    fn take_feedback_data(self: &Self, data: Vec<f32>);
 }
 
 impl<T> ModuleWidget for Rc<T>
@@ -30,5 +33,9 @@ where
 
     fn use_input_style_wires(self: &Self) -> bool {
         ModuleWidgetImpl::use_input_style_wires(self)
+    }
+
+    fn take_feedback_data(self: &Self, data: Vec<f32>) {
+        ModuleWidgetImpl::take_feedback_data(self, data)
     }
 }

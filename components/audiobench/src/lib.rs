@@ -135,7 +135,6 @@ impl Instance {
             let mut g = GrahpicsWrapper::new(Rc::clone(&self.graphics_fns), data, icon_store);
             let mut ui_engine = self.ui_engine.borrow_mut();
             ui_engine.display_new_feedback_data();
-            ui_engine.recompile_if_requested_by_audio_thread();
             drop(ui_engine);
             g.set_color(&gui::constants::COLOR_BG0);
             g.clear();

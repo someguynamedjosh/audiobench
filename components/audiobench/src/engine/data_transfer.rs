@@ -1,9 +1,9 @@
+use super::{controls::Control, parts::Module};
+use crate::gui::top_level::graph::ModuleGraph;
 use jlrs_derive::IntoJulia;
 use julia_helper::{DataType, Frame, JlrsResult, JuliaStruct, Value};
 use shared_util::prelude::*;
 use std::fmt::{Display, Formatter};
-
-use super::controls::Control;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct GlobalParameters {
@@ -65,6 +65,9 @@ pub struct NoteData {
     pub start_trigger: bool,
     pub release_trigger: bool,
 }
+
+#[derive(Clone, Debug, Default)]
+pub struct FeedbackData(pub Vec<Vec<f32>>);
 
 /// Represents the data type of a variable which is either an input or output in the generated
 /// program. E.G. `IOType::FloatArray(20)` would be the type of `input [20]FLOAT some_data;`.
@@ -132,4 +135,17 @@ impl DynDataCollector {
 }
 
 #[scones::make_constructor]
-pub struct FeedbackDisplayer {}
+pub struct FeedbackDisplayer {
+    /// Module the widget is in and the index of the widget in that module.
+    widget_selectors: Vec<(Rcrc<Module>, usize)>,
+}
+
+impl FeedbackDisplayer {
+    pub fn display(&self, data: FeedbackData, on: Rc<ModuleGraph>) {
+        assert!(data.0.len() == self.widget_selectors.len());
+        for (index, (module, widget_index)) in self.widget_selectors.iter().enumerate() {
+            let module_widget = on.get_widget_for_module(module).unwrap();
+            module_widget.take_feedback_data(data.0[index].clone(), *widget_index);
+        }
+    }
+}

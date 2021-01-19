@@ -96,6 +96,8 @@ pub trait WidgetImpl<R: Renderer, DT>: WidgetImplDefaults<R, DT> {
     fn draw_impl(self: &Rc<Self>, renderer: &mut R) {
         self.draw_default(renderer)
     }
+
+    fn on_removed_impl(self: &Rc<Self>) {}
 }
 
 pub trait WidgetProvider<R: Renderer, D, W: Widget<R, D>> {

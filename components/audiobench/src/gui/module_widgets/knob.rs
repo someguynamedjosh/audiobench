@@ -119,8 +119,6 @@ impl WidgetImpl<Renderer, DropTarget> for Knob {
         let state = self.state.borrow();
         // let highlight = unimplemented!();
         let highlight = false;
-        // let feedback_data: &[f32] = unimplemented!();
-        let feedback_data: &[f32] = &[0.0];
         const MIN_ANGLE: f32 = PI * 1.10;
         const MAX_ANGLE: f32 = -PI * 0.10;
 
@@ -145,7 +143,7 @@ impl WidgetImpl<Renderer, DropTarget> for Knob {
         // If manual, show the manual value. If automated, show the most recent value recorded
         // from when a note was actually playing.
         let value = if control.automation.len() > 0 {
-            feedback_data[0]
+            *state.value.borrow()
         } else {
             control.value
         };
@@ -183,6 +181,11 @@ impl WidgetImpl<Renderer, DropTarget> for Knob {
 impl ModuleWidgetImpl for Knob {
     fn represented_control(self: &Rc<Self>) -> Option<Rcrc<dyn Control>> {
         Some(Rc::clone(&self.state.borrow().control) as _)
+    }
+
+    fn take_feedback_data(self: &Rc<Self>, data: Vec<f32>) {
+        assert!(data.len() == 1);
+        *self.state.borrow_mut().value.borrow_mut() = data[0];
     }
 }
 

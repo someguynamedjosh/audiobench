@@ -1,5 +1,5 @@
 use super::data_transfer::{
-    DataFormat, DynDataCollector, FeedbackDisplayer, GlobalData, GlobalParameters,
+    DataFormat, DynDataCollector, FeedbackData, FeedbackDisplayer, GlobalData, GlobalParameters,
 };
 use super::julia_thread;
 use super::parts::ModuleGraph;
@@ -40,6 +40,7 @@ pub(super) struct Communication {
     pub new_global_params: AtomicCell<Option<()>>,
     pub new_note_graph_code: AtomicCell<Option<(GeneratedCode, Vec<IOData>)>>,
     pub new_dyn_data: AtomicCell<Option<Vec<IOData>>>,
+    pub new_feedback: AtomicCell<Option<FeedbackData>>,
 
     pub global_params: AtomicCell<GlobalParameters>,
     pub note_events: Mutex<Vec<julia_thread::NoteEvent>>,
@@ -131,6 +132,7 @@ pub fn new_engine(
         new_global_params: Default::default(),
         new_note_graph_code: Default::default(),
         new_dyn_data: Default::default(),
+        new_feedback: Default::default(),
 
         global_params: AtomicCell::new(global_params),
         note_events: Default::default(),
@@ -272,12 +274,6 @@ impl UiThreadEngine {
         self.data.feedback_displayer = new_gen.feedback_displayer;
     }
 
-    /// Recompiles everything if the audio thread has encountered something that requires
-    /// recompiling. This method exists because compilation is started by the UI thread.
-    pub fn recompile_if_requested_by_audio_thread(&mut self) {
-        // unimplemented!()
-    }
-
     pub fn reload_dyn_data(&mut self) {
         let data = self.data.dyn_data_collector.collect();
         self.comms.new_dyn_data.store(Some(data));
@@ -289,7 +285,12 @@ impl UiThreadEngine {
     /// new data so this is okay to call relatively often. It also does not block on waiting for
     /// the mutex.
     pub fn display_new_feedback_data(&mut self) {
-        // unimplemented!()
+        if let Some(data) = self.comms.new_feedback.take() {
+            if let Some(widget) = &self.data.module_graph.borrow().current_widget {
+                let widget = Rc::clone(widget);
+                self.data.feedback_displayer.display(data, widget);
+            }
+        }
     }
 }
 
@@ -359,7 +360,10 @@ impl AudioThreadEngine {
         let mut ready = self.comms.julia_thread_status.load().is_ready();
         if ready {
             let data = self.data.global_data.clone();
-            let request = julia_thread::Request::Render(data);
+            let request = julia_thread::Request::Render {
+                data,
+                do_feedback: update_feedback_data,
+            };
             let res = self.comms.julia_pipe.try_send(request);
             match res {
                 Ok(()) => (),

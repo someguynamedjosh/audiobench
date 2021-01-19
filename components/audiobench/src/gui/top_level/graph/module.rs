@@ -163,6 +163,10 @@ impl Module {
         this
     }
 
+    pub fn take_feedback_data(self: &Rc<Self>, data: Vec<f32>, widget_index: usize) {
+        self.state.borrow().widgets[widget_index].take_feedback_data(data);
+    }
+
     fn get_tooltip_at(&self, mouse_pos: Vec2D) -> Option<Tooltip> {
         // let state = self.state.borrow();
         // for widget in &state.widgets {

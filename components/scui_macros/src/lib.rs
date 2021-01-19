@@ -362,6 +362,7 @@ impl ToTokens for WidgetInfo {
                 }
 
                 fn on_removed(&self) {
+                    <#name as #widget_impl_trait>::on_removed_impl(self);
                     (*self.children.borrow_mut()) = #default;
                 }
             }

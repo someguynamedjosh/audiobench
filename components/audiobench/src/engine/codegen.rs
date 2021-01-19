@@ -250,7 +250,7 @@ impl<'a> CodeGenerator<'a> {
             feedback_data_len,
         };
         let dyn_data_collector = DynDataCollector::new(ordered_controls);
-        let feedback_displayer = FeedbackDisplayer::new(); //ordered_modules, data_format.feedback_data_len);
+        let feedback_displayer = FeedbackDisplayer::new(feedback_widget_selectors);
 
         println!("{}", code.as_str());
 

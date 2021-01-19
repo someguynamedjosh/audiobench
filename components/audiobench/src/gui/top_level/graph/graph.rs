@@ -51,6 +51,7 @@ impl ModuleGraph {
             hovered_module: None,
         };
         let this = Rc::new(Self::create(parent, state));
+        graph.borrow_mut().current_widget = Some(Rc::clone(&this));
         let mut children = this.children.borrow_mut();
         children.modules = graph
             .borrow()
@@ -116,6 +117,15 @@ impl ModuleGraph {
         self.with_gui_state_mut(|state| {
             state.engine.borrow_mut().regenerate_code();
         })
+    }
+
+    pub fn get_widget_for_module(self: &Rc<Self>, module: &Rcrc<ep::Module>) -> Option<Rc<Module>> {
+        let children = self.children.borrow();
+        let index = children
+            .modules
+            .iter()
+            .find(|e| e.represents_module(module));
+        index.map(|p| Rc::clone(p))
     }
 
     pub fn remove_module(self: &Rc<Self>, module: &Rcrc<ep::Module>) {
@@ -357,5 +367,9 @@ impl WidgetImpl<Renderer, DropTarget> for ModuleGraph {
             g.set_color(&COLOR_FG1);
             g.draw_line(*end, mouse_pos, 2.0);
         }
+    }
+
+    fn on_removed_impl(self: &Rc<Self>) {
+        self.state.borrow_mut().graph.borrow_mut().current_widget = None;
     }
 }

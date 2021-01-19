@@ -3,6 +3,7 @@ use crate::registry::module_template::ModuleTemplate;
 use crate::registry::yaml::YamlNode;
 use shared_util::prelude::*;
 use std::collections::{HashMap, HashSet};
+use crate::gui::top_level::graph::ModuleGraph as ModuleGraphWidget;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum JackType {
@@ -136,15 +137,16 @@ impl Module {
     }
 }
 
-#[derive(Debug)]
 pub struct ModuleGraph {
     modules: Vec<Rcrc<Module>>,
+    pub current_widget: Option<Rc<ModuleGraphWidget>>,
 }
 
 impl ModuleGraph {
     pub fn new() -> Self {
         Self {
             modules: Vec::new(),
+            current_widget: None,
         }
     }
 

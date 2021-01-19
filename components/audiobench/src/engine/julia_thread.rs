@@ -1,9 +1,14 @@
 use super::data_transfer::{GlobalData, GlobalParameters, IOData};
 use super::program_wrapper::{AudiobenchExecutor, AudiobenchExecutorBuilder, NoteTracker};
 use super::Communication;
-use julia_helper::GeneratedCode;
-use std::sync::mpsc::{Receiver, SyncSender};
-use std::sync::{Arc, Mutex};
+use julia_helper::{GeneratedCode, Global};
+use std::{
+    sync::{
+        mpsc::{Receiver, SyncSender},
+        Arc, Mutex,
+    },
+    time::Instant,
+};
 
 #[derive(Clone, Copy, Eq, PartialEq)]
 pub enum Status {
@@ -24,13 +29,9 @@ pub enum NoteEvent {
     ReleaseNote { index: usize },
 }
 
-pub struct RenderRequest {
-    data: GlobalData,
-}
-
 pub enum Request {
     PollComms,
-    Render(GlobalData),
+    Render { data: GlobalData, do_feedback: bool },
 }
 
 pub struct AudioResponse {
@@ -60,6 +61,7 @@ pub(super) fn entry(
     let mut executor = match executor {
         Ok(value) => value,
         Err(err) => {
+            eprintln!("Error message:\n{}", err);
             comms.julia_thread_status.store(Status::Error);
             unimplemented!();
             // let mut ctd = ctd_mux.lock().unwrap();
@@ -123,7 +125,7 @@ impl JuliaThread {
         while let Ok(request) = self.request_pipe.recv() {
             match request {
                 Request::PollComms => self.poll_comms(),
-                Request::Render(global_data) => self.render(global_data),
+                Request::Render { data, do_feedback } => self.render(data, do_feedback),
             }
             self.set_status(Status::Ready);
         }
@@ -157,7 +159,7 @@ impl JuliaThread {
         }
     }
 
-    fn render(&mut self, global_data: GlobalData) {
+    fn render(&mut self, global_data: GlobalData, do_feedback: bool) {
         self.set_status(Status::Rendering);
         let mut nel = self.comms.note_events.lock().unwrap();
         let note_events = std::mem::replace(&mut *nel, Default::default());
@@ -178,16 +180,19 @@ impl JuliaThread {
 
         let mut output = vec![0.0; self.global_params.channels * self.global_params.buffer_length];
         let result = self.executor.execute(
-            false,
+            do_feedback,
             &global_data,
             &mut self.notes,
             &self.dyn_data[..],
             &mut output[..],
         );
-        let feedback_updated = match result {
+        let new_feedback_data = match result {
             Ok(v) => v,
             Err(err) => unimplemented!("Handle Julia error:\n{}", err),
         };
+        if new_feedback_data.is_some() {
+            self.comms.new_feedback.store(new_feedback_data);
+        }
         self.audio_response_pipe
             .send(AudioResponse { audio: output })
             .unwrap();

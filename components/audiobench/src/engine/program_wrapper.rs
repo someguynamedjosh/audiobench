@@ -1,4 +1,6 @@
-use crate::engine::data_transfer::{DataFormat, GlobalData, GlobalParameters, NoteData};
+use crate::engine::data_transfer::{
+    DataFormat, FeedbackData, GlobalData, GlobalParameters, IOData, NoteData,
+};
 use crate::gui::module_widgets::FeedbackMode;
 use crate::registry::Registry;
 use array_macro::array;
@@ -8,8 +10,6 @@ use julia_helper::{
 };
 use shared_util::{perf_counter::sections, prelude::*};
 use std::collections::HashSet;
-
-use super::data_transfer::IOData;
 
 /// The MIDI protocol can provide notes at 128 different pitches.
 const NUM_MIDI_NOTES: usize = 128;
@@ -143,18 +143,15 @@ impl NoteTracker {
                 youngest_time = youngest_time.min(note.data.elapsed_samples);
             }
         }
-        let mut index = 0;
         for note in self.held_notes.iter().filter_map(|o| o.as_ref()) {
             if note.data.elapsed_samples == youngest_time {
-                return Some(index);
+                return Some(note.static_index);
             }
-            index += 1;
         }
         for note in &self.decaying_notes {
             if note.data.elapsed_samples == youngest_time {
-                return Some(index);
+                return Some(note.static_index);
             }
-            index += 1;
         }
         None
     }
@@ -219,7 +216,7 @@ impl AudiobenchExecutorBuilder {
                     );
                 }
                 if let Some(exec_source) = file_content.clip_section("function exec()", "end") {
-                    let mut func_header = String::from("function exec(context, do_feedback::Bool");
+                    let mut func_header = String::from("function exec(context, do_feedback::Bool, ");
                     for (name, _) in &template.default_controls {
                         func_header.push_str(name);
                         func_header.push_str(", ");
@@ -355,12 +352,12 @@ impl AudiobenchExecutor {
     /// and finally global teardown. Returns true if feedback data was updated.
     pub fn execute(
         &mut self,
-        update_feedback: bool,
+        do_feedback: bool,
         global_data: &GlobalData,
         notes: &mut NoteTracker,
         dyn_data: &[IOData],
         audio_output: &mut [f32],
-    ) -> Result<bool, String> {
+    ) -> Result<Option<FeedbackData>, String> {
         let channels = self.parameters.channels;
         let buf_len = self.parameters.buffer_length;
         let sample_rate = self.parameters.sample_rate;
@@ -370,21 +367,23 @@ impl AudiobenchExecutor {
         for i in 0..buf_len * channels {
             audio_output[i] = 0.0;
         }
-        let feedback_note = if update_feedback {
+        let feedback_note = if do_feedback {
             notes.recommend_note_for_feedback()
         } else {
             None
         };
+        let mut feedback_data = None;
 
         for note in notes.active_notes_mut() {
             let note_input = NoteInput::from(&note.data, &self.parameters);
             let static_index = note.static_index;
+            let do_feedback = feedback_note == Some(static_index);
 
             self.base.call_fn(
                 &["Main", "Generated", "exec"],
                 |frame, inputs| {
                     inputs.append(&mut global_data.as_julia_values(frame)?);
-                    inputs.push(Value::new(frame, update_feedback)?);
+                    inputs.push(Value::new(frame, do_feedback)?);
                     inputs.push(Value::new(frame, note_input)?);
                     inputs.push(Value::new(frame, static_index)?);
                     for item in dyn_data {
@@ -423,12 +422,33 @@ impl AudiobenchExecutor {
                     } else {
                         note.silent_samples = 0;
                     }
+
+                    if do_feedback {
+                        let julia_feedback = match output.get_nth_field(frame, 1) {
+                            Ok(v) => v,
+                            Err(err) => {
+                                return Ok(Err(format!(
+                                    "ERROR: Failed to retrieve feedback data, caused by:\n{:?}",
+                                    err
+                                )))
+                            }
+                        };
+                        let mut native_feedback = FeedbackData::default();
+                        for index in 0..julia_feedback.n_fields() {
+                            let field = julia_feedback.get_nth_field(frame, index)?;
+                            let field = field.cast::<TypedArray<'_, '_, f32>>()?;
+                            let field = field.inline_data(frame)?.into_slice();
+                            native_feedback.0.push(Vec::from(field));
+                        }
+                        feedback_data = Some(native_feedback);
+                    }
+
                     Ok(Ok(()))
                 },
             )??;
         }
 
         notes.advance_all_notes(&self.parameters, global_data);
-        Ok(feedback_note.is_some())
+        Ok(feedback_data)
     }
 }
