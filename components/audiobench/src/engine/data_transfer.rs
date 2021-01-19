@@ -1,5 +1,7 @@
-use super::{controls::Control, parts::Module};
-use crate::gui::top_level::graph::ModuleGraph;
+use crate::{
+    engine::{controls::Control, parts::Module},
+    gui::top_level::graph::ModuleGraph,
+};
 use julia_helper::{Frame, JlrsResult, Value};
 use shared_util::prelude::*;
 use std::fmt::{Display, Formatter};

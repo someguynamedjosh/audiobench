@@ -1,10 +1,14 @@
-use super::ModuleWidgetImpl;
-use crate::engine::controls::{Control, FloatInRangeControl};
-use crate::gui::constants::*;
-use crate::gui::mouse_behaviors::{ManipulateControl, ManipulateLane};
-use crate::gui::top_level::graph::{Module, ModuleGraph, };
-use crate::gui::{InteractionHint, Tooltip};
-use crate::scui_config::{DropTarget, MaybeMouseBehavior, Renderer};
+use crate::{
+    engine::controls::{Control, FloatInRangeControl},
+    gui::{
+        constants::*,
+        module_widgets::ModuleWidgetImpl,
+        mouse_behaviors::{ManipulateControl, ManipulateLane},
+        top_level::graph::{Module, ModuleGraph},
+        InteractionHint, Tooltip,
+    },
+    scui_config::{DropTarget, MaybeMouseBehavior, Renderer},
+};
 use scui::{MouseMods, OnClickBehavior, Vec2D, Widget, WidgetImpl};
 use shared_util::prelude::*;
 

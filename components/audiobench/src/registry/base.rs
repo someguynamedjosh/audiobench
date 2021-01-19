@@ -1,16 +1,22 @@
-use super::library_preload::{self, PreloadedLibrary, ZippedLibraryContentProvider};
-use super::module_template::ModuleTemplate;
-use super::save_data::Patch;
-use super::update_check::{self, UpdateInfo};
-use super::yaml;
-use crate::config::*;
+use crate::{
+    config::*,
+    registry::{
+        library_preload::{self, PreloadedLibrary, ZippedLibraryContentProvider},
+        module_template::ModuleTemplate,
+        save_data::Patch,
+        update_check::{self, UpdateInfo},
+        yaml,
+    },
+};
 use julia_helper::FileClip;
 use rand::RngCore;
 use shared_util::prelude::*;
-use std::collections::{HashMap, HashSet};
-use std::fs;
-use std::path::PathBuf;
-use std::sync::mpsc::{self, Receiver, TryRecvError};
+use std::{
+    collections::{HashMap, HashSet},
+    fs,
+    path::PathBuf,
+    sync::mpsc::{self, Receiver, TryRecvError},
+};
 
 pub use super::library_preload::LibraryInfo;
 

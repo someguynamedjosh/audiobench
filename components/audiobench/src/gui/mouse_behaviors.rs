@@ -1,9 +1,11 @@
-use crate::engine::controls::{Control, FloatInRangeControl, UpdateRequest};
-use crate::engine::parts as ep;
-use crate::engine::UiThreadEngine;
-use crate::gui::constants::*;
-use crate::gui::{InteractionHint, Tooltip};
-use crate::scui_config::{GuiState, MaybeMouseBehavior};
+use crate::{
+    engine::{
+        controls::{Control, FloatInRangeControl, UpdateRequest},
+        parts as ep, UiThreadEngine,
+    },
+    gui::{constants::*, InteractionHint, Tooltip},
+    scui_config::{GuiState, MaybeMouseBehavior},
+};
 use scones::make_constructor;
 use scui::{GuiInterface, GuiInterfaceProvider, MouseBehavior, MouseMods, Vec2D};
 use shared_util::prelude::*;

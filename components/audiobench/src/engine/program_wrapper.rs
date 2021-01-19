@@ -1,13 +1,11 @@
-use crate::engine::data_transfer::{
-    FeedbackData, GlobalData, GlobalParameters, IOData, NoteData,
+use crate::{
+    engine::data_transfer::{FeedbackData, GlobalData, GlobalParameters, IOData, NoteData},
+    gui::module_widgets::FeedbackMode,
+    registry::Registry,
 };
-use crate::gui::module_widgets::FeedbackMode;
-use crate::registry::Registry;
 use array_macro::array;
 use jlrs_derive::IntoJulia;
-use julia_helper::{
-    DataType, ExecutionEngine, GeneratedCode, JuliaStruct, TypedArray, Value,
-};
+use julia_helper::{DataType, ExecutionEngine, GeneratedCode, JuliaStruct, TypedArray, Value};
 use std::collections::HashSet;
 
 /// The MIDI protocol can provide notes at 128 different pitches.
@@ -291,7 +289,7 @@ pub(super) struct AudiobenchExecutor {
 impl AudiobenchExecutor {
     pub fn change_parameters(&mut self, parameters: &GlobalParameters) -> Result<(), String> {
         if &self.parameters == parameters {
-            return Ok(())
+            return Ok(());
         }
         self.loaded = false;
         self.parameters = parameters.clone();

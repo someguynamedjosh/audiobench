@@ -1,9 +1,11 @@
-use super::ModuleWidgetImpl;
-use crate::engine::controls::{TimingModeControl, };
-use crate::gui::constants::*;
-use crate::gui::mouse_behaviors::MutateControl;
-use crate::gui::{InteractionHint, Tooltip};
-use crate::scui_config::{DropTarget, MaybeMouseBehavior, Renderer};
+use crate::{
+    engine::controls::TimingModeControl,
+    gui::{
+        constants::*, module_widgets::ModuleWidgetImpl, mouse_behaviors::MutateControl,
+        InteractionHint, Tooltip,
+    },
+    scui_config::{DropTarget, MaybeMouseBehavior, Renderer},
+};
 use scui::{MouseMods, Vec2D, WidgetImpl};
 use shared_util::prelude::*;
 

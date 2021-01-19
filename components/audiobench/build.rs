@@ -1,6 +1,8 @@
-use std::fs;
-use std::io::{Read, Write};
-use std::path::Path;
+use std::{
+    fs,
+    io::{Read, Write},
+    path::Path,
+};
 
 fn main() {
     // Can't use env! because it isn't defined when the build script is first compiled.

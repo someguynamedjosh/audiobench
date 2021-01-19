@@ -1,7 +1,11 @@
-use super::{Control, UpdateRequest};
-use crate::engine::data_transfer::{IOData, IOType};
-use crate::engine::codegen::AutomationCode;
-use crate::registry::yaml::YamlNode;
+use crate::{
+    engine::{
+        codegen::AutomationCode,
+        controls::{Control, UpdateRequest},
+        data_transfer::{IOData, IOType},
+    },
+    registry::yaml::YamlNode,
+};
 use shared_util::mini_serde::{MiniDes, MiniSer};
 
 #[derive(Clone, Debug)]

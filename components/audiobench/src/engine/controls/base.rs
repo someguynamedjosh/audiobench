@@ -1,18 +1,21 @@
-use super::{
-    DurationControl, FloatInRangeControl, FrequencyControl, InputControl, IntControl,
-    OptionChoiceControl, TimingModeControl, TriggerSequenceControl, ValueSequenceControl,
+use crate::{
+    engine::{
+        codegen::AutomationCode,
+        controls::{
+            DurationControl, FloatInRangeControl, FrequencyControl, InputControl, IntControl,
+            OptionChoiceControl, TimingModeControl, TriggerSequenceControl, ValueSequenceControl,
+        },
+        data_transfer::{IOData, IOType},
+        parts::{JackType, Module},
+    },
+    registry::yaml::YamlNode,
 };
-use crate::engine::codegen::AutomationCode;
-use crate::engine::data_transfer::{IOData, IOType};
-use crate::engine::parts::{JackType, Module};
-use crate::registry::yaml::YamlNode;
+use paste::paste;
 use shared_util::{
     mini_serde::{MiniDes, MiniSer},
     prelude::*,
 };
 use std::fmt::Debug;
-
-use paste::paste;
 
 #[derive(Debug)]
 pub enum UpdateRequest {

@@ -1,6 +1,8 @@
-use super::data_transfer::{GlobalData, GlobalParameters, IOData};
-use super::program_wrapper::{AudiobenchExecutor, AudiobenchExecutorBuilder, NoteTracker};
-use super::Communication;
+use crate::engine::{
+    data_transfer::{GlobalData, GlobalParameters, IOData},
+    program_wrapper::{AudiobenchExecutor, AudiobenchExecutorBuilder, NoteTracker},
+    Communication,
+};
 use julia_helper::GeneratedCode;
 use std::sync::{
     mpsc::{Receiver, SyncSender},

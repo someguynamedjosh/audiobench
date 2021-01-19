@@ -1,9 +1,10 @@
-use crate::engine::controls::AnyControl;
-use crate::registry::module_template::ModuleTemplate;
-use crate::registry::yaml::YamlNode;
+use crate::{
+    engine::controls::AnyControl,
+    gui::top_level::graph::ModuleGraph as ModuleGraphWidget,
+    registry::{module_template::ModuleTemplate, yaml::YamlNode},
+};
 use shared_util::prelude::*;
 use std::collections::{HashMap, HashSet};
-use crate::gui::top_level::graph::ModuleGraph as ModuleGraphWidget;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum JackType {

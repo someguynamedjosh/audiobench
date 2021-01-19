@@ -1,8 +1,9 @@
-use super::yaml;
-use crate::config::*;
-use std::fs::{self, File};
-use std::io::{Read, Seek};
-use std::path::{Path, PathBuf};
+use crate::{config::*, registry::yaml};
+use std::{
+    fs::{self, File},
+    io::{Read, Seek},
+    path::{Path, PathBuf},
+};
 
 pub struct LibraryInfo {
     pub pretty_name: String,

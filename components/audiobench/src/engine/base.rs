@@ -1,23 +1,29 @@
-use super::data_transfer::{
-    DynDataCollector, FeedbackData, FeedbackDisplayer, GlobalData, GlobalParameters,
+use crate::{
+    engine::{
+        codegen::{self, CodeGenResult},
+        data_transfer::IOData,
+        data_transfer::{
+            DynDataCollector, FeedbackData, FeedbackDisplayer, GlobalData, GlobalParameters,
+        },
+        julia_thread,
+        parts::ModuleGraph,
+        program_wrapper::AudiobenchExecutorBuilder,
+    },
+    registry::{save_data::Patch, Registry},
 };
-use super::julia_thread;
-use super::parts::ModuleGraph;
-use super::program_wrapper::AudiobenchExecutorBuilder;
-use super::{
-    codegen::{self, CodeGenResult},
-    data_transfer::IOData,
-};
-use crate::registry::{save_data::Patch, Registry};
 use crossbeam_utils::atomic::AtomicCell;
 use julia_helper::GeneratedCode;
 use mpsc::TrySendError;
 use shared_util::prelude::*;
-use std::path::PathBuf;
-use std::str::FromStr;
-use std::sync::mpsc::{self, Receiver, SyncSender};
-use std::sync::Mutex;
-use std::time::{Duration, Instant};
+use std::{
+    path::PathBuf,
+    str::FromStr,
+    sync::{
+        mpsc::{self, Receiver, SyncSender},
+        Mutex,
+    },
+    time::{Duration, Instant},
+};
 
 const DEFAULT_CHANNELS: usize = 2;
 const DEFAULT_BUFFER_LENGTH: usize = 512;

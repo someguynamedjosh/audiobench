@@ -1,13 +1,16 @@
-use super::Module;
-use crate::engine::{
-    controls::{AutomationSource, Control},
-    parts as ep,
+use crate::{
+    engine::{
+        controls::{AutomationSource, Control},
+        parts as ep,
+    },
+    gui::{
+        constants::*,
+        graphics::GrahpicsWrapper,
+        top_level::{graph::Module, ModuleBrowser},
+    },
+    registry::module_template::ModuleTemplate,
+    scui_config::{DropTarget, MaybeMouseBehavior, Renderer},
 };
-use crate::gui::constants::*;
-use crate::gui::graphics::GrahpicsWrapper;
-use crate::gui::top_level::ModuleBrowser;
-use crate::registry::module_template::ModuleTemplate;
-use crate::scui_config::{DropTarget, MaybeMouseBehavior, Renderer};
 use scones::make_constructor;
 use scui::{
     GuiInterfaceProvider, MouseBehavior, MouseMods, OnClickBehavior, Vec2D, Widget, WidgetImpl,

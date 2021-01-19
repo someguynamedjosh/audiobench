@@ -1,7 +1,7 @@
-use crate::gui::constants::*;
-use crate::gui::top_level::graph::ModuleGraph;
-use crate::gui::{GuiTab, };
-use crate::scui_config::{DropTarget, MaybeMouseBehavior, Renderer};
+use crate::{
+    gui::{constants::*, top_level::graph::ModuleGraph, GuiTab},
+    scui_config::{DropTarget, MaybeMouseBehavior, Renderer},
+};
 use scui::{ChildHolder, MouseMods, Vec2D, WidgetImpl};
 use shared_util::prelude::*;
 

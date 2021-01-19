@@ -1,8 +1,9 @@
-use crate::engine::UiThreadEngine;
-use crate::gui::constants::*;
-use crate::gui::top_level::*;
-use crate::registry::Registry;
-use crate::scui_config::{DropTarget, MaybeMouseBehavior, Renderer};
+use crate::{
+    engine::UiThreadEngine,
+    gui::{constants::*, top_level::*},
+    registry::Registry,
+    scui_config::{DropTarget, MaybeMouseBehavior, Renderer},
+};
 use enumflags2::BitFlags;
 use scui::{MouseMods, Vec2D, Widget, WidgetImpl};
 use shared_util::prelude::*;

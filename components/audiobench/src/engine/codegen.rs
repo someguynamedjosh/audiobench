@@ -1,8 +1,11 @@
-use super::controls::{AutomationSource, };
-use super::data_transfer::{DataFormat, GlobalParameters};
-use super::data_transfer::{DynDataCollector, FeedbackDisplayer};
-use crate::engine::parts::*;
-use crate::gui::module_widgets::FeedbackMode;
+use crate::{
+    engine::{
+        controls::AutomationSource,
+        data_transfer::{DataFormat, DynDataCollector, FeedbackDisplayer, GlobalParameters},
+        parts::*,
+    },
+    gui::module_widgets::FeedbackMode,
+};
 use julia_helper::GeneratedCode;
 use shared_util::prelude::*;
 

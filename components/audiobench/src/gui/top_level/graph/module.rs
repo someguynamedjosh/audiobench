@@ -1,9 +1,13 @@
-use super::{GraphHighlightMode, ModuleGraph, WireTracker};
-use crate::engine::parts as ep;
-use crate::gui::constants::*;
-use crate::gui::module_widgets::ModuleWidget;
-use crate::gui::{InteractionHint, Tooltip};
-use crate::scui_config::{DropTarget, MaybeMouseBehavior, Renderer};
+use crate::{
+    engine::parts as ep,
+    gui::{
+        constants::*,
+        module_widgets::ModuleWidget,
+        top_level::graph::{GraphHighlightMode, ModuleGraph, WireTracker},
+        {InteractionHint, Tooltip},
+    },
+    scui_config::{DropTarget, MaybeMouseBehavior, Renderer},
+};
 use scui::{MouseBehavior, MouseMods, Vec2D, Widget, WidgetImpl};
 use shared_util::prelude::*;
 

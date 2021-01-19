@@ -1,5 +1,4 @@
-use crate::gui::constants::*;
-use crate::scui_config::Renderer;
+use crate::{gui::constants::*, scui_config::Renderer};
 use scui::Vec2D;
 
 // This code is not intended to be maintainable. It was created by madly scribbling on graph paper

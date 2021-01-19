@@ -1,5 +1,7 @@
-use crate::engine::controls::Control;
-use crate::scui_config::{DropTarget, Renderer};
+use crate::{
+    engine::controls::Control,
+    scui_config::{DropTarget, Renderer},
+};
 use scui::{Widget, WidgetImpl};
 use shared_util::prelude::*;
 

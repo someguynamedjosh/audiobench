@@ -1,8 +1,8 @@
-use super::ModuleWidgetImpl;
-use crate::engine::controls::{IntControl, UpdateRequest};
-use crate::gui::constants::*;
-use crate::gui::{InteractionHint, Tooltip};
-use crate::scui_config::{DropTarget, MaybeMouseBehavior, Renderer};
+use crate::{
+    engine::controls::{IntControl, UpdateRequest},
+    gui::{constants::*, module_widgets::ModuleWidgetImpl, InteractionHint, Tooltip},
+    scui_config::{DropTarget, MaybeMouseBehavior, Renderer},
+};
 use scui::{MouseMods, Vec2D, WidgetImpl};
 use shared_util::prelude::*;
 

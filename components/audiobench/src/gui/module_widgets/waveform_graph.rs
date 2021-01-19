@@ -1,6 +1,7 @@
-use super::ModuleWidgetImpl;
-use crate::gui::constants::*;
-use crate::scui_config::{DropTarget, Renderer};
+use crate::{
+    gui::{constants::*, module_widgets::ModuleWidgetImpl},
+    scui_config::{DropTarget, Renderer},
+};
 use scui::{Vec2D, WidgetImpl};
 use shared_util::prelude::*;
 

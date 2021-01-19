@@ -1,6 +1,6 @@
-pub use crate::gui::graphics::GrahpicsWrapper as Renderer;
-pub use crate::gui::mouse_behaviors::DropTarget;
-pub use crate::gui::GuiState;
+pub use crate::gui::{
+    graphics::GrahpicsWrapper as Renderer, mouse_behaviors::DropTarget, GuiState,
+};
 pub type MaybeMouseBehavior = scui::MaybeMouseBehavior<DropTarget>;
 
 // Waiting on https://github.com/rust-lang/rust/issues/41517

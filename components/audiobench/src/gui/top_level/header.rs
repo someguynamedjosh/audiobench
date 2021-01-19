@@ -1,5 +1,7 @@
-use crate::gui::constants::*;
-use crate::scui_config::{DropTarget, MaybeMouseBehavior, Renderer};
+use crate::{
+    gui::constants::*,
+    scui_config::{DropTarget, MaybeMouseBehavior, Renderer},
+};
 use scui::{MouseMods, OnClickBehavior, Vec2D, WidgetImpl};
 use shared_util::prelude::*;
 

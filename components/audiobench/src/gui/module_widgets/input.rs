@@ -1,5 +1,5 @@
 use super::ModuleWidgetImpl;
-use crate::engine::controls::{Control, InputControl, };
+use crate::engine::controls::{Control, InputControl};
 use crate::gui::constants::*;
 use crate::gui::top_level::graph::{ConnectToControl, Module, ModuleGraph};
 use crate::gui::{InteractionHint, Tooltip};

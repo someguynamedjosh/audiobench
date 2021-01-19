@@ -1,4 +1,4 @@
-use super::*;
+use crate::gui::module_widgets::*;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum FeedbackMode {
