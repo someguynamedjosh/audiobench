@@ -23,6 +23,7 @@ impl OutputJack {
     fn create(
         label: String,
         tooltip: String,
+        typ: ep::JackType,
         mut icon: usize,
         custom_icon: Option<usize>,
         pos: Vec2D,
@@ -38,7 +39,10 @@ impl OutputJack {
             label,
             tooltip: Tooltip {
                 text: tooltip,
-                interaction: InteractionHint::LeftClickAndDrag.into(),
+                interaction: vec![
+                    InteractionHint::LeftClickAndDrag,
+                    InteractionHint::ProducesOutput(typ),
+                ],
             },
             icon,
             small_icon,
@@ -135,6 +139,7 @@ impl Module {
             outputs.push(OutputJack::create(
                 output.borrow_label().to_owned(),
                 output.borrow_tooltip().to_owned(),
+                output.get_type(),
                 output.get_icon_index(),
                 output.get_custom_icon_index(),
                 (size.x - JACK_SIZE, coord(index as i32)).into(),
@@ -167,35 +172,6 @@ impl Module {
         self.state.borrow().widgets[widget_index].take_feedback_data(data);
     }
 
-    fn get_tooltip_at(&self, mouse_pos: Vec2D) -> Option<Tooltip> {
-        // let state = self.state.borrow();
-        // for widget in &state.widgets {
-        //     let pos = widget.get_pos();
-        //     let local_pos = mouse_pos - pos;
-        //     if local_pos.inside(widget.get_size()) {
-        //         let tooltip = widget.get_tooltip_at(local_pos);
-        //         if !tooltip.is_none() {
-        //             return tooltip;
-        //         }
-        //     }
-        // }
-        // for input in state.inputs.iter() {
-        //     if input.mouse_in_bounds(mouse_pos) {
-        //         return Some(input.tooltip.clone());
-        //     }
-        // }
-        // for output in state.outputs.iter() {
-        //     if output.mouse_in_bounds(mouse_pos) {
-        //         return Some(output.tooltip.clone());
-        //     }
-        // }
-        // TODO: Tooltip text?
-        Some(Tooltip {
-            text: "".to_owned(),
-            interaction: InteractionHint::LeftClickAndDrag | InteractionHint::RightClick,
-        })
-    }
-
     fn draw_wires(self: &Rc<Self>, g: &mut Renderer, pos: Vec2D) {
         let mut wire_tracker = WireTracker::new(self.get_size());
         let state = self.state.borrow();
@@ -213,13 +189,6 @@ impl Module {
         wire_tracker.draw_wires(g, pos);
     }
 
-    fn drag(self: &Rc<Self>, delta: Vec2D) {
-        let state = self.state.borrow_mut();
-        let mut module = state.module.borrow_mut();
-        module.pos.0 += delta.x;
-        module.pos.1 += delta.y;
-    }
-
     pub fn represents_module(self: &Rc<Self>, module: &Rcrc<ep::Module>) -> bool {
         Rc::ptr_eq(&self.state.borrow().module, module)
     }
@@ -229,11 +198,47 @@ impl Module {
     }
 }
 
-pub struct DragModule(Rc<Module>);
+pub struct DragModule{
+    module: Rc<Module>,
+    real_pos: Vec2D,
+}
+
+impl DragModule {
+    fn new(module: Rc<Module>) -> Self {
+        let state = module.state.borrow();
+        let real_module = state.module.borrow();
+        let real_pos = Vec2D::from(real_module.pos);
+        drop(real_module);
+        drop(state);
+        Self {
+            module,
+            real_pos,
+        }
+    }
+}
 
 impl MouseBehavior<DropTarget> for DragModule {
-    fn on_drag(&mut self, delta: Vec2D, _mods: &MouseMods) {
-        self.0.drag(delta);
+    fn on_drag(&mut self, delta: Vec2D, mods: &MouseMods) {
+        self.real_pos += delta;
+        let state = self.module.state.borrow_mut();
+        let mut module = state.module.borrow_mut();
+        if mods.snap {
+            const INTERVAL: f32 = grid(1) + GRID_P;
+            module.pos.0 = (self.real_pos.x / INTERVAL).round() * INTERVAL;
+            module.pos.1 = (self.real_pos.y / INTERVAL).round() * INTERVAL;
+        } else {
+            module.pos.0 = self.real_pos.x;
+            module.pos.1 = self.real_pos.y;
+        }
+        self.module.with_gui_state_mut(|state| {
+            state.set_tooltip(Tooltip {
+                text: format!(""),
+                interaction: vec![
+                    InteractionHint::LeftClickAndDrag,
+                    InteractionHint::SnappingModifier,
+                ],
+            });
+        });
     }
 }
 
@@ -266,7 +271,7 @@ impl WidgetImpl<Renderer, DropTarget> for Module {
             // MouseAction::RemoveModule(Rc::clone(&state.module))
             unimplemented!()
         } else {
-            Some(Box::new(DragModule(Rc::clone(self))))
+            Some(Box::new(DragModule::new(Rc::clone(self))))
         }
     }
 
@@ -295,13 +300,22 @@ impl WidgetImpl<Renderer, DropTarget> for Module {
         self.parents.graph.set_hovered_module(Rc::clone(self));
         let state = self.state.borrow();
         for widget in &state.widgets {
-            ris!(widget.on_hover(pos));
+            if let Some(i) = widget.on_hover(pos) {
+                if let Some(control) = widget.represented_control() {
+                    self.with_gui_state_mut(|state| {
+                        state.add_automation_to_tooltip(&control);
+                    });
+                }
+                return Some(i);
+            }
         }
 
-        // TODO: Tooltip text?
         let mut tooltip = Tooltip {
             text: "".to_owned(),
-            interaction: InteractionHint::LeftClickAndDrag | InteractionHint::RightClick,
+            interaction: vec![
+                InteractionHint::LeftClickAndDrag,
+                InteractionHint::RightClick,
+            ],
         };
         for output in state.outputs.iter() {
             if output.mouse_in_bounds(pos) {

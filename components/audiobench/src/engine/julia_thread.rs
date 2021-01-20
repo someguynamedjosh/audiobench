@@ -69,7 +69,6 @@ pub(super) fn entry(
             // return;
         }
     };
-    println!("{}", default_patch_code.as_str());
     let res = executor
         .change_generated_code(default_patch_code)
         .map_err(|err| {

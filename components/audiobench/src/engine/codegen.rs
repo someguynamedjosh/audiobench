@@ -239,8 +239,6 @@ impl<'a> CodeGenerator<'a> {
         let dyn_data_collector = DynDataCollector::new(ordered_controls);
         let feedback_displayer = FeedbackDisplayer::new(feedback_widget_selectors);
 
-        println!("{}", code.as_str());
-
         CodeGenResult {
             code,
             dyn_data_collector,

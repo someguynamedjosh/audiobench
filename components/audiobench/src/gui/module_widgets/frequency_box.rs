@@ -81,7 +81,10 @@ impl WidgetImpl<Renderer, DropTarget> for FrequencyBox {
         self.with_gui_state_mut(|state| {
             state.set_tooltip(Tooltip {
                 text: this_state.tooltip.clone(),
-                interaction: InteractionHint::LeftClickAndDrag | InteractionHint::RightClick,
+                interaction: vec![
+                    InteractionHint::LeftClickAndDrag,
+                    InteractionHint::RightClick,
+                ],
             });
         });
         Some(())

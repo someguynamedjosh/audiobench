@@ -1,29 +1,70 @@
+use std::cmp::Ordering;
+
 use crate::{
-    engine::UiThreadEngine,
+    engine::{controls::Control, parts::JackType, UiThreadEngine},
     gui::{constants::*, top_level::*},
     registry::Registry,
     scui_config::{DropTarget, MaybeMouseBehavior, Renderer},
 };
-use enumflags2::BitFlags;
 use scui::{MouseMods, Vec2D, Widget, WidgetImpl};
 use shared_util::prelude::*;
 
-#[derive(BitFlags, Copy, Clone)]
-#[repr(u8)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash)]
 pub enum InteractionHint {
-    LeftClick = 0x1,
-    RightClick = 0x2,
-    Scroll = 0x40,
-    LeftClickAndDrag = 0x4,
-    DoubleClick = 0x8,
-    PrecisionModifier = 0x10,
-    SnappingModifier = 0x20,
+    Scroll,
+    LeftClick,
+    LeftClickAndDrag,
+    RightClick,
+    DoubleClick,
+    PrecisionModifier,
+    SnappingModifier,
+    TakesInput(JackType),
+    ProducesOutput(JackType),
+}
+
+impl InteractionHint {
+    fn jack_type_ordinal(ty: &JackType) -> u8 {
+        use JackType::*;
+        match ty {
+            Audio => 0,
+            Pitch => 1,
+            Trigger => 1,
+            Waveform => 1,
+        }
+    }
+
+    fn ordinal(&self) -> u8 {
+        use InteractionHint::*;
+        match self {
+            Scroll => 0,
+            LeftClick => 1,
+            LeftClickAndDrag => 2,
+            DoubleClick => 3,
+            RightClick => 4,
+            PrecisionModifier => 5,
+            SnappingModifier => 6,
+            TakesInput(ty) => 10 + Self::jack_type_ordinal(ty),
+            ProducesOutput(ty) => 20 + Self::jack_type_ordinal(ty),
+        }
+    }
+}
+
+impl PartialOrd for InteractionHint {
+    fn partial_cmp(&self, other: &InteractionHint) -> Option<Ordering> {
+        self.ordinal().partial_cmp(&other.ordinal())
+    }
+}
+
+impl Ord for InteractionHint {
+    fn cmp(&self, other: &InteractionHint) -> Ordering {
+        self.ordinal().cmp(&other.ordinal())
+    }
 }
 
 #[derive(Clone)]
 pub struct Tooltip {
     pub text: String,
-    pub interaction: BitFlags<InteractionHint>,
+    pub interaction: Vec<InteractionHint>,
 }
 
 impl Default for Tooltip {
@@ -31,6 +72,15 @@ impl Default for Tooltip {
         Tooltip {
             text: "".to_owned(),
             interaction: Default::default(),
+        }
+    }
+}
+
+impl Tooltip {
+    pub fn add_control_automation(&mut self, control: &Rcrc<impl Control + ?Sized>) {
+        for acceptable_type in control.borrow().acceptable_automation() {
+            self.interaction
+                .push(InteractionHint::TakesInput(acceptable_type));
         }
     }
 }
@@ -85,6 +135,10 @@ impl GuiState {
 
     pub fn borrow_tooltip(&self) -> &Tooltip {
         &self.tooltip
+    }
+
+    pub fn add_automation_to_tooltip(&mut self, from_control: &Rcrc<impl Control + ?Sized>) {
+        self.tooltip.add_control_automation(from_control);
     }
 
     pub fn add_tab(&mut self, tab: impl GuiTab + 'static) {

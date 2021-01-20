@@ -7,6 +7,7 @@ use crate::{
         constants::*,
         graphics::GrahpicsWrapper,
         top_level::{graph::Module, ModuleBrowser},
+        InteractionHint, Tooltip,
     },
     registry::module_template::ModuleTemplate,
     scui_config::{DropTarget, MaybeMouseBehavior, Renderer},
@@ -281,11 +282,11 @@ impl MouseBehavior<DropTarget> for ConnectToControl {
             if types.into_iter().any(|t| t == source.output_type) {
                 self.control.borrow_mut().connect_automation(source);
             }
+            self.graph.with_gui_state_mut(|state| {
+                state.engine.borrow_mut().regenerate_code();
+            })
         }
         self.graph.clear_wire_preview();
-        self.graph.with_gui_state_mut(|state| {
-            state.engine.borrow_mut().regenerate_code();
-        })
     }
 }
 
@@ -336,7 +337,16 @@ impl WidgetImpl<Renderer, DropTarget> for ModuleGraph {
         for module in children.modules.iter().rev() {
             ris!(module.on_hover(pos))
         }
-        None
+        self.with_gui_state_mut(|state| {
+            state.set_tooltip(Tooltip {
+                text: "Double-click to add a new module.".to_owned(),
+                interaction: vec![
+                    InteractionHint::DoubleClick,
+                    InteractionHint::LeftClickAndDrag,
+                ],
+            })
+        });
+        Some(())
     }
 
     fn get_drop_target_impl(self: &Rc<Self>, pos: Vec2D) -> Option<DropTarget> {

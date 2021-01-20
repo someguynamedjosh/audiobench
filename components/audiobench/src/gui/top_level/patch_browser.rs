@@ -378,7 +378,7 @@ impl WidgetImpl<Renderer, DropTarget> for PatchBrowser {
                 state.set_tooltip(Tooltip {
                     text: "Click a patch to load it or click the trash icon to delete it"
                         .to_owned(),
-                    interaction: InteractionHint::LeftClick | InteractionHint::Scroll,
+                    interaction: vec![InteractionHint::LeftClick, InteractionHint::Scroll],
                 });
             })
         }

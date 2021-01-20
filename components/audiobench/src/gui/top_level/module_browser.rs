@@ -233,7 +233,7 @@ impl WidgetImpl<Renderer, DropTarget> for ModuleBrowser {
         if let Some(entry) = self.get_entry_at(pos) {
             let tt = Tooltip {
                 text: entry.template.borrow().tooltip.clone(),
-                interaction: InteractionHint::LeftClick.into(),
+                interaction: vec![InteractionHint::LeftClick],
             };
             self.with_gui_state_mut(|state| state.set_tooltip(tt));
             Some(())

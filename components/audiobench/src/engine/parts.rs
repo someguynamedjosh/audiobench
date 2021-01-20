@@ -6,7 +6,7 @@ use crate::{
 use shared_util::prelude::*;
 use std::collections::{HashMap, HashSet};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum JackType {
     Pitch,
     Waveform,
@@ -37,15 +37,6 @@ impl JackType {
             Self::Waveform => "Factory:waveform",
             Self::Audio => "Factory:audio",
             Self::Trigger => "Factory:trigger",
-        }
-    }
-
-    pub fn ns_type(&self) -> &'static str {
-        match self {
-            Self::Pitch => "<STEREO_BUFFER>",
-            Self::Waveform => "MACRO",
-            Self::Audio => "<STEREO_BUFFER>",
-            Self::Trigger => "<TRIGGER_BUFFER>",
         }
     }
 }

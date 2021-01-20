@@ -1,5 +1,5 @@
 use crate::{
-    gui::constants::*,
+    gui::{constants::*, InteractionHint, Tooltip},
     scui_config::{DropTarget, MaybeMouseBehavior, Renderer},
 };
 use scui::{MouseMods, OnClickBehavior, TextField, Vec2D, WidgetImpl};
@@ -74,6 +74,16 @@ impl WidgetImpl<Renderer, DropTarget> for TextBox {
         OnClickBehavior::wrap(move || {
             gui.focus_text_field(&field);
         })
+    }
+
+    fn on_hover_impl(self: &Rc<Self>, pos: Vec2D) -> Option<()> {
+        self.with_gui_state_mut(|state| {
+            state.set_tooltip(Tooltip {
+                text: "Click to edit".to_owned(),
+                interaction: vec![InteractionHint::LeftClick],
+            });
+        });
+        Some(())
     }
 
     fn draw_impl(self: &Rc<Self>, g: &mut Renderer) {

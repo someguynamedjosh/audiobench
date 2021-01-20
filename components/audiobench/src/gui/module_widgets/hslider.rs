@@ -114,9 +114,11 @@ impl WidgetImpl<Renderer, DropTarget> for HSlider {
     fn on_hover_impl(self: &Rc<Self>, _pos: Vec2D) -> Option<()> {
         let tooltip = Tooltip {
             text: self.state.borrow().tooltip.clone(),
-            interaction: InteractionHint::LeftClickAndDrag
-                | InteractionHint::RightClick
-                | InteractionHint::DoubleClick,
+            interaction: vec![
+                InteractionHint::LeftClickAndDrag,
+                InteractionHint::RightClick,
+                InteractionHint::DoubleClick,
+            ],
         };
         self.with_gui_state_mut(|state| {
             state.set_tooltip(tooltip);
@@ -318,7 +320,10 @@ impl WidgetImpl<Renderer, DropTarget> for HSliderEditor {
             // Inside the actual control
             let tooltip = Tooltip {
                 text: state.tooltip.clone(),
-                interaction: InteractionHint::LeftClickAndDrag | InteractionHint::DoubleClick,
+                interaction: vec![
+                    InteractionHint::LeftClickAndDrag,
+                    InteractionHint::DoubleClick,
+                ],
             };
             self.with_gui_state_mut(|state| {
                 state.set_tooltip(tooltip);
@@ -335,7 +340,10 @@ impl WidgetImpl<Renderer, DropTarget> for HSliderEditor {
                     "Automation lane #{}, click + drag to move one of the ends.",
                     lane + 1,
                 ),
-                interaction: InteractionHint::LeftClickAndDrag | InteractionHint::DoubleClick,
+                interaction: vec![
+                    InteractionHint::LeftClickAndDrag,
+                    InteractionHint::DoubleClick,
+                ],
             }
         } else {
             Tooltip {
@@ -343,7 +351,10 @@ impl WidgetImpl<Renderer, DropTarget> for HSliderEditor {
                     "Automation lane #{}, click + drag on empty space to move one end at a time.",
                     lane + 1,
                 ),
-                interaction: InteractionHint::LeftClickAndDrag | InteractionHint::DoubleClick,
+                interaction: vec![
+                    InteractionHint::LeftClickAndDrag,
+                    InteractionHint::DoubleClick,
+                ],
             }
         };
         self.with_gui_state_mut(|state| {

@@ -55,6 +55,7 @@ impl WidgetImpl<Renderer, DropTarget> for EnvelopeGraph {
         const CS: f32 = CORNER_SIZE;
         g.set_color(&COLOR_BG0);
         g.draw_rounded_rect(0, state.size, CS);
+        g.translate((0.0, CS));
 
         g.set_color(&COLOR_FG1);
         let (a, d, s, r) = (

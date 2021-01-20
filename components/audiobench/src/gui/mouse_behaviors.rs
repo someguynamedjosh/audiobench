@@ -58,9 +58,11 @@ fn discrete_drag_delta(delta: Vec2D, mods: &MouseMods) -> f32 {
 fn range_value_tooltip(value: f32, suffix: &str) -> Tooltip {
     Tooltip {
         text: format!("{}{}", format_decimal(value, 4), suffix,),
-        interaction: InteractionHint::LeftClickAndDrag
-            | InteractionHint::PrecisionModifier
-            | InteractionHint::SnappingModifier,
+        interaction: vec![
+            InteractionHint::LeftClickAndDrag,
+            InteractionHint::PrecisionModifier,
+            InteractionHint::SnappingModifier,
+        ],
     }
 }
 
@@ -144,9 +146,11 @@ impl MouseBehavior<DropTarget> for ManipulateLane {
         drop(control_ref);
         let tooltip = Tooltip {
             text: tttext,
-            interaction: InteractionHint::LeftClickAndDrag
-                | InteractionHint::PrecisionModifier
-                | InteractionHint::SnappingModifier,
+            interaction: vec![
+                InteractionHint::LeftClickAndDrag,
+                InteractionHint::PrecisionModifier,
+                InteractionHint::SnappingModifier,
+            ],
         };
         self.gui_interface.state.borrow_mut().set_tooltip(tooltip);
         self.engine.borrow_mut().reload_dyn_data();

@@ -67,7 +67,7 @@ macro_rules! make_int_box_widget {
                 };
                 Rc::new(Self::create(parent, state))
             }
-            }
+        }
         }
 
         impl WidgetImpl<Renderer, DropTarget> for $widget_name {
@@ -103,9 +103,11 @@ macro_rules! make_int_box_widget {
             fn on_hover_impl(self: &Rc<Self>, _pos: Vec2D) -> Option<()> {
                 let tooltip = Tooltip {
                     text: self.state.borrow().tooltip.clone(),
-                    interaction: InteractionHint::LeftClick
-                        | InteractionHint::LeftClickAndDrag
-                        | InteractionHint::DoubleClick,
+                    interaction: vec![
+                        InteractionHint::LeftClick, 
+                        InteractionHint::LeftClickAndDrag, 
+                        InteractionHint::DoubleClick
+                    ],
                 };
                 self.with_gui_state_mut(|state| {
                     state.set_tooltip(tooltip);

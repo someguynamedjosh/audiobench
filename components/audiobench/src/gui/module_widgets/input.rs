@@ -117,7 +117,10 @@ impl WidgetImpl<Renderer, DropTarget> for Input {
         self.with_gui_state_mut(|state| {
             state.set_tooltip(Tooltip {
                 text: this_state.tooltip.clone(),
-                interaction: InteractionHint::LeftClick | InteractionHint::LeftClickAndDrag,
+                interaction: vec![
+                    InteractionHint::LeftClick,
+                    InteractionHint::LeftClickAndDrag,
+                ],
             });
         });
         Some(())

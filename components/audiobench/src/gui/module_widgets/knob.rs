@@ -107,9 +107,11 @@ impl WidgetImpl<Renderer, DropTarget> for Knob {
     fn on_hover_impl(self: &Rc<Self>, _pos: Vec2D) -> Option<()> {
         let tooltip = Tooltip {
             text: self.state.borrow().tooltip.clone(),
-            interaction: InteractionHint::LeftClickAndDrag
-                | InteractionHint::RightClick
-                | InteractionHint::DoubleClick,
+            interaction: vec![
+                InteractionHint::LeftClickAndDrag,
+                InteractionHint::RightClick,
+                InteractionHint::DoubleClick,
+            ],
         };
         self.with_gui_state_mut(|state| {
             state.set_tooltip(tooltip);
@@ -345,8 +347,10 @@ impl WidgetImpl<Renderer, DropTarget> for KnobEditor {
                             "Automation lane #{}, click + drag to move one of the ends.",
                             lane + 1,
                         ),
-                        interaction: InteractionHint::LeftClickAndDrag
-                            | InteractionHint::DoubleClick,
+                        interaction: vec![
+                            InteractionHint::LeftClickAndDrag,
+                            InteractionHint::DoubleClick,
+                        ],
                     };
                     self.with_gui_state_mut(|state| {
                         state.set_tooltip(tooltip);
@@ -364,7 +368,10 @@ impl WidgetImpl<Renderer, DropTarget> for KnobEditor {
         let tooltip = if radius < KNOB_MENU_KNOB_OR {
             Tooltip {
                 text: state.tooltip.clone(),
-                interaction: InteractionHint::LeftClickAndDrag | InteractionHint::DoubleClick,
+                interaction: vec![
+                    InteractionHint::LeftClickAndDrag,
+                    InteractionHint::DoubleClick,
+                ],
             }
         } else {
             let radius = radius - KNOB_MENU_KNOB_OR;
@@ -375,7 +382,10 @@ impl WidgetImpl<Renderer, DropTarget> for KnobEditor {
                     "Automation lane #{}, click + drag on empty space to move one end at a time.",
                     lane + 1,
                 ),
-                    interaction: InteractionHint::LeftClickAndDrag | InteractionHint::DoubleClick,
+                    interaction: vec![
+                        InteractionHint::LeftClickAndDrag,
+                        InteractionHint::DoubleClick,
+                    ],
                 }
             } else {
                 return None;

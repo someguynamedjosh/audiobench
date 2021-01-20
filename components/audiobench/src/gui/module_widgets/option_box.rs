@@ -81,7 +81,7 @@ impl WidgetImpl<Renderer, DropTarget> for OptionBox {
     fn on_hover_impl(self: &Rc<Self>, _pos: Vec2D) -> Option<()> {
         let tooltip = Tooltip {
             text: self.state.borrow().tooltip.clone(),
-            interaction: InteractionHint::LeftClick | InteractionHint::DoubleClick,
+            interaction: vec![InteractionHint::LeftClick, InteractionHint::DoubleClick],
         };
         self.with_gui_state_mut(|state| {
             state.set_tooltip(tooltip);

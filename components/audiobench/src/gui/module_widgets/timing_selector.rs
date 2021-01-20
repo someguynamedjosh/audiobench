@@ -98,7 +98,7 @@ impl WidgetImpl<Renderer, DropTarget> for TimingSelector {
                     }
                 )
             },
-            interaction: InteractionHint::LeftClick.into(),
+            interaction: vec![InteractionHint::LeftClick],
         };
         self.with_gui_state_mut(|state| {
             state.set_tooltip(tooltip);

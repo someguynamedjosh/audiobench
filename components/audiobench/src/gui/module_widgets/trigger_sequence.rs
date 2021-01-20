@@ -79,7 +79,7 @@ impl WidgetImpl<Renderer, DropTarget> for TriggerSequence {
     fn on_hover_impl(self: &Rc<Self>, _pos: Vec2D) -> Option<()> {
         let tooltip = Tooltip {
             text: self.state.borrow().tooltip.clone(),
-            interaction: InteractionHint::LeftClick.into(),
+            interaction: vec![InteractionHint::LeftClick],
         };
         self.with_gui_state_mut(|state| {
             state.set_tooltip(tooltip);

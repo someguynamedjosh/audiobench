@@ -88,7 +88,10 @@ impl WidgetImpl<Renderer, DropTarget> for ValueSequence {
             };
             let update = cref.borrow_mut().set_value(clicked_step, final_value);
             let tooltip = Tooltip {
-                interaction: InteractionHint::SnappingModifier | InteractionHint::PrecisionModifier,
+                interaction: vec![
+                    InteractionHint::SnappingModifier,
+                    InteractionHint::PrecisionModifier,
+                ],
                 text: format!("{:.3}", final_value),
             };
             (update, Some(tooltip))
@@ -98,7 +101,7 @@ impl WidgetImpl<Renderer, DropTarget> for ValueSequence {
     fn on_hover_impl(self: &Rc<Self>, _pos: Vec2D) -> Option<()> {
         let tooltip = Tooltip {
             text: self.state.borrow().tooltip.clone(),
-            interaction: InteractionHint::LeftClickAndDrag.into(),
+            interaction: vec![InteractionHint::LeftClickAndDrag],
         };
         self.with_gui_state_mut(|state| {
             state.set_tooltip(tooltip);
