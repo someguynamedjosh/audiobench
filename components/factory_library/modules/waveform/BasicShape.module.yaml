@@ -17,14 +17,14 @@ controls:
 gui: 
   label: Basic Shape
   category: Waveform
-  tooltip: Select between basic waveforms like sine, square, and triangle.
+  tooltip: Select between basic waveforms like sine, square, and triangle
   width: 4
   height: 3
   widgets:
     Knob:
       control: parameter
       label: Parameter
-      tooltip: A parameter which has different effects depending on the selected shape.
+      tooltip: Has different effects depending on the selected shape.
       x: 2
       y: 0
     OptionBox:

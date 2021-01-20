@@ -79,30 +79,43 @@ impl PatchBrowser {
         this.sort();
 
         let patch_name = current_patch.borrow().borrow_name().to_owned();
-        let save_icon = registry.lookup_icon("Factory:save").unwrap();
         let this2 = Rc::clone(&this);
-        let save_button = IconButton::new(&this, (GRID_P, 0.0), CG, save_icon, move |_| {
-            this2.on_save_patch()
-        });
+        let save_button = IconButton::new(
+            &this,
+            (GRID_P, 0.0),
+            CG,
+            registry.lookup_icon("Factory:save").unwrap(),
+            move |_| this2.on_save_patch(),
+            "Save the current patch",
+        );
         save_button.set_enabled(save_enabled);
-        let new_icon = registry.lookup_icon("Factory:add").unwrap();
-        let pos = (GRID_P + HW - CG * 3.0 - GRID_P * 2.0, 0.0);
         let this2 = Rc::clone(&this);
-        let new_button = IconButton::new(&this, pos, CG, new_icon, move |_| {
-            this2.on_save_patch_copy()
-        });
-        let copy_icon = registry.lookup_icon("Factory:copy").unwrap();
-        let pos = (GRID_P + HW - CG * 2.0 - GRID_P, 0.0);
+        let new_button = IconButton::new(
+            &this,
+            (GRID_P + HW - CG * 3.0 - GRID_P * 2.0, 0.0),
+            CG,
+            registry.lookup_icon("Factory:add").unwrap(),
+            move |_| this2.on_save_patch_copy(),
+            "Create a new patch based on the current patch (including unsaved changes)",
+        );
         let this2 = Rc::clone(&this);
-        let copy_button = IconButton::new(&this, pos, CG, copy_icon, move |_| {
-            this2.on_copy_patch_to_clipboard()
-        });
-        let paste_icon = registry.lookup_icon("Factory:paste").unwrap();
-        let pos = (GRID_P + HW - CG, 0.0);
+        let copy_button = IconButton::new(
+            &this,
+            (GRID_P + HW - CG * 2.0 - GRID_P, 0.0),
+            CG,
+            registry.lookup_icon("Factory:copy").unwrap(),
+            move |_| this2.on_copy_patch_to_clipboard(),
+            "Copy the current patch to the clipboard (including unsaved changes)",
+        );
         let this2 = Rc::clone(&this);
-        let paste_button = IconButton::new(&this, pos, CG, paste_icon, move |_| {
-            this2.on_paste_patch_from_clipboard()
-        });
+        let paste_button = IconButton::new(
+            &this,
+            (GRID_P + HW - CG, 0.0),
+            CG,
+            registry.lookup_icon("Factory:paste").unwrap(),
+            move |_| this2.on_paste_patch_from_clipboard(),
+            "Paste and load a patch from your clipboard",
+        );
 
         let this2 = Rc::clone(&this);
         let name_box = TextBox::new(
@@ -358,8 +371,9 @@ impl WidgetImpl<Renderer, DropTarget> for PatchBrowser {
         }
     }
 
-    fn on_hover_impl(self: &Rc<Self>, mouse_pos: Vec2D) -> Option<()> {
-        if mouse_pos.x <= HW && mouse_pos.y > NAME_BOX_HEIGHT + GRID_P {
+    fn on_hover_impl(self: &Rc<Self>, pos: Vec2D) -> Option<()> {
+        ris!(self.on_hover_children(pos));
+        if pos.x <= HW && pos.y > NAME_BOX_HEIGHT + GRID_P {
             self.with_gui_state_mut(|state| {
                 state.set_tooltip(Tooltip {
                     text: "Click a patch to load it or click the trash icon to delete it"

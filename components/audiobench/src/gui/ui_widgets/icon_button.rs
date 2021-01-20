@@ -1,5 +1,5 @@
 use crate::{
-    gui::constants::*,
+    gui::{constants::*, InteractionHint, Tooltip},
     scui_config::{DropTarget, MaybeMouseBehavior, Renderer},
 };
 use scui::{MouseMods, Vec2D, WidgetImpl};
@@ -13,6 +13,7 @@ scui::widget! {
         icon: usize,
         enabled: bool,
         mouse_behavior: Box<dyn FnMut(&MouseMods) -> MaybeMouseBehavior>,
+        tooltip: String,
     }
 }
 
@@ -23,6 +24,7 @@ impl IconButton {
         size: f32,
         icon: usize,
         mouse_behavior: F,
+        tooltip: impl ToString,
     ) -> Rc<Self>
     where
         F: 'static + FnMut(&MouseMods) -> MaybeMouseBehavior,
@@ -33,6 +35,7 @@ impl IconButton {
             icon,
             enabled: true,
             mouse_behavior: Box::new(mouse_behavior),
+            tooltip: tooltip.to_string(),
         };
         let this = Rc::new(Self::create(parent, state));
         this
@@ -63,6 +66,15 @@ impl WidgetImpl<Renderer, DropTarget> for IconButton {
         }
         // https://github.com/rust-lang/rust/issues/51886
         (&mut *state.mouse_behavior)(mods)
+    }
+
+    fn on_hover_impl(self: &Rc<Self>, pos: Vec2D) -> Option<()> {
+        let tooltip = Tooltip {
+            text: self.state.borrow().tooltip.clone(),
+            interaction: InteractionHint::LeftClick.into(),
+        };
+        self.with_gui_state_mut(|state| state.set_tooltip(tooltip));
+        Some(())
     }
 
     fn draw_impl(self: &Rc<Self>, g: &mut Renderer) {

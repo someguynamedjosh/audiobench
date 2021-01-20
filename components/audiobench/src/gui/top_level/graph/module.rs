@@ -291,8 +291,27 @@ impl WidgetImpl<Renderer, DropTarget> for Module {
         None
     }
 
-    fn on_hover_impl(self: &Rc<Self>, _pos: Vec2D) -> Option<()> {
+    fn on_hover_impl(self: &Rc<Self>, pos: Vec2D) -> Option<()> {
         self.parents.graph.set_hovered_module(Rc::clone(self));
+        let state = self.state.borrow();
+        for widget in &state.widgets {
+            ris!(widget.on_hover(pos));
+        }
+
+        // TODO: Tooltip text?
+        let mut tooltip = Tooltip {
+            text: "".to_owned(),
+            interaction: InteractionHint::LeftClickAndDrag | InteractionHint::RightClick,
+        };
+        for output in state.outputs.iter() {
+            if output.mouse_in_bounds(pos) {
+                tooltip = output.tooltip.clone();
+            }
+        }
+        drop(state);
+        self.with_gui_state_mut(|state| {
+            state.set_tooltip(tooltip);
+        });
         Some(())
     }
 

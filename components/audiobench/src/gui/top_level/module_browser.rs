@@ -202,17 +202,6 @@ impl ModuleBrowser {
             None
         }
     }
-
-    pub fn get_tooltip_at(&self, mouse_pos: Vec2D) -> Option<Tooltip> {
-        if let Some(entry) = self.get_entry_at(mouse_pos) {
-            Some(Tooltip {
-                text: entry.template.borrow().tooltip.clone(),
-                interaction: InteractionHint::LeftClick.into(),
-            })
-        } else {
-            None
-        }
-    }
 }
 
 impl WidgetImpl<Renderer, DropTarget> for ModuleBrowser {
@@ -235,6 +224,19 @@ impl WidgetImpl<Renderer, DropTarget> for ModuleBrowser {
             OnClickBehavior::wrap(move || {
                 add_to_graph.add_module(template);
             })
+        } else {
+            None
+        }
+    }
+
+    fn on_hover_impl(self: &Rc<Self>, pos: Vec2D) -> Option<()> {
+        if let Some(entry) = self.get_entry_at(pos) {
+            let tt = Tooltip {
+                text: entry.template.borrow().tooltip.clone(),
+                interaction: InteractionHint::LeftClick.into(),
+            };
+            self.with_gui_state_mut(|state| state.set_tooltip(tt));
+            Some(())
         } else {
             None
         }
