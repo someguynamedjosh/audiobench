@@ -143,7 +143,9 @@ pub struct FeedbackDisplayer {
 
 impl FeedbackDisplayer {
     pub fn display(&self, data: FeedbackData, on: Rc<ModuleGraph>) {
-        assert!(data.0.len() == self.widget_selectors.len());
+        if data.0.len() != self.widget_selectors.len() {
+            return;
+        }
         for (index, (module, widget_index)) in self.widget_selectors.iter().enumerate() {
             let module_widget = on.get_widget_for_module(module).unwrap();
             module_widget.take_feedback_data(data.0[index].clone(), *widget_index);

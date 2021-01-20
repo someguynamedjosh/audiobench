@@ -57,10 +57,10 @@ impl OptionChoiceControl {
 
 #[rustfmt::skip] 
 impl Control for OptionChoiceControl {
-    fn get_parameter_types(&self) -> Vec<IOType> { unimplemented!() }
-    fn get_parameter_values(&self) -> Vec<IOData> { unimplemented!() }
-    fn generate_code(&self, params: &[&str], automation_code: &AutomationCode) -> String { 
-        unimplemented!() 
+    fn get_parameter_types(&self) -> Vec<IOType> { vec![IOType::Int] }
+    fn get_parameter_values(&self) -> Vec<IOData> { vec![IOData::Int(self.selected_option as _)] }
+    fn generate_code(&self, params: &[&str], _automation_code: &AutomationCode) -> String { 
+        format!("{}", params[0])
     }
     fn serialize(&self, ser: &mut MiniSer) { 
         ser.u8(self.selected_option as _); 

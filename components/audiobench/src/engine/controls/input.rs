@@ -26,7 +26,6 @@ fn default_option_descriptions_for(typ: JackType) -> &'static [DefaultInputDescr
             DefaultInputDescription {
                 name: "Silence",
                 code: "flat_waveform",
-                // TODO: Better icon.
                 icon: "Factory:nothing",
             },
             DefaultInputDescription {
@@ -63,7 +62,7 @@ fn default_option_descriptions_for(typ: JackType) -> &'static [DefaultInputDescr
             },
             DefaultInputDescription {
                 name: "Never",
-                code: "StaticTrigger(False)",
+                code: "StaticTrigger(false)",
                 icon: "Factory:nothing",
             },
         ],

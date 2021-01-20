@@ -37,7 +37,7 @@ impl EnvelopeGraph {
     }
 }
 
-const BLANK_FEEDBACK: [f32; 6] = [0.0, 0.1, 1.0, 0.2, 1.0, 1.0];
+const BLANK_FEEDBACK: [f32; 6] = [0.0, 0.1, 1.0, 0.2, 0.0, -1.0];
 
 impl WidgetImpl<Renderer, DropTarget> for EnvelopeGraph {
     fn get_pos_impl(self: &Rc<Self>) -> Vec2D {
