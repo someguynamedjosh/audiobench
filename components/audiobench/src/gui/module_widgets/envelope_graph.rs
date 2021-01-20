@@ -4,7 +4,7 @@ use crate::{
 };
 use scui::{Vec2D, WidgetImpl};
 use shared_util::prelude::*;
-use std::f32::consts::PI;
+use std::{convert::TryInto, f32::consts::PI};
 
 yaml_widget_boilerplate::make_widget_outline! {
     widget_struct: EnvelopeGraph,
@@ -22,15 +22,22 @@ scui::widget! {
     State {
         pos: Vec2D,
         size: Vec2D,
+        feedback: Option<[f32; 6]>,
     }
 }
 
 impl EnvelopeGraph {
     fn new(parent: &impl EnvelopeGraphParent, pos: Vec2D, size: Vec2D) -> Rc<Self> {
-        let state = EnvelopeGraphState { pos, size };
+        let state = EnvelopeGraphState {
+            pos,
+            size,
+            feedback: None,
+        };
         Rc::new(Self::create(parent, state))
     }
 }
+
+const BLANK_FEEDBACK: [f32; 6] = [0.0, 0.1, 1.0, 0.2, 1.0, 1.0];
 
 impl WidgetImpl<Renderer, DropTarget> for EnvelopeGraph {
     fn get_pos_impl(self: &Rc<Self>) -> Vec2D {
@@ -42,9 +49,8 @@ impl WidgetImpl<Renderer, DropTarget> for EnvelopeGraph {
     }
 
     fn draw_impl(self: &Rc<Self>, g: &mut Renderer) {
-        // let feedback_data: &[f32] = unimplemented!();
-        let feedback_data: &[f32] = &[0.0, 0.0, 0.0, 1.0, 1.0, 1.0];
         let state = self.state.borrow();
+        let feedback_data = state.feedback.as_ref().unwrap_or(&BLANK_FEEDBACK);
 
         const CS: f32 = CORNER_SIZE;
         g.set_color(&COLOR_BG0);
@@ -92,4 +98,9 @@ impl WidgetImpl<Renderer, DropTarget> for EnvelopeGraph {
     }
 }
 
-impl ModuleWidgetImpl for EnvelopeGraph {}
+impl ModuleWidgetImpl for EnvelopeGraph {
+    fn take_feedback_data(self: &Rc<Self>, data: Vec<f32>) {
+        assert_eq!(data.len(), 6);
+        self.state.borrow_mut().feedback = Some(data.try_into().unwrap());
+    }
+}

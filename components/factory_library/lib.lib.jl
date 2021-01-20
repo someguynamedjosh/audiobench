@@ -115,14 +115,30 @@ struct NoteContext
     note_out::NoteOutput
 end
 
+function timing_mode_source_is_global(mode::Integer)::Bool
+    mode & 0b1 == 0b1
+end
+
+function timing_mode_source_is_note(mode::Integer)::Bool
+    mode & 0b1 == 0b0
+end
+
+function timing_mode_unit_is_beats(mode::Integer)::Bool
+    mode & 0b10 == 0b10
+end
+
+function timing_mode_unit_is_seconds(mode::Integer)::Bool
+    mode & 0b10 == 0b00
+end
+
 # Timing modes:
 # Bit 1 controls note (false) vs song (true)
 # Bit 2 controls seconds (false) vs beats (true)
 function get_timing(context::NoteContext, mode::Integer)::mutable(ControlSignal)
     result = similar(ControlSignal)
-    song_source::Bool = mode & 0b1 === 0b1
-    beat_units::Bool = mode & 0b10 === 0b10
-    value::Float32 = if song_source 
+    global_source::Bool = timing_mode_source_is_global(mode)
+    beat_units::Bool = timing_mode_unit_is_beats(mode)
+    value::Float32 = if global_source 
         if beat_units context.global_in.elapsed_beats else context.global_in.elapsed_time end
     else 
         if beat_units context.note_in.elapsed_beats else context.note_in.elapsed_time end

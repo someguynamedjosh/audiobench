@@ -268,7 +268,13 @@ impl AudiobenchExecutorBuilder {
             .unwrap();
         let mut res = AudiobenchExecutor {
             base,
-            parameters: parameters.clone(),
+            // This is a quick and dirty way of getting the executor to rebuild when we use
+            // change_parameters later.
+            parameters: GlobalParameters {
+                channels: 999,
+                buffer_length: 999,
+                sample_rate: 999,
+            },
             registry_source: self.registry_source,
             generated_source: GeneratedCode::from_unique_source("blank", ""),
             loaded: false,

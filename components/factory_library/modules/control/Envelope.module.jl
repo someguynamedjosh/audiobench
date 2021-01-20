@@ -48,27 +48,25 @@ function exec()
         signal[1, i] = value * 2f0 - 1f0
     end
 
-    # if context.global_in.do_update
-    #     now_time = first(timing) - static.start;
-    #     if releasing
-    #         now_time = now_time + attack_time[%, 1, i] + decay_time[%, 1, i];
-    #         if now_time > attack_time[%, 1, i] + decay_time[%, 1, i] + release_time[%, 1, i]
-    #             now_time = attack_time[%, 1, i] + decay_time[%, 1, i] + release_time[%, 1, i];
-    #         end
-    #     elseif now_time > attack_time[%, 1, i] + decay_time[%, 1, i]
-    #         now_time = attack_time[%, 1, i] + decay_time[%, 1, i];
-    #     end
-    #     multiplier = 1f0
-    #     if TimingModeIsBeatSynchronized(TIMING_MODE)
-    #         multiplier = 60.0 / global_bpm;
-    #     end
-    #     SetGraphFeedback([
-    #         attack_time[%, 1, i] * multiplier,
-    #         decay_time[%, 1, i] * multiplier,
-    #         first(sustain),
-    #         release_time[%, 1, i] * multiplier,
-    #         now_time * multiplier,
-    #         first(signal),
-    #     ])
-    # end
+    if do_feedback
+        now_time = timing[1, 1] - static.start;
+        if static.releasing
+            now_time = now_time + attack_time[%, 1, 1] + decay_time[%, 1, 1];
+            if now_time > attack_time[%, 1, 1] + decay_time[%, 1, 1] + release_time[%, 1, 1]
+                now_time = attack_time[%, 1, 1] + decay_time[%, 1, 1] + release_time[%, 1, 1];
+            end
+        elseif now_time > attack_time[%, 1, 1] + decay_time[%, 1, 1]
+            now_time = attack_time[%, 1, 1] + decay_time[%, 1, 1];
+        end
+        multiplier = 1f0
+        if timing_mode_unit_is_beats(timing_mode)
+            multiplier = 60.0 / global_bpm;
+        end
+        push!(graph_feedback, first(attack_time) * multiplier)
+        push!(graph_feedback, first(decay_time) * multiplier)
+        push!(graph_feedback, first(sustain))
+        push!(graph_feedback, first(release_time) * multiplier)
+        push!(graph_feedback, now_time * multiplier)
+        push!(graph_feedback, first(signal))
+    end
 end

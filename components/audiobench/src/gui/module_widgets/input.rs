@@ -82,6 +82,7 @@ impl MouseBehavior<DropTarget> for InputBehavior {
         if control.get_used_default().is_some() {
             control.next_default();
         }
+        drop(control);
         self.1.on_click()
     }
 
