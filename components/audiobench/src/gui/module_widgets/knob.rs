@@ -121,12 +121,13 @@ impl WidgetImpl<Renderer, DropTarget> for Knob {
 
     fn draw_impl(self: &Rc<Self>, g: &mut Renderer) {
         let state = self.state.borrow();
-        // let highlight = unimplemented!();
-        let highlight = false;
+        let hmode = self.parents.graph.get_highlight_mode();
+        let highlight = hmode.should_highlight(&state.control);
+        let dim = hmode.should_dim(&state.control);
+        let control = state.control.borrow();
         const MIN_ANGLE: f32 = PI * 1.10;
         const MAX_ANGLE: f32 = -PI * 0.10;
 
-        let control = &*state.control.borrow();
         fn value_to_angle(range: (f32, f32), value: f32) -> f32 {
             value.from_range_to_range(range.0, range.1, MIN_ANGLE, MAX_ANGLE)
         }
@@ -139,10 +140,7 @@ impl WidgetImpl<Renderer, DropTarget> for Knob {
             g.set_color(&COLOR_BG0);
         }
         g.draw_pie(0, grid(2), KNOB_INSIDE_SPACE * 2.0, MIN_ANGLE, MAX_ANGLE);
-        g.set_color(&COLOR_EDITABLE);
-        if highlight {
-            g.set_alpha(0.5);
-        }
+
         let zero_angle = value_to_angle(control.range, 0.0);
         // If manual, show the manual value. If automated, show the most recent value recorded
         // from when a note was actually playing.
@@ -153,6 +151,11 @@ impl WidgetImpl<Renderer, DropTarget> for Knob {
         };
         *state.value.borrow_mut() = value;
         let value_angle = value_to_angle(control.range, value);
+
+        g.set_color(&COLOR_EDITABLE);
+        if highlight || dim {
+            g.set_alpha(0.5);
+        }
         g.draw_pie(
             0,
             grid(2),
@@ -399,6 +402,7 @@ impl WidgetImpl<Renderer, DropTarget> for KnobEditor {
 
     fn draw_impl(self: &Rc<Self>, g: &mut Renderer) {
         let state = self.state.borrow();
+        let control = state.control.borrow();
         const BSR: f32 = POPUP_SHADOW_RADIUS;
         const CS: f32 = CORNER_SIZE;
 
@@ -406,7 +410,6 @@ impl WidgetImpl<Renderer, DropTarget> for KnobEditor {
         g.set_color(&COLOR_BG2);
         g.draw_rounded_rect(0, state.size, CS);
 
-        let control = &*state.control.borrow();
         fn value_to_angle(range: (f32, f32), value: f32) -> f32 {
             value.from_range_to_range(range.0, range.1, PI, 0.0)
         }

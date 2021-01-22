@@ -24,7 +24,7 @@ scui::widget! {
         offset: Vec2D,
         zoom: f32,
         graph: Rcrc<ep::ModuleGraph>,
-        highlight_mode: Option<GraphHighlightMode>,
+        highlight_mode: GraphHighlightMode,
         current_draw_layer: usize,
         wire_preview_endpoint: Option<Vec2D>,
         hovered_module: Option<Rc<Module>>,
@@ -37,8 +37,38 @@ scui::widget! {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum GraphHighlightMode {
+    None,
     ReceivesType(ep::JackType),
     ProducesType(ep::JackType),
+}
+
+impl GraphHighlightMode {
+    pub fn is_some(self) -> bool {
+        match self {
+            Self::None => false,
+            _ => true,
+        }
+    }
+
+    pub fn should_highlight(self, control: &Rcrc<impl Control + ?Sized>) -> bool {
+        match self {
+            Self::None => false,
+            Self::ReceivesType(typ) => control
+                .borrow()
+                .acceptable_automation()
+                .into_iter()
+                .any(|i| i == typ),
+            Self::ProducesType(_) => false,
+        }
+    }
+
+    pub fn should_dim(&self, control: &Rcrc<impl Control + ?Sized>) -> bool {
+        if let Self::ReceivesType(..) = self {
+            !self.should_highlight(control)
+        } else {
+            false
+        }
+    }
 }
 
 impl ModuleGraph {
@@ -47,7 +77,7 @@ impl ModuleGraph {
             offset: (0.0, 0.0).into(),
             zoom: 1.0,
             graph: Rc::clone(&graph),
-            highlight_mode: None,
+            highlight_mode: GraphHighlightMode::None,
             current_draw_layer: 0,
             wire_preview_endpoint: None,
             hovered_module: None,
@@ -161,7 +191,7 @@ impl ModuleGraph {
         self.state.borrow().current_draw_layer
     }
 
-    pub fn get_highlight_mode(self: &Rc<Self>) -> Option<GraphHighlightMode> {
+    pub fn get_highlight_mode(self: &Rc<Self>) -> GraphHighlightMode {
         self.state.borrow().highlight_mode
     }
 
@@ -183,7 +213,9 @@ impl ModuleGraph {
     }
 
     fn clear_wire_preview(self: &Rc<Self>) {
-        self.state.borrow_mut().wire_preview_endpoint = None;
+        let mut state = self.state.borrow_mut();
+        state.wire_preview_endpoint = None;
+        state.highlight_mode = GraphHighlightMode::None;
     }
 
     pub fn connect_from_source_behavior(
@@ -192,10 +224,14 @@ impl ModuleGraph {
         output_index: usize,
     ) -> Box<ConnectFromSource> {
         let mod_ref = module.borrow();
-        self.state.borrow_mut().wire_preview_endpoint =
-            Some(Module::output_position(&*mod_ref, output_index));
-        let output_type = mod_ref.template.borrow().outputs[output_index].get_type();
+        let mut state = self.state.borrow_mut();
+        state.wire_preview_endpoint = Some(Module::output_position(&*mod_ref, output_index));
+        let template = mod_ref.template.borrow();
+        state.highlight_mode =
+            GraphHighlightMode::ReceivesType(template.outputs[output_index].get_type());
+        let output_type = template.outputs[output_index].get_type();
         let graph = Rc::clone(self);
+        drop(template);
         drop(mod_ref);
         Box::new(ConnectFromSource {
             graph,
@@ -207,12 +243,17 @@ impl ModuleGraph {
         })
     }
 
-    pub fn connect_to_control(
+    pub fn connect_to_control_behavior(
         self: &Rc<Self>,
         control: Rcrc<dyn Control>,
         visual_pos: Vec2D,
     ) -> Box<ConnectToControl> {
-        self.state.borrow_mut().wire_preview_endpoint = Some(visual_pos);
+        let mut state = self.state.borrow_mut();
+        state.wire_preview_endpoint = Some(visual_pos);
+        let acceptable = control.borrow().acceptable_automation();
+        assert!(acceptable.len() > 0);
+        debug_assert_eq!(acceptable.len(), 1);
+        state.highlight_mode = GraphHighlightMode::ProducesType(acceptable[0]);
         let graph = Rc::clone(self);
         Box::new(ConnectToControl { graph, control })
     }
@@ -252,11 +293,11 @@ impl MouseBehavior<DropTarget> for ConnectFromSource {
             if types.into_iter().any(|t| t == self.source.output_type) {
                 control.borrow_mut().connect_automation(self.source);
             }
+            self.graph.with_gui_state_mut(|state| {
+                state.engine.borrow_mut().regenerate_code();
+            })
         }
         self.graph.clear_wire_preview();
-        self.graph.with_gui_state_mut(|state| {
-            state.engine.borrow_mut().regenerate_code();
-        })
     }
 }
 

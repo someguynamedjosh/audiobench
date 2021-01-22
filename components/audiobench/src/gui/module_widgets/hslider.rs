@@ -128,16 +128,15 @@ impl WidgetImpl<Renderer, DropTarget> for HSlider {
 
     fn draw_impl(self: &Rc<Self>, g: &mut Renderer) {
         let state = self.state.borrow();
-        let highlight = unimplemented!();
-        let feedback_data: &[f32] = unimplemented!();
+        let hmode = self.parents.graph.get_highlight_mode();
+        let highlight = hmode.should_highlight(&state.control);
+        let dim = hmode.should_dim(&state.control);
+        let control = state.control.borrow();
         const CS: f32 = CORNER_SIZE;
 
-        let control = &*state.control.borrow();
         fn value_to_point(range: (f32, f32), width: f32, value: f32) -> f32 {
             value.from_range_to_range(range.0, range.1, 0.0, width)
         }
-
-        g.set_color(&COLOR_FG1);
 
         if highlight {
             g.set_color(&COLOR_FG1);
@@ -145,20 +144,21 @@ impl WidgetImpl<Renderer, DropTarget> for HSlider {
             g.set_color(&COLOR_BG0);
         }
         g.draw_rounded_rect(0, state.size, CS);
-        g.set_color(&COLOR_EDITABLE);
-        if highlight {
-            g.set_alpha(0.5);
-        }
+
         let zero_point = value_to_point(control.range, state.size.x, 0.0);
         // If manual, show the manual value. If automated, show the most recent value recorded
         // from when a note was actually playing.
         let value = if control.automation.len() > 0 {
-            feedback_data[0]
+            *state.value.borrow()
         } else {
             control.value
         };
         *state.value.borrow_mut() = value;
         let value_point = value_to_point(control.range, state.size.x, value);
+        if highlight {
+            g.set_alpha(0.5);
+        }
+        g.set_color(&COLOR_EDITABLE);
         g.draw_rounded_rect(
             (zero_point.min(value_point), 0.0),
             ((zero_point - value_point).abs(), state.size.y),
@@ -183,14 +183,17 @@ impl WidgetImpl<Renderer, DropTarget> for HSlider {
                 );
             }
         }
-
-        g.pop_state();
     }
 }
 
 impl ModuleWidgetImpl for HSlider {
     fn represented_control(self: &Rc<Self>) -> Option<Rcrc<dyn Control>> {
         Some(Rc::clone(&self.state.borrow().control) as _)
+    }
+
+    fn take_feedback_data(self: &Rc<Self>, data: Vec<f32>) {
+        assert!(data.len() == 1);
+        *self.state.borrow_mut().value.borrow_mut() = data[0];
     }
 }
 
@@ -365,24 +368,25 @@ impl WidgetImpl<Renderer, DropTarget> for HSliderEditor {
 
     fn draw_impl(self: &Rc<Self>, g: &mut Renderer) {
         let state = self.state.borrow();
+        let control = state.control.borrow();
         const BSR: f32 = POPUP_SHADOW_RADIUS;
         const CS: f32 = CORNER_SIZE;
         const GP: f32 = GRID_P;
+
         g.draw_inset_box_shadow(0, state.size, BSR, CS);
         g.set_color(&COLOR_BG2);
         g.draw_rounded_rect(0, state.size, CS);
 
-        let control = &*state.control.borrow();
-
-        g.set_color(&COLOR_BG0);
         let x = GP + grid(1);
         let width = state.size.x - (GP + grid(1)) * 2.0;
         let boty = state.size.y - GP - grid(1);
+        g.set_color(&COLOR_BG0);
         g.draw_rounded_rect((x, boty), (width, grid(1)), CS);
-        g.set_color(&COLOR_EDITABLE);
+
         let value = *state.value.borrow();
         let zero_point = self.value_to_point(0.0);
         let value_point = self.value_to_point(value);
+        g.set_color(&COLOR_EDITABLE);
         g.draw_rounded_rect(
             (zero_point.min(value_point), boty),
             ((zero_point - value_point).abs(), grid(1)),

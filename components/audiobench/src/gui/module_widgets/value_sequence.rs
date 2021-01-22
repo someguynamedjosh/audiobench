@@ -161,8 +161,6 @@ impl WidgetImpl<Renderer, DropTarget> for ValueSequence {
             std::f32::consts::PI * 0.75,
             std::f32::consts::PI * 0.25,
         );
-
-        g.pop_state();
     }
 }
 

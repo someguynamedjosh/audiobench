@@ -1,5 +1,8 @@
 use super::ModuleWidgetImpl;
-use crate::engine::controls::{Control, InputControl};
+use crate::engine::{
+    controls::{Control, InputControl},
+    UiThreadEngine,
+};
 use crate::gui::constants::*;
 use crate::gui::top_level::graph::{ConnectToControl, Module, ModuleGraph};
 use crate::gui::{InteractionHint, Tooltip};
@@ -74,20 +77,25 @@ impl Input {
     }
 }
 
-struct InputBehavior(Rcrc<InputControl>, Box<ConnectToControl>);
+struct InputBehavior {
+    engine: Rcrc<UiThreadEngine>,
+    control: Rcrc<InputControl>,
+    connector: Box<ConnectToControl>,
+}
 
 impl MouseBehavior<DropTarget> for InputBehavior {
     fn on_click(self: Box<Self>) {
-        let mut control = self.0.borrow_mut();
+        let mut control = self.control.borrow_mut();
         if control.get_used_default().is_some() {
             control.next_default();
         }
         drop(control);
-        self.1.on_click()
+        self.connector.on_click();
+        self.engine.borrow_mut().regenerate_code();
     }
 
     fn on_drop(self: Box<Self>, drop_target: Option<DropTarget>) {
-        self.1.on_drop(drop_target)
+        self.connector.on_drop(drop_target)
     }
 }
 
@@ -105,11 +113,16 @@ impl WidgetImpl<Renderer, DropTarget> for Input {
         pos: Vec2D,
         mods: &MouseMods,
     ) -> MaybeMouseBehavior {
+        let engine = self.with_gui_state(|state| Rc::clone(&state.engine));
         let control = Rc::clone(&self.state.borrow().control);
         let pos = self.get_pos() + self.parents.module.get_pos() + self.get_size() / 2.0;
         let g = &self.parents.graph;
-        let connect = g.connect_to_control(Rc::clone(&control) as _, pos);
-        Some(Box::new(InputBehavior(control, connect)))
+        let connector = g.connect_to_control_behavior(Rc::clone(&control) as _, pos);
+        Some(Box::new(InputBehavior {
+            engine,
+            control,
+            connector,
+        }))
     }
 
     fn on_hover_impl(self: &Rc<Self>, _pos: Vec2D) -> Option<()> {
@@ -129,13 +142,19 @@ impl WidgetImpl<Renderer, DropTarget> for Input {
     fn draw_impl(self: &Rc<Self>, g: &mut Renderer) {
         let hovered = self.parents.module.is_hovered();
         let state = self.state.borrow();
+        let hmode = self.parents.graph.get_highlight_mode();
+        let dim = hmode.should_dim(&state.control);
         let control = state.control.borrow();
         const CS: f32 = CORNER_SIZE;
         const JS: f32 = JACK_SIZE;
         const JIP: f32 = JACK_ICON_PADDING;
 
         // TODO: Highlighting. unimplemented!()
-        g.set_color(&COLOR_FG1);
+        if dim {
+            g.set_color(&COLOR_FG0);
+        } else {
+            g.set_color(&COLOR_FG1);
+        }
 
         if let Some(default) = control.get_used_default() {
             let icon = self

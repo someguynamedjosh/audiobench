@@ -198,7 +198,7 @@ impl Module {
     }
 }
 
-pub struct DragModule{
+pub struct DragModule {
     module: Rc<Module>,
     real_pos: Vec2D,
 }
@@ -210,10 +210,7 @@ impl DragModule {
         let real_pos = Vec2D::from(real_module.pos);
         drop(real_module);
         drop(state);
-        Self {
-            module,
-            real_pos,
-        }
+        Self { module, real_pos }
     }
 }
 
@@ -373,9 +370,12 @@ impl WidgetImpl<Renderer, DropTarget> for Module {
             for output_index in 0..state.outputs.len() {
                 let output = &state.outputs[output_index];
                 let jack = &template_ref.outputs[output_index];
-                let mute = highlight.is_some()
-                    && highlight != Some(GraphHighlightMode::ProducesType(jack.get_type()));
-                output.draw(g, hovering, mute);
+                let dim = if let GraphHighlightMode::ProducesType(typ) = highlight {
+                    typ != jack.get_type()
+                } else {
+                    false
+                };
+                output.draw(g, hovering, dim);
             }
             for widget in &state.widgets {
                 widget.draw(g);
