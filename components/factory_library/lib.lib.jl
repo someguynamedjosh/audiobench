@@ -15,6 +15,7 @@ using Main.Parameters
 using Main.UnpackedDependencies.StaticArrays
 
 const num_midi_controls = 128
+const default_graph_resolution = 42
 
 const MonoSample = SArray{Tuple{1},Float32,1,1}
 const StereoSample = SArray{Tuple{channels},Float32,1,channels}
@@ -29,10 +30,10 @@ const StaticTrigger = SArray{Tuple{1,1},Bool,2,1}
 const Trigger = SArray{Tuple{1,buffer_length},Bool,2,buffer_length}
 const Waveform = Function
 
-const flat_waveform = (phase, _buffer_pos::Integer) -> mono_sample(0f0) 
-const ramp_up_waveform = (phase, _buffer_pos::Integer) -> @. phase * 2 - 1
-const ramp_down_waveform = (phase, _buffer_pos::Integer) -> @. 1 - phase * 2
-const sine_waveform = (phase, _buffer_pos::Integer) -> @. sin(phase * pi * 2f0)
+const flat_waveform = (phase::Float32, _buffer_pos::Integer) -> 0f0
+const ramp_up_waveform = (phase::Float32, _buffer_pos::Integer) -> phase * 2 - 1
+const ramp_down_waveform = (phase::Float32, _buffer_pos::Integer) -> 1 - phase * 2
+const sine_waveform = (phase::Float32, _buffer_pos::Integer) -> sin(phase * pi * 2f0)
 
 function mutable(type::DataType)::DataType
     typeof(similar(type))
@@ -217,21 +218,10 @@ function assert_is_trigger_type(type)
     throw(AssertionError("$type is not a valid trigger type."))
 end
 
-# Waveform to sample type
-function w2st(waveform::Waveform, _phase_type::maybe_mutable_type(MonoSample))::Union{maybe_mutable_type(MonoSample), maybe_mutable_type(StereoSample)}
-    Base.promote_op(waveform, MonoSample, Int32)
-end
-
-function w2st(waveform::Waveform, _phase_type::maybe_mutable_type(StereoSample))::Union{maybe_mutable_type(MonoSample), maybe_mutable_type(StereoSample)}
-    Base.promote_op(waveform, StereoSample, Int32)
-end
-
 # Asserts that the specified function has a signature that makes it usable
-# as a waveform (I.E. it can accept a Mono/StereoSample and Int32 and return a valid
-# sample type as described by assert_is_sample_type.)
+# as a waveform (I.E. it can accept a Float32 and Int32 and return a Float32
 function assert_is_waveform(func::Function)
-    assert_is_sample_type(w2st(func, MonoSample))
-    assert_is_sample_type(w2st(func, StereoSample))
+    @assert Base.promote_op(func, Float32, Int32) == Float32
 end
 
 # Allows indexing smaller buffers as if they were their full-sized counterparts.

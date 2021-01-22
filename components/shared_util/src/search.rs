@@ -84,6 +84,8 @@ pub struct ClipSearcher<'a> {
     #[value(Position::new_start())]
     pos: Position,
     text: &'a str,
+    start_pos: Position,
+    original_text: &'a str,
 }
 
 impl<'a> ClipSearcher<'a> {
@@ -91,6 +93,8 @@ impl<'a> ClipSearcher<'a> {
         Self {
             pos: clip.source_position,
             text: &clip.text,
+            start_pos: clip.source_position,
+            original_text: &clip.text,
         }
     }
 
@@ -238,6 +242,21 @@ impl<'a> ClipSearcher<'a> {
         }
     }
 
+    pub fn tri_split(&self, start_marker: ClipMarker<'a>) -> (Clip, (Clip, Clip)) {
+        let clipped = self.end_clip(start_marker);
+        let original_len = self.original_text.len();
+        let not_before_len = start_marker.text.len();
+        let before = Clip {
+            source_position: self.start_pos,
+            text: String::from(&self.original_text[..(original_len - not_before_len)])
+        };
+        let after = Clip {
+            source_position: self.pos,
+            text: String::from(self.text)
+        };
+        (clipped, (before, after))
+    }
+
     pub fn remaining(&self) -> &str {
         self.text
     }
@@ -287,6 +306,19 @@ mod tests {
         assert_eq!(searcher.end_clip(start).as_str(), "and seven years");
         searcher.goto_end();
         assert_eq!(searcher.end_clip(start).as_str(), "and seven years ago");
+    }
+
+    #[test]
+    pub fn tri_split() {
+        let clip = Clip::from("four score and seven years ago");
+        let mut searcher = clip.search();
+        searcher.goto_pattern_start("and");
+        let start = searcher.start_clip();
+        searcher.goto_pattern_end("years");
+        let (clipped, (before, after)) = searcher.tri_split(start);
+        assert_eq!(clipped.as_str(), "and seven years");
+        assert_eq!(before.as_str(), "four score ");
+        assert_eq!(after.as_str(), " ago");
     }
 
     #[test]

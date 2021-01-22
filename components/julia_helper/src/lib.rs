@@ -39,9 +39,17 @@ pub struct FileClip {
 }
 
 impl FileClip {
-    pub fn clip_section(&self, start: &str, end: &str) -> Option<FileClip> {
+    pub fn clip_section(&self, start: &str, end: &str) -> Option<(FileClip, (FileClip, FileClip))> {
         let mut searcher = self.data.search();
-        searcher.goto_pattern_end(start);
+
+        let clip_start = searcher.start_clip();
+        searcher.goto_pattern_start(start);
+        if searcher.at_end() {
+            return None;
+        }
+        let before = searcher.end_clip(clip_start);
+
+        searcher.skip_n(start.len());
         if searcher.at_end() {
             return None;
         }
@@ -51,15 +59,34 @@ impl FileClip {
         if searcher.at_end() {
             return None;
         }
-        let data = searcher.end_clip(clip_start);
-        Some(FileClip {
+        let clip = searcher.end_clip(clip_start);
+
+        searcher.skip_n(end.len());
+        let clip_start = searcher.start_clip();
+        searcher.goto_end();
+        let after = searcher.end_clip(clip_start);
+
+        let clip = FileClip {
             filename: self.filename.clone(),
-            data,
-        })
+            data: clip,
+        };
+        let before = FileClip {
+            filename: self.filename.clone(),
+            data: before,
+        };
+        let after = FileClip {
+            filename: self.filename.clone(),
+            data: after,
+        };
+        Some((clip, (before, after)))
     }
 
     pub fn get_position(&self) -> FilePosition {
         FilePosition::new(self.filename.clone(), self.data.get_source_position())
+    }
+
+    pub fn contains(&self, pattern: &str) -> bool {
+        self.data.as_str().contains(pattern)
     }
 }
 

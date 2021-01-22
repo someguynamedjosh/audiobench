@@ -1,0 +1,76 @@
+save_id: 4
+outputs:
+  audio:
+    type: audio
+    label: Signal 
+    tooltip: Signal output
+controls:
+  waveform: Input
+    type: waveform
+    default: sine_wave
+  strength: FloatInRange
+    min: 0
+    max: 1
+    default: 1
+  offset: FloatInRange
+    min: -1
+    max: 1
+    default: 0
+  timing_mode: TimingMode
+  cycle_time: Duration
+    default: 1.0
+  strength_mode: OptionChoice
+    options:
+      Max:
+      Mid:
+      Min:
+    default: 2
+gui: 
+  label: LFO
+  category: Control
+  tooltip: Low Frequency Oscillator, used for controlling values that should cycle over time
+  width: 8
+  height: 4
+  widgets:
+    Input:
+      y: 0
+      control: waveform
+      label: Waveform
+      tooltip: The waveform to repeatedly play
+    TimingSelector:
+      x: 4
+      y: 2
+      control: timing_mode
+    DurationBox:
+      x: 6
+      y: 2
+      duration_control: cycle_time
+      mode_control: timing_mode
+      label: Cycle Time
+      tooltip: How long the LFO takes to cycle through the waveform once
+    WaveformGraph:
+      x: 4
+      y: 0
+      w: 4
+      h: 2
+      feedback_name: graph_feedback
+    Knob:
+      x: 2
+      y: 2
+      control: offset
+      label: Offset
+      tooltip: Where in the waveform the LFO should start playing
+    Knob:
+      x: 2
+      y: 0
+      control: strength
+      label: Strength
+      tooltip: How strong the output should be
+    OptionBox:
+      x: 0
+      y: 0
+      w: 2
+      h: 3
+      control: strength_mode
+      label: Mode
+      tooltip: How the strength knob should affect the waveform
