@@ -65,6 +65,7 @@ impl NoteTracker {
     pub fn silence_all(&mut self) {
         self.held_notes = array![None; NUM_MIDI_NOTES];
         self.decaying_notes.clear();
+        self.reserved_static_indexes.clear();
     }
 
     fn equal_tempered_tuning(index: usize) -> f32 {
@@ -197,57 +198,54 @@ impl AudiobenchExecutorBuilder {
                     ),
                     "generated",
                 );
-                if let (Some(struct_src), Some(init_src)) = (
-                    file_content.clip_section("mutable struct StaticData", "end"),
-                    file_content.clip_section("function static_init()", "end"),
-                ) {
-                    registry_source.append("mutable struct StaticData ", "generated");
-                    registry_source.append_clip(&struct_src);
-                    registry_source.append(" end\n\nfunction static_init() ", "generated");
-                    registry_source.append_clip(&init_src);
-                    registry_source.append(" end\n", "generated");
-                } else {
+                if !file_content.contains("mutable struct StaticData") {
                     registry_source.append(
                         "struct StaticData end\nfunction static_init() StaticData() end\n",
                         "generated",
                     );
                 }
-                if let Some(exec_source) = file_content.clip_section("function exec()", "end") {
-                    let mut func_header =
-                        String::from("function exec(context, do_feedback::Bool, ");
-                    for (name, _) in &template.default_controls {
-                        func_header.push_str(name);
-                        func_header.push_str(", ");
-                    }
-                    for widget in &template.widget_outlines {
-                        if let FeedbackMode::ManualValue { name } = widget.get_feedback_mode() {
-                            func_header.push_str(&name);
-                            func_header.push_str("::Vector{Float32}, ");
-                        }
-                    }
-                    func_header.push_str("static::StaticData) ");
-                    registry_source.append(&func_header, "generated");
-                    registry_source.append_clip(&exec_source);
+                let (exec_source, (before, after)) =
+                    if let Some(data) = file_content.clip_section("function exec()", "end") {
+                        data
+                    } else {
+                        unimplemented!("TODO: Skip & warning.");
+                        // return Err(format!(
+                        //     concat!(
+                        //         "ERROR: Failed to load library {}, cause by:\nERROR: ",
+                        //         "The code for module {} does not define a function called exec()\n"
+                        //     ),
+                        //     lib_name, mod_name
+                        // ));
+                    };
+                registry_source.append_clip(&before);
 
-                    // Return outputs and modified static data. TODO: do this for early returns
-                    // specified by the programmer as well.
-                    let mut func_close = String::from(" return (");
-                    for output in &template.outputs {
-                        func_close.push_str(output.borrow_code_name());
-                        func_close.push_str(", ");
-                    }
-                    func_close.push_str("static,) end ");
-                    registry_source.append(&func_close, "generated");
-                } else {
-                    panic!("TODO: Skip & warning.");
-                    // return Err(format!(
-                    //     concat!(
-                    //         "ERROR: Failed to load library {}, cause by:\nERROR: ",
-                    //         "The code for module {} does not define a function called exec()\n"
-                    //     ),
-                    //     lib_name, mod_name
-                    // ));
+                let mut func_header = String::from("function exec(context, do_feedback::Bool, ");
+                for (name, _) in &template.default_controls {
+                    func_header.push_str(name);
+                    func_header.push_str(", ");
                 }
+                for widget in &template.widget_outlines {
+                    if let FeedbackMode::ManualValue { name } = widget.get_feedback_mode() {
+                        func_header.push_str(&name);
+                        func_header.push_str("::Vector{Float32}, ");
+                    }
+                }
+                func_header.push_str("static::StaticData) ");
+                registry_source.append(&func_header, "generated");
+                registry_source.append_clip(&exec_source);
+
+                // Return outputs and modified static data. TODO: do this for early returns
+                // specified by the programmer as well.
+                let mut func_close = String::from(" return (");
+                for output in &template.outputs {
+                    func_close.push_str(output.borrow_code_name());
+                    func_close.push_str(", ");
+                }
+                func_close.push_str("static,) end ");
+                registry_source.append(&func_close, "generated");
+                registry_source.append_clip(&after);
+
+                registry_source.append("\nexport exec, StaticData, static_init", "generated");
                 registry_source.append(&format!("\nend # module {}\n", mod_name), "generated");
             }
             registry_source.append(&format!("\nend # module {}\n", lib_name), "generated");
