@@ -1,0 +1,56 @@
+save_id: 8
+outputs:
+  audio:
+    type: audio
+    label: Audio
+    tooltip: Audio output
+controls:
+  pitch: Input
+    type: pitch 
+  waveform: Input
+    type: waveform
+    default: sine_wave
+  fm_signal: Input
+    type: audio
+  amplitude: FloatInRange
+    min: 0
+    max: 1
+    default: 1
+  fm_strength: FloatInRange
+    min: 0
+    max: 2
+    default: 0.5
+gui: 
+  label: FM Oscillator
+  category: Synthesis
+  tooltip: An oscillator that allows rapidly changing the frequency with another audio source
+  width: 2
+  height: 4
+  widgets:
+    Input:
+      y: 0
+      control: pitch
+      label: Pitch
+      tooltip: The frequency to repeat the waveform at
+    Input:
+      y: 1
+      control: waveform
+      label: Waveform
+      tooltip: The waveform to repeatedly play
+    Input:
+      y: 2
+      control: fm_signal
+      label: Modulation
+      tooltip: The signal which modulates the frequency
+    Knob:
+      x: 0
+      y: 0
+      control: amplitude
+      label: Amplitude
+      tooltip: How loud the output should be
+    Knob:
+      x: 0
+      y: 2
+      control: fm_strength
+      label: FM Strength
+      tooltip: How much control the modulation signal has over the frequency

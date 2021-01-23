@@ -230,6 +230,11 @@ Base.getindex(from::maybe_mutable(MonoAudio), _::typeof(%), channelidx::Integer,
 Base.getindex(from::maybe_mutable(StaticStereoAudio), _::typeof(%), channelidx::Integer, sampleidx::Integer)::Float32 = from[channelidx, 1]
 Base.getindex(from::maybe_mutable(StaticMonoAudio), _::typeof(%), channelidx::Integer, sampleidx::Integer)::Float32 = from[1, 1]
 
+Base.getindex(from::maybe_mutable(StereoAudio), _::typeof(%), _::typeof(:), sampleidx::Integer) = from[:, sampleidx]
+Base.getindex(from::maybe_mutable(MonoAudio), _::typeof(%), _::typeof(:), sampleidx::Integer) = from[:, sampleidx]
+Base.getindex(from::maybe_mutable(StaticStereoAudio), _::typeof(%), _::typeof(:), sampleidx::Integer) = from[:, 1]
+Base.getindex(from::maybe_mutable(StaticMonoAudio), _::typeof(%), _::typeof(:), sampleidx::Integer) = from[:, 1]
+
 Base.getindex(from::maybe_mutable(StereoSample), _::typeof(%), channelidx::Integer)::Float32 = from[channelidx]
 Base.getindex(from::maybe_mutable(MonoSample), _::typeof(%), channelidx::Integer)::Float32 = from[1]
 
