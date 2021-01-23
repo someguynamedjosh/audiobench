@@ -281,6 +281,9 @@ sample_indices(_buf::Type{SArray{Tuple{1, S}, Bool, 2, N}}) where {S, N} = Base.
 sample_indices(_buf::Type{MArray{Tuple{1, S}, Bool, 2, N}}) where {S, N} = Base.OneTo(S)
 sample_indices(_buf::Type{SizedArray{Tuple{1, S}, Bool, 2, N}}) where {S, N} = Base.OneTo(S)
 
+# Other stuff
+lerp(from, to, amount) = to * amount + from * (1 - amount)
+
 # export all
 # https://discourse.julialang.org/t/exportall/4970/16
 for m in (@__MODULE__, Main.UnpackedDependencies.StaticArrays, Main.Parameters)

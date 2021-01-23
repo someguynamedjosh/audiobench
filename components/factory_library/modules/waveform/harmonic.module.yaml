@@ -1,0 +1,31 @@
+save_id: 14
+outputs:
+  out_wave:
+    type: waveform
+    label: Output
+    tooltip: A harmonic of the input waveform
+controls:
+  base_wave: Input
+    type: waveform
+    default: sine_wave
+  harmonic: Int
+    min: 1
+    max: 99
+gui:
+  label: Harmonic
+  category: Waveform
+  tooltip: Creates a waveform which is a harmonic of the input waveform
+  width: 2
+  height: 2
+  widgets:
+    Input:
+      y: 0
+      control: base_wave
+      label: Input
+      tooltip: The base waveform
+    IntBox:
+      x: 0
+      y: 0
+      control: harmonic
+      label: Harmonic
+      tooltip: How many times to repeat the input waveform

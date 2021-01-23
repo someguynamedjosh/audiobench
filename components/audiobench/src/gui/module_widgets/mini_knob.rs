@@ -121,12 +121,13 @@ impl WidgetImpl<Renderer, DropTarget> for MiniKnob {
 
     fn draw_impl(self: &Rc<Self>, g: &mut Renderer) {
         let state = self.state.borrow();
-        let highlight = unimplemented!();
-        let feedback_data: &[f32] = unimplemented!();
-        const MIN_ANGLE: f32 = PI * 1.10;
-        const MAX_ANGLE: f32 = -PI * 0.10;
+        let hmode = self.parents.graph.get_highlight_mode();
+        let highlight = hmode.should_highlight(&state.control);
+        let dim = hmode.should_dim(&state.control);
+        let control = state.control.borrow();
+        const MIN_ANGLE: f32 = PI * 1.40;
+        const MAX_ANGLE: f32 = -PI * 0.40;
 
-        let control = &*state.control.borrow();
         fn value_to_angle(range: (f32, f32), value: f32) -> f32 {
             value.from_range_to_range(range.0, range.1, MIN_ANGLE, MAX_ANGLE)
         }
@@ -138,52 +139,39 @@ impl WidgetImpl<Renderer, DropTarget> for MiniKnob {
         } else {
             g.set_color(&COLOR_BG0);
         }
-        g.draw_pie(0, grid(1), KNOB_INSIDE_SPACE * 2.0, MIN_ANGLE, MAX_ANGLE);
-        g.set_color(&COLOR_EDITABLE);
-        if highlight {
-            g.set_alpha(0.5);
-        }
+        g.draw_pie(0, grid(1), KNOB_INSIDE_SPACE, MIN_ANGLE, MAX_ANGLE);
         let zero_angle = value_to_angle(control.range, 0.0);
         // If manual, show the manual value. If automated, show the most recent value recorded
         // from when a note was actually playing.
         let value = if control.automation.len() > 0 {
-            feedback_data[0]
+            *state.value.borrow()
         } else {
             control.value
         };
         *state.value.borrow_mut() = value;
         let value_angle = value_to_angle(control.range, value);
+        g.set_color(&COLOR_EDITABLE);
+        if highlight || dim {
+            g.set_alpha(0.5);
+        }
         g.draw_pie(
             0,
             grid(1),
-            KNOB_INSIDE_SPACE * 2.0,
+            KNOB_INSIDE_SPACE,
             zero_angle.clam(MAX_ANGLE, MIN_ANGLE),
             value_angle,
         );
         g.set_alpha(1.0);
-        g.set_color(&COLOR_FG1);
-        g.draw_text(FONT_SIZE, 0, grid(1), (0, 1), 1, &state.label);
-
-        if control.automation.len() > 0 {
-            let num_lanes = control.automation.len() as f32;
-            let lane_size = KNOB_AUTOMATION_SPACE / num_lanes;
-            let lane_size = lane_size.min(KNOB_MAX_LANE_SIZE).max(2.0);
-            for (index, lane) in control.automation.iter().enumerate() {
-                g.set_color(&COLOR_AUTOMATION);
-                let index = index as f32;
-                let outer_diameter = grid(1) - (KNOB_OUTSIDE_SPACE * 2.0) - lane_size * index * 2.0;
-                let inner_diameter = outer_diameter - (lane_size - KNOB_LANE_GAP) * 2.0;
-                let inset = (grid(1) - outer_diameter) / 2.0;
-                let min_angle = value_to_angle(control.range, lane.range.0);
-                let max_angle = value_to_angle(control.range, lane.range.1);
-                g.draw_pie(inset, outer_diameter, inner_diameter, min_angle, max_angle);
-            }
-        }
     }
 }
 
 impl ModuleWidgetImpl for MiniKnob {
     fn represented_control(self: &Rc<Self>) -> Option<Rcrc<dyn Control>> {
         Some(Rc::clone(&self.state.borrow().control) as _)
+    }
+
+    fn take_feedback_data(self: &Rc<Self>, data: Vec<f32>) {
+        assert!(data.len() == 1);
+        *self.state.borrow_mut().value.borrow_mut() = data[0];
     }
 }
