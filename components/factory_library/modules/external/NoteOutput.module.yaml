@@ -1,0 +1,27 @@
+save_id: 0
+outputs:
+controls:
+  audio: Input
+    type: audio
+  volume: FloatInRange
+    min: 0
+    max: 1
+    default: 0.25
+gui: 
+  label: Note Output
+  category: External
+  tooltip: Receives audio that should be played for the current note
+  width: 2
+  height: 2
+  widgets:
+    Input:
+      y: 0
+      control: audio
+      label: Audio
+      tooltip: The audio that will be played for the current note
+    Knob:
+      x: 0
+      y: 0
+      control: volume
+      label: Master Vol
+      tooltip: Control how loud the overall output is

@@ -1,6 +1,0 @@
-INT value;
-[5]INT arr;
-
-AUTO a = [3]([2]INT + INT);
-AUTO b = -arr[3];
-AUTO c = arr[0]:TYPE;

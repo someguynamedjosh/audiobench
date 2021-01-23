@@ -1,4 +1,0 @@
-FLOAT EXPONENT = Itof(OCTAVES) + (Itof(SEMITONES) + Itof(CENTS) / 100.0) / 12.0;
-
-AUTO transposed = pitch * (2.0 ** (EXPONENT * amount));
-assert transposed:TYPE <= [BUFFER_LENGTH][2]FLOAT;

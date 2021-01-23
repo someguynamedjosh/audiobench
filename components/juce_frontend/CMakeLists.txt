@@ -43,22 +43,28 @@ juce_add_plugin(
     # VERSION ...                               # Set this if the plugin version is different to the project version
     # ICON_BIG ...                              # ICON_* arguments specify a path to an image file to use as an icon for the Standalone
     # ICON_SMALL ...
-    # COMPANY_NAME ...                          # Specify the name of the plugin's author
-    # IS_SYNTH TRUE/FALSE                       # Is this a synth or an effect?
-    # NEEDS_MIDI_INPUT TRUE/FALSE               # Does the plugin need midi input?
-    # NEEDS_MIDI_OUTPUT TRUE/FALSE              # Does the plugin need midi output?
-    # IS_MIDI_EFFECT TRUE/FALSE                 # Is this plugin a MIDI effect?
+    COMPANY_NAME JoshuaMaros                          # Specify the name of the plugin's author
+    IS_SYNTH TRUE                       # Is this a synth or an effect?
+    NEEDS_MIDI_INPUT TRUE               # Does the plugin need midi input?
+    NEEDS_MIDI_OUTPUT FALSE              # Does the plugin need midi output?
+    IS_MIDI_EFFECT FALSE                 # Is this plugin a MIDI effect?
     # EDITOR_WANTS_KEYBOARD_FOCUS TRUE/FALSE    # Does the editor need keyboard focus?
     # COPY_PLUGIN_AFTER_BUILD TRUE/FALSE        # Should the plugin be installed to a default location after building?
-    PLUGIN_MANUFACTURER_CODE Juce               # A four-character manufacturer id with at least one upper-case character
-    PLUGIN_CODE Dem0                            # A unique four-character plugin id with at least one upper-case character
+    PLUGIN_MANUFACTURER_CODE Foss               # A four-character manufacturer id with at least one upper-case character
+    PLUGIN_CODE Audb                            # A unique four-character plugin id with at least one upper-case character
     FORMATS AU VST3 Standalone                  # The formats to build. Other valid formats are: AAX Unity VST AU AUv3
     PRODUCT_NAME "Audiobench"                   # The name of the final executable, which can differ from the target name
 )
 
 target_include_directories(
     Audiobench PRIVATE
-    "$ENV{PROJECT_ROOT}/components/audiobench-clib/"
+    "$ENV{PROJECT_ROOT}/components/audiobench_clib/"
+)
+
+add_library(julia SHARED IMPORTED)
+set_target_properties(julia PROPERTIES
+    IMPORTED_LOCATION "$ENV{PROJECT_ROOT}/dependencies/julia/lib/libjulia.so"
+    INTERFAFCE_INCLUDE_DIRECTORIES "$ENV{PROJECT_ROOT}/dependencies/julia/include/"
 )
 
 # `juce_generate_juce_header` will create a JuceHeader.h for a given target, which will be generated
@@ -146,8 +152,8 @@ elseif(APPLE)
         ${CURL_LIBRARIES}
         ${SECURITY_LIBRARY}
         ffi
+        tinfo
         z
-        curses
     )
 else()
     # The clipboard library I'm using uses a weird X11 wrapper to do its dirty work making this 
@@ -164,12 +170,13 @@ else()
         # AudioPluginData           # If we'd created a binary data target, we'd link to it here
         juce::juce_audio_utils
         "$ENV{RUST_OUTPUT_DIR}/libaudiobench_clib.a"
+        julia
         z
-        curses
         ssl
         crypto
         ffi
         ${XCB_LIBRARIES}
+        tinfo
         Threads::Threads
     )
 endif()

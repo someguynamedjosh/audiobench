@@ -1,30 +1,70 @@
-use crate::engine::parts as ep;
-use crate::gui;
-use crate::gui::action::{GuiAction, InstanceAction, MouseAction};
-use crate::gui::constants::*;
-use crate::gui::graphics::{GrahpicsWrapper, HAlign, VAlign};
-use crate::registry::save_data::Patch;
-use crate::registry::Registry;
-use crate::util::*;
-use enumflags2::BitFlags;
-use std::time::{Duration, Instant};
+use std::cmp::Ordering;
 
-#[derive(BitFlags, Copy, Clone)]
-#[repr(u8)]
+use crate::{
+    engine::{controls::Control, parts::JackType, UiThreadEngine},
+    gui::{constants::*, top_level::*},
+    registry::Registry,
+    scui_config::{DropTarget, MaybeMouseBehavior, Renderer},
+};
+use scui::{MouseMods, Vec2D, Widget, WidgetImpl};
+use shared_util::prelude::*;
+
+#[derive(Copy, Clone, PartialEq, Eq, Hash)]
 pub enum InteractionHint {
-    LeftClick = 0x1,
-    RightClick = 0x2,
-    Scroll = 0x40,
-    LeftClickAndDrag = 0x4,
-    DoubleClick = 0x8,
-    Alt = 0x10,
-    Shift = 0x20,
+    Scroll,
+    LeftClick,
+    LeftClickAndDrag,
+    RightClick,
+    DoubleClick,
+    PrecisionModifier,
+    SnappingModifier,
+    TakesInput(JackType),
+    ProducesOutput(JackType),
+}
+
+impl InteractionHint {
+    fn jack_type_ordinal(ty: &JackType) -> u8 {
+        use JackType::*;
+        match ty {
+            Audio => 0,
+            Pitch => 1,
+            Trigger => 1,
+            Waveform => 1,
+        }
+    }
+
+    fn ordinal(&self) -> u8 {
+        use InteractionHint::*;
+        match self {
+            Scroll => 0,
+            LeftClick => 1,
+            LeftClickAndDrag => 2,
+            DoubleClick => 3,
+            RightClick => 4,
+            PrecisionModifier => 5,
+            SnappingModifier => 6,
+            TakesInput(ty) => 10 + Self::jack_type_ordinal(ty),
+            ProducesOutput(ty) => 20 + Self::jack_type_ordinal(ty),
+        }
+    }
+}
+
+impl PartialOrd for InteractionHint {
+    fn partial_cmp(&self, other: &InteractionHint) -> Option<Ordering> {
+        self.ordinal().partial_cmp(&other.ordinal())
+    }
+}
+
+impl Ord for InteractionHint {
+    fn cmp(&self, other: &InteractionHint) -> Ordering {
+        self.ordinal().cmp(&other.ordinal())
+    }
 }
 
 #[derive(Clone)]
 pub struct Tooltip {
     pub text: String,
-    pub interaction: BitFlags<InteractionHint>,
+    pub interaction: Vec<InteractionHint>,
 }
 
 impl Default for Tooltip {
@@ -32,6 +72,15 @@ impl Default for Tooltip {
         Tooltip {
             text: "".to_owned(),
             interaction: Default::default(),
+        }
+    }
+}
+
+impl Tooltip {
+    pub fn add_control_automation(&mut self, control: &Rcrc<impl Control + ?Sized>) {
+        for acceptable_type in control.borrow().acceptable_automation() {
+            self.interaction
+                .push(InteractionHint::TakesInput(acceptable_type));
         }
     }
 }
@@ -58,372 +107,161 @@ impl Status {
     }
 }
 
-pub struct MouseMods {
-    pub right_click: bool,
-    pub shift: bool,
-    pub precise: bool,
+pub struct GuiState {
+    pub registry: Rcrc<Registry>,
+    pub engine: Rcrc<UiThreadEngine>,
+    status: Option<Status>,
+    tooltip: Tooltip,
+    // Yeah I know  this is doing Rc<Rc<Widget>> but I don't know what else to do at the moment.
+    tabs: Vec<Rc<dyn GuiTab>>,
+    current_tab_index: usize,
 }
 
-#[derive(Eq, PartialEq, Clone, Copy)]
-pub enum GuiScreen {
-    LibraryBrowser,
-    PatchBrowser,
-    NoteGraph,
-    ModuleBrowser,
-}
-
-impl GuiScreen {
-    fn all() -> Vec<GuiScreen> {
-        vec![
-            Self::LibraryBrowser,
-            Self::PatchBrowser,
-            Self::NoteGraph,
-            Self::ModuleBrowser,
-        ]
-    }
-
-    pub fn get_icon_name(&self) -> &'static str {
-        match self {
-            Self::LibraryBrowser => "factory:library",
-            Self::PatchBrowser => "factory:patch_browser",
-            Self::NoteGraph => "factory:note",
-            Self::ModuleBrowser => "factory:add",
-        }
-    }
-
-    pub fn get_tooltip_text(&self) -> &'static str {
-        match self {
-            Self::LibraryBrowser => {
-                "Info/Library Browser: View current Audiobench version and installed libraries"
-            }
-            Self::PatchBrowser => "Patch Browser: Save and load patches",
-            Self::NoteGraph => "Note Graph: Edit the module graph used to synthesize notes",
-            Self::ModuleBrowser => "Module Browser: Add new modules to the current graph",
-        }
-    }
-}
-
-pub struct Gui {
-    size: (f32, f32),
-    current_screen: GuiScreen,
-    menu_bar: gui::ui_widgets::MenuBar,
-    library_browser: gui::ui_widgets::LibraryBrowser,
-    patch_browser: gui::ui_widgets::PatchBrowser,
-    graph: gui::graph::ModuleGraph,
-    module_browser: gui::ui_widgets::ModuleBrowser,
-
-    mouse_action: MouseAction,
-    click_position: (f32, f32),
-    mouse_pos: (f32, f32),
-    mouse_down: bool,
-    dragged: bool,
-    last_click: Instant,
-    focused_text_field: Option<Rcrc<gui::ui_widgets::TextField>>,
-    update_check_complete: bool,
-}
-
-impl Gui {
-    pub fn new(
-        registry: &Registry,
-        current_patch: &Rcrc<Patch>,
-        graph_ref: Rcrc<ep::ModuleGraph>,
-    ) -> Self {
-        let size = (640.0, 480.0);
-        let y = gui::ui_widgets::MenuBar::HEIGHT;
-        let screen_size = (size.0, size.1 - y);
-
-        let library_browser =
-            gui::ui_widgets::LibraryBrowser::create(registry, (0.0, y), screen_size);
-        let patch_browser =
-            gui::ui_widgets::PatchBrowser::create(current_patch, registry, (0.0, y), screen_size);
-        let mut graph = gui::graph::ModuleGraph::create(registry, graph_ref, screen_size);
-        graph.pos.1 = y;
-        let module_browser =
-            gui::ui_widgets::ModuleBrowser::create(registry, (0.0, y), (size.0, size.1 - y));
-
+impl GuiState {
+    pub fn new(registry: Rcrc<Registry>, engine: Rcrc<UiThreadEngine>) -> Self {
         Self {
-            size,
-            current_screen: GuiScreen::NoteGraph,
-            menu_bar: gui::ui_widgets::MenuBar::create(registry, GuiScreen::all()),
-            library_browser,
-            patch_browser,
-            graph,
-            module_browser,
-
-            mouse_action: MouseAction::None,
-            click_position: (0.0, 0.0),
-            mouse_pos: (0.0, 0.0),
-            mouse_down: false,
-            dragged: false,
-            last_click: Instant::now() - Duration::from_secs(100),
-            focused_text_field: None,
-            update_check_complete: false,
+            registry,
+            engine,
+            status: None,
+            tooltip: Default::default(),
+            tabs: Vec::new(),
+            current_tab_index: 0,
         }
     }
 
-    pub fn display_success(&mut self, text: String) {
-        self.menu_bar.set_status(Status::success(text));
+    pub fn set_tooltip(&mut self, tooltip: Tooltip) {
+        self.tooltip = tooltip;
     }
 
-    pub fn display_error(&mut self, text: String) {
-        self.menu_bar.set_status(Status::error(text));
+    pub fn borrow_tooltip(&self) -> &Tooltip {
+        &self.tooltip
     }
 
-    pub fn clear_status(&mut self) {
-        self.menu_bar.clear_status();
+    pub fn add_automation_to_tooltip(&mut self, from_control: &Rcrc<impl Control + ?Sized>) {
+        self.tooltip.add_control_automation(from_control);
     }
 
-    pub fn draw(
-        &mut self,
-        g: &mut GrahpicsWrapper,
-        registry: &mut Registry,
-        currently_compiling: bool,
-    ) {
-        if !self.update_check_complete {
-            // Returns false when update checker is complete.
-            if !registry.poll_update_checker() {
-                self.update_check_complete = true;
-                if registry.any_updates_available() {
-                    self.display_success(
-                        "Updates are available! Go to the Info/Libraries tab to view them"
-                            .to_owned(),
-                    );
-                }
-            }
-        }
-        match self.current_screen {
-            GuiScreen::LibraryBrowser => self.library_browser.draw(g, &*registry),
-            GuiScreen::PatchBrowser => self.patch_browser.draw(g),
-            GuiScreen::NoteGraph => self.graph.draw(g, self),
-            GuiScreen::ModuleBrowser => self.module_browser.draw(g),
-        }
-        self.menu_bar.draw(self.size.0, self.current_screen, g);
-        if currently_compiling {
-            g.set_color(&COLOR_WARNING);
-            g.fill_rounded_rect(
-                GRID_P,
-                gui::ui_widgets::MenuBar::HEIGHT + GRID_P,
-                100.0,
-                FONT_SIZE + GRID_P * 2.0,
-                CORNER_SIZE,
-            );
-            g.set_color(&COLOR_FG1);
-            g.write_text(
-                FONT_SIZE,
-                GRID_P * 2.0,
-                gui::ui_widgets::MenuBar::HEIGHT + GRID_P,
-                100.0 - GRID_P * 2.0,
-                FONT_SIZE + GRID_P * 2.0,
-                HAlign::Center,
-                VAlign::Center,
-                1,
-                "Compiling...",
-            );
+    pub fn add_tab(&mut self, tab: impl GuiTab + 'static) {
+        self.tabs.push(Rc::new(tab));
+    }
+
+    pub fn all_tabs(&self) -> impl Iterator<Item = &Rc<dyn GuiTab>> {
+        self.tabs.iter()
+    }
+
+    pub fn get_current_tab_index(&self) -> usize {
+        self.current_tab_index
+    }
+
+    pub fn focus_tab_by_index(&mut self, index: usize) {
+        if index < self.tabs.len() {
+            self.current_tab_index = index;
         }
     }
 
-    pub fn on_patch_change(&mut self, registry: &Registry) {
-        self.graph.rebuild(registry);
+    pub fn add_success_status(&mut self, message: String) {
+        self.status = Some(Status::success(message));
     }
 
-    pub fn on_mouse_down(
-        &mut self,
-        registry: &Registry,
-        pos: (f32, f32),
+    pub fn add_error_status(&mut self, message: String) {
+        self.status = Some(Status::error(message));
+    }
+}
+
+scui::widget! {
+    pub Root
+    Children {
+        header: Option<Rc<Header>>,
+    }
+}
+
+impl Root {
+    fn new(parent: &impl RootParent) -> Rc<Self> {
+        let state = RootState {};
+        let this = Rc::new(Self::create(parent, state));
+        let tab1 = PatchBrowser::new(&this);
+        let tab2 = NoteGraph::new(&this);
+        this.with_gui_state_mut(|state| {
+            state.add_tab(tab1);
+            state.add_tab(tab2);
+        });
+        let header = Header::new(&this);
+        this.children.borrow_mut().header = Some(header);
+        this
+    }
+
+    fn get_current_tab(self: &Rc<Self>) -> Rc<dyn GuiTab> {
+        self.with_gui_state(|state| Rc::clone(&state.tabs[state.get_current_tab_index()]))
+    }
+}
+
+impl WidgetImpl<Renderer, DropTarget> for Root {
+    fn get_pos_impl(self: &Rc<Self>) -> Vec2D {
+        0.into()
+    }
+
+    fn get_size_impl(self: &Rc<Self>) -> Vec2D {
+        (ROOT_WIDTH, ROOT_HEIGHT).into()
+    }
+
+    fn get_drop_target_impl(self: &Rc<Self>, pos: Vec2D) -> Option<DropTarget> {
+        ris!(self.get_drop_target_children(pos));
+        self.get_current_tab().get_drop_target(pos)
+    }
+
+    fn get_mouse_behavior_impl(
+        self: &Rc<Self>,
+        mouse_pos: Vec2D,
         mods: &MouseMods,
-    ) -> Option<InstanceAction> {
-        self.menu_bar.clear_status();
-        let mut ret = None;
-        if let Some(field) = self.focused_text_field.take() {
-            if let Some(action) = field.borrow_mut().defocus().on_click() {
-                ret = self.perform_action(registry, action);
-            }
-        };
-        if pos.1 <= gui::ui_widgets::MenuBar::HEIGHT {
-            self.mouse_action = self.menu_bar.respond_to_mouse_press(pos, mods);
-        } else {
-            self.mouse_action = match self.current_screen {
-                GuiScreen::LibraryBrowser => self.library_browser.respond_to_mouse_press(pos, mods),
-                GuiScreen::PatchBrowser => self.patch_browser.respond_to_mouse_press(pos, mods),
-                GuiScreen::NoteGraph => self.graph.respond_to_mouse_press(pos, mods),
-                GuiScreen::ModuleBrowser => self.module_browser.respond_to_mouse_press(pos, mods),
-            };
-        }
-        self.mouse_down = true;
-        self.click_position = pos;
-        ret
+    ) -> MaybeMouseBehavior {
+        ris!(self.get_mouse_behavior_children(mouse_pos, mods));
+        self.get_current_tab().get_mouse_behavior(mouse_pos, mods)
     }
 
-    pub fn on_mouse_move(
-        &mut self,
-        registry: &Registry,
-        new_pos: (f32, f32),
-        mods: &MouseMods,
-    ) -> Option<InstanceAction> {
-        let mut retval = None;
-        self.mouse_pos = new_pos;
-        let mut new_tooltip = None;
-        if self.mouse_down {
-            let delta = (
-                new_pos.0 - self.click_position.0,
-                new_pos.1 - self.click_position.1,
-            );
-            if !self.dragged {
-                let distance = delta.0.abs() + delta.1.abs();
-                if distance > DRAG_DEADZONE {
-                    self.dragged = true;
-                }
-            }
-            if self.dragged {
-                let fdelta = (delta.0 as f32, delta.1 as f32);
-                let (gui_action, tooltip) = self.mouse_action.on_drag(fdelta, mods);
-                new_tooltip = tooltip;
-                self.click_position = new_pos;
-                retval = gui_action
-                    .map(|action| self.perform_action(registry, action))
-                    .flatten();
-            }
-        }
-        if new_tooltip.is_none() {
-            new_tooltip = self.menu_bar.get_tooltip_at(new_pos);
-        }
-        if new_tooltip.is_none() {
-            new_tooltip = match self.current_screen {
-                GuiScreen::LibraryBrowser => self.library_browser.get_tooltip_at(new_pos),
-                GuiScreen::PatchBrowser => self.patch_browser.get_tooltip_at(new_pos),
-                GuiScreen::NoteGraph => self.graph.get_tooltip_at(new_pos),
-                GuiScreen::ModuleBrowser => self.module_browser.get_tooltip_at(new_pos),
-            }
-        }
-        if let Some(tooltip) = new_tooltip {
-            self.menu_bar.set_tooltip(tooltip);
-        } else {
-            self.menu_bar.set_tooltip(Tooltip::default());
-        }
-        retval
+    fn on_scroll_impl(self: &Rc<Self>, mouse_pos: Vec2D, delta: f32) -> Option<()> {
+        ris!(self.on_scroll_children(mouse_pos, delta));
+        self.get_current_tab().on_scroll(mouse_pos, delta)
     }
 
-    fn perform_action(&mut self, registry: &Registry, action: GuiAction) -> Option<InstanceAction> {
-        match action {
-            GuiAction::Sequence(actions) => {
-                return Some(InstanceAction::Sequence(
-                    actions
-                        .into_iter()
-                        .filter_map(|action| self.perform_action(registry, action))
-                        .collect(),
-                ));
-            }
-            GuiAction::OpenMenu(menu) => self.graph.open_menu(menu),
-            GuiAction::SwitchScreen(new_index) => self.current_screen = new_index,
-            GuiAction::AddModule(module) => {
-                self.graph.add_module(registry, module);
-                self.current_screen = GuiScreen::NoteGraph;
-                return Some(InstanceAction::ReloadStructure);
-            }
-            GuiAction::RemoveModule(module) => {
-                self.graph.remove_module(&module);
-                return Some(InstanceAction::ReloadStructure);
-            }
-            GuiAction::FocusTextField(field) => {
-                field.borrow_mut().focus();
-                self.focused_text_field = Some(field);
-            }
-            GuiAction::Elevate(action) => return Some(action),
-            GuiAction::OpenWebpage(url) => {
-                if let Err(err) = webbrowser::open(&url) {
-                    self.display_error(format!("Failed to open webpage, see console for details."));
-                    eprintln!(
-                        "WARNING: Failed to open web browser, caused by:\nERROR: {}",
-                        err
-                    );
-                }
-            }
+    fn on_hover_impl(self: &Rc<Self>, mouse_pos: Vec2D) -> Option<()> {
+        self.with_gui_state_mut(|state| {
+            state.set_tooltip(Tooltip::default());
+        });
+        ris!(self.on_hover_children(mouse_pos));
+        self.get_current_tab().on_hover(mouse_pos)
+    }
+
+    fn draw_impl(self: &Rc<Self>, renderer: &mut Renderer) {
+        renderer.set_color(&COLOR_BG0);
+        renderer.draw_rect(0, (ROOT_WIDTH, ROOT_HEIGHT));
+        self.get_current_tab().draw(renderer);
+        self.draw_children(renderer);
+
+        let julia_busy = self.with_gui_state(|state| state.engine.borrow().is_julia_thread_busy());
+        if julia_busy {
+            renderer.set_color(&COLOR_WARNING);
+            const F: f32 = BIG_FONT_SIZE;
+            let size = Vec2D::new(F * 7.0, F + GRID_P * 2.0);
+            let pos = Vec2D::new(ROOT_WIDTH, ROOT_HEIGHT) - size - GRID_P;
+            renderer.draw_rounded_rect(pos, size, CORNER_SIZE);
+            renderer.set_color(&COLOR_FG1);
+            renderer.draw_text(F, pos, size, (0, 0), 1, "Working...");
         }
-        None
+    }
+}
+
+pub trait GuiTab: Widget<Renderer, DropTarget> {
+    fn get_name(self: &Self) -> String {
+        "Unnamed".to_owned()
     }
 
-    pub fn on_mouse_up(&mut self, registry: &Registry) -> Option<InstanceAction> {
-        let mouse_action = std::mem::replace(&mut self.mouse_action, MouseAction::None);
-        let gui_action = if self.dragged {
-            let drop_target = self.graph.get_drop_target_at(self.mouse_pos);
-            mouse_action.on_drop(drop_target)
-        } else {
-            if self.last_click.elapsed() < DOUBLE_CLICK_TIME {
-                mouse_action.on_double_click()
-            } else {
-                self.last_click = Instant::now();
-                mouse_action.on_click()
-            }
-        };
-        self.dragged = false;
-        self.mouse_down = false;
-        gui_action
-            .map(|action| self.perform_action(registry, action))
-            .flatten()
+    fn is_pinned(self: &Self) -> bool {
+        false
     }
+}
 
-    pub fn on_scroll(&mut self, registry: &Registry, delta: f32) -> Option<InstanceAction> {
-        if let GuiScreen::NoteGraph = self.current_screen {
-            return self
-                .graph
-                .on_scroll(delta)
-                .map(|a| self.perform_action(registry, a))
-                .flatten();
-        } else if let GuiScreen::PatchBrowser = self.current_screen {
-            return self
-                .patch_browser
-                .on_scroll(self.mouse_pos, delta)
-                .map(|a| self.perform_action(registry, a))
-                .flatten();
-        } else if let GuiScreen::LibraryBrowser = self.current_screen {
-            return self
-                .library_browser
-                .on_scroll(delta)
-                .map(|a| self.perform_action(registry, a))
-                .flatten();
-        }
-        None
-    }
+pub type Gui = scui::Gui<GuiState, DropTarget, Rc<Root>>;
 
-    pub fn on_key_press(&mut self, registry: &Registry, key: u8) -> Option<InstanceAction> {
-        // For some reason JUCE gives CR for enter instead of LF.
-        let key = if key == 13 { 10 } else { key };
-        if let Some(field) = &self.focused_text_field {
-            let mut field = field.borrow_mut();
-            match key {
-                0x8 | 0x7F => {
-                    // Bksp / Del
-                    if field.text.len() > 0 {
-                        let last = field.text.len() - 1;
-                        field.text = field.text[..last].to_owned();
-                    }
-                }
-                0x1B | 0xA => {
-                    // Esc / Enter
-                    let action = field.defocus();
-                    drop(field);
-                    self.focused_text_field = None;
-                    if let Some(action) = action.on_click() {
-                        return self.perform_action(registry, action);
-                    }
-                }
-                _ => {
-                    field.text.push(key as char);
-                }
-            }
-        }
-        None
-    }
-
-    pub(super) fn is_dragging(&self) -> bool {
-        self.dragged
-    }
-
-    pub(super) fn borrow_current_mouse_action(&self) -> &MouseAction {
-        &self.mouse_action
-    }
-
-    pub(super) fn get_current_mouse_pos(&self) -> (f32, f32) {
-        self.mouse_pos
-    }
+pub fn new_gui(registry: Rcrc<Registry>, engine: Rcrc<UiThreadEngine>) -> Gui {
+    Gui::new(GuiState::new(registry, engine), |gui| Root::new(gui))
 }

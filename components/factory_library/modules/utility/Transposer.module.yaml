@@ -1,0 +1,61 @@
+save_id: 11
+outputs:
+  transposed:
+    type: pitch
+    label: Transposed
+    tooltip: The transposed (shifted) pitch
+controls:
+  pitch: Input
+    type: pitch
+  amount: FloatInRange
+    min: -1
+    max: 1
+    default: 1
+  octaves: Int
+    min: -10
+    max: 10
+    default: 0
+  semitones: Int
+    min: -12
+    max: 12
+    default: 0
+  cents: Int
+    min: -100
+    max: 100
+    default: 0
+gui:
+  label: Transposer
+  category: Utility
+  tooltip: Moves a pitch up or down a certain number of octaves, semitones, and/or cents
+  width: 4
+  height: 4
+  widgets:
+    Input:
+      y: 0
+      control: pitch
+      label: Pitch
+      tooltip: The pitch that will be transposed
+    Knob:
+      x: 2
+      y: 0
+      control: amount
+      label: Amount
+      tooltip: How much of the pitch shift to apply, useful for creating pitch bends
+    IntBox:
+      x: 0
+      y: 2
+      control: octaves
+      label: Octaves
+      tooltip: How many octaves to move the pitch by
+    IntBox:
+      x: 2
+      y: 2
+      control: semitones 
+      label: Semitones
+      tooltip: How many semitones to move the pitch by
+    IntBox:
+      x: 0
+      y: 0
+      control: cents
+      label: Cents
+      tooltip: How many cents to move the pitch by

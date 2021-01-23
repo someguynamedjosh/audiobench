@@ -1,7 +1,9 @@
 /artifacts
+/dependencies/julia*
+/dependencies/llvm*
 /target
 NOTES.md
 TODO.md
 perf.data
 perf.data.old
-scratch.ns
+/scratch*

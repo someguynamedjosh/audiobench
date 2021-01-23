@@ -1,0 +1,14 @@
+[package]
+name = "audiobench_clib"
+version = "0.1.0"
+authors = ["joshua-maros <60271685+joshua-maros@users.noreply.github.com>"]
+edition = "2018"
+
+[lib]
+name = "audiobench_clib"
+crate-type = ["staticlib"]
+
+[dependencies]
+audiobench = { path = "../audiobench" }
+scui = { path = "../scui" }
+shared_util = { path = "../shared_util" }

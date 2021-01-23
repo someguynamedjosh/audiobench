@@ -1,0 +1,39 @@
+save_id: 1
+outputs:
+  audio:
+    type: audio
+    label: Audio
+    tooltip: Audio output
+controls:
+  pitch: Input
+    type: pitch 
+  waveform: Input
+    type: waveform
+    default: sine_wave
+  amplitude: FloatInRange
+    min: 0
+    max: 1
+    default: 1
+gui: 
+  label: Oscillator
+  category: Synthesis
+  tooltip: Oscillates a waveform at a particular pitch, with optional amplitude control
+  width: 2
+  height: 2
+  widgets:
+    Input:
+      y: 0
+      control: pitch
+      label: Pitch
+      tooltip: The frequency to repeat the waveform at
+    Input:
+      y: 1
+      control: waveform
+      label: Waveform
+      tooltip: The waveform to repeatedly play
+    Knob:
+      x: 0
+      y: 0
+      control: amplitude
+      label: Amplitude
+      tooltip: How loud the output should be

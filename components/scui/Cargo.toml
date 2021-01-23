@@ -1,0 +1,12 @@
+[package]
+name = "scui"
+version = "0.1.0"
+authors = ["Joshua Maros <60271685+joshua-maros@users.noreply.github.com>"]
+edition = "2018"
+description = "Hierarchical UI"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+scui_macros = { path = "../scui_macros" }
+shared_util = { path = "../shared_util" }

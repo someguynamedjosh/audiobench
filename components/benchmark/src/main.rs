@@ -4,11 +4,11 @@ const TYPICAL_BUFFER_LENGTH: usize = 512;
 const TYPICAL_SAMPLE_RATE: usize = 44100;
 const TYPICAL_TEST_DURATION: usize = 100;
 const TYPICAL_NUM_NOTES: usize = 10;
-/// The 'default' patch from the factory library.
+/// The 'default' patch from the Factory library.
 const PATCH_DEFAULT: &[u8] =
     "AQAHRGVmYXVsdAAAAQAE_wHgAKgFAVAAqAYAeADACgAwADAOIgABAliAAGqqAAA7o9cKAD5MzM0APpmZmgMD"
         .as_bytes();
-/// The 'pluckypluckypluck' patch from the factory library.
+/// The 'pluckypluckypluck' patch from the Factory library.
 const PATCH_PLUCK: &[u8] = "AQARUGx1Y2t5cGx1Y2t5cGx1Y2sAAAEACv__DwK4AKgFAKj_6A4AqABgEgEIAWgOAfgAqBEBOADYBgE4ASAGADABaAz_cABgDv-gAPAHEomiQgAEAgUGCQcJIgKUmQIJAADo9QAAAAAAAAAAO6PXCgA9d85jAD55hhgAADvqv2gBAAA7o9cKAD5MzIYAPpmZmgAAAAcAAAAAO6PXCgA9lewBAD6ZmZogMwAI8zMFHgHuFAMDCBR6frg".as_bytes();
 
 struct TestParameters {
@@ -38,8 +38,8 @@ fn do_benchmark(test_id: usize, params: &TestParameters) {
     println!("Number of notes:  {}", num_notes);
     println!("Patch name:       {}", patch_name);
 
-    let mut instance = Instance::new();
-    instance.set_host_format(*buffer_length, *sample_rate);
+    let mut instance = OldInstance::new();
+    instance.set_global_params(*buffer_length, *sample_rate);
     instance.deserialize_patch(patch_data);
     // We need to do this at least once so that the audio thread can adjust to the new parameters.
     // Without this, the audio thread will shut down the notes when the actual benchmark starts.
@@ -79,7 +79,7 @@ const TESTS: [TestParameters; 2] = [
         num_notes: TYPICAL_NUM_NOTES,
         patch_name: "Pluck",
         patch_data: PATCH_PLUCK,
-    }
+    },
 ];
 
 fn main() {

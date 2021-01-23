@@ -1,41 +1,40 @@
-save_id: 0
-inputs:
-  Carrier:
-    type: waveform
-    label: Carrier
-    tooltip: The base waveform which will be modulated
-    default: 3
-  Modulator:
-    type: waveform
-    label: Modulator
-    tooltip: The waveform that will control how the carrier is modulated
-    default: 3
+save_id: 12
 outputs:
-  Waveform:
+  waveform:
     type: waveform
     label: Waveform
     tooltip: The modulated waveform
-autocons:
-  intensity:
+controls:
+  carrier: Input
+    type: waveform
+    default: sine_wave
+  modulator: Input
+    type: waveform
+    default: sine_wave
+  intensity: FloatInRange
     min: 0
     max: 1
     default: 0.5
-gui: 
+gui:
   label: Amplitude Mod.
   category: Waveform
   tooltip: Modulates a carrier waveform with amplitude modulation (AM) using a second waveform
-  width: 5
+  width: 2
   height: 2
   widgets:
-    knob:
+    Input:
+      y: 0
+      control: carrier
+      label: Carrier
+      tooltip: The base waveform which will be modulated
+    Input:
+      y: 1
+      control: modulator
+      label: Modulator
+      tooltip: The waveform that will control the amplitude of the carrier
+    Knob:
+      x: 0
+      y: 0
       control: intensity
       label: Intensity
       tooltip: How strong the modulation is
-      x: 0
-      y: 0
-    waveform_graph:
-      x: 2
-      y: 0
-      w: 3
-      h: 2
-      feedback_name: graph_feedback

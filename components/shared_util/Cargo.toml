@@ -1,0 +1,12 @@
+[package]
+name = "shared_util"
+version = "0.1.0"
+authors = ["joshua-maros <60271685+joshua-maros@users.noreply.github.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+bitvec = "0.20.1"
+num = "0.2"
+scones = "0.1"

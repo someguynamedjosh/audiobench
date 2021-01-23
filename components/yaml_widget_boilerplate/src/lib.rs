@@ -1,23 +1,23 @@
-use inflector::Inflector;
 use proc_macro::TokenStream;
 use proc_macro2::Span;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::{format_ident, quote};
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
-use syn::{parenthesized, Expr, Ident, Token};
+use syn::{parenthesized, Ident, Token};
 
 #[derive(PartialEq)]
 enum ConstructorItemType {
-    RegistryRef,
+    ParentRef,
     GridPos,
     GridSize,
-    AutoconRef,
-    ControlledDataRef(String),
+    ControlRef(String),
+    I32,
     IntRange,
     FloatRange,
     String,
     StringList,
+    OptionalString,
 }
 
 struct ConstructorItem {
@@ -28,17 +28,16 @@ struct ConstructorItem {
 impl ConstructorItem {
     pub fn get_outline_fields(&self) -> Vec<(Ident, TokenStream2)> {
         match &self.typ {
-            ConstructorItemType::RegistryRef => vec![],
-            ConstructorItemType::AutoconRef => {
+            ConstructorItemType::ParentRef => vec![],
+            ConstructorItemType::ControlRef(_type_name) => {
                 vec![(format_ident!("{}_index", self.name), quote! {usize})]
             }
-            ConstructorItemType::ControlledDataRef(_type_name) => {
-                vec![(format_ident!("{}_index", self.name), quote! {usize})]
-            }
+            ConstructorItemType::I32 => vec![(self.name.clone(), quote! { i32 })],
             ConstructorItemType::IntRange => vec![(self.name.clone(), quote! { (i32, i32)})],
-            ConstructorItemType::GridPos
-            | ConstructorItemType::GridSize
-            | ConstructorItemType::FloatRange => vec![(self.name.clone(), quote! { (f32, f32)})],
+            ConstructorItemType::GridPos | ConstructorItemType::GridSize => {
+                vec![(self.name.clone(), quote! { Vec2D })]
+            }
+            ConstructorItemType::FloatRange => vec![(self.name.clone(), quote! { (f32, f32) })],
             ConstructorItemType::String => {
                 vec![(self.name.clone(), quote! {::std::string::String})]
             }
@@ -46,16 +45,20 @@ impl ConstructorItem {
                 self.name.clone(),
                 quote! {::std::vec::Vec<::std::string::String>},
             )],
+            ConstructorItemType::OptionalString => vec![(
+                self.name.clone(),
+                quote! {::std::option::Option<::std::string::String>},
+            )],
         }
     }
 
     pub fn create_from_yaml_code(&self) -> TokenStream2 {
         match &self.typ {
-            ConstructorItemType::RegistryRef => quote! {},
+            ConstructorItemType::ParentRef => quote! {},
             ConstructorItemType::GridPos => {
                 let name = self.name.clone();
                 quote! {
-                    let #name = (
+                    let #name = Vec2D::new(
                         crate::gui::constants::coord(yaml.unique_child("x")?.parse()?)
                             + crate::gui::constants::JACK_SIZE
                             + crate::gui::constants::MODULE_IO_WIDTH,
@@ -66,41 +69,38 @@ impl ConstructorItem {
             ConstructorItemType::GridSize => {
                 let name = self.name.clone();
                 quote! {
-                    let #name = (
+                    let #name = Vec2D::new(
                         crate::gui::constants::grid(yaml.unique_child("w")?.parse()?),
                         crate::gui::constants::grid(yaml.unique_child("h")?.parse()?),
                     );
                 }
             }
-            ConstructorItemType::AutoconRef => {
-                let name = self.name.clone();
-                let name_name = format_ident!("{}_name", self.name);
-                let index_name = format_ident!("{}_index", self.name);
-                quote! {
-                    let #name_name = yaml.unique_child(stringify!(#name))?.value.trim();
-                    let #index_name = find_autocon_index(#name_name)?;
-                }
-            }
-            ConstructorItemType::ControlledDataRef(type_name) => {
+            ConstructorItemType::ControlRef(type_name) => {
                 let name = self.name.clone();
                 let name_name = format_ident!("{}_name", self.name);
                 let index_name = format_ident!("{}_index", self.name);
                 let type_name = Ident::new(type_name, Span::call_site());
                 quote! {
                     let #name_name = yaml.unique_child(stringify!(#name))?.value.trim();
-                    let #index_name = find_staticon_index(#name_name)?;
-                    if let crate::engine::static_controls::ArbitraryStaticonData::#type_name(..) = staticons[#index_name].borrow().borrow_statically_typed_data() {
+                    let #index_name = find_control_index(#name_name)?;
+                    if let crate::engine::controls::AnyControl::#type_name(..) = &controls[#index_name].1 {
                     } else {
                         return Err(format!(
                             concat!(
                                 "ERROR: Invalid widget {}, caused by:\n",
-                                "ERROR: The parameter {} requires a staticon of type {}."
+                                "ERROR: The parameter {} requires a control of type {}."
                             ),
                             &yaml.full_name,
                             stringify!(#name),
                             stringify!(#type_name),
                         ));
                     }
+                }
+            }
+            ConstructorItemType::I32 => {
+                let name = self.name.clone();
+                quote! {
+                    let #name = yaml.unique_child(stringify!(#name))?.parse()?;
                 }
             }
             ConstructorItemType::IntRange => {
@@ -147,33 +147,40 @@ impl ConstructorItem {
                     }
                 }
             }
+            ConstructorItemType::OptionalString => {
+                let name = self.name.clone();
+                quote! {
+                    let #name = if let Ok(child) = yaml.unique_child(stringify!(#name)) {
+                        Some(child.value.trim().to_owned())
+                    } else {
+                        None
+                    };
+                }
+            }
         }
     }
 
     pub fn create_constructor_argument(&self) -> TokenStream2 {
         match &self.typ {
-            ConstructorItemType::RegistryRef => quote! { registry },
+            ConstructorItemType::ParentRef => quote! { parent },
             ConstructorItemType::GridPos
             | ConstructorItemType::GridSize
+            | ConstructorItemType::I32
             | ConstructorItemType::IntRange
             | ConstructorItemType::FloatRange
             | ConstructorItemType::String
+            | ConstructorItemType::OptionalString
             | ConstructorItemType::StringList => {
                 let name = self.name.clone();
                 quote! { self.#name.clone() }
             }
-            ConstructorItemType::AutoconRef => {
-                let name = format_ident!("{}_index", self.name);
-                quote! { ::std::rc::Rc::clone(&controls[self.#name]) }
-            }
-            ConstructorItemType::ControlledDataRef(type_name) => {
+            ConstructorItemType::ControlRef(type_name) => {
                 let name = format_ident!("{}_index", self.name);
                 let type_name = Ident::new(type_name, Span::call_site());
                 quote! { {
-                    let control = staticons[self.#name].borrow();
-                    let std = control.borrow_statically_typed_data();
-                    if let crate::engine::static_controls::ArbitraryStaticonData::#type_name(data_ptr) = std {
-                        ::std::rc::Rc::clone(data_ptr)
+                    let control = &controls[self.#name];
+                    if let crate::engine::controls::AnyControl::#type_name(control_ptr) = &control {
+                        ::std::rc::Rc::clone(control_ptr)
                     } else {
                         unreachable!("Type changed after type check in loading phase.")
                     }
@@ -189,28 +196,23 @@ impl Parse for ConstructorItem {
         input.parse::<Token![:]>()?;
         let type_name: Ident = input.parse()?;
         let type_name_str = type_name.to_string();
-        if type_name_str.starts_with("Controlled") {
-            if !type_name_str.ends_with("Ref") {
-                panic!(
-                    "{} looks like a controlled data ref type but does not end in Ref",
-                    type_name
-                );
-            }
+        if type_name_str.ends_with("ControlRef") {
             return Ok(Self {
                 name,
-                typ: ConstructorItemType::ControlledDataRef(
-                    type_name_str[10..(type_name_str.len() - 3)].to_owned(),
+                typ: ConstructorItemType::ControlRef(
+                    type_name_str[..(type_name_str.len() - 10)].to_owned(),
                 ),
             });
         }
         let typ = match &type_name_str[..] {
-            "RegistryRef" => ConstructorItemType::RegistryRef,
+            "ParentRef" => ConstructorItemType::ParentRef,
             "GridPos" => ConstructorItemType::GridPos,
             "GridSize" => ConstructorItemType::GridSize,
-            "AutoconRef" => ConstructorItemType::AutoconRef,
+            "i32" => ConstructorItemType::I32,
             "IntRange" => ConstructorItemType::IntRange,
             "FloatRange" => ConstructorItemType::FloatRange,
             "String" => ConstructorItemType::String,
+            "OptionalString" => ConstructorItemType::OptionalString,
             "StringList" => ConstructorItemType::StringList,
             _ => panic!(
                 "{} is not a recognized constructor parameter type",
@@ -236,24 +238,18 @@ impl Parse for ConstructorDescription {
     }
 }
 
-enum FeedbackDescription {
-    Autocon,
-    Custom { size: Expr },
+enum FeedbackMode {
+    ControlSignal,
+    ManualValue,
 }
 
-impl Parse for FeedbackDescription {
+impl Parse for FeedbackMode {
     fn parse(input: ParseStream) -> syn::parse::Result<Self> {
         let typ: Ident = input.parse()?;
         Ok(match &typ.to_string()[..] {
-            "control" => Self::Autocon,
-            "custom" => {
-                let size_stream;
-                parenthesized!(size_stream in input);
-                Self::Custom {
-                    size: size_stream.parse()?,
-                }
-            }
-            _ => panic!("{} is not a valid feedback data mode", typ),
+            "ControlSignal" => Self::ControlSignal,
+            "ManualValue" => Self::ManualValue,
+            _ => panic!("{} is not a valid feedback mode", typ),
         })
     }
 }
@@ -261,7 +257,7 @@ impl Parse for FeedbackDescription {
 struct WidgetOutlineDescription {
     widget_struct_name: Option<Ident>,
     constructor_description: Option<ConstructorDescription>,
-    feedback_description: Option<FeedbackDescription>,
+    feedback_mode: Option<FeedbackMode>,
 }
 
 impl Parse for WidgetOutlineDescription {
@@ -269,7 +265,7 @@ impl Parse for WidgetOutlineDescription {
         let mut result = WidgetOutlineDescription {
             widget_struct_name: None,
             constructor_description: None,
-            feedback_description: None,
+            feedback_mode: None,
         };
         while !input.is_empty() {
             let name: Ident = input.parse()?;
@@ -277,7 +273,7 @@ impl Parse for WidgetOutlineDescription {
             match &name.to_string()[..] {
                 "widget_struct" => result.widget_struct_name = Some(input.parse()?),
                 "constructor" => result.constructor_description = Some(input.parse()?),
-                "feedback" => result.feedback_description = Some(input.parse()?),
+                "feedback" => result.feedback_mode = Some(input.parse()?),
                 _ => panic!("Unexpected identifier {}", name),
             }
             input.parse::<Token![,]>().ok(); // ignore because there might not be a trailing comma
@@ -291,10 +287,11 @@ pub fn make_widget_outline(args: TokenStream) -> TokenStream {
     let WidgetOutlineDescription {
         widget_struct_name,
         constructor_description,
-        feedback_description,
+        feedback_mode,
     } = syn::parse_macro_input!(args);
 
     let widget_struct_name = widget_struct_name.expect("widget_struct not specified");
+    let widget_parent_trait = format_ident!("{}Parent", widget_struct_name);
     let constructor_description = constructor_description.expect("constructor not specified");
     let outline_name = format_ident!("Generated{}Outline", widget_struct_name);
 
@@ -303,34 +300,23 @@ pub fn make_widget_outline(args: TokenStream) -> TokenStream {
         outline_fields.append(&mut constructor_arg.get_outline_fields());
     }
 
-    let feedback_requirement_code = match &feedback_description {
-        None => quote! { crate::gui::module_widgets::FeedbackDataRequirement::None },
-        Some(FeedbackDescription::Autocon) => {
-            let control_name = constructor_description
-                .args
-                .iter()
-                .find(|item| item.typ == ConstructorItemType::AutoconRef)
-                .expect(
-                    "feedback is set to control, but the constructor takes no control references!",
-                )
-                .name
-                .clone();
-            let control_name = format_ident!("{}_index", control_name);
+    let feedback_requirement_code = match &feedback_mode {
+        None => quote! { crate::gui::module_widgets::FeedbackMode::None },
+        Some(FeedbackMode::ControlSignal) => {
             quote! {
-                crate::gui::module_widgets::FeedbackDataRequirement::Autocon {
-                    control_index: self.#control_name,
+                crate::gui::module_widgets::FeedbackMode::ControlSignal {
+                    control_index: self.control_index,
                 }
             }
         }
-        Some(FeedbackDescription::Custom { size }) => {
+        Some(FeedbackMode::ManualValue) => {
             outline_fields.push((
                 format_ident!("feedback_name"),
                 quote! {::std::string::String},
             ));
             quote! {
-                crate::gui::module_widgets::FeedbackDataRequirement::Custom {
-                    code_name: self.feedback_name.clone(),
-                    size: #size
+                crate::gui::module_widgets::FeedbackMode::ManualValue {
+                    name: self.feedback_name.clone(),
                 }
             }
         }
@@ -345,7 +331,7 @@ pub fn make_widget_outline(args: TokenStream) -> TokenStream {
         .iter()
         .map(|arg| arg.create_from_yaml_code())
         .collect();
-    if let Some(FeedbackDescription::Custom { .. }) = &feedback_description {
+    if let Some(FeedbackMode::ManualValue) = &feedback_mode {
         field_from_yaml_code.push(quote! {
             let feedback_name = yaml.unique_child("feedback_name")?.value.trim().to_owned();
         });
@@ -374,33 +360,21 @@ pub fn make_widget_outline(args: TokenStream) -> TokenStream {
 
         impl #outline_name {
             pub fn get_feedback_data_requirement(&self)
-                -> crate::gui::module_widgets::FeedbackDataRequirement {
+                -> crate::gui::module_widgets::FeedbackMode {
                 #feedback_requirement_code
             }
 
             pub fn from_yaml(
                 yaml: &crate::registry::yaml::YamlNode,
-                controls: & ::std::vec::Vec<::std::rc::Rc<::std::cell::RefCell<crate::engine::parts::Autocon>>>,
-                staticons: &mut ::std::vec::Vec<::std::rc::Rc<::std::cell::RefCell<crate::engine::static_controls::Staticon>>>,
+                controls: &::std::vec::Vec<(String, crate::engine::controls::AnyControl)>,
             ) -> ::std::result::Result<#outline_name, ::std::string::String> {
-                let find_autocon_index = |name: &str| {
+                let find_control_index = |name: &str| {
                     controls
                         .iter()
-                        .position(|item| &item.borrow().code_name == name)
+                        .position(|(test_name, item)| test_name == name)
                         .ok_or_else(|| {
                             format!(
-                                "ERROR: Invalid widget {}, caused by:\nERROR: No autocon named {}.",
-                                &yaml.full_name, name
-                            )
-                        })
-                };
-                let find_staticon_index = |name: &str| {
-                    staticons
-                        .iter()
-                        .position(|item| item.borrow().borrow_code_name() == name)
-                        .ok_or_else(|| {
-                            format!(
-                                "ERROR: Invalid widget {}, caused by:\nERROR: No staticon named {}.",
+                                "ERROR: Invalid widget {}, caused by:\nERROR: No control named {}.",
                                 &yaml.full_name, name
                             )
                         })
@@ -416,10 +390,9 @@ pub fn make_widget_outline(args: TokenStream) -> TokenStream {
 
             pub fn instantiate(
                 &self,
-                registry: &crate::registry::Registry,
-                controls: & ::std::vec::Vec<::std::rc::Rc<::std::cell::RefCell<crate::engine::parts::Autocon>>>,
-                staticons: & ::std::vec::Vec<::std::rc::Rc<::std::cell::RefCell<crate::engine::static_controls::Staticon>>>,
-            ) -> #widget_struct_name {
+                parent: &impl #widget_parent_trait,
+                controls: & ::std::vec::Vec<crate::engine::controls::AnyControl>,
+            ) -> ::std::rc::Rc<#widget_struct_name> {
                 #widget_struct_name::#constructor_name(#(#constructor_arg_values),*)
             }
         }
@@ -442,6 +415,13 @@ impl Parse for ClassList {
 pub fn make_widget_outline_enum(args: TokenStream) -> TokenStream {
     let ClassList { class_names } = syn::parse_macro_input!(args);
 
+    let parent_traits: Vec<_> = class_names
+        .iter()
+        .map(|name| {
+            let trait_name = format_ident!("{}Parent", name);
+            quote! { #trait_name }
+        })
+        .collect();
     let enum_body: Vec<_> = class_names
         .iter()
         .map(|name| {
@@ -458,11 +438,11 @@ pub fn make_widget_outline_enum(args: TokenStream) -> TokenStream {
     let from_yaml_body: Vec<_> = class_names
         .iter()
         .map(|name| {
-            let snake_case_string = name.to_string().to_snake_case();
+            let name_string = name.to_string();
             let outline_struct_name = format_ident!("Generated{}Outline", name);
             quote! {
-                #snake_case_string => Self::#name(#outline_struct_name::from_yaml(
-                    yaml, controls, staticons
+                #name_string => Self::#name(#outline_struct_name::from_yaml(
+                    yaml, controls
                 )?)
             }
         })
@@ -472,7 +452,7 @@ pub fn make_widget_outline_enum(args: TokenStream) -> TokenStream {
         .map(|name| {
             quote! {
                 Self::#name(outline) => Box::new(
-                    outline.instantiate(registry, controls, staticons)
+                    outline.instantiate(parent, controls)
                 )
             }
         })
@@ -485,7 +465,7 @@ pub fn make_widget_outline_enum(args: TokenStream) -> TokenStream {
         }
 
         impl WidgetOutline {
-            pub fn get_feedback_data_requirement(&self) -> crate::gui::module_widgets::FeedbackDataRequirement {
+            pub fn get_feedback_mode(&self) -> crate::gui::module_widgets::FeedbackMode {
                 match self {
                     #(#feedback_body),*
                 }
@@ -493,8 +473,7 @@ pub fn make_widget_outline_enum(args: TokenStream) -> TokenStream {
 
             pub fn from_yaml(
                 yaml: &crate::registry::yaml::YamlNode,
-                controls: & ::std::vec::Vec<::std::rc::Rc<::std::cell::RefCell<crate::engine::parts::Autocon>>>,
-                staticons: &mut ::std::vec::Vec<::std::rc::Rc<::std::cell::RefCell<crate::engine::static_controls::Staticon>>>,
+                controls: &::std::vec::Vec<(String, crate::engine::controls::AnyControl)>,
             ) -> ::std::result::Result<Self, ::std::string::String> {
                 Ok(match &yaml.name[..] {
                     #(#from_yaml_body),*,
@@ -507,18 +486,17 @@ pub fn make_widget_outline_enum(args: TokenStream) -> TokenStream {
                 })
             }
 
-            pub fn instantiate(
+            pub fn instantiate<P>(
                 &self,
-                registry: &crate::registry::Registry,
-                controls: & ::std::vec::Vec<::std::rc::Rc<::std::cell::RefCell<crate::engine::parts::Autocon>>>,
-                staticons: & ::std::vec::Vec<::std::rc::Rc<::std::cell::RefCell<crate::engine::static_controls::Staticon>>>,
-            ) -> (::std::boxed::Box<dyn crate::gui::module_widgets::ModuleWidget>, usize) {
-                (
-                    match self {
-                        #(#instantiate_body),*
-                    },
-                    self.get_feedback_data_requirement().size(),
-                )
+                parent: &P,
+                controls: &::std::vec::Vec<crate::engine::controls::AnyControl>,
+            ) -> ::std::boxed::Box<dyn crate::gui::module_widgets::ModuleWidget>
+            where
+                P: #(#parent_traits)+*
+            {
+                match self {
+                    #(#instantiate_body),*
+                }
             }
         }
     })
