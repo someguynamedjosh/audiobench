@@ -64,10 +64,10 @@ impl FrequencyControl {
 
 #[rustfmt::skip]
 impl Control for FrequencyControl {
-    fn get_parameter_types(&self) -> Vec<IOType> { unimplemented!() }
-    fn get_parameter_values(&self) -> Vec<IOData> { unimplemented!() }
+    fn get_parameter_types(&self) -> Vec<IOType> { vec![IOType::Float] }
+    fn get_parameter_values(&self) -> Vec<IOData> { vec![IOData::Float(self.value)] }
     fn generate_code(&self, params: &[&str], automation_code: &AutomationCode) -> String { 
-        unimplemented!() 
+        format!("StaticControlSignal({})", params[0])
     }
     fn serialize(&self, ser: &mut MiniSer) { 
         ser.f32(self.value);

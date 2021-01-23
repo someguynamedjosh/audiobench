@@ -221,11 +221,9 @@ impl ExecutionEngine {
                     .unwrap())
             })
             .unwrap();
+        self.global_code_segments.push(code);
         match res {
-            Ok(..) => {
-                self.global_code_segments.push(code);
-                Ok(())
-            }
+            Ok(..) => Ok(()),
             Err(err) => Err(Self::format_error(err, &self.global_code_segments[..])),
         }
     }
@@ -239,13 +237,13 @@ impl ExecutionEngine {
             .to_owned();
         let mut error = &raw_error[..];
         let mut result = String::new();
-        while let Some(index) = error.find("./__global_code_") {
+        while let Some(index) = error.find("__global_code_") {
             let before = &error[..index];
             result.push_str(before);
-            let file_start = index + "./__global_code_".as_bytes().len();
+            let file_start = index + "__global_code_".len();
             let file_end = file_start + (&error[file_start..]).find("__.jl:").unwrap();
             let file = (&error[file_start..file_end]).parse::<usize>().unwrap();
-            let line_start = file_end + "__.jl:".as_bytes().len();
+            let line_start = file_end + "__.jl:".len();
             let line_end = line_start
                 + (&error[line_start..])
                     .find("\n")

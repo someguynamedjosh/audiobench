@@ -7,9 +7,10 @@ outputs:
 controls:
   choice: OptionChoice
     options:
-      sine:
-      square:
-      triangle:
+      Sine:
+      Square:
+      Triangle:
+      Power:
   parameter: FloatInRange
     min: 0.0
     max: 1.0

@@ -9,13 +9,15 @@ function exec()
             else 
                 1f0 
             end
-        else
-            @assert choice == 2
+        elseif choice == 2
             if phase < parameter_here 
                 phase / parameter_here * 2f0 - 1f0
             else
                 (1f0 - phase) / (1f0 - parameter_here) * 2f0 - 1f0
             end
+        else
+            @assert choice == 3
+            phase ^ exp(parameter_here * 8f0 - 4f0) * 2f0 - 1f0
         end
     end
 end

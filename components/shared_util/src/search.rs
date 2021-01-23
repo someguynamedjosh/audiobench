@@ -112,13 +112,13 @@ impl<'a> ClipSearcher<'a> {
             let mut is_symbol = true;
             if index > 0 {
                 let before = stext[index - 1..].chars().next().unwrap();
-                if before.is_alphanumeric() {
+                if before.is_alphanumeric() || before == '_' {
                     is_symbol = false;
                 }
             }
             if index + pattern.len() < stext.len() {
                 let after = stext[index + pattern.len()..].chars().next().unwrap();
-                if after.is_alphanumeric() {
+                if after.is_alphanumeric() || after == '_' {
                     is_symbol = false;
                 }
             }
@@ -248,11 +248,11 @@ impl<'a> ClipSearcher<'a> {
         let not_before_len = start_marker.text.len();
         let before = Clip {
             source_position: self.start_pos,
-            text: String::from(&self.original_text[..(original_len - not_before_len)])
+            text: String::from(&self.original_text[..(original_len - not_before_len)]),
         };
         let after = Clip {
             source_position: self.pos,
-            text: String::from(self.text)
+            text: String::from(self.text),
         };
         (clipped, (before, after))
     }
@@ -333,7 +333,7 @@ mod tests {
         searcher.skip_blocks(&[("{", "}"), ("(", ")")], "goal");
         assert_eq!(searcher.remaining(), "goal { }");
 
-        let clip = Clip::from("begin start hello start end end there end");
+        let clip = Clip::from("begin start hello _start start_ start end end there end");
         let mut searcher = clip.search();
         searcher.goto_pattern_end("begin");
         searcher.skip_blocks(&[("start", "end")], "end");
