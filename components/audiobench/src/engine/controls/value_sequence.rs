@@ -29,9 +29,7 @@ impl ValueSequenceControl {
             return UpdateRequest::Nothing;
         }
         self.sequence.resize(len, -1.0);
-        // Changing the length changes the data type of the information dynamically passed in for
-        // this control, so the code has to be updated.
-        UpdateRequest::UpdateCode
+        UpdateRequest::UpdateDynData
     }
 
     pub fn get_value(&self, index: usize) -> f32 {
@@ -51,10 +49,12 @@ impl ValueSequenceControl {
 
 #[rustfmt::skip] 
 impl Control for ValueSequenceControl {
-    fn get_parameter_types(&self) -> Vec<IOType> { unimplemented!() }
-    fn get_parameter_values(&self) -> Vec<IOData> { unimplemented!() }
+    fn get_parameter_types(&self) -> Vec<IOType> { vec![IOType::FloatArray] }
+    fn get_parameter_values(&self) -> Vec<IOData> { 
+        vec![IOData::FloatArray(self.sequence.clone())] 
+    }
     fn generate_code(&self, params: &[&str], automation_code: &AutomationCode) -> String { 
-        unimplemented!() 
+        params[0].to_owned()
     }
     fn serialize(&self, ser: &mut MiniSer) { 
         assert!(self.sequence.len() <= 0xFF);

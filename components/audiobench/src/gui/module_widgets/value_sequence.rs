@@ -1,5 +1,5 @@
 use crate::{
-    engine::controls::{FloatInRangeControl, UpdateRequest, ValueSequenceControl},
+    engine::controls::{Control, FloatInRangeControl, UpdateRequest, ValueSequenceControl},
     gui::{
         constants::*, module_widgets::ModuleWidgetImpl, mouse_behaviors::ContinuouslyMutateControl,
         InteractionHint, Tooltip,
@@ -31,6 +31,8 @@ scui::widget! {
         ramping_control: Rcrc<FloatInRangeControl>,
         pos: Vec2D,
         size: Vec2D,
+        cursor_pos: f32,
+        ramping: f32,
     }
 }
 
@@ -52,6 +54,8 @@ impl ValueSequence {
             ramping_control,
             pos,
             size: size * (1, 0) + (0.0, HEIGHT),
+            cursor_pos: 0.0,
+            ramping: 0.0,
         };
         Rc::new(Self::create(parent, state))
     }
@@ -111,8 +115,6 @@ impl WidgetImpl<Renderer, DropTarget> for ValueSequence {
 
     fn draw_impl(self: &Rc<Self>, g: &mut Renderer) {
         let state = self.state.borrow();
-        let feedback_data: &[f32] = unimplemented!();
-        assert_eq!(feedback_data.len(), 2);
         const H: f32 = HEIGHT;
         const CS: f32 = CORNER_SIZE;
         const HEAD: f32 = HEADER_SPACE;
@@ -122,7 +124,6 @@ impl WidgetImpl<Renderer, DropTarget> for ValueSequence {
         let borrowed = state.sequence_control.borrow();
         let num_steps = borrowed.get_len();
         let step_width = state.size.x / num_steps as f32;
-        let ramping = feedback_data[1];
         const MIDPOINT: f32 = HEAD + (H - HEAD) * 0.5;
         let first_value = borrowed.get_value(0);
         let mut value = first_value;
@@ -138,7 +139,7 @@ impl WidgetImpl<Renderer, DropTarget> for ValueSequence {
             g.set_alpha(0.3);
             g.draw_rect((x, MIDPOINT.min(y)), (step_width, (MIDPOINT - y).abs()));
             g.set_alpha(1.0);
-            g.draw_line((x, y), (x + step_width * (1.0 - ramping), y), 2.0);
+            g.draw_line((x, y), (x + step_width * (1.0 - state.ramping), y), 2.0);
             let next_value = if step_index < num_steps - 1 {
                 borrowed.get_value(step_index + 1)
             } else {
@@ -147,7 +148,7 @@ impl WidgetImpl<Renderer, DropTarget> for ValueSequence {
             value = next_value;
             let next_y = (0.5 - next_value * 0.5) * (H - HEAD) + HEAD;
             g.draw_line(
-                (x + step_width * (1.0 - ramping), y),
+                (x + step_width * (1.0 - state.ramping), y),
                 (x + step_width, next_y),
                 2.0,
             );
@@ -155,12 +156,25 @@ impl WidgetImpl<Renderer, DropTarget> for ValueSequence {
 
         g.set_color(&COLOR_FG1);
         g.draw_pie(
-            (feedback_data[0] * step_width - HEAD, 0.0),
+            (state.cursor_pos * step_width - HEAD, 0.0),
             HEAD * 2.0,
             0.0,
             std::f32::consts::PI * 0.75,
             std::f32::consts::PI * 0.25,
         );
+    }
+}
+
+impl ModuleWidgetImpl for ValueSequence {
+    fn represented_control(self: &Rc<Self>) -> Option<Rcrc<dyn Control>> {
+        Some(Rc::clone(&self.state.borrow().sequence_control) as _)
+    }
+
+    fn take_feedback_data(self: &Rc<Self>, data: Vec<f32>) {
+        assert_eq!(data.len(), 2);
+        let mut state = self.state.borrow_mut();
+        state.cursor_pos = data[0];
+        state.ramping = data[1];
     }
 }
 
@@ -189,5 +203,4 @@ impl ValueSequenceLength {
     }
 }
 
-impl ModuleWidgetImpl for ValueSequence {}
 impl ModuleWidgetImpl for ValueSequenceLength {}

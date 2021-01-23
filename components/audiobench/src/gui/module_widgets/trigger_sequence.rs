@@ -1,5 +1,5 @@
 use crate::{
-    engine::controls::{TriggerSequenceControl, UpdateRequest},
+    engine::controls::{Control, TriggerSequenceControl, UpdateRequest},
     gui::{
         constants::*, module_widgets::ModuleWidgetImpl, mouse_behaviors::MutateControl,
         InteractionHint, Tooltip,
@@ -15,7 +15,7 @@ yaml_widget_boilerplate::make_widget_outline! {
         parent: ParentRef,
         pos: GridPos,
         size: GridSize,
-        sequence_control: TriggerSequenceControlRef,
+        control: TriggerSequenceControlRef,
         tooltip: String,
     ),
     // Feedback for playhead
@@ -27,8 +27,9 @@ scui::widget! {
     State {
         pos: Vec2D,
         size: Vec2D,
-        sequence_control: Rcrc<TriggerSequenceControl>,
+        control: Rcrc<TriggerSequenceControl>,
         tooltip: String,
+        cursor_pos: f32,
     }
 }
 
@@ -41,14 +42,15 @@ impl TriggerSequence {
         parent: &impl TriggerSequenceParent,
         pos: Vec2D,
         size: Vec2D,
-        sequence_control: Rcrc<TriggerSequenceControl>,
+        control: Rcrc<TriggerSequenceControl>,
         tooltip: String,
     ) -> Rc<Self> {
         let state = TriggerSequenceState {
             tooltip,
-            sequence_control,
+            control,
             pos,
             size: size * (1, 0) + (0.0, HEIGHT),
+            cursor_pos: 0.0,
         };
         Rc::new(Self::create(parent, state))
     }
@@ -69,10 +71,10 @@ impl WidgetImpl<Renderer, DropTarget> for TriggerSequence {
         _mods: &MouseMods,
     ) -> MaybeMouseBehavior {
         let state = self.state.borrow();
-        let num_steps = state.sequence_control.borrow().get_len();
+        let num_steps = state.control.borrow().get_len();
         let step_width = (state.size.x + STEP_GAP) / num_steps as f32;
         let clicked_step = (pos.x / step_width) as usize;
-        let cref = Rc::clone(&state.sequence_control);
+        let cref = Rc::clone(&state.control);
         MutateControl::wrap(self, move || cref.borrow_mut().toggle_trigger(clicked_step))
     }
 
@@ -89,14 +91,13 @@ impl WidgetImpl<Renderer, DropTarget> for TriggerSequence {
 
     fn draw_impl(self: &Rc<Self>, g: &mut Renderer) {
         let state = self.state.borrow();
-        let feedback_data: &[f32] = unimplemented!();
         const H: f32 = HEIGHT;
         const CS: f32 = CORNER_SIZE;
         const HEAD: f32 = HEADER_SPACE;
         const SG: f32 = STEP_GAP;
         g.set_color(&COLOR_BG0);
 
-        let borrowed = state.sequence_control.borrow();
+        let borrowed = state.control.borrow();
         let num_steps = borrowed.get_len();
         let step_width = (state.size.x + SG) / num_steps as f32;
         for step_index in 0..num_steps {
@@ -111,7 +112,7 @@ impl WidgetImpl<Renderer, DropTarget> for TriggerSequence {
 
         g.set_color(&COLOR_FG1);
         g.draw_pie(
-            (feedback_data[0] * step_width - HEAD, 0.0),
+            (state.cursor_pos * step_width - HEAD, 0.0),
             HEAD * 2.0,
             0.0,
             std::f32::consts::PI * 0.75,
@@ -120,9 +121,20 @@ impl WidgetImpl<Renderer, DropTarget> for TriggerSequence {
     }
 }
 
+impl ModuleWidgetImpl for TriggerSequence {
+    fn represented_control(self: &Rc<Self>) -> Option<Rcrc<dyn Control>> {
+        Some(Rc::clone(&self.state.borrow().control) as _)
+    }
+
+    fn take_feedback_data(self: &Rc<Self>, data: Vec<f32>) {
+        assert_eq! {data.len(), 1};
+        self.state.borrow_mut().cursor_pos = data[0];
+    }
+}
+
 crate::make_int_box_widget! {
     pub TriggerSequenceLength {
-        sequence_control: TriggerSequenceControlRef
+        control: TriggerSequenceControlRef
             as Rcrc<TriggerSequenceControl>
     }
 }
@@ -133,17 +145,16 @@ impl TriggerSequenceLength {
     }
 
     fn get_current_value(&self) -> i32 {
-        self.state.borrow().sequence_control.borrow().get_len() as _
+        self.state.borrow().control.borrow().get_len() as _
     }
 
     fn make_callback(&self) -> Box<dyn FnMut(i32) -> UpdateRequest> {
-        let sequence_control = Rc::clone(&self.state.borrow().sequence_control);
+        let control = Rc::clone(&self.state.borrow().control);
         Box::new(move |new_length| {
             assert!(new_length >= 1);
-            sequence_control.borrow_mut().set_len(new_length as usize)
+            control.borrow_mut().set_len(new_length as usize)
         })
     }
 }
 
-impl ModuleWidgetImpl for TriggerSequence {}
 impl ModuleWidgetImpl for TriggerSequenceLength {}

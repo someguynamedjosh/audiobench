@@ -5,7 +5,7 @@ mutable struct StaticData
 end
 
 function static_init()
-    return StaticData(0f0, false, 0f0)
+    return StaticData(-1000f0, false, 0f0)
 end
 
 function exec()
