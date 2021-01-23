@@ -83,7 +83,7 @@ impl WidgetImpl<Renderer, DropTarget> for HSlider {
 
         if mods.right_click {
             let parent_pos = self.parents.module.get_pos();
-            let pos = state.pos + parent_pos + grid(2) / 2.0;
+            let pos = state.pos + parent_pos + state.size / 2.0;
             let graph = Rc::clone(&self.parents.graph);
             let menu = HSliderEditor::new(
                 self,
@@ -214,7 +214,6 @@ impl HSliderEditor {
         parent: &impl HSliderEditorParent,
         control: Rcrc<FloatInRangeControl>,
         value: Rcrc<f32>,
-        // Bottom left position.
         center_pos: Vec2D,
         width: f32,
         label: String,
@@ -231,7 +230,7 @@ impl HSliderEditor {
         let state = HSliderEditorState {
             control,
             value,
-            pos: center_pos - (grid(2) - GRID_P, size.y + GRID_P),
+            pos: center_pos - size / 2.0,
             size,
             label,
             tooltip,
