@@ -39,7 +39,11 @@ pub(super) fn create_module_template_from_yaml(
         .parse_ranged(Some(0), None)?;
     let mut widgets = Vec::new();
     for widget_description in &widgets_description.children {
-        widgets.push(WidgetOutline::from_yaml(widget_description, &mut controls)?);
+        widgets.push(WidgetOutline::from_yaml(
+            widget_description,
+            icon_indexes,
+            &mut controls,
+        )?);
     }
 
     let mut outputs = Vec::new();

@@ -31,7 +31,7 @@ gui:
     Input:
       y: 0
       control: reset_trigger
-      icon: Factory:reset
+      icon: Factory:resettt
       label: Reset Trigger
       tooltip: Trigger to reset the envelope to the beginning
     Input:

@@ -1,15 +1,18 @@
 use super::ModuleWidgetImpl;
-use crate::engine::{
-    controls::{Control, InputControl},
-    UiThreadEngine,
-};
 use crate::gui::constants::*;
 use crate::gui::top_level::graph::{ConnectToControl, Module, ModuleGraph};
 use crate::gui::{InteractionHint, Tooltip};
 use crate::scui_config::{DropTarget, MaybeMouseBehavior, Renderer};
+use crate::{
+    engine::{
+        controls::{Control, InputControl},
+        UiThreadEngine,
+    },
+    registry::{yaml::YamlNode, Registry},
+};
 use scui::{MouseBehavior, MouseMods, Vec2D, Widget, WidgetImpl};
 use shared_util::prelude::*;
-use std::f32::consts::TAU;
+use std::{collections::HashMap, f32::consts::TAU};
 
 yaml_widget_boilerplate::make_widget_outline! {
     widget_struct: Input,
@@ -19,8 +22,28 @@ yaml_widget_boilerplate::make_widget_outline! {
         control: InputControlRef,
         label: String,
         tooltip: String,
-        icon: OptionalString,
+        icon: OptionalIcon,
     ),
+}
+
+#[derive(Clone, Debug)]
+pub struct OptionalIcon(Option<usize>);
+
+impl OptionalIcon {
+    pub fn from_yaml(
+        node: Option<&YamlNode>,
+        icon_indexes: &HashMap<String, usize>,
+    ) -> Result<OptionalIcon, String> {
+        if let Some(node) = node {
+            let mut icon_names: Vec<&str> = icon_indexes.keys().map(|k| &k[..]).collect();
+            icon_names.sort_unstable(); // This is purely for the sake of a nicer error message.
+            let name_index = node.parse_enumerated(&icon_names[..])?;
+            let name = icon_names[name_index];
+            Ok(Self(Some(*icon_indexes.get(name).unwrap())))
+        } else {
+            Ok(Self(None))
+        }
+    }
 }
 
 scui::widget! {
@@ -49,7 +72,7 @@ impl Input {
         control: Rcrc<InputControl>,
         label: String,
         tooltip: String,
-        optional_icon: Option<String>,
+        optional_icon: OptionalIcon,
     ) -> Rc<Self> {
         let pos = Vec2D::new(0.0, coord(y));
         let int = parent.provide_gui_interface();
@@ -59,9 +82,7 @@ impl Input {
             .lookup_icon(control.borrow().get_type().icon_name())
             .unwrap();
         let mut small_icon = None;
-        if let Some(name) = optional_icon {
-            // TODO: Better error unimplemented!()
-            let index = registry.lookup_icon(&name).unwrap();
+        if let Some(index) = optional_icon.0 {
             small_icon = Some(icon);
             icon = index;
         }
