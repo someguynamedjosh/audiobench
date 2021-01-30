@@ -5,6 +5,7 @@ use crate::{
         parts::*,
     },
     gui::module_widgets::FeedbackMode,
+    registry::Registry,
 };
 use julia_helper::GeneratedCode;
 use shared_util::prelude::*;
@@ -246,4 +247,104 @@ impl<'a> CodeGenerator<'a> {
             data_format,
         }
     }
+}
+
+pub fn generate_registry_code(registry: &Registry) -> Result<GeneratedCode, String> {
+    let mut registry_code = GeneratedCode::new();
+    registry_code.append("module Registry\n", "generated");
+    for (lib_name, _) in registry.borrow_library_infos() {
+        registry_code.append(&format!("\nmodule {}\n", lib_name), "generated");
+        for file_content in registry.borrow_general_scripts_from_library(lib_name) {
+            registry_code.append_clip(file_content);
+        }
+        for (mod_name, file_content) in registry.borrow_module_scripts_from_library(lib_name) {
+            let template_ptr = registry
+                .borrow_templates()
+                .iter()
+                .find(|template_ptr| {
+                    let template = template_ptr.borrow();
+                    &template.lib_name == lib_name && &template.module_name == mod_name
+                })
+                .ok_or_else(|| {
+                    format!(
+                        concat!(
+                            "ERROR: Failed to load library {}, cause by:\n",
+                            "ERROR: Failed to find a .module.yaml definition ",
+                            "for the corresponding source file {}."
+                        ),
+                        lib_name, mod_name
+                    )
+                })?;
+            let template = template_ptr.borrow();
+
+            registry_code.append(
+                &format!(
+                    "\nmodule {}Module\nusing Main.Registry.Factory.Lib\n",
+                    mod_name
+                ),
+                "generated",
+            );
+            if !file_content.contains("mutable struct StaticData") {
+                registry_code.append(
+                    "struct StaticData end\nfunction static_init() StaticData() end\n",
+                    "generated",
+                );
+            }
+            let (execcode, (before, after)) =
+                if let Some(data) = file_content.clip_section("function exec()", "end") {
+                    data
+                } else {
+                    return Err(format!(
+                        concat!(
+                            "ERROR: Failed to load library {}, cause by:\nERROR: ",
+                            "The code for module {} does not define a function called exec()\n"
+                        ),
+                        lib_name, mod_name
+                    ));
+                };
+            registry_code.append_clip(&before);
+
+            let mut func_header = String::from("function exec(context, do_feedback::Bool, ");
+            for (name, _) in &template.default_controls {
+                func_header.push_str(name);
+                func_header.push_str(", ");
+            }
+            for widget in &template.widget_outlines {
+                if let FeedbackMode::ManualValue { name } = widget.get_feedback_mode() {
+                    func_header.push_str(&name);
+                    func_header.push_str("::Vector{Float32}, ");
+                }
+            }
+            func_header.push_str("static::StaticData) ");
+            registry_code.append(&func_header, "generated");
+            registry_code.append_clip(&execcode);
+
+            // Return outputs and modified static data. TODO: do this for early returns
+            // specified by the programmer as well.
+            let mut func_close = String::from(" return (");
+            for output in &template.outputs {
+                func_close.push_str(output.borrow_code_name());
+                func_close.push_str(", ");
+            }
+            func_close.push_str("static,) end ");
+            registry_code.append(&func_close, "generated");
+            registry_code.append_clip(&after);
+
+            registry_code.append("\nexport exec, StaticData, static_init", "generated");
+            registry_code.append(&format!("\nend # module {}\n", mod_name), "generated");
+        }
+        registry_code.append(&format!("\nend # module {}\n", lib_name), "generated");
+    }
+    registry_code.append("\nend # module Registry\n", "generated");
+
+    let mut temp_file = std::env::temp_dir();
+    temp_file.push("audiobench_registry_code.jl");
+    if std::fs::write(temp_file.clone(), registry_code.as_str()).is_err() {
+        return Err(format!(
+            "ERROR: Failed to open {:?} for writing.",
+            temp_file
+        ));
+    }
+
+    Ok(registry_code)
 }

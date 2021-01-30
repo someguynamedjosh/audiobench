@@ -7,7 +7,6 @@ use crate::{
         },
         julia_thread,
         parts::ModuleGraph,
-        program_wrapper::AudiobenchExecutorBuilder,
     },
     registry::{save_data::Patch, Registry},
 };
@@ -146,13 +145,13 @@ pub fn new_engine(
     };
     let comms = Arc::new(comms);
 
-    let executor_builder = AudiobenchExecutorBuilder::new(&*registry);
+    let registry_source = codegen::generate_registry_code(&*registry)?;
     let comms2 = Arc::clone(&comms);
     let julia_executor = move || {
         julia_thread::entry(
             comms2,
             global_params_2,
-            executor_builder,
+            registry_source,
             code,
             dyn_data,
             reqo,

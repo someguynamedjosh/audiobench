@@ -154,7 +154,6 @@ impl Patch {
         graph: &mut ep::ModuleGraph,
         registry: &Registry,
     ) -> Result<(), ()> {
-        graph.clear();
         let mut des = MiniDes::start(self.data.clone());
         let mut lib_names = Vec::new();
         for _ in 0..des.u8()? {

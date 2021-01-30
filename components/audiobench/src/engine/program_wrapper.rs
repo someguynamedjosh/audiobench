@@ -166,122 +166,6 @@ impl NoteTracker {
     }
 }
 
-pub(super) struct AudiobenchExecutorBuilder {
-    registry_source: GeneratedCode,
-}
-
-/// This is so that we can have the registry and julia instance on seperate threads.
-impl AudiobenchExecutorBuilder {
-    pub fn new(registry: &Registry) -> Self {
-        let mut registry_source = GeneratedCode::new();
-        registry_source.append("module Registry\n", "generated");
-        for (lib_name, _) in registry.borrow_library_infos() {
-            registry_source.append(&format!("\nmodule {}\n", lib_name), "generated");
-            for file_content in registry.borrow_general_scripts_from_library(lib_name) {
-                registry_source.append_clip(file_content);
-            }
-            for (mod_name, file_content) in registry.borrow_module_scripts_from_library(lib_name) {
-                let template_ptr = registry
-                    .borrow_templates()
-                    .iter()
-                    .find(|template_ptr| {
-                        let template = template_ptr.borrow();
-                        &template.lib_name == lib_name && &template.module_name == mod_name
-                    })
-                    .unwrap();
-                let template = template_ptr.borrow();
-
-                registry_source.append(
-                    &format!(
-                        "\nmodule {}Module\nusing Main.Registry.Factory.Lib\n",
-                        mod_name
-                    ),
-                    "generated",
-                );
-                if !file_content.contains("mutable struct StaticData") {
-                    registry_source.append(
-                        "struct StaticData end\nfunction static_init() StaticData() end\n",
-                        "generated",
-                    );
-                }
-                let (exec_source, (before, after)) =
-                    if let Some(data) = file_content.clip_section("function exec()", "end") {
-                        data
-                    } else {
-                        unimplemented!("TODO: Skip & warning.");
-                        // return Err(format!(
-                        //     concat!(
-                        //         "ERROR: Failed to load library {}, cause by:\nERROR: ",
-                        //         "The code for module {} does not define a function called exec()\n"
-                        //     ),
-                        //     lib_name, mod_name
-                        // ));
-                    };
-                registry_source.append_clip(&before);
-
-                let mut func_header = String::from("function exec(context, do_feedback::Bool, ");
-                for (name, _) in &template.default_controls {
-                    func_header.push_str(name);
-                    func_header.push_str(", ");
-                }
-                for widget in &template.widget_outlines {
-                    if let FeedbackMode::ManualValue { name } = widget.get_feedback_mode() {
-                        func_header.push_str(&name);
-                        func_header.push_str("::Vector{Float32}, ");
-                    }
-                }
-                func_header.push_str("static::StaticData) ");
-                registry_source.append(&func_header, "generated");
-                registry_source.append_clip(&exec_source);
-
-                // Return outputs and modified static data. TODO: do this for early returns
-                // specified by the programmer as well.
-                let mut func_close = String::from(" return (");
-                for output in &template.outputs {
-                    func_close.push_str(output.borrow_code_name());
-                    func_close.push_str(", ");
-                }
-                func_close.push_str("static,) end ");
-                registry_source.append(&func_close, "generated");
-                registry_source.append_clip(&after);
-
-                registry_source.append("\nexport exec, StaticData, static_init", "generated");
-                registry_source.append(&format!("\nend # module {}\n", mod_name), "generated");
-            }
-            registry_source.append(&format!("\nend # module {}\n", lib_name), "generated");
-        }
-        registry_source.append("\nend # module Registry\n", "generated");
-
-        let mut temp_file = std::env::temp_dir();
-        temp_file.push("audiobench_registry_code.jl");
-        if std::fs::write(temp_file, registry_source.as_str()).is_err() {
-            unimplemented!("TODO: Handle failed tempfile.");
-        }
-        Self { registry_source }
-    }
-
-    pub fn build(self, parameters: &GlobalParameters) -> Result<AudiobenchExecutor, String> {
-        let mut base = ExecutionEngine::new();
-        base.add_global_code(julia_helper::include_packed_library!("StaticArrays"))
-            .unwrap();
-        let mut res = AudiobenchExecutor {
-            base,
-            // This is a quick and dirty way of getting the executor to rebuild when we use
-            // change_parameters later.
-            parameters: GlobalParameters {
-                channels: 999,
-                buffer_length: 999,
-                sample_rate: 999,
-            },
-            registry_source: self.registry_source,
-            generated_source: GeneratedCode::from_unique_source("blank", ""),
-            loaded: false,
-        };
-        res.change_parameters(parameters)?;
-        Ok(res)
-    }
-}
-
 pub(super) struct AudiobenchExecutor {
     base: ExecutionEngine,
     parameters: GlobalParameters,
@@ -291,6 +175,30 @@ pub(super) struct AudiobenchExecutor {
 }
 
 impl AudiobenchExecutor {
+    pub fn new(
+        registry_source: GeneratedCode,
+        parameters: &GlobalParameters,
+    ) -> Result<Self, String> {
+        let mut base = ExecutionEngine::new();
+        base.add_global_code(julia_helper::include_packed_library!("StaticArrays"))
+            .unwrap();
+        let mut this = AudiobenchExecutor {
+            base,
+            // This is a quick and dirty way of getting the executor to rebuild when we use
+            // change_parameters later.
+            parameters: GlobalParameters {
+                channels: 999,
+                buffer_length: 999,
+                sample_rate: 999,
+            },
+            registry_source,
+            generated_source: GeneratedCode::from_unique_source("blank", ""),
+            loaded: false,
+        };
+        this.change_parameters(parameters)?;
+        Ok(this)
+    }
+
     pub fn change_parameters(&mut self, parameters: &GlobalParameters) -> Result<(), String> {
         if &self.parameters == parameters {
             return Ok(());

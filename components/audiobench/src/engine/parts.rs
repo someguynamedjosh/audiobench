@@ -171,9 +171,7 @@ impl ModuleGraph {
     }
 
     pub fn set_modules(&mut self, modules: Vec<Rcrc<Module>>) {
-        for module in &self.modules {
-            module.borrow_mut().sever();
-        }
+        self.clear();
         self.modules = modules;
     }
 
@@ -195,9 +193,10 @@ impl ModuleGraph {
     }
 
     pub fn clear(&mut self) {
-        for index in (0..self.modules.len()).rev() {
-            self.remove_index(index);
+        for module in &self.modules {
+            module.borrow_mut().sever();
         }
+        self.modules.clear();
     }
 
     pub fn rebuild_widget(&self) {

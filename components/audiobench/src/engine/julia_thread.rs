@@ -1,6 +1,6 @@
 use crate::engine::{
     data_transfer::{GlobalData, GlobalParameters, IOData},
-    program_wrapper::{AudiobenchExecutor, AudiobenchExecutorBuilder, NoteTracker},
+    program_wrapper::{AudiobenchExecutor, NoteTracker},
     Communication,
 };
 use julia_helper::GeneratedCode;
@@ -41,13 +41,13 @@ pub struct AudioResponse {
 pub(super) fn entry(
     comms: Arc<Communication>,
     global_params: GlobalParameters,
-    executor_builder: AudiobenchExecutorBuilder,
+    registry_source: GeneratedCode,
     default_patch_code: GeneratedCode,
     dyn_data: Vec<IOData>,
     request_pipe: Receiver<Request>,
     audio_response_pipe: SyncSender<AudioResponse>,
 ) {
-    let executor = executor_builder.build(&global_params).map_err(|err| {
+    let executor = AudiobenchExecutor::new(registry_source, &global_params).map_err(|err| {
         format!(
             concat!(
                 "Failed to initialize execution environment!\n",
