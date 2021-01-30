@@ -175,6 +175,10 @@ impl PatchBrowser {
             if !patch_already_existed_on_disk {
                 this.after_new_patch(engine.borrow_current_patch());
             }
+            drop(engine);
+            this.with_gui_state_mut(|state| {
+                state.add_success_status("Patch saved successfully.".to_owned())
+            });
         })
     }
 
@@ -197,7 +201,7 @@ impl PatchBrowser {
                 clipboard::ClipboardProvider::new().unwrap();
             clipboard.set_contents(patch_data).unwrap();
             this.with_gui_state_mut(|state| {
-                state.add_success_status("Patch data copied to clipboard!".to_owned())
+                state.add_success_status("Patch data copied to clipboard.".to_owned())
             })
         })
     }
@@ -224,7 +228,7 @@ impl PatchBrowser {
                 this.with_gui_state_mut(|state| {
                     state.add_success_status(
                         concat!(
-                            "Patch data loaded from clipboard! (Click the save button if you want",
+                            "Patch data loaded from clipboard. (Click the save button if you want",
                             "to keep it.)"
                         )
                         .to_owned(),
@@ -250,6 +254,8 @@ impl PatchBrowser {
                 this.with_gui_state_mut(|state| {
                     state.add_error_status(format!("ERROR: Patch data is corrupt."))
                 });
+            } else {
+                this.with_gui_state_mut(|state| state.add_success_status(format!("Patch loaded.")));
             }
         })
     }
