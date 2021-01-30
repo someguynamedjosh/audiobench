@@ -74,7 +74,7 @@ impl Registry {
             )
         })?;
         let index = self.module_templates.len();
-        let ser_id = (template.lib_name.clone(), template.template_id);
+        let ser_id = (template.lib_name.clone(), template.save_id);
         self.module_templates.push(rcrc(template));
         self.modules_by_resource_id.insert(resource_id, index);
         let delayed_error = if self.modules_by_serialized_id.contains_key(&ser_id) {
@@ -257,7 +257,7 @@ impl Registry {
     }
 
     fn create_and_update_user_library(&self) -> Result<(), String> {
-        let user_library_path = self.library_path.join("user");
+        let user_library_path = self.library_path.join("User");
         fs::create_dir_all(&user_library_path).map_err(|err| {
             format!(
                 "ERROR: Failed to create user library at {}, caused by:\n{}",
@@ -272,7 +272,7 @@ impl Registry {
         )
         .map_err(|err| {
             format!(
-                "ERROR: Failed to create library_info.yaml for user library, caused by:\nERROR:{}",
+                "ERROR: Failed to create library_info.yaml for User library, caused by:\nERROR:{}",
                 err
             )
         })?;
@@ -416,8 +416,8 @@ impl Registry {
     pub fn create_new_user_patch(&mut self) -> &Rcrc<Patch> {
         let filename = format!("{:016X}.abpatch", rand::thread_rng().next_u64());
         self.patch_paths
-            .insert(format!("user:{}", filename), self.patches.len());
-        let patch = Patch::new(self.library_path.join("user").join(filename));
+            .insert(format!("User:{}", filename), self.patches.len());
+        let patch = Patch::new(self.library_path.join("User").join(filename));
         let prc = rcrc(patch);
         self.patches.push(prc);
         self.patches.last().unwrap()
@@ -459,9 +459,10 @@ impl Registry {
 
     pub fn any_updates_available(&self) -> bool {
         if let Some(Some(info)) = self.checked_updates.get(ENGINE_UPDATE_URL) {
-            if info.version > ENGINE_VERSION {
-                return true;
-            }
+            // TODO: Update check. unimplemented!()
+            // if info.version > ENGINE_VERSION {
+            //     return true;
+            // }
         }
         false
     }

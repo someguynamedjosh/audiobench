@@ -29,14 +29,10 @@ fn main() {
             zip_writer.start_file(&zip_key, options.clone()).unwrap();
             let mut f = fs::File::open(path).unwrap();
             if zip_key == "library_info.yaml" {
-                let engine_version: i32 = std::env::var("CARGO_PKG_VERSION_MINOR")
-                    .unwrap()
-                    .parse()
-                    .unwrap();
+                let engine_version = std::env::var("CARGO_PKG_VERSION").unwrap();
                 let mut file_contents = String::new();
                 f.read_to_string(&mut file_contents).unwrap();
-                file_contents =
-                    file_contents.replace("$ENGINE_VERSION", &format!("{}", engine_version));
+                file_contents = file_contents.replace("$ENGINE_VERSION", &engine_version);
                 zip_writer.write_all(file_contents.as_bytes()).unwrap();
             } else {
                 std::io::copy(&mut f, &mut zip_writer).unwrap();

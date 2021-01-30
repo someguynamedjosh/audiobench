@@ -1,10 +1,12 @@
-use crate::prelude::FloatUtil;
+use crate::{prelude::FloatUtil, Version};
 use bitvec::prelude::*;
 
 #[scones::make_constructor]
 pub struct MiniSer {
     #[value(BitVec::new())]
     bits: BitVec<Lsb0, u8>,
+    #[value(String::new())]
+    pub debug_content: String,
 }
 
 impl MiniSer {
@@ -14,6 +16,22 @@ impl MiniSer {
 
     pub fn bool(&mut self, value: bool) {
         self.bits.push(value);
+        self.debug_content
+            .push_str(if value { "true " } else { "false " });
+    }
+
+    pub fn blob(&mut self, data: &[u8]) {
+        for byte in data {
+            self.u8(*byte);
+        }
+    }
+
+    pub fn version(&mut self, v: Version) {
+        self.debug_content.push_str("(");
+        self.u4(v.maj);
+        self.u5(v.min);
+        self.u7(v.patch);
+        self.debug_content.push_str(&format!("): {} ", v));
     }
 
     fn uint(&mut self, value: usize, num_bits: u8) {
@@ -24,6 +42,7 @@ impl MiniSer {
             self.bits.push(value & selector > 0);
             selector <<= 1;
         }
+        self.debug_content.push_str(&format!("{} ", value));
     }
 
     pub fn u1(&mut self, value: u8) {
@@ -81,10 +100,12 @@ impl MiniSer {
     pub fn str(&mut self, str: &str) {
         let bytes = str.as_bytes();
         assert!(bytes.len() < std::u16::MAX as usize);
+        self.debug_content.push_str("(");
         self.u16(bytes.len() as u16);
         for byte in bytes {
             self.u8(*byte);
         }
+        self.debug_content.push_str(&format!("): \"{}\" ", str));
     }
 }
 
@@ -101,12 +122,35 @@ impl MiniDes {
         }
     }
 
+    pub fn end(mut self) -> Vec<u8> {
+        let mut remainder = Vec::new();
+        // Keep reading u8s as long as we can read at least 8 more bits.
+        while (self.bits.len() - self.read_ptr) >= 8 {
+            remainder.push(self.u8().unwrap());
+        }
+        let extra = self.bits.len() - self.read_ptr;
+        assert!(extra < 8);
+        if extra > 0 {
+            remainder.push(self.uint(extra as _).unwrap() as u8);
+        }
+        remainder
+    }
+
     pub fn bool(&mut self) -> Result<bool, ()> {
-        self.read_ptr += 1;
         if self.read_ptr >= self.bits.len() {
             return Err(());
         }
-        Ok(self.bits[self.read_ptr])
+        let res = Ok(self.bits[self.read_ptr]);
+        self.read_ptr += 1;
+        res
+    }
+
+    pub fn version(&mut self) -> Result<Version, ()> {
+        Ok(Version {
+            maj: self.u4()?,
+            min: self.u5()?,
+            patch: self.u7()?,
+        })
     }
 
     fn uint(&mut self, num_bits: u8) -> Result<usize, ()> {
@@ -147,14 +191,14 @@ impl MiniDes {
         Ok(self.uint(8)? as u8)
     }
     pub fn u16(&mut self) -> Result<u16, ()> {
-        Ok(self.uint(8)? as u16)
+        Ok(self.uint(16)? as u16)
     }
     pub fn i16(&mut self) -> Result<i16, ()> {
         let bytes = [self.u8()?, self.u8()?];
         Ok(i16::from_le_bytes(bytes))
     }
     pub fn u32(&mut self) -> Result<u32, ()> {
-        Ok(self.uint(8)? as u32)
+        Ok(self.uint(32)? as u32)
     }
     pub fn i32(&mut self) -> Result<i32, ()> {
         let bytes = [self.u8()?, self.u8()?, self.u8()?, self.u8()?];

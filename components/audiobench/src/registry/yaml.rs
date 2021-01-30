@@ -38,8 +38,9 @@ impl YamlNode {
     pub fn parse<T: FromStr>(&self) -> Result<T, String> {
         self.value.trim().parse().map_err(|_| {
             format!(
-                "ERROR: The value of {} is not a valid {}",
+                "ERROR: The value of {} (\"{}\") is not a valid {}",
                 self.full_name,
+                self.value.trim(),
                 std::any::type_name::<T>()
             )
         })

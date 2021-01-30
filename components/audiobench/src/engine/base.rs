@@ -235,7 +235,7 @@ impl UiThreadEngine {
         let mut reg = self.data.registry.borrow_mut();
         let new_patch = Rc::clone(reg.create_new_user_patch());
         let mut new_patch_ref = new_patch.borrow_mut();
-        new_patch_ref.load_from_serialized_data(clipboard_data, &*reg)?;
+        new_patch_ref.deserialize(clipboard_data)?;
         let name = format!("{} (pasted)", new_patch_ref.borrow_name());
         new_patch_ref.set_name(name);
         drop(new_patch_ref);
