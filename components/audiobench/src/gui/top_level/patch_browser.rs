@@ -246,8 +246,10 @@ impl PatchBrowser {
             state.current_entry_index = Some(index);
             drop(state);
             this.update_on_patch_change(&patch);
-            if let Err(err) = engine.borrow_mut().load_patch(patch) {
-                this.with_gui_state_mut(|state| state.add_error_status(err));
+            if let Err(..) = engine.borrow_mut().load_patch(patch) {
+                this.with_gui_state_mut(|state| {
+                    state.add_error_status(format!("ERROR: Patch data is corrupt."))
+                });
             }
         })
     }

@@ -151,23 +151,20 @@ impl Control for DurationControl {
         format!("StaticControlSignal({})", params[0])
     }
     fn serialize(&self, ser: &mut MiniSer) { 
+        ser.bool(self.fraction_mode);
         if self.fraction_mode {
-            ser.u8(1);
             ser.u8(self.fraction_numerator);
             ser.u8(self.fraction_denominator);
         } else {
-            ser.u8(0);
             ser.f32(self.decimal_value);
         }
     }
     fn deserialize(&mut self, des: &mut MiniDes) -> Result<(), ()> { 
-        let mode = des.u8()?;
-        if mode == 1 {
-            self.fraction_mode = true;
+        self.fraction_mode = des.bool()?;
+        if self.fraction_mode {
             self.fraction_numerator = des.u8()?;
             self.fraction_denominator = des.u8()?;
         } else {
-            self.fraction_mode = false;
             self.decimal_value = des.f32()?;
         }
         Ok(())

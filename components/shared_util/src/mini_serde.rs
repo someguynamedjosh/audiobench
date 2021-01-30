@@ -7,6 +7,8 @@ pub struct MiniSer {
     bits: BitVec<Lsb0, u8>,
     #[value(String::new())]
     pub debug_content: String,
+    #[value(false)]
+    pause_debug_content: bool,
 }
 
 impl MiniSer {
@@ -14,10 +16,16 @@ impl MiniSer {
         self.bits.into_vec()
     }
 
+    pub fn note(&mut self, note: &str) {
+        if self.pause_debug_content {
+            return;
+        }
+        self.debug_content.push_str(note);
+    }
+
     pub fn bool(&mut self, value: bool) {
         self.bits.push(value);
-        self.debug_content
-            .push_str(if value { "true " } else { "false " });
+        self.note(if value { "true " } else { "false " });
     }
 
     pub fn blob(&mut self, data: &[u8]) {
@@ -27,11 +35,11 @@ impl MiniSer {
     }
 
     pub fn version(&mut self, v: Version) {
-        self.debug_content.push_str("(");
+        self.note("(");
         self.u4(v.maj);
         self.u5(v.min);
         self.u7(v.patch);
-        self.debug_content.push_str(&format!("): {} ", v));
+        self.note(&format!("): {} ", v));
     }
 
     fn uint(&mut self, value: usize, num_bits: u8) {
@@ -42,7 +50,7 @@ impl MiniSer {
             self.bits.push(value & selector > 0);
             selector <<= 1;
         }
-        self.debug_content.push_str(&format!("{} ", value));
+        self.note(&format!("{} ", value));
     }
 
     pub fn u1(&mut self, value: u8) {
@@ -58,7 +66,7 @@ impl MiniSer {
         self.uint(value as usize, 4);
     }
     pub fn u5(&mut self, value: u8) {
-        self.uint(value as usize, 4);
+        self.uint(value as usize, 5);
     }
     pub fn u6(&mut self, value: u8) {
         self.uint(value as usize, 6);
@@ -73,39 +81,50 @@ impl MiniSer {
         self.uint(value as usize, 16);
     }
     pub fn i16(&mut self, value: i16) {
+        self.pause_debug_content = true;
         for byte in &value.to_le_bytes() {
             self.u8(*byte);
         }
+        self.pause_debug_content = false;
+        self.note(&format!("{} ", value));
     }
     pub fn u32(&mut self, value: u32) {
         self.uint(value as usize, 32);
     }
     pub fn i32(&mut self, value: i32) {
+        self.pause_debug_content = true;
         for byte in &value.to_le_bytes() {
             self.u8(*byte);
         }
+        self.pause_debug_content = false;
+        self.note(&format!("{} ", value));
     }
     pub fn f32(&mut self, value: f32) {
+        self.pause_debug_content = true;
         for byte in &value.to_le_bytes() {
             self.u8(*byte);
         }
+        self.pause_debug_content = false;
+        self.note(&format!("{} ", value));
     }
     pub fn f32_in_range(&mut self, value: f32, min: f32, max: f32) {
+        let og = value;
         let value = value.from_range(min, max);
         // Value is now between 0 and 1.
         let value = value.to_range(0.0, 0x10000 as f32).min(0xFFFF as f32);
         // Value is now between 0 and 0xFFFF
         self.u16(value as u16);
+        self.note(&format!("({}) ", og));
     }
     pub fn str(&mut self, str: &str) {
         let bytes = str.as_bytes();
         assert!(bytes.len() < std::u16::MAX as usize);
-        self.debug_content.push_str("(");
+        self.note("(");
         self.u16(bytes.len() as u16);
         for byte in bytes {
             self.u8(*byte);
         }
-        self.debug_content.push_str(&format!("): \"{}\" ", str));
+        self.note(&format!("): \"{}\" ", str));
     }
 }
 

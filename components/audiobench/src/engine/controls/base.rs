@@ -59,10 +59,16 @@ pub trait Control: Debug {
     }
 
     /// Called to retrieve a list of automation sources that should be serialized for this control.
-    fn get_connected_automation<'a>(
-        &'a self,
-    ) -> Box<dyn Iterator<Item = &'a AutomationSource> + 'a> {
-        Box::new(Vec::new().into_iter())
+    fn get_connected_automation<'a>(&'a self) -> Vec<&'a AutomationSource> {
+        Vec::new()
+    }
+
+    fn remove_automation_by_index(&mut self, index: usize) {
+        if self.get_connected_automation().len() == 0 {
+            panic!("There is no automation to remove.");
+        } else {
+            panic!("This type is missing an implementation of remove_automation_by_index.");
+        }
     }
 
     /// Returns a list of parameter types that should be transferred to the code for this control.

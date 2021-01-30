@@ -133,7 +133,7 @@ impl ModuleGraph {
         let size = self.get_size();
         let center = (bottom_right - top_left) / 2.0 + top_left;
         let mut state = self.state.borrow_mut();
-        state.offset = center - size / (state.zoom * 2.0);
+        state.offset = -center + size / (state.zoom * 2.0);
     }
 
     /// This also adds the module to the actual graph this widget represents.

@@ -122,8 +122,12 @@ impl Control for InputControl {
         assert_eq!(from.get_type(), self.typ);
         self.connection = Some(from);
     }
-    fn get_connected_automation<'a>(&'a self) -> Box<dyn Iterator<Item = &'a AutomationSource> + 'a> {
-        Box::new(self.connection.iter())
+    fn get_connected_automation<'a>(&'a self) -> Vec<&'a AutomationSource> {
+        self.connection.iter().collect()
+    }
+    fn remove_automation_by_index(&mut self, index: usize) {
+        assert_eq!(index, 0);
+        self.connection = None;
     }
 
     fn get_parameter_types(&self) -> Vec<IOType> { vec![] }
@@ -135,6 +139,12 @@ impl Control for InputControl {
             self.get_used_default().unwrap().code.to_owned()
         }
     }
-    fn serialize(&self, ser: &mut MiniSer) { unimplemented!() }
-    fn deserialize(&mut self, des: &mut MiniDes) -> Result<(), ()> { unimplemented!() }
+    fn serialize(&self, ser: &mut MiniSer) {
+        assert!(self.default < 16);
+        ser.u4(self.default as _);
+    }
+    fn deserialize(&mut self, des: &mut MiniDes) -> Result<(), ()> {
+        self.default = des.u4()? as _;
+        Ok(())
+    }
 }

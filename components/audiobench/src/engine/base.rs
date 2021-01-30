@@ -214,7 +214,22 @@ impl UiThreadEngine {
     pub fn save_current_patch_with_new_name(&mut self) -> &Rcrc<Patch> {
         let mut reg = self.data.registry.borrow_mut();
         let patch = self.borrow_current_patch().borrow();
-        let name = shared_util::increment_name(patch.borrow_name());
+
+        let mut name = shared_util::increment_name(patch.borrow_name());
+        let mut original = false;
+        while !original {
+            original = true;
+            for patch in reg.borrow_patches() {
+                if patch.borrow().borrow_name() == &name {
+                    original = false;
+                    break;
+                }
+            }
+            if !original {
+                name = shared_util::increment_name(&name);
+            }
+        }
+
         let new_patch = Rc::clone(reg.create_new_user_patch());
         let mut new_patch_ref = new_patch.borrow_mut();
         new_patch_ref.set_name(name);
@@ -240,11 +255,12 @@ impl UiThreadEngine {
         new_patch_ref.set_name(name);
         drop(new_patch_ref);
         drop(reg);
-        self.load_patch(Rc::clone(&new_patch))?;
+        self.load_patch(Rc::clone(&new_patch))
+            .map_err(|_| format!("ERROR: Patch data is corrupt."))?;
         Ok(&self.data.current_patch_save_data)
     }
 
-    pub fn load_patch(&mut self, patch: Rcrc<Patch>) -> Result<(), String> {
+    pub fn load_patch(&mut self, patch: Rcrc<Patch>) -> Result<(), ()> {
         let reg = self.data.registry.borrow();
         self.data.current_patch_save_data = patch;
         self.data
@@ -252,6 +268,7 @@ impl UiThreadEngine {
             .borrow()
             .restore_note_graph(&mut *self.data.module_graph.borrow_mut(), &*reg)?;
         drop(reg);
+        self.data.module_graph.borrow().rebuild_widget();
         self.regenerate_code();
         Ok(())
     }

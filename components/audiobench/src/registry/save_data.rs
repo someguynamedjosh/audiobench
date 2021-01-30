@@ -1,5 +1,8 @@
 use crate::{
-    engine::{controls::Control, parts as ep},
+    engine::{
+        controls::{AutomationSource, Control},
+        parts as ep,
+    },
     registry::Registry,
 };
 use shared_util::{
@@ -85,6 +88,7 @@ impl Patch {
         let mut ordered_lib_names = Vec::new();
         let lib_data: Vec<_> = registry.borrow_library_infos().collect();
         assert!(lib_data.len() < 0x100);
+        ser.note("Num libs: ");
         ser.u8((lib_data.len() - 1) as _);
         for (lib_name, lib_info) in lib_data {
             if lib_name == "User" {
@@ -103,20 +107,33 @@ impl Patch {
 
         let ordered_modules = Vec::from(graph.borrow_modules());
         assert!(ordered_modules.len() < 0x100);
+        ser.note("Num modules: ");
+        ser.u8(ordered_modules.len() as _);
         let mod_index = |rc: &Rc<_>| {
             ordered_modules
                 .iter()
                 .position(|other| Rc::ptr_eq(rc, other))
                 .unwrap() as u8
         };
+        ser.note("Modules: ");
         for module in graph.borrow_modules() {
             let module = module.borrow();
             let template = module.template.borrow();
+            ser.note("<lib ");
             ser.u8(lib_index(&template.lib_name));
+            ser.note("save_id ");
             ser.u8(template.save_id as _);
+            ser.note("x ");
             ser.i32(module.pos.0 as _);
+            ser.note("y ");
             ser.i32(module.pos.1 as _);
-            for control in &module.controls {
+            ser.note("> ");
+        }
+        ser.note("Module controls: ");
+        for module in graph.borrow_modules() {
+            let module = module.borrow();
+            for (index, control) in module.controls.iter().enumerate() {
+                ser.note(&format!("c{}: <", index));
                 let control_ptr = control.as_dyn_ptr();
                 let control = control_ptr.borrow();
                 for source in control.get_connected_automation() {
@@ -126,9 +143,9 @@ impl Patch {
                 }
                 ser.bool(false);
                 control.serialize(&mut ser);
+                ser.note("> ");
             }
         }
-        println!("{}", ser.debug_content);
         self.data = ser.finish();
     }
 
@@ -136,9 +153,64 @@ impl Patch {
         &self,
         graph: &mut ep::ModuleGraph,
         registry: &Registry,
-    ) -> Result<(), String> {
-        unimplemented!()
-        // self.note_graph.restore(graph, registry)
+    ) -> Result<(), ()> {
+        graph.clear();
+        let mut des = MiniDes::start(self.data.clone());
+        let mut lib_names = Vec::new();
+        for _ in 0..des.u8()? {
+            let name = des.str()?;
+            lib_names.push(name);
+            // TODO: version checking. unimplemented!()
+            let _ver = des.version()?;
+        }
+        let mut modules: Vec<Rcrc<ep::Module>> = Vec::new();
+        let num_modules = des.u8()?;
+        for _ in 0..num_modules {
+            let lib_i = des.u8()? as usize;
+            if lib_i >= lib_names.len() {
+                return Err(());
+            }
+            let lib_name = &lib_names[lib_i];
+            let save_id = des.u8()? as usize;
+            let template = registry.borrow_template_by_serialized_id(&(lib_name.clone(), save_id));
+            let template = template.ok_or(())?;
+            let mut module = ep::Module::create(Rc::clone(template));
+            module.pos = (des.i32()? as _, des.i32()? as _);
+            // The controls are serialized later so we can deserialize them after we know what all
+            // the outputs of each module will be.
+            modules.push(rcrc(module));
+        }
+        for i in 0..num_modules as usize {
+            let mut module = modules[i].borrow_mut();
+            for control in &mut module.controls {
+                let control_ptr = control.as_dyn_ptr();
+                let mut control = control_ptr.borrow_mut();
+                // Connect wires
+                while des.bool()? {
+                    let mod_i = des.u8()? as usize;
+                    if i == mod_i || mod_i >= modules.len() {
+                        return Err(());
+                    }
+                    let target_module = Rc::clone(&modules[mod_i]);
+                    let num_outs = target_module.borrow().template.borrow().outputs.len();
+                    let output_index = des.u4()? as usize;
+                    if output_index >= num_outs {
+                        return Err(());
+                    }
+                    let output_type =
+                        target_module.borrow().template.borrow().outputs[output_index].get_type();
+                    let source = AutomationSource {
+                        module: target_module,
+                        output_index,
+                        output_type,
+                    };
+                    control.connect_automation(source);
+                }
+                control.deserialize(&mut des)?;
+            }
+        }
+        graph.set_modules(modules);
+        Ok(())
     }
 
     pub fn write(&mut self) -> io::Result<()> {
@@ -173,9 +245,7 @@ impl Patch {
         ser.u8(Self::FORMAT_VERSION);
         ser.str(&self.name);
         ser.blob(&self.data[..]);
-        println!("{}", ser.debug_content);
         let data = ser.finish();
-        println!("{:?}", data);
         base64::encode_config(&data, base64::URL_SAFE_NO_PAD)
     }
 
@@ -198,7 +268,6 @@ impl Patch {
         self.name = des
             .str()
             .map_err(|_| "ERROR: Patch data is corrupt (does not contain patch name.)")?;
-        println!("{}", self.name);
         self.data = des.end();
         Ok(())
     }
