@@ -73,31 +73,27 @@ pub fn new_engine(
     registry_ptr: Rcrc<Registry>,
 ) -> Result<(Rcrc<UiThreadEngine>, Rcrc<AudioThreadEngine>), String> {
     let registry = registry_ptr.borrow_mut();
-    let module_graph = ModuleGraph::new();
+    let mut module_graph = ModuleGraph::new();
     let global_params = GlobalParameters {
         channels: DEFAULT_CHANNELS,
         buffer_length: DEFAULT_BUFFER_LENGTH,
         sample_rate: DEFAULT_SAMPLE_RATE,
     };
-    // unimplemented!();
-    // let default_patch = Rc::clone(
-    //     registry
-    //         .get_patch_by_name("Factory:patches/default.abpatch")
-    //         .ok_or("Could not find Factory:patches/default.abpatch".to_owned())?,
-    // );
-    // default_patch
-    //     .borrow()
-    //     .restore_note_graph(&mut module_graph, &*registry)
-    //     .map_err(|err| {
-    //         format!(
-    //             concat!(
-    //                 "Default patch failed to load!\n",
-    //                 "This is a critical error, please submit a bug report containing this ",
-    //                 "error:\n\n{}",
-    //             ),
-    //             err
-    //         )
-    //     })?;
+    let default_patch = Rc::clone(
+        registry
+            .get_patch_by_name("Factory:patches/Default.abpatch")
+            .ok_or("Could not find Factory:patches/Default.abpatch".to_owned())?,
+    );
+    default_patch
+        .borrow()
+        .restore_note_graph(&mut module_graph, &*registry)
+        .map_err(|_| {
+            format!(concat!(
+                "Default patch failed to load!\n",
+                "This is a critical error, please submit a bug report containing this ",
+                "error:\n\nPatch data is corrupt.",
+            ))
+        })?;
     let CodeGenResult {
         code,
         dyn_data_collector,
@@ -120,7 +116,7 @@ pub fn new_engine(
         module_graph: rcrc(module_graph),
         dyn_data_collector,
         feedback_displayer,
-        current_patch_save_data: rcrc(Patch::new(PathBuf::from_str("/tmp/blank").unwrap())), //default_patch, unimplemented!()
+        current_patch_save_data: default_patch,
     };
 
     let atd = AudioThreadData {
@@ -283,10 +279,6 @@ impl UiThreadEngine {
             .map_err(|_| format!("The note graph cannot contain feedback loops"));
         let new_gen = new_gen.expect("TODO: Nice error.");
         drop(module_graph_ref);
-        // ctd.new_source = Some((new_gen.code, new_gen.data_format.clone()));
-        // ctd.new_staticon_dyn_data = Some(new_gen.dyn_data_collector.collect_data());
-        // ctd.new_feedback_data = None;
-        // unimplemented!();
         self.comms.new_dyn_data.store(None);
         let dyn_data = new_gen.dyn_data_collector.collect();
         self.comms
