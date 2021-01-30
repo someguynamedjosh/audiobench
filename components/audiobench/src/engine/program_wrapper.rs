@@ -231,8 +231,8 @@ impl AudiobenchExecutor {
     pub fn change_generated_code(&mut self, generated_code: GeneratedCode) -> Result<(), String> {
         let mut temp_file = std::env::temp_dir();
         temp_file.push("audiobench_note_graph_code.jl");
-        if std::fs::write(temp_file, generated_code.as_str()).is_err() {
-            unimplemented!("TODO: Handle failed tempfile.");
+        if std::fs::write(temp_file.clone(), generated_code.as_str()).is_err() {
+            return Err(format!("ERROR: Failed to open {:?} for writing.", temp_file));
         }
         self.generated_source = generated_code.clone();
         self.base.add_global_code(generated_code)?;

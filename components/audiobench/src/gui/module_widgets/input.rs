@@ -149,7 +149,6 @@ impl WidgetImpl<Renderer, DropTarget> for Input {
         const JS: f32 = JACK_SIZE;
         const JIP: f32 = JACK_ICON_PADDING;
 
-        // TODO: Highlighting. unimplemented!()
         if dim {
             g.set_color(&COLOR_FG0);
         } else {

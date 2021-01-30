@@ -148,7 +148,7 @@ impl ModuleGraph {
         children.modules.push(Module::new(self, module));
         self.with_gui_state_mut(|state| {
             state.engine.borrow_mut().regenerate_code();
-        })
+        });
     }
 
     pub fn get_widget_for_module(self: &Rc<Self>, module: &Rcrc<ep::Module>) -> Option<Rc<Module>> {
@@ -170,6 +170,9 @@ impl ModuleGraph {
             .position(|e| e.represents_module(module))
             .unwrap();
         children.modules.remove(index).on_removed();
+        self.with_gui_state_mut(|state| {
+            state.engine.borrow_mut().regenerate_code();
+        });
     }
 
     fn translate_pos(self: &Rc<Self>, pos: Vec2D) -> Vec2D {
