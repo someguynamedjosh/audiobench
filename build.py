@@ -377,9 +377,9 @@ def get_julia():
     print('Downloading Julia 1.5.3...')
     if ON_WINDOWS:
         url = 'https://julialang-s3.julialang.org/bin/winnt/x64/1.5/julia-1.5.3-win64.zip'
-        command = '''(new-object System.Net.WebClient).DownloadFile('$FILE','$DEST')'''.replace(
+        code = '''(new-object System.Net.WebClient).DownloadFile('$FILE','$DEST')'''.replace(
             '$FILE', url).replace('$DEST', target)
-        command(['powershell', '-command', command])
+        command(['powershell', '-command', code])
 
         print('Extracting...')
         rmdir('dependencies/julia')
