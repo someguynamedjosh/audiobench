@@ -10,17 +10,14 @@ use crate::{
     },
     registry::{save_data::Patch, Registry},
 };
+use crossbeam_channel::{Receiver, Sender, TrySendError};
 use crossbeam_utils::atomic::AtomicCell;
 use julia_helper::GeneratedCode;
-use mpsc::TrySendError;
 use shared_util::prelude::*;
 use std::{
     path::PathBuf,
     str::FromStr,
-    sync::{
-        mpsc::{self, Receiver, SyncSender},
-        Mutex,
-    },
+    sync::Mutex,
     time::{Duration, Instant},
 };
 
@@ -49,7 +46,8 @@ pub(super) struct Communication {
 
     pub global_params: AtomicCell<GlobalParameters>,
     pub note_events: Mutex<Vec<julia_thread::NoteEvent>>,
-    pub julia_pipe: SyncSender<julia_thread::Request>,
+    pub julia_render_pipe: Sender<julia_thread::RenderRequest>,
+    pub julia_poll_pipe: Sender<()>,
 }
 
 struct AudioThreadData {
@@ -108,8 +106,9 @@ pub fn new_engine(
     })?;
     let dyn_data = dyn_data_collector.collect();
 
-    let (reqi, reqo) = mpsc::sync_channel(0);
-    let (audio_resi, audio_reso) = mpsc::sync_channel(0);
+    let (renderi, rendero) = crossbeam_channel::bounded(0);
+    let (polli, pollo) = crossbeam_channel::bounded(0xFF);
+    let (audio_resi, audio_reso) = crossbeam_channel::bounded(0);
 
     let utd = UiThreadData {
         registry: Rc::clone(&registry_ptr),
@@ -137,7 +136,8 @@ pub fn new_engine(
 
         global_params: AtomicCell::new(global_params),
         note_events: Default::default(),
-        julia_pipe: reqi,
+        julia_render_pipe: renderi,
+        julia_poll_pipe: polli,
     };
     let comms = Arc::new(comms);
 
@@ -150,7 +150,8 @@ pub fn new_engine(
             registry_source,
             code,
             dyn_data,
-            reqo,
+            rendero,
+            pollo,
             audio_resi,
         );
     };
@@ -284,10 +285,7 @@ impl UiThreadEngine {
         self.comms
             .new_note_graph_code
             .store(Some((new_gen.code, dyn_data)));
-        self.comms
-            .julia_pipe
-            .send(julia_thread::Request::PollComms)
-            .unwrap();
+        self.comms.julia_poll_pipe.send(()).unwrap();
         self.data.dyn_data_collector = new_gen.dyn_data_collector;
         self.data.feedback_displayer = new_gen.feedback_displayer;
     }
@@ -295,10 +293,7 @@ impl UiThreadEngine {
     pub fn reload_dyn_data(&mut self) {
         let data = self.data.dyn_data_collector.collect();
         self.comms.new_dyn_data.store(Some(data));
-        self.comms
-            .julia_pipe
-            .send(julia_thread::Request::PollComms)
-            .unwrap();
+        self.comms.julia_poll_pipe.send(()).unwrap();
     }
 
     /// Feedback data is generated on the audio thread. This method uses a mutex to retrieve that
@@ -326,10 +321,7 @@ impl AudioThreadEngine {
             params.sample_rate = sample_rate;
             self.comms.new_global_params.store(Some(()));
             self.comms.global_params.store(params);
-            self.comms
-                .julia_pipe
-                .send(julia_thread::Request::PollComms)
-                .unwrap();
+            self.comms.julia_poll_pipe.send(()).unwrap();
         }
     }
 
@@ -384,11 +376,11 @@ impl AudioThreadEngine {
         let mut ready = self.comms.julia_thread_status.load().is_ready();
         if ready {
             let data = self.data.global_data.clone();
-            let request = julia_thread::Request::Render {
+            let request = julia_thread::RenderRequest {
                 data,
                 do_feedback: update_feedback_data,
             };
-            let res = self.comms.julia_pipe.try_send(request);
+            let res = self.comms.julia_render_pipe.try_send(request);
             match res {
                 Ok(()) => (),
                 Err(TrySendError::Full(..)) => ready = false,

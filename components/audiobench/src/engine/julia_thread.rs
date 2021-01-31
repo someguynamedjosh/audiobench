@@ -3,11 +3,9 @@ use crate::engine::{
     program_wrapper::{AudiobenchExecutor, NoteTracker},
     Communication,
 };
+use crossbeam_channel::{Receiver, Sender};
 use julia_helper::GeneratedCode;
-use std::sync::{
-    mpsc::{Receiver, SyncSender},
-    Arc,
-};
+use std::sync::Arc;
 
 #[derive(Clone, Copy, Eq, PartialEq)]
 pub enum Status {
@@ -28,9 +26,9 @@ pub enum NoteEvent {
     ReleaseNote { index: usize },
 }
 
-pub enum Request {
-    PollComms,
-    Render { data: GlobalData, do_feedback: bool },
+pub struct RenderRequest {
+    pub data: GlobalData,
+    pub do_feedback: bool,
 }
 
 pub struct AudioResponse {
@@ -44,8 +42,9 @@ pub(super) fn entry(
     registry_source: GeneratedCode,
     default_patch_code: GeneratedCode,
     dyn_data: Vec<IOData>,
-    request_pipe: Receiver<Request>,
-    audio_response_pipe: SyncSender<AudioResponse>,
+    render_pipe: Receiver<RenderRequest>,
+    poll_pipe: Receiver<()>,
+    audio_response_pipe: Sender<AudioResponse>,
 ) {
     let executor = AudiobenchExecutor::new(registry_source, &global_params).map_err(|err| {
         format!(
@@ -97,7 +96,8 @@ pub(super) fn entry(
         global_params,
         dyn_data,
         notes: NoteTracker::new(),
-        request_pipe,
+        render_pipe,
+        poll_pipe,
         audio_response_pipe,
     };
     thread.entry();
@@ -109,8 +109,9 @@ struct JuliaThread {
     global_params: GlobalParameters,
     dyn_data: Vec<IOData>,
     notes: NoteTracker,
-    request_pipe: Receiver<Request>,
-    audio_response_pipe: SyncSender<AudioResponse>,
+    render_pipe: Receiver<RenderRequest>,
+    poll_pipe: Receiver<()>,
+    audio_response_pipe: Sender<AudioResponse>,
 }
 
 // TODO: Preheat JIT unimplemented!()
@@ -122,13 +123,27 @@ impl JuliaThread {
 
     fn entry(&mut self) {
         self.set_status(Status::Ready);
-        while let Ok(request) = self.request_pipe.recv() {
-            match request {
-                Request::PollComms => self.poll_comms(),
-                Request::Render { data, do_feedback } => self.render(data, do_feedback),
+        loop {
+            crossbeam_channel::select! {
+                recv(self.render_pipe) -> msg => {
+                    if let Ok(request) = msg {
+                        self.render(request.data, request.do_feedback);
+                    } else {
+                        break;
+                    }
+                }
+                recv(self.poll_pipe) -> msg => {
+                    if msg.is_err() {
+                        break;
+                    }
+                    // Drain the channel of extra requests before polling comms.
+                    while let Ok(_) = self.poll_pipe.try_recv() { }
+                    self.poll_comms();
+                }
             }
             self.set_status(Status::Ready);
         }
+        self.set_status(Status::Error);
     }
 
     fn poll_comms(&mut self) {
