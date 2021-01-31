@@ -17,7 +17,6 @@ jobs:
     - uses: actions/checkout@v2
       with:
         lfs: 'true' 
-        submodules: 'true'
         persist-credentials: 'false'
     - name: Check version numbers
       run: ./build.py check_version
@@ -28,7 +27,6 @@ jobs:
     - uses: actions/checkout@v2
       with:
         lfs: 'true' 
-        submodules: 'true'
     - name: Install Dependencies
       run: |
         echo "Prebuilt LLVM development libraries for Windows because no one else has them apparently."
@@ -49,7 +47,6 @@ jobs:
     - uses: actions/checkout@v2
       with:
         lfs: 'true' 
-        submodules: 'true'
     - name: Install Dependencies
       run: |
         brew install llvm@7
@@ -73,7 +70,6 @@ jobs:
     - uses: actions/checkout@v2
       with:
         lfs: 'true' 
-        submodules: 'true'
     - name: Install Dependencies
       run: |
         sudo apt update
@@ -93,7 +89,6 @@ jobs:
     - uses: actions/checkout@v2
       with:
         lfs: 'true' 
-        submodules: 'true'
     - name: Install MDBook
       run: |
         cargo install mdbook --vers "^0.4.0"
@@ -114,7 +109,6 @@ jobs:
     - uses: actions/checkout@v2
       with:
         lfs: 'true' 
-        submodules: 'true'
         persist-credentials: 'false'
     - name: Gather Artifacts
       run: |

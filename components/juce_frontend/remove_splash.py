@@ -1,7 +1,7 @@
 #!/bin/env python
 
 # JUCE allows removing the splash screen if your code is under GPLv3
-path = 'juce_git/modules/juce_audio_processors/processors/juce_AudioProcessorEditor.cpp'
+path = '../../dependencies/juce/modules/juce_audio_processors/processors/juce_AudioProcessorEditor.cpp'
 f = open(path, 'r')
 content = f.read()
 f.close()

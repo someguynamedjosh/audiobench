@@ -361,7 +361,8 @@ def get_llvm():
     print('Installing built files...')
     mkdir(Path('dependencies', 'llvm'))
     prefix = Path('dependencies', 'llvm').absolute()
-    command(['cmake', '-DCMAKE_INSTALL_PREFIX=' + str(prefix), '-P', 'cmake_install.cmake'], cmake_path)
+    command(['cmake', '-DCMAKE_INSTALL_PREFIX=' + str(prefix),
+             '-P', 'cmake_install.cmake'], cmake_path)
     rmdir(checkout_path)
     mark_dep_complete('llvm', 1)
 
@@ -394,11 +395,24 @@ def get_julia():
     mark_dep_complete('julia', 1)
 
 
+def get_juce():
+    if should_skip_dep('juce', 1):
+        return
+    # Version 6.0.1
+    location = temp_clone('https://github.com/juce-framework/JUCE.git',
+                          'a30f7357863a7d480a771e069abf56909cdf0e13')
+    target = PROJECT_ROOT.joinpath('dependencies', 'juce')
+    rmdir(target)
+    shutil.move(location.name, target)
+    mark_dep_complete('juce', 1)
+
+
 def get_dependencies():
     mkdir(Path('dependencies'))
     get_julia()
     pack_julia_deps()
     get_llvm()
+    get_juce()
     print('All dependencies set up successfully.')
 
 
