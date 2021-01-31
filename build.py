@@ -381,11 +381,11 @@ def get_julia():
 
         print('Extracting...')
         rmdir('dependencies/julia')
+        mkdir('dependencies/')
         command(['tar', '-xf', target, '-C', 'dependencies/'])
         command(['ls', 'dependencies/'])
-        command(['ls', 'dependencies/'])
-        command(['ls', 'dependencies/'])
-        command(['ls', 'dependencies/'])
+        command(['ls'])
+        command(['ls', '*'])
         rmdir(target)
     if ON_MAC:
         url = 'https://julialang-s3.julialang.org/bin/mac/x64/1.5/julia-1.5.3-mac64.dmg'
