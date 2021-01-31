@@ -377,14 +377,16 @@ def get_julia():
     print('Downloading Julia 1.5.3...')
     if ON_WINDOWS:
         url = 'https://julialang-s3.julialang.org/bin/winnt/x64/1.5/julia-1.5.3-win64.zip'
-        command(['curl', '-o', target, url])
+        command = '''(new-object System.Net.WebClient).DownloadFile('$FILE','$DEST')'''.replace(
+            '$FILE', url).replace('$DEST', target)
+        command(['powershell', '-command', command])
 
         print('Extracting...')
         rmdir('dependencies/julia')
         mkdir('dependencies/')
         command(['tar', '-xf', target, '-C', 'dependencies/'])
-        command(['powershell', '-command', '"Expand-Archive -Force \'' +
-                 str(target) + '\' \'dependencies/\'"'])
+        command(['powershell', '-command', 'Expand-Archive -Force \'' +
+                 str(target) + '\' \'dependencies/\''])
         command(['ls', 'dependencies/'])
         command(['ls'])
         command(['ls', '*'])
