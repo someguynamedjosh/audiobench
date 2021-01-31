@@ -381,7 +381,9 @@ def get_julia():
 
         print('Extracting...')
         command(['tar', '-xzf', target, '-C', 'dependencies/'])
+        command(['ls', 'dependencies/'])
         rmdir('dependencies/julia')
+        command(['ls', 'dependencies/'])
         command(['mv', 'dependencies/julia-1.5.3', 'dependencies/julia'])
         rmdir(target)
     if ON_MAC:
