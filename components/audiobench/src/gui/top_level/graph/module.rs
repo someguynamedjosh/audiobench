@@ -216,7 +216,8 @@ impl DragModule {
 
 impl MouseBehavior<DropTarget> for DragModule {
     fn on_drag(&mut self, delta: Vec2D, mods: &MouseMods) {
-        self.real_pos += delta;
+        let zoom = self.module.parents.graph.get_zoom();
+        self.real_pos += delta / zoom;
         let state = self.module.state.borrow_mut();
         let mut module = state.module.borrow_mut();
         if mods.snap {
