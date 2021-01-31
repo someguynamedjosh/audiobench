@@ -397,7 +397,7 @@ def get_julia():
         print('Extracting...')
         command(['hdiutil', 'attach', target])
         command(['ls', '/Volumes/'])
-        command(['ls', '/Volumes/julia-1.5.3/'])
+        command(['ls', '/Volumes/Julia-1.5.3/'])
         rmdir('dependencies/julia')
         command(['cp', '-r', '/Volumes/julia-1.5.3', 'dependencies/julia'])
         rmdir(target)
