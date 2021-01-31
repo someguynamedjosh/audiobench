@@ -1,6 +1,5 @@
 /artifacts
-/dependencies/julia*
-/dependencies/llvm*
+/dependencies/*
 /target
 NOTES.md
 TODO.md

@@ -373,28 +373,37 @@ def get_llvm():
 def get_julia():
     if should_skip_dep('julia', 1):
         return
+    target = tempfile.mktemp('', 'julia')
+    print('Downloading Julia 1.5.3...')
     if ON_WINDOWS:
         url = 'https://julialang-s3.julialang.org/bin/winnt/x64/1.5/julia-1.5.3-win64.zip'
-        # Need to extract .zip to deps/
-        print('Unimlemented: Julia installation on Windows')
-        exit(1)
+        command(['curl', '-o', target, url])
+
+        print('Extracting...')
+        command(['tar', '-xzf', target, '-C', 'dependencies/'])
+        rmdir('dependencies/julia')
+        command(['mv', 'dependencies/julia-1.5.3', 'dependencies/julia'])
+        rmdir(target)
     if ON_MAC:
         url = 'https://julialang-s3.julialang.org/bin/mac/x64/1.5/julia-1.5.3-mac64.dmg'
-        # Need to extract .dmg, no idea what's in it.
-        print('Unimlemented: Julia installation on MacOS')
-        exit(1)
+        command(['curl', '-o', target, url])
+
+        print('Extracting...')
+        command(['hdiutil', 'attach', target])
+        command(['ls', '/Volumes/'])
+        command(['ls', '/Volumes/julia-1.5.3/'])
+        rmdir('dependencies/julia')
+        command(['cp', '-r', '/Volumes/julia-1.5.3', 'dependencies/julia'])
+        rmdir(target)
     if ON_LINUX:
         url = 'https://julialang-s3.julialang.org/bin/linux/x64/1.5/julia-1.5.3-linux-x86_64.tar.gz'
-        target = tempfile.mktemp('', 'julia')
-        print('Downloading Julia 1.5.3...')
         command(['wget', url, '-O', target])
 
         print('Extracting...')
         command(['tar', '-xzf', target, '-C', 'dependencies/'])
-
         rmdir('dependencies/julia')
         command(['mv', 'dependencies/julia-1.5.3', 'dependencies/julia'])
-        command(['rm', target])
+        rmdir(target)
     mark_dep_complete('julia', 1)
 
 
