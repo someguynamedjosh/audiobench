@@ -32,7 +32,7 @@ impl NoteGraph {
 
 impl WidgetImpl<Renderer, DropTarget> for NoteGraph {
     fn get_pos_impl(self: &Rc<Self>) -> Vec2D {
-        0.into()
+        (0.0, HEADER_HEIGHT).into()
     }
 
     fn get_size_impl(self: &Rc<Self>) -> Vec2D {

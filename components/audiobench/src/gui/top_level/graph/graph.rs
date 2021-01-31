@@ -133,7 +133,7 @@ impl ModuleGraph {
         let size = self.get_size();
         let center = (bottom_right - top_left) / 2.0 + top_left;
         let mut state = self.state.borrow_mut();
-        state.offset = center - size / (state.zoom * 2.0);
+        state.offset = -center + size / (state.zoom * 2.0);
     }
 
     /// This also adds the module to the actual graph this widget represents.
@@ -148,7 +148,7 @@ impl ModuleGraph {
         children.modules.push(Module::new(self, module));
         self.with_gui_state_mut(|state| {
             state.engine.borrow_mut().regenerate_code();
-        })
+        });
     }
 
     pub fn get_widget_for_module(self: &Rc<Self>, module: &Rcrc<ep::Module>) -> Option<Rc<Module>> {
@@ -170,9 +170,13 @@ impl ModuleGraph {
             .position(|e| e.represents_module(module))
             .unwrap();
         children.modules.remove(index).on_removed();
+        self.with_gui_state_mut(|state| {
+            state.engine.borrow_mut().regenerate_code();
+        });
     }
 
-    fn translate_pos(self: &Rc<Self>, pos: Vec2D) -> Vec2D {
+    /// Translates screen-space coordinates to graph-space.
+    fn translate_screen_pos(self: &Rc<Self>, pos: Vec2D) -> Vec2D {
         let state = self.state.borrow();
         let offset = state.offset;
         let zoom = state.zoom;
@@ -180,7 +184,9 @@ impl ModuleGraph {
     }
 
     pub fn pan(self: &Rc<Self>, delta: Vec2D) {
-        self.state.borrow_mut().offset += delta;
+        let mut state = self.state.borrow_mut();
+        let zoom = state.zoom;
+        state.offset += delta / zoom;
     }
 
     pub fn open_menu(self: &Rc<Self>, menu: Box<dyn Widget<Renderer, DropTarget>>) {
@@ -193,6 +199,10 @@ impl ModuleGraph {
 
     pub fn get_highlight_mode(self: &Rc<Self>) -> GraphHighlightMode {
         self.state.borrow().highlight_mode
+    }
+
+    pub fn get_zoom(self: &Rc<Self>) -> f32 {
+        self.state.borrow().zoom
     }
 
     pub fn set_hovered_module(self: &Rc<Self>, module: Rc<Module>) {
@@ -333,7 +343,7 @@ impl MouseBehavior<DropTarget> for ConnectToControl {
 
 impl WidgetImpl<Renderer, DropTarget> for ModuleGraph {
     fn get_pos_impl(self: &Rc<Self>) -> Vec2D {
-        (0.0, HEADER_HEIGHT).into()
+        0.into()
     }
 
     fn get_size_impl(self: &Rc<Self>) -> Vec2D {
@@ -345,13 +355,12 @@ impl WidgetImpl<Renderer, DropTarget> for ModuleGraph {
         pos: Vec2D,
         mods: &MouseMods,
     ) -> MaybeMouseBehavior {
-        let pos = self.translate_pos(pos);
+        let pos = self.translate_screen_pos(pos);
         let children = self.children.borrow();
         if let Some(widget) = &children.detail_menu {
             let local_pos = pos - widget.get_pos();
             if local_pos.inside(widget.get_size()) {
                 return widget.get_mouse_behavior(pos, mods);
-            // .scaled(Rc::clone(&self.zoom));
             } else {
                 let this = Rc::clone(self);
                 return OnClickBehavior::wrap(move || {
@@ -367,7 +376,7 @@ impl WidgetImpl<Renderer, DropTarget> for ModuleGraph {
 
     fn on_hover_impl(self: &Rc<Self>, pos: Vec2D) -> Option<()> {
         self.clear_hovered_module();
-        let pos = self.translate_pos(pos);
+        let pos = self.translate_screen_pos(pos);
         let children = self.children.borrow();
         if let Some(widget) = &children.detail_menu {
             let local_pos = pos - widget.get_pos();
@@ -382,6 +391,7 @@ impl WidgetImpl<Renderer, DropTarget> for ModuleGraph {
             state.set_tooltip(Tooltip {
                 text: "Double-click to add a new module.".to_owned(),
                 interaction: vec![
+                    InteractionHint::Scroll,
                     InteractionHint::DoubleClick,
                     InteractionHint::LeftClickAndDrag,
                 ],
@@ -390,14 +400,25 @@ impl WidgetImpl<Renderer, DropTarget> for ModuleGraph {
         Some(())
     }
 
+    fn on_scroll_impl(self: &Rc<Self>, pos: Vec2D, delta: f32) -> Option<()> {
+        let center = self.get_size() * 0.5;
+        let old_pos = self.translate_screen_pos(center);
+        let mut state = self.state.borrow_mut();
+        state.zoom *= (1.0 + delta * 0.8);
+        let z2 = state.zoom;
+        // Black magic algebra voodoo
+        state.offset = center / z2 - old_pos;
+        Some(())
+    }
+
     fn get_drop_target_impl(self: &Rc<Self>, pos: Vec2D) -> Option<DropTarget> {
-        let pos = self.translate_pos(pos);
+        let pos = self.translate_screen_pos(pos);
         self.get_drop_target_children(pos)
     }
 
     fn draw_impl(self: &Rc<Self>, g: &mut GrahpicsWrapper) {
-        let mouse_pos = self.parents.gui.get_mouse_pos() - self.get_pos();
-        let mouse_pos = self.translate_pos(mouse_pos);
+        let mouse_pos = self.parents.gui.get_mouse_pos() - Vec2D::new(0.0, HEADER_HEIGHT);
+        let mouse_pos = self.translate_screen_pos(mouse_pos);
         let state = self.state.borrow();
         let children = self.children.borrow();
         g.scale(state.zoom);

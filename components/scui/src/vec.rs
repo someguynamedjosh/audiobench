@@ -1,4 +1,4 @@
-use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign};
+use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
 pub struct Vec2D {
@@ -47,6 +47,17 @@ impl Vec2D {
         Self {
             x: self.x.max(other.x),
             y: self.y.max(other.y),
+        }
+    }
+}
+
+impl Neg for Vec2D {
+    type Output = Self;
+
+    fn neg(self) -> Self {
+        Self {
+            x: -self.x,
+            y: -self.y,
         }
     }
 }

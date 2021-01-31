@@ -2,11 +2,13 @@ use proc_macro::TokenStream;
 use proc_macro2::Span;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::{format_ident, quote};
-use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
 use syn::{parenthesized, Ident, Token};
+use syn::{
+    parse::{Parse, ParseStream},
+    Path,
+};
 
-#[derive(PartialEq)]
 enum ConstructorItemType {
     ParentRef,
     GridPos,
@@ -17,7 +19,7 @@ enum ConstructorItemType {
     FloatRange,
     String,
     StringList,
-    OptionalString,
+    Custom(TokenStream2),
 }
 
 struct ConstructorItem {
@@ -45,10 +47,7 @@ impl ConstructorItem {
                 self.name.clone(),
                 quote! {::std::vec::Vec<::std::string::String>},
             )],
-            ConstructorItemType::OptionalString => vec![(
-                self.name.clone(),
-                quote! {::std::option::Option<::std::string::String>},
-            )],
+            ConstructorItemType::Custom(typ) => vec![(self.name.clone(), typ.clone())],
         }
     }
 
@@ -147,14 +146,20 @@ impl ConstructorItem {
                     }
                 }
             }
-            ConstructorItemType::OptionalString => {
+            ConstructorItemType::Custom(typ) => {
                 let name = self.name.clone();
+                let child_name = format_ident!("{}_raw", name);
                 quote! {
-                    let #name = if let Ok(child) = yaml.unique_child(stringify!(#name)) {
-                        Some(child.value.trim().to_owned())
+                    let #child_name = if let Ok(child) = yaml.unique_child(stringify!(#name)) {
+                        Some(child.clone())
                     } else {
                         None
                     };
+                    let #name = #typ::from_yaml(#child_name, icon_indexes)
+                        .map_err(|err| format!(
+                            "ERROR: Invalid widget {}, caused by:\n{}",
+                            &yaml.full_name, err,
+                        ))?;
                 }
             }
         }
@@ -169,7 +174,7 @@ impl ConstructorItem {
             | ConstructorItemType::IntRange
             | ConstructorItemType::FloatRange
             | ConstructorItemType::String
-            | ConstructorItemType::OptionalString
+            | ConstructorItemType::Custom(..)
             | ConstructorItemType::StringList => {
                 let name = self.name.clone();
                 quote! { self.#name.clone() }
@@ -194,8 +199,8 @@ impl Parse for ConstructorItem {
     fn parse(input: ParseStream) -> syn::parse::Result<Self> {
         let name = input.parse()?;
         input.parse::<Token![:]>()?;
-        let type_name: Ident = input.parse()?;
-        let type_name_str = type_name.to_string();
+        let type_name: Path = input.parse()?;
+        let type_name_str = quote! { #type_name }.to_string();
         if type_name_str.ends_with("ControlRef") {
             return Ok(Self {
                 name,
@@ -212,12 +217,8 @@ impl Parse for ConstructorItem {
             "IntRange" => ConstructorItemType::IntRange,
             "FloatRange" => ConstructorItemType::FloatRange,
             "String" => ConstructorItemType::String,
-            "OptionalString" => ConstructorItemType::OptionalString,
             "StringList" => ConstructorItemType::StringList,
-            _ => panic!(
-                "{} is not a recognized constructor parameter type",
-                type_name
-            ),
+            _ => ConstructorItemType::Custom(quote! { #type_name }),
         };
         Ok(Self { name, typ })
     }
@@ -366,6 +367,7 @@ pub fn make_widget_outline(args: TokenStream) -> TokenStream {
 
             pub fn from_yaml(
                 yaml: &crate::registry::yaml::YamlNode,
+                icon_indexes: &std::collections::HashMap<std::string::String, usize>,
                 controls: &::std::vec::Vec<(String, crate::engine::controls::AnyControl)>,
             ) -> ::std::result::Result<#outline_name, ::std::string::String> {
                 let find_control_index = |name: &str| {
@@ -442,7 +444,7 @@ pub fn make_widget_outline_enum(args: TokenStream) -> TokenStream {
             let outline_struct_name = format_ident!("Generated{}Outline", name);
             quote! {
                 #name_string => Self::#name(#outline_struct_name::from_yaml(
-                    yaml, controls
+                    yaml, icon_indexes, controls
                 )?)
             }
         })
@@ -473,6 +475,7 @@ pub fn make_widget_outline_enum(args: TokenStream) -> TokenStream {
 
             pub fn from_yaml(
                 yaml: &crate::registry::yaml::YamlNode,
+                icon_indexes: &std::collections::HashMap<std::string::String, usize>,
                 controls: &::std::vec::Vec<(String, crate::engine::controls::AnyControl)>,
             ) -> ::std::result::Result<Self, ::std::string::String> {
                 Ok(match &yaml.name[..] {

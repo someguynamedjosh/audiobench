@@ -8,7 +8,7 @@ use crate::{
     },
     scui_config::{DropTarget, MaybeMouseBehavior, Renderer},
 };
-use scui::{MouseBehavior, MouseMods, Vec2D, Widget, WidgetImpl};
+use scui::{MouseBehavior, MouseMods, OnClickBehavior, Vec2D, Widget, WidgetImpl};
 use shared_util::prelude::*;
 
 struct OutputJack {
@@ -216,7 +216,8 @@ impl DragModule {
 
 impl MouseBehavior<DropTarget> for DragModule {
     fn on_drag(&mut self, delta: Vec2D, mods: &MouseMods) {
-        self.real_pos += delta;
+        let zoom = self.module.parents.graph.get_zoom();
+        self.real_pos += delta / zoom;
         let state = self.module.state.borrow_mut();
         let mut module = state.module.borrow_mut();
         if mods.snap {
@@ -265,8 +266,9 @@ impl WidgetImpl<Renderer, DropTarget> for Module {
             }
         }
         if mods.right_click {
-            // MouseAction::RemoveModule(Rc::clone(&state.module))
-            unimplemented!()
+            let graph = Rc::clone(&self.parents.graph);
+            let module = Rc::clone(&state.module);
+            OnClickBehavior::wrap(move || graph.remove_module(&module))
         } else {
             Some(Box::new(DragModule::new(Rc::clone(self))))
         }

@@ -39,7 +39,11 @@ pub(super) fn create_module_template_from_yaml(
         .parse_ranged(Some(0), None)?;
     let mut widgets = Vec::new();
     for widget_description in &widgets_description.children {
-        widgets.push(WidgetOutline::from_yaml(widget_description, &mut controls)?);
+        widgets.push(WidgetOutline::from_yaml(
+            widget_description,
+            icon_indexes,
+            &mut controls,
+        )?);
     }
 
     let mut outputs = Vec::new();
@@ -83,7 +87,7 @@ pub(super) fn create_module_template_from_yaml(
     Ok(ModuleTemplate {
         lib_name,
         module_name: name,
-        template_id: save_id,
+        save_id,
 
         label,
         category,
@@ -100,7 +104,7 @@ pub(super) fn create_module_template_from_yaml(
 pub struct ModuleTemplate {
     pub lib_name: String,
     pub module_name: String,
-    pub template_id: usize,
+    pub save_id: usize,
 
     pub label: String,
     pub category: String,

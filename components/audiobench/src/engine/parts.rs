@@ -1,5 +1,5 @@
 use crate::{
-    engine::controls::AnyControl,
+    engine::controls::{AnyControl, Control},
     gui::top_level::graph::ModuleGraph as ModuleGraphWidget,
     registry::{module_template::ModuleTemplate, yaml::YamlNode},
 };
@@ -120,12 +120,36 @@ impl Module {
     /// It is still required to manually remove references to this module that exist in other
     /// modules.
     pub fn sever(&mut self) {
+        for control in &self.controls {
+            let control_ptr = control.as_dyn_ptr();
+            let mut control = control_ptr.borrow_mut();
+            let num_sources = control.get_connected_automation().len();
+            for index in (0..num_sources).rev() {
+                control.remove_automation_by_index(index);
+            }
+        }
         self.controls.clear();
     }
 
-    pub fn sever_connections_with(&mut self, other: &Rcrc<Module>) {
-        let template_ref = self.template.borrow();
-        unimplemented!();
+    pub fn sever_connections_from(&mut self, other: &Rcrc<Module>) {
+        for control in &self.controls {
+            let control_ptr = control.as_dyn_ptr();
+            let mut control = control_ptr.borrow_mut();
+            let mut condemned = Vec::new();
+            for (index, source) in control
+                .get_connected_automation()
+                .into_iter()
+                .enumerate()
+                .rev()
+            {
+                if Rc::ptr_eq(&source.module, other) {
+                    condemned.push(index);
+                }
+            }
+            for index in condemned {
+                control.remove_automation_by_index(index);
+            }
+        }
     }
 }
 
@@ -147,10 +171,16 @@ impl ModuleGraph {
     }
 
     pub fn set_modules(&mut self, modules: Vec<Rcrc<Module>>) {
-        for module in &self.modules {
-            module.borrow_mut().sever();
-        }
+        self.clear();
         self.modules = modules;
+    }
+
+    fn remove_index(&mut self, index: usize) {
+        let module = self.modules.remove(index);
+        module.borrow_mut().sever();
+        for other in &self.modules {
+            other.borrow_mut().sever_connections_from(&module);
+        }
     }
 
     pub fn remove_module(&mut self, module: &Rcrc<Module>) {
@@ -159,11 +189,20 @@ impl ModuleGraph {
             .iter()
             .position(|e| std::ptr::eq(e.as_ref(), module.as_ref()))
             .unwrap();
-        let module_rc = Rc::clone(&self.modules[index]);
+        self.remove_index(index);
+    }
+
+    pub fn clear(&mut self) {
         for module in &self.modules {
-            module.borrow_mut().sever_connections_with(&module_rc);
+            module.borrow_mut().sever();
         }
-        self.modules.remove(index);
+        self.modules.clear();
+    }
+
+    pub fn rebuild_widget(&self) {
+        if let Some(widget) = &self.current_widget {
+            widget.rebuild();
+        }
     }
 
     pub fn borrow_modules(&self) -> &[Rcrc<Module>] {

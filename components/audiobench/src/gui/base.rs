@@ -166,6 +166,14 @@ impl GuiState {
     pub fn add_error_status(&mut self, message: String) {
         self.status = Some(Status::error(message));
     }
+
+    pub fn clear_status(&mut self) {
+        self.status = None;
+    }
+
+    pub fn borrow_status(&self) -> &Option<Status> {
+        &self.status
+    }
 }
 
 scui::widget! {
@@ -214,6 +222,7 @@ impl WidgetImpl<Renderer, DropTarget> for Root {
         mouse_pos: Vec2D,
         mods: &MouseMods,
     ) -> MaybeMouseBehavior {
+        self.with_gui_state_mut(|state| state.clear_status());
         ris!(self.get_mouse_behavior_children(mouse_pos, mods));
         self.get_current_tab().get_mouse_behavior(mouse_pos, mods)
     }

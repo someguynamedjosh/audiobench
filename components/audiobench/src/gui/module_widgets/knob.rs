@@ -322,7 +322,7 @@ impl WidgetImpl<Renderer, DropTarget> for KnobEditor {
                 return Some(Box::new(if (centered.x > 0.0) != ends_flipped {
                     ManipulateLane::end_only(self, Rc::clone(&state.control), lane)
                 } else {
-                    ManipulateLane::end_only(self, Rc::clone(&state.control), lane)
+                    ManipulateLane::start_only(self, Rc::clone(&state.control), lane)
                 }));
             }
         }
@@ -388,6 +388,7 @@ impl WidgetImpl<Renderer, DropTarget> for KnobEditor {
                     interaction: vec![
                         InteractionHint::LeftClickAndDrag,
                         InteractionHint::DoubleClick,
+                        InteractionHint::RightClick,
                     ],
                 }
             } else {

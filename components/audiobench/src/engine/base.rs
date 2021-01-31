@@ -7,21 +7,17 @@ use crate::{
         },
         julia_thread,
         parts::ModuleGraph,
-        program_wrapper::AudiobenchExecutorBuilder,
     },
     registry::{save_data::Patch, Registry},
 };
+use crossbeam_channel::{Receiver, Sender, TrySendError};
 use crossbeam_utils::atomic::AtomicCell;
 use julia_helper::GeneratedCode;
-use mpsc::TrySendError;
 use shared_util::prelude::*;
 use std::{
     path::PathBuf,
     str::FromStr,
-    sync::{
-        mpsc::{self, Receiver, SyncSender},
-        Mutex,
-    },
+    sync::Mutex,
     time::{Duration, Instant},
 };
 
@@ -50,7 +46,8 @@ pub(super) struct Communication {
 
     pub global_params: AtomicCell<GlobalParameters>,
     pub note_events: Mutex<Vec<julia_thread::NoteEvent>>,
-    pub julia_pipe: SyncSender<julia_thread::Request>,
+    pub julia_render_pipe: Sender<julia_thread::RenderRequest>,
+    pub julia_poll_pipe: Sender<()>,
 }
 
 struct AudioThreadData {
@@ -74,31 +71,27 @@ pub fn new_engine(
     registry_ptr: Rcrc<Registry>,
 ) -> Result<(Rcrc<UiThreadEngine>, Rcrc<AudioThreadEngine>), String> {
     let registry = registry_ptr.borrow_mut();
-    let module_graph = ModuleGraph::new();
+    let mut module_graph = ModuleGraph::new();
     let global_params = GlobalParameters {
         channels: DEFAULT_CHANNELS,
         buffer_length: DEFAULT_BUFFER_LENGTH,
         sample_rate: DEFAULT_SAMPLE_RATE,
     };
-    // unimplemented!();
-    // let default_patch = Rc::clone(
-    //     registry
-    //         .get_patch_by_name("Factory:patches/default.abpatch")
-    //         .ok_or("Could not find Factory:patches/default.abpatch".to_owned())?,
-    // );
-    // default_patch
-    //     .borrow()
-    //     .restore_note_graph(&mut module_graph, &*registry)
-    //     .map_err(|err| {
-    //         format!(
-    //             concat!(
-    //                 "Default patch failed to load!\n",
-    //                 "This is a critical error, please submit a bug report containing this ",
-    //                 "error:\n\n{}",
-    //             ),
-    //             err
-    //         )
-    //     })?;
+    let default_patch = Rc::clone(
+        registry
+            .get_patch_by_name("Factory:patches/Default.abpatch")
+            .ok_or("Could not find Factory:patches/Default.abpatch".to_owned())?,
+    );
+    default_patch
+        .borrow()
+        .restore_note_graph(&mut module_graph, &*registry)
+        .map_err(|_| {
+            format!(concat!(
+                "Default patch failed to load!\n",
+                "This is a critical error, please submit a bug report containing this ",
+                "error:\n\nPatch data is corrupt.",
+            ))
+        })?;
     let CodeGenResult {
         code,
         dyn_data_collector,
@@ -113,15 +106,16 @@ pub fn new_engine(
     })?;
     let dyn_data = dyn_data_collector.collect();
 
-    let (reqi, reqo) = mpsc::sync_channel(0);
-    let (audio_resi, audio_reso) = mpsc::sync_channel(0);
+    let (renderi, rendero) = crossbeam_channel::bounded(0);
+    let (polli, pollo) = crossbeam_channel::bounded(0xFF);
+    let (audio_resi, audio_reso) = crossbeam_channel::bounded(0);
 
     let utd = UiThreadData {
         registry: Rc::clone(&registry_ptr),
         module_graph: rcrc(module_graph),
         dyn_data_collector,
         feedback_displayer,
-        current_patch_save_data: rcrc(Patch::new(PathBuf::from_str("/tmp/blank").unwrap())), //default_patch, unimplemented!()
+        current_patch_save_data: default_patch,
     };
 
     let atd = AudioThreadData {
@@ -142,20 +136,22 @@ pub fn new_engine(
 
         global_params: AtomicCell::new(global_params),
         note_events: Default::default(),
-        julia_pipe: reqi,
+        julia_render_pipe: renderi,
+        julia_poll_pipe: polli,
     };
     let comms = Arc::new(comms);
 
-    let executor_builder = AudiobenchExecutorBuilder::new(&*registry);
+    let registry_source = codegen::generate_registry_code(&*registry)?;
     let comms2 = Arc::clone(&comms);
     let julia_executor = move || {
         julia_thread::entry(
             comms2,
             global_params_2,
-            executor_builder,
+            registry_source,
             code,
             dyn_data,
-            reqo,
+            rendero,
+            pollo,
             audio_resi,
         );
     };
@@ -214,7 +210,22 @@ impl UiThreadEngine {
     pub fn save_current_patch_with_new_name(&mut self) -> &Rcrc<Patch> {
         let mut reg = self.data.registry.borrow_mut();
         let patch = self.borrow_current_patch().borrow();
-        let name = shared_util::increment_name(patch.borrow_name());
+
+        let mut name = shared_util::increment_name(patch.borrow_name());
+        let mut original = false;
+        while !original {
+            original = true;
+            for patch in reg.borrow_patches() {
+                if patch.borrow().borrow_name() == &name {
+                    original = false;
+                    break;
+                }
+            }
+            if !original {
+                name = shared_util::increment_name(&name);
+            }
+        }
+
         let new_patch = Rc::clone(reg.create_new_user_patch());
         let mut new_patch_ref = new_patch.borrow_mut();
         new_patch_ref.set_name(name);
@@ -235,16 +246,17 @@ impl UiThreadEngine {
         let mut reg = self.data.registry.borrow_mut();
         let new_patch = Rc::clone(reg.create_new_user_patch());
         let mut new_patch_ref = new_patch.borrow_mut();
-        new_patch_ref.load_from_serialized_data(clipboard_data, &*reg)?;
+        new_patch_ref.deserialize(clipboard_data)?;
         let name = format!("{} (pasted)", new_patch_ref.borrow_name());
         new_patch_ref.set_name(name);
         drop(new_patch_ref);
         drop(reg);
-        self.load_patch(Rc::clone(&new_patch))?;
+        self.load_patch(Rc::clone(&new_patch))
+            .map_err(|_| format!("ERROR: Patch data is corrupt."))?;
         Ok(&self.data.current_patch_save_data)
     }
 
-    pub fn load_patch(&mut self, patch: Rcrc<Patch>) -> Result<(), String> {
+    pub fn load_patch(&mut self, patch: Rcrc<Patch>) -> Result<(), ()> {
         let reg = self.data.registry.borrow();
         self.data.current_patch_save_data = patch;
         self.data
@@ -252,6 +264,7 @@ impl UiThreadEngine {
             .borrow()
             .restore_note_graph(&mut *self.data.module_graph.borrow_mut(), &*reg)?;
         drop(reg);
+        self.data.module_graph.borrow().rebuild_widget();
         self.regenerate_code();
         Ok(())
     }
@@ -267,19 +280,12 @@ impl UiThreadEngine {
             .map_err(|_| format!("The note graph cannot contain feedback loops"));
         let new_gen = new_gen.expect("TODO: Nice error.");
         drop(module_graph_ref);
-        // ctd.new_source = Some((new_gen.code, new_gen.data_format.clone()));
-        // ctd.new_staticon_dyn_data = Some(new_gen.dyn_data_collector.collect_data());
-        // ctd.new_feedback_data = None;
-        // unimplemented!();
         self.comms.new_dyn_data.store(None);
         let dyn_data = new_gen.dyn_data_collector.collect();
         self.comms
             .new_note_graph_code
             .store(Some((new_gen.code, dyn_data)));
-        self.comms
-            .julia_pipe
-            .send(julia_thread::Request::PollComms)
-            .unwrap();
+        self.comms.julia_poll_pipe.send(()).unwrap();
         self.data.dyn_data_collector = new_gen.dyn_data_collector;
         self.data.feedback_displayer = new_gen.feedback_displayer;
     }
@@ -287,10 +293,7 @@ impl UiThreadEngine {
     pub fn reload_dyn_data(&mut self) {
         let data = self.data.dyn_data_collector.collect();
         self.comms.new_dyn_data.store(Some(data));
-        self.comms
-            .julia_pipe
-            .send(julia_thread::Request::PollComms)
-            .unwrap();
+        self.comms.julia_poll_pipe.send(()).unwrap();
     }
 
     /// Feedback data is generated on the audio thread. This method uses a mutex to retrieve that
@@ -318,10 +321,7 @@ impl AudioThreadEngine {
             params.sample_rate = sample_rate;
             self.comms.new_global_params.store(Some(()));
             self.comms.global_params.store(params);
-            self.comms
-                .julia_pipe
-                .send(julia_thread::Request::PollComms)
-                .unwrap();
+            self.comms.julia_poll_pipe.send(()).unwrap();
         }
     }
 
@@ -376,11 +376,11 @@ impl AudioThreadEngine {
         let mut ready = self.comms.julia_thread_status.load().is_ready();
         if ready {
             let data = self.data.global_data.clone();
-            let request = julia_thread::Request::Render {
+            let request = julia_thread::RenderRequest {
                 data,
                 do_feedback: update_feedback_data,
             };
-            let res = self.comms.julia_pipe.try_send(request);
+            let res = self.comms.julia_render_pipe.try_send(request);
             match res {
                 Ok(()) => (),
                 Err(TrySendError::Full(..)) => ready = false,

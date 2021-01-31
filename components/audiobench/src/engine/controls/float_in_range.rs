@@ -62,10 +62,15 @@ impl Control for FloatInRangeControl {
         });
     }
 
-    fn get_connected_automation<'a>(
-        &'a self,
-    ) -> Box<dyn Iterator<Item = &'a AutomationSource> + 'a> {
-        Box::new(self.automation.iter().map(|item| &item.connection))
+    fn get_connected_automation<'a>(&'a self) -> Vec<&'a AutomationSource> {
+        self.automation
+            .iter()
+            .map(|item| &item.connection)
+            .collect()
+    }
+
+    fn remove_automation_by_index(&mut self, index: usize) {
+        self.automation.remove(index);
     }
 
     fn get_parameter_types(&self) -> Vec<IOType> {
@@ -113,10 +118,27 @@ impl Control for FloatInRangeControl {
     }
 
     fn serialize(&self, ser: &mut MiniSer) {
-        unimplemented!()
+        if self.automation.len() == 0 {
+            ser.f32_in_range(self.value, self.range.0, self.range.1);
+        } else {
+            for lane in &self.automation {
+                ser.f32_in_range(lane.range.0, self.range.0, self.range.1);
+                ser.f32_in_range(lane.range.1, self.range.0, self.range.1);
+            }
+        }
     }
 
     fn deserialize(&mut self, des: &mut MiniDes) -> Result<(), ()> {
-        unimplemented!()
+        let (min, max) = self.range;
+        if self.automation.len() == 0 {
+            self.value = des.f32_in_range(min, max)?;
+        } else {
+            self.value = self.default;
+            for lane in &mut self.automation {
+                lane.range.0 = des.f32_in_range(min, max)?;
+                lane.range.1 = des.f32_in_range(min, max)?;
+            }
+        }
+        Ok(())
     }
 }

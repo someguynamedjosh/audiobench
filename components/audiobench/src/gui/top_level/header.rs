@@ -84,32 +84,38 @@ impl WidgetImpl<Renderer, DropTarget> for Header {
         })
     }
 
-    fn draw_impl(self: &Rc<Self>, renderer: &mut Renderer) {
+    fn draw_impl(self: &Rc<Self>, r: &mut Renderer) {
         let self_state = self.state.borrow();
         const BFS: f32 = BIG_FONT_SIZE;
         const CS: f32 = CORNER_SIZE;
         const GP: f32 = GRID_P;
         const FS: f32 = FONT_SIZE;
 
-        renderer.set_color(&COLOR_BG2);
-        renderer.draw_rect((0.0, TAB_HEIGHT), (ROOT_WIDTH, HEADER_HEIGHT - grid(1)));
-        renderer.set_color(&COLOR_BG0);
-        renderer.draw_rect(0, (ROOT_WIDTH, grid(1)));
+        r.set_color(&COLOR_BG2);
+        r.draw_rect((0.0, TAB_HEIGHT), (ROOT_WIDTH, HEADER_HEIGHT - grid(1)));
+        r.set_color(&COLOR_BG0);
+        r.draw_rect(0, (ROOT_WIDTH, grid(1)));
 
-        renderer.set_color(&COLOR_BG0);
-        let tooltip_size: Vec2D = (ROOT_WIDTH - GP * 2.0, TOOLTIP_HEIGHT).into();
-        renderer.draw_rounded_rect((GP, GP + TAB_HEIGHT), tooltip_size, CS);
-        let textbox_size = tooltip_size - GP * 2.0;
         self.with_gui_state(|state| {
             let tooltip = &state.borrow_tooltip();
-            renderer.set_color(&COLOR_FG1);
-            renderer.draw_text(
+            let (text, color) = if let Some(status) = state.borrow_status() {
+                (&status.text, &status.color)
+            } else {
+                (&tooltip.text, &COLOR_BG0)
+            };
+            r.set_color(color);
+            let tooltip_size: Vec2D = (ROOT_WIDTH - GP * 2.0, TOOLTIP_HEIGHT).into();
+            r.draw_rounded_rect((GP, GP + TAB_HEIGHT), tooltip_size, CS);
+
+            let textbox_size = tooltip_size - GP * 2.0;
+            r.set_color(&COLOR_FG1);
+            r.draw_text(
                 BFS,
                 (GP * 2.0, GP * 2.0 + TAB_HEIGHT),
                 textbox_size,
                 (-1, -1),
                 1,
-                &tooltip.text,
+                text,
             );
 
             let mut hints = tooltip.interaction.clone();
@@ -126,13 +132,13 @@ impl WidgetImpl<Renderer, DropTarget> for Header {
             for hint in hints.iter().rev() {
                 if let Some(icons) = self_state.hint_icons.get(hint) {
                     let width = icons.len() as f32 * (IS + IIP) + IIP;
-                    renderer.draw_rounded_rect(
+                    r.draw_rounded_rect(
                         pos + (IS + IIP - width, -IIP),
                         (width, TOOLTIP_HEIGHT - OIP * 2.0),
                         CS,
                     );
                     for icon in icons.iter().rev() {
-                        renderer.draw_icon(*icon, pos, IS);
+                        r.draw_icon(*icon, pos, IS);
                         pos.x -= IS + IIP;
                     }
                     pos.x -= IIP + OIP;
@@ -144,13 +150,13 @@ impl WidgetImpl<Renderer, DropTarget> for Header {
             let active_index = state.get_current_tab_index();
             for tab in state.all_tabs() {
                 if index == active_index {
-                    renderer.set_color(&COLOR_BG2);
+                    r.set_color(&COLOR_BG2);
                 } else {
-                    renderer.set_color(&COLOR_BG1);
+                    r.set_color(&COLOR_BG1);
                 }
-                renderer.draw_rect(pos, TAB_SIZE);
-                renderer.set_color(&COLOR_FG1);
-                renderer.draw_text(FS, pos, TAB_SIZE, (0, 0), 1, &tab.get_name());
+                r.draw_rect(pos, TAB_SIZE);
+                r.set_color(&COLOR_FG1);
+                r.draw_text(FS, pos, TAB_SIZE, (0, 0), 1, &tab.get_name());
                 pos.x += TAB_SIZE.x + TAB_PADDING;
                 index += 1;
             }

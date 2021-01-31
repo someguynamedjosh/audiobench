@@ -1,4 +1,5 @@
 use crate::{config::*, registry::yaml};
+use shared_util::Version;
 use std::{
     fs::{self, File},
     io::{Read, Seek},
@@ -8,7 +9,7 @@ use std::{
 pub struct LibraryInfo {
     pub pretty_name: String,
     pub description: String,
-    pub version: u16,
+    pub version: Version,
     // min_engine_version check is handled by parse_library_info.
 }
 
@@ -145,7 +146,7 @@ impl<R: Read + Seek> LibraryContentProvider for ZippedLibraryContentProvider<R> 
 
 fn parse_library_info(name: &str, buffer: Vec<u8>) -> Result<LibraryInfo, String> {
     assert!(
-        ENGINE_VERSION < 0xFFFF,
+        ENGINE_VERSION != Version::new(0, 0, 0),
         "ERROR: Engine version not provided during compilation."
     );
     let buffer_as_text = String::from_utf8(buffer).map_err(|e| {
@@ -157,21 +158,20 @@ fn parse_library_info(name: &str, buffer: Vec<u8>) -> Result<LibraryInfo, String
     let yaml = yaml::parse_yaml(&buffer_as_text, name)?;
     let pretty_name = yaml.unique_child("pretty_name")?.value.clone();
     let description = yaml.unique_child("description")?.value.clone();
-    let version = yaml
-        .unique_child("version")?
-        .parse_ranged(Some(0), Some(0xFFFF))?;
-    let min_engine_version = yaml
-        .unique_child("min_engine_version")?
-        .parse_ranged(Some(0), Some(0xFFFF))?;
-    if min_engine_version > ENGINE_VERSION as i32 {
-        return Err(format!(
-            concat!(
-                "ERROR: This library requires at least version {} of Audiobench.\n",
-                "You are currently running version {}.",
-            ),
-            min_engine_version, ENGINE_VERSION
-        ));
-    }
+    let version = yaml.unique_child("version")?.parse()?;
+    // TODO: Min engine version check. unimplemented!()
+    // let min_engine_version = yaml
+    //     .unique_child("min_engine_version")?
+    //     .parse_ranged(Some(0), Some(0xFFFF))?;
+    // if min_engine_version > ENGINE_VERSION as i32 {
+    //     return Err(format!(
+    //         concat!(
+    //             "ERROR: This library requires at least version {} of Audiobench.\n",
+    //             "You are currently running version {}.",
+    //         ),
+    //         min_engine_version, ENGINE_VERSION
+    //     ));
+    // }
     Ok(LibraryInfo {
         pretty_name,
         description,

@@ -31,9 +31,7 @@ function exec()
         else
             next_index = (step_index + Int32(1)) % num_steps
             ramp_amount = (step_progress - ramp_start) / ramping[%, 1, s]
-            out_value[1, s] = 
-                sequence[step_index + 1] * (1f0 - ramp_amount) + 
-                sequence[next_index + 1] * ramp_amount
+            out_value[1, s] = lerp(sequence[step_index + 1], sequence[next_index + 1], ramp_amount)
         end
     end
 end

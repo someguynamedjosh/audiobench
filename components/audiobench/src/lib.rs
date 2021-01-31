@@ -84,10 +84,9 @@ impl Instance {
         };
         drop(registry);
         let patch = rcrc(patch);
-        if let Err(err) = self.ui_engine.borrow_mut().load_patch(patch) {
+        if let Err(..) = self.ui_engine.borrow_mut().load_patch(patch) {
             return Err(format!(
-                "ERROR: Failed to load the patch you were working on, caused by:\n{}",
-                err,
+                "ERROR: Failed to load the patch you were working on.",
             ));
         }
         if let Some(gui) = &mut self.gui {
