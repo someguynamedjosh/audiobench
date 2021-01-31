@@ -373,7 +373,7 @@ def get_llvm():
 def get_julia():
     if should_skip_dep('julia', 1):
         return
-    target = tempfile.mktemp('', 'julia')
+    target = tempfile.mktemp('.zip', 'julia')
     print('Downloading Julia 1.5.3...')
     if ON_WINDOWS:
         url = 'https://julialang-s3.julialang.org/bin/winnt/x64/1.5/julia-1.5.3-win64.zip'
