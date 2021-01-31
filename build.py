@@ -49,7 +49,7 @@ def should_skip_dep(name: str, version: int) -> bool:
     mkdir(PROJECT_ROOT.joinpath('dependencies', name))
     try:
         f = open(PROJECT_ROOT.joinpath(
-            'dependencies', name, '__dependency__.txt'), 'r')
+            'dependencies', name, '__dependency__.txt'), 'r', encoding='utf8')
         current_version = int(f.read())
         f.close()
         should = current_version == version
@@ -63,7 +63,7 @@ def should_skip_dep(name: str, version: int) -> bool:
 def mark_dep_complete(name: str, version: int):
     """Makes it so that calling should_skip_dep in the future will return true."""
     f = open(PROJECT_ROOT.joinpath(
-        'dependencies', name, '__dependency__.txt'), 'w')
+        'dependencies', name, '__dependency__.txt'), 'w', encoding='utf8')
     f.write(str(version))
     f.close()
 
@@ -246,7 +246,8 @@ def check_version():
     expected_version = version + 1
     good = True
 
-    cargo_toml = open('components/audiobench/Cargo.toml', 'r').read()
+    cargo_toml = open('components/audiobench/Cargo.toml',
+                      'r', encoding='utf8').read()
     version_start = cargo_toml.find('version = "') + len('version = "')
     version_end = cargo_toml.find('"', version_start)
     cargo_version = cargo_toml[version_start:version_end]
@@ -257,7 +258,8 @@ def check_version():
               str(expected_version) + ' but found ' + str(minor_version))
         good = False
 
-    latest_json = open('docs/website/src/latest.json', 'r').read()
+    latest_json = open('docs/website/src/latest.json',
+                       'r', encoding='utf8').read()
     version_start = latest_json.find('"version": ') + len('"version": ')
     version_end = latest_json.find(',', version_start)
     latest_version = int(latest_json[version_start:version_end].strip())
@@ -301,7 +303,7 @@ def pack_julia_package(git_url: str, commit_id: str, module_name: str):
     packed_code += 'module ' + custom_module_name + '\n\n'
     packed_code += 'sources = Dict([\n'
     for src_file_path in src_dir.iterdir():
-        f = open(src_file_path, 'r')
+        f = open(src_file_path, 'r', encoding='utf8')
         code = f.read()
         f.close()
         code = code.replace(
@@ -320,7 +322,7 @@ def pack_julia_package(git_url: str, commit_id: str, module_name: str):
         '.include(Main.UnpackedDependencies, "' + module_name + '.jl")\n'
 
     out_file = open(PROJECT_ROOT.joinpath(
-        'dependencies', 'julia_packages', module_name + '.jl'), 'w')
+        'dependencies', 'julia_packages', module_name + '.jl'), 'w', encoding='utf8')
     out_file.write(packed_code)
     out_file.close()
 
