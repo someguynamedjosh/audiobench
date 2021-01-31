@@ -337,13 +337,13 @@ def get_julia_packages():
 
 
 def get_llvm():
-    if should_skip_dep('llvm', 1):
+    if should_skip_dep('llvm', 2):
         return
-    print('Setting up LLVM 10...')
+    print('Setting up LLVM 11...')
     checkout_path = Path('dependencies', 'llvm_src')
     mkdir(checkout_path)
     args = ['git', 'clone', '--depth', '1',
-            'https://github.com/llvm/llvm-project', '-b', 'release/10.x']
+            'https://github.com/llvm/llvm-project', '-b', 'release/11.x']
     if ON_WINDOWS:
         args += ['--config', 'core.autocrlf=false']
     command(args, checkout_path)
@@ -367,7 +367,7 @@ def get_llvm():
     command(['cmake', '-DCMAKE_INSTALL_PREFIX=' + str(prefix),
              '-P', 'cmake_install.cmake'], cmake_path)
     rmdir(checkout_path)
-    mark_dep_complete('llvm', 1)
+    mark_dep_complete('llvm', 2)
 
 
 def get_julia():
@@ -396,12 +396,6 @@ def get_julia():
 
         print('Extracting...')
         command(['hdiutil', 'attach', target])
-        command(['ls', '/Volumes/'])
-        command(['ls', '/Volumes/Julia-1.5.3/'])
-        command(['ls', '/Volumes/Julia-1.5.3/Julia-1.5.app/'])
-        command(['ls', '/Volumes/Julia-1.5.3/Julia-1.5.app/Contents/'])
-        command(['ls', '/Volumes/Julia-1.5.3/Julia-1.5.app/Contents/Resources/'])
-        command(['ls', '/Volumes/Julia-1.5.3/Julia-1.5.app/Contents/Resources/julia/'])
         rmdir('dependencies/julia')
         command(['cp', '-r', '/Volumes/Julia-1.5.3/Julia-1.5.app/Contents/Resources/julia/', 'dependencies/julia'])
         rmdir(target)
