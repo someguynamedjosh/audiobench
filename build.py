@@ -54,7 +54,7 @@ def should_skip_dep(name: str, version: int) -> bool:
         f.close()
         should = current_version == version
         if should:
-            print('Skipping dependency ' + name + ' as it is already set up.')
+            print('Skipping dependency as it is already set up.')
         return should
     except:
         return False
@@ -113,6 +113,7 @@ set_env('JULIA_DIR', str(PROJECT_ROOT.joinpath(
 if not ON_WINDOWS:
     set_env('LD_LIBRARY_PATH', get_env('LD_LIBRARY_PATH') + ':' +
             str(PROJECT_ROOT.joinpath('dependencies', 'julia', 'lib')))
+mkdir(Path('dependencies'))
 
 
 def print_jobs():
@@ -324,7 +325,7 @@ def pack_julia_package(git_url: str, commit_id: str, module_name: str):
     out_file.close()
 
 
-def pack_julia_deps():
+def get_julia_packages():
     if should_skip_dep('julia_packages', 1):
         return
     pack_julia_package('https://github.com/JuliaArrays/StaticArrays.jl',
@@ -408,11 +409,6 @@ def get_juce():
 
 
 def get_dependencies():
-    mkdir(Path('dependencies'))
-    get_julia()
-    pack_julia_deps()
-    get_llvm()
-    get_juce()
     print('All dependencies set up successfully.')
 
 
@@ -430,7 +426,11 @@ class Job:
 JOBS = {
     'jobs': Job('Print available jobs', [], print_jobs),
     'clean': Job('Delete all artifacts and intermediate files', [], clean),
-    'deps': Job('Download or build necessary dependencies', [], get_dependencies),
+    'dep_julia': Job('Build the "julia" dependency', [], get_julia),
+    'dep_julia_packages': Job('Build the "julia_packages" dependency', [], get_julia_packages),
+    'dep_llvm': Job('Build the "llvm" dependency', [], get_llvm),
+    'dep_juce': Job('Build the "juce" dependency', [], get_juce),
+    'deps': Job('Download or build necessary dependencies', ['dep_julia', 'dep_julia_packages', 'dep_llvm', 'dep_juce'], get_dependencies),
     'env': Job('Run a terminal after setting variables and installing deps', ['deps'], open_terminal),
     'remove_juce_splash': Job('Remove JUCE splash screen (Audiobench is GPLv3)', [], remove_juce_splash),
     'clib': Job('Build Audiobench as a static library', ['deps'], build_clib),
