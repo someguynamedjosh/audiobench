@@ -387,9 +387,6 @@ def get_julia():
         command(['tar', '-xf', target, '-C', 'dependencies/'])
         command(['powershell', '-command', 'Expand-Archive -Force \'' +
                  str(target) + '\' \'dependencies/\''])
-        command(['ls', 'dependencies/'])
-        command(['ls'])
-        command(['ls', '*'])
         rmdir('dependencies/julia')
         command(['mv', 'dependencies/julia-1.5.3', 'dependencies/julia'])
         rmdir(target)
@@ -424,7 +421,11 @@ def get_juce():
                           'a30f7357863a7d480a771e069abf56909cdf0e13')
     target = PROJECT_ROOT.joinpath('dependencies', 'juce')
     rmdir(target)
-    shutil.move(location.name, target)
+    if ON_WINDOWS:
+        shutil.copytree(location.name, target)
+    else:
+        shutil.move(location.name, target)
+    rmdir(target.joinpath('.git'))
     mark_dep_complete('juce', 1)
 
 
