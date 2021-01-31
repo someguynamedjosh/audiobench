@@ -398,8 +398,12 @@ def get_julia():
         command(['hdiutil', 'attach', target])
         command(['ls', '/Volumes/'])
         command(['ls', '/Volumes/Julia-1.5.3/'])
+        command(['ls', '/Volumes/Julia-1.5.3/Julia-1.5.app/'])
+        command(['ls', '/Volumes/Julia-1.5.3/Julia-1.5.app/Contents/'])
+        command(['ls', '/Volumes/Julia-1.5.3/Julia-1.5.app/Contents/Resources/'])
+        command(['ls', '/Volumes/Julia-1.5.3/Julia-1.5.app/Contents/Resources/julia/'])
         rmdir('dependencies/julia')
-        command(['cp', '-r', '/Volumes/Julia-1.5.3', 'dependencies/julia'])
+        command(['cp', '-r', '/Volumes/Julia-1.5.3/Julia-1.5.app/Contents/Resources/julia/', 'dependencies/julia'])
         rmdir(target)
     if ON_LINUX:
         url = 'https://julialang-s3.julialang.org/bin/linux/x64/1.5/julia-1.5.3-linux-x86_64.tar.gz'
