@@ -383,9 +383,13 @@ def get_julia():
         rmdir('dependencies/julia')
         mkdir('dependencies/')
         command(['tar', '-xf', target, '-C', 'dependencies/'])
+        command(['powershell', '-command', '"Expand-Archive -Force \'' +
+                 str(target) + '\' \'dependencies/\'"'])
         command(['ls', 'dependencies/'])
         command(['ls'])
         command(['ls', '*'])
+        rmdir('dependencies/julia')
+        command(['mv', 'dependencies/julia-1.5.3', 'dependencies/julia'])
         rmdir(target)
     if ON_MAC:
         url = 'https://julialang-s3.julialang.org/bin/mac/x64/1.5/julia-1.5.3-mac64.dmg'
