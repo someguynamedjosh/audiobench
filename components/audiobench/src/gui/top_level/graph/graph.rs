@@ -336,7 +336,7 @@ impl MouseBehavior<DropTarget> for ConnectToControl {
 
 impl WidgetImpl<Renderer, DropTarget> for ModuleGraph {
     fn get_pos_impl(self: &Rc<Self>) -> Vec2D {
-        (0.0, HEADER_HEIGHT).into()
+        0.into()
     }
 
     fn get_size_impl(self: &Rc<Self>) -> Vec2D {
