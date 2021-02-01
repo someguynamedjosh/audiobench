@@ -7,7 +7,7 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-jlrs = { git="https://github.com/joshua-maros/jlrs", rev="5117806f4dff005ba71aefdd6bb5f0503f074697" }
+jlrs = { git="https://github.com/joshua-maros/jlrs", rev="0b727663918b21d51d6f499b00e0f3e73a1ed456" }
 jlrs-derive = "0.2"
 scones = "0.1"
 shared_util = { path="../shared_util" }
