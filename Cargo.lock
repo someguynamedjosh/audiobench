@@ -759,19 +759,20 @@ checksum = "dc6f3ad7b9d11a0c00842ff8de1b60ee58661048eb8049ed33c73594f359d7e6"
 
 [[package]]
 name = "jl-sys"
-version = "0.9.0"
-source = "git+https://github.com/Taaitaaiger/jlrs?branch=v0.8#5c88805ec93f20a42e2a8f1527b65cb4e202ffb7"
+version = "0.10.0"
+source = "git+https://github.com/joshua-maros/jlrs?rev=5117806f4dff005ba71aefdd6bb5f0503f074697#5117806f4dff005ba71aefdd6bb5f0503f074697"
 dependencies = [
  "bindgen",
 ]
 
 [[package]]
 name = "jlrs"
-version = "0.7.0"
-source = "git+https://github.com/Taaitaaiger/jlrs?branch=v0.8#5c88805ec93f20a42e2a8f1527b65cb4e202ffb7"
+version = "0.8.0"
+source = "git+https://github.com/joshua-maros/jlrs?rev=5117806f4dff005ba71aefdd6bb5f0503f074697#5117806f4dff005ba71aefdd6bb5f0503f074697"
 dependencies = [
  "jl-sys",
- "jlrs-derive 0.2.0 (git+https://github.com/Taaitaaiger/jlrs?branch=v0.8)",
+ "jlrs-derive 0.2.0 (git+https://github.com/joshua-maros/jlrs?rev=5117806f4dff005ba71aefdd6bb5f0503f074697)",
+ "smallvec",
 ]
 
 [[package]]
@@ -788,7 +789,7 @@ dependencies = [
 [[package]]
 name = "jlrs-derive"
 version = "0.2.0"
-source = "git+https://github.com/Taaitaaiger/jlrs?branch=v0.8#5c88805ec93f20a42e2a8f1527b65cb4e202ffb7"
+source = "git+https://github.com/joshua-maros/jlrs?rev=5117806f4dff005ba71aefdd6bb5f0503f074697#5117806f4dff005ba71aefdd6bb5f0503f074697"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1582,6 +1583,12 @@ name = "slab"
 version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c111b5bd5695e56cffe5129854aa230b39c93a305372fdbb2668ca2394eea9f8"
+
+[[package]]
+name = "smallvec"
+version = "1.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fe0f37c9e8f3c5a4a66ad655a93c74daac4ad00c441533bf5c6e7990bb42604e"
 
 [[package]]
 name = "socket2"
