@@ -54,6 +54,7 @@ jobs:
       run: python build.py juce_frontend --release --github-runner
       env:
         CYGWIN_DIR: D:\Cygwin
+        LIB_CLANG_PATH: C:\msys64\mingw64\lib\libclang.dll
     - name: Upload Artifacts
       uses: actions/upload-artifact@v2
       with:
