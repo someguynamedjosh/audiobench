@@ -37,8 +37,8 @@ jobs:
     - name: Windows-specific setup
       if: ${{ matrix.os == 'windows-latest' }}
       run: |
-        choco install cygwin --params "/InstallDir:D:\\Cygwin"
-        $env:CYGWIN_DIR = "D:\\Cygwin"
+        choco install cygwin --params "/InstallDir:D:\Cygwin"
+        $env:CYGWIN_DIR = "D:\Cygwin"
     - name: MacOS-specific setup
       if: ${{ matrix.os == 'macOS-latest' }}
       run: |
