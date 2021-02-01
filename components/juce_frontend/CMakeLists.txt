@@ -162,9 +162,6 @@ else()
     set(CMAKE_MODULE_PATH ${ECM_FIND_MODULE_DIR})
     find_package(XCB REQUIRED COMPONENTS XCB RENDER SHAPE XFIXES)
 
-    set(THREADS_PREFER_PTHREAD_FLAG ON)
-    find_package(Threads REQUIRED)
-
     target_link_libraries(
         Audiobench PRIVATE
         # AudioPluginData           # If we'd created a binary data target, we'd link to it here
@@ -177,6 +174,6 @@ else()
         ffi
         ${XCB_LIBRARIES}
         tinfo
-        Threads::Threads
+        pthread
     )
 endif()
