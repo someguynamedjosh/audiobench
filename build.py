@@ -273,14 +273,15 @@ def check_version():
 
 
 def build_juce6_win():
-    JUCE6_PREFIX = JUCE_FRONTEND_ROOT.joinpath('juce6_built')
+    JUCE6_PREFIX = PROJECT_ROOT.joinpath('dependencies', 'juce6_built')
     slashed_prefix = str(JUCE6_PREFIX).replace('\\', '/')
     set_env('JUCE6_PREFIX', slashed_prefix)
     mkdir(JUCE6_PREFIX)
+    working_dir = PROJECT_ROOT.joinpath('dependencies', 'juce')
     command(['cmake', '-Bcmake-build-install', '-DCMAKE_INSTALL_PREFIX={}'.format(
-        slashed_prefix), '-GVisual Studio 16 2019', '-A', 'x64', '-Thost=x64'], working_dir=JUCE_FRONTEND_ROOT.joinpath('juce_git'))
-    command(['cmake', '--build', 'cmake-build-install', '--target',
-             'install'], working_dir=JUCE_FRONTEND_ROOT.joinpath('juce_git'))
+        slashed_prefix), '-GVisual Studio 16 2019', '-A', 'x64', '-Thost=x64'], working_dir=working_dir)
+    command(['cmake', '--build', 'cmake-build-install',
+             '--target', 'install'], working_dir=working_dir)
     set_env('JUCE_DIR', str(JUCE6_PREFIX.joinpath(
         'lib', 'cmake', 'JUCE-6.0.0')).replace('\\', '/'))
 
