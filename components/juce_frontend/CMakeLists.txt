@@ -177,5 +177,6 @@ else()
         ffi
         ${XCB_LIBRARIES}
         tinfo
+        Threads::Threads
     )
 endif()
