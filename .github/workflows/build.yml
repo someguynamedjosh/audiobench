@@ -24,7 +24,8 @@ jobs:
   build:
     strategy:
       matrix:
-        os: ['ubuntu-latest', 'windows-latest', 'macOS-latest']
+        os: ['windows-latest']
+        # os: ['ubuntu-latest', 'windows-latest', 'macOS-latest']
     name: Build on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     steps:
@@ -47,7 +48,6 @@ jobs:
       run: |
         choco install cygwin --params "/InstallDir:D:\Cygwin"
         $Env:CYGWIN_DIR = "D:\Cygwin"
-        $Env:LIBCLANG_PATH = "C:/msys64/mingw64/bin/libclang.dll"
     - name: MacOS-specific setup
       if: ${{ matrix.os == 'macOS-latest' }}
       run: |
@@ -62,6 +62,7 @@ jobs:
     - name: Build
       run: python build.py juce_frontend --release --github-runner
       env:
+        LIBCLANG_PATH: C:/msys64/mingw64/bin/libclang.dll
         CYGWIN_DIR: D:\Cygwin
     - name: Upload Artifacts
       uses: actions/upload-artifact@v2
