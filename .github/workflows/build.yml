@@ -47,6 +47,7 @@ jobs:
       run: |
         choco install cygwin --params "/InstallDir:D:\Cygwin"
         $Env:CYGWIN_DIR = "D:\Cygwin"
+        $Env:LIBCLANG_PATH = "C:/msys64/mingw64/bin/libclang.dll"
     - name: MacOS-specific setup
       if: ${{ matrix.os == 'macOS-latest' }}
       run: |
@@ -62,7 +63,6 @@ jobs:
       run: python build.py juce_frontend --release --github-runner
       env:
         CYGWIN_DIR: D:\Cygwin
-        LIBCLANG_PATH: C:/msys64/mingw64/bin/libclang.dll
     - name: Upload Artifacts
       uses: actions/upload-artifact@v2
       with:
