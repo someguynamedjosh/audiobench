@@ -34,11 +34,6 @@ jobs:
     - uses: actions/setup-python@v2
       with:
         python-version: '3.7'
-    - name: Windows-specific setup
-      if: ${{ matrix.os == 'windows-latest' }}
-      run: |
-        choco install cygwin --params "/InstallDir:D:\Cygwin"
-        $Env:CYGWIN_DIR = "D:\Cygwin"
     - name: Windows debugging
       if: ${{ matrix.os == 'windows-latest' }}
       run: |
@@ -47,6 +42,11 @@ jobs:
         ls C:\msys64\mingw64
         ls C:\msys64\mingw64\bin
         ls C:\msys64\mingw64\lib
+    - name: Windows-specific setup
+      if: ${{ matrix.os == 'windows-latest' }}
+      run: |
+        choco install cygwin --params "/InstallDir:D:\Cygwin"
+        $Env:CYGWIN_DIR = "D:\Cygwin"
     - name: MacOS-specific setup
       if: ${{ matrix.os == 'macOS-latest' }}
       run: |
@@ -62,7 +62,7 @@ jobs:
       run: python build.py juce_frontend --release --github-runner
       env:
         CYGWIN_DIR: D:\Cygwin
-        LIB_CLANG_PATH: C:\msys64\mingw64\lib\libclang.dll
+        LIB_CLANG_PATH: C:/msys64/mingw64/bin/libclang.dll
     - name: Upload Artifacts
       uses: actions/upload-artifact@v2
       with:
