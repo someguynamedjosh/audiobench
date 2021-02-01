@@ -39,6 +39,14 @@ jobs:
       run: |
         choco install cygwin --params "/InstallDir:D:\Cygwin"
         $Env:CYGWIN_DIR = "D:\Cygwin"
+    - name: Windows debugging
+      if: ${{ matrix.os == 'windows-latest' }}
+      run: |
+        ls C:
+        ls C:\msys64
+        ls C:\msys64\mingw64
+        ls C:\msys64\mingw64\bin
+        ls C:\msys64\mingw64\lib
     - name: MacOS-specific setup
       if: ${{ matrix.os == 'macOS-latest' }}
       run: |
