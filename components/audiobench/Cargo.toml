@@ -16,7 +16,7 @@ crossbeam-channel = "0.5.0"
 crossbeam-utils = "0.8.1"
 directories = "2.0"
 enumflags2 = "0.6"
-jlrs = { git="https://github.com/Taaitaaiger/jlrs", branch="v0.8" }
+jlrs = { git="https://github.com/joshua-maros/jlrs" }
 jlrs-derive = "0.2"
 julia_helper = { path = "../julia_helper" }
 owning_ref = "^0.4.1"

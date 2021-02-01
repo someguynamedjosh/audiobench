@@ -34,19 +34,39 @@ jobs:
     - uses: actions/setup-python@v2
       with:
         python-version: '3.7'
-    - name: MacOS-specific setup
+    - name: Cache LLVM install (Windows only)
+      if: ${{ matrix.os == 'windows-latest' }}
+      id: cache-llvm
+      uses: actions/cache@v2
+      with:
+        path: ${{ runner.temp }}/llvm
+        key: llvm
+    - name: Install LLVM/Clang (Windows only)
+      if: ${{ matrix.os == 'windows-latest' }}
+      uses: KyleMayes/install-llvm-action@v1
+      with:
+        version: 10.0
+        directory: ${{ runner.temp }}/llvm
+        cached: ${{ steps.cache-llvm.outputs.cache-hit }}
+    - name: Build on Windows
+      if: ${{ matrix.os == 'windows-latest' }}
+      run: |
+        python build.py juce_frontend --release --github-runner
+      env:
+        LIBCLANG_PATH: ${{ runner.temp }}/llvm/lib
+    - name: Build on MacOS
       if: ${{ matrix.os == 'macOS-latest' }}
       run: |
         export OPENSSL_ROOT_DIR=$(brew --prefix openssl)
         export OPENSSL_LIB_DIR=$(brew --prefix openssl)"/lib"
         export OPENSSL_INCLUDE_DIR=$(brew --prefix openssl)"/include"
-    - name: Linux-specific setup
+        python build.py juce_frontend --release --github-runner
+    - name: Build on Linux
       if: ${{ matrix.os == 'ubuntu-latest' }}
       run: |
         sudo apt update
         sudo apt -y install libxrandr-dev libxinerama-dev libxcursor-dev libasound-dev extra-cmake-modules libxcb-shape0-dev libxcb-xfixes0-dev
-    - name: Build
-      run: python build.py juce_frontend --release --github-runner
+        python build.py juce_frontend --release --github-runner
     - name: Upload Artifacts
       uses: actions/upload-artifact@v2
       with:

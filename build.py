@@ -44,6 +44,10 @@ def cp(src, dst):
     shutil.copy2(src, dst)
 
 
+def cpdir(src, dst):
+    shutil.copytree(src, dst)
+
+
 def should_skip_dep(name: str, version: int) -> bool:
     """Returns true if the dependency is already set up"""
     mkdir(PROJECT_ROOT.joinpath('dependencies', name))
@@ -164,27 +168,60 @@ def build_juce_frontend():
     standalone_source = artifact_source.joinpath('Standalone')
     vst3_source = artifact_source.joinpath(
         'VST3', 'Audiobench.vst3', 'Contents')
+    au_source = None
+    clib_source = RUST_OUTPUT_DIR.joinpath()
+    julia_source = PROJECT_ROOT.joinpath('dependencies', 'julia')
+
     artifact_target = PROJECT_ROOT.joinpath('artifacts', 'bin')
     standalone_target = artifact_target.joinpath()
     vst3_target = artifact_target.joinpath()
+    au_source = None
+    clib_target = artifact_target.joinpath()
+    julia_target = artifact_target.joinpath()
+
     if ON_WINDOWS:
         standalone_source = standalone_source.joinpath('Audiobench.exe')
+        vst3_source = vst3_source.joinpath('x86_64-win', 'Audiobench.vst3')
+        clib_source = clib_source.joinpath('audiobench_clib.dll')
+        julia_source = julia_source.joinpath('bin', 'libjulia.dll')
+
         standalone_target = standalone_target.joinpath(
             'Audiobench_Windows_x64_Standalone.exe')
-        vst3_source = vst3_source.joinpath('x86_64-win', 'Audiobench.vst3')
         vst3_target = vst3_target.joinpath('Audiobench_Windows_x64_VST3.vst3')
+        clib_target = clib_target.joinpath('audiobench_clib.dll')
+        julia_target = julia_target.joinpath('julia.dll')
+    
+    if ON_MAC:
+        standalone_source = standalone_source.joinpath('Audiobench.app')
+        vst3_source = artifact_source.joinpath('VST3', 'Audiobench.vst3')
+        au_source = artifact_source.joinpath('AU', 'Audiobench.component')
+        clib_source = clib_source.joinpath('libaudiobench_clib.dylib')
+        julia_source = julia_source.joinpath('lib', 'libjulia.dylib')
+
+        standalone_target = standalone_target.joinpath(
+            'Audiobench_MacOS_x64_Standalone.app')
+        vst3_target = standalone_target.joinpath(
+            'Audiobench_MacOS_x64_VST3.vst3')
+        au_target = standalone_target.joinpath(
+            'Audiobench_MacOS_x64_AU.component')
+        clib_target = clib_target.joinpath('libaudiobench_clib.dylib')
+        julia_target = julia_target.joinpath('libjulia.dylib')
+
     if ON_LINUX:
         standalone_source = standalone_source.joinpath('Audiobench')
+        vst3_source = vst3_source.joinpath('x86_64-linux', 'Audiobench.so')
+        clib_source = clib_source.joinpath('libaudiobench_clib.so')
+        julia_source = julia_source.joinpath('lib', 'libjulia.so')
+
         standalone_target = standalone_target.joinpath(
             'Audiobench_Linux_x64_Standalone.bin')
-        vst3_source = vst3_source.joinpath('x86_64-linux', 'Audiobench.so')
         vst3_target = vst3_target.joinpath('Audiobench_Linux_x64_VST3.vst3')
+        clib_target = clib_target.joinpath('libaudiobench_clib.so')
+        julia_target = julia_target.joinpath('libjulia.so')
 
     # Mac requires an extra packaging step whose output goes directly in artifacts/bin/. Other
     # platforms require copying the artifacts to the folder.
     if ON_MAC:
-        vst3_source = artifact_source.joinpath('VST3')
-        au_source = artifact_source.joinpath('AU')
         # Add DS_Store and bg,png
         # NOTE: The DS_Store_VST3 file is just a copy of the Standalone file, never got around to
         # making an actual version of it.
@@ -197,15 +234,20 @@ def build_juce_frontend():
         #     cp(ds_store_path, source.joinpath('.DS_Store'))
 
         # Convert everything to zips.
-        command(['zip', '-r', artifact_target.joinpath(
-            'Audiobench_MacOS_x64_Standalone.zip'), 'Audiobench.app'], working_dir=standalone_source)
-        command(['zip', '-r', artifact_target.joinpath(
-            'Audiobench_MacOS_x64_VST3.zip'), 'Audiobench.vst3'], working_dir=vst3_source)
-        command(['zip', '-r', artifact_target.joinpath(
-            'Audiobench_MacOS_x64_AU.zip'), 'Audiobench.component'], working_dir=au_source)
+        # command(['zip', '-r', artifact_target.joinpath(
+        #     'Audiobench_MacOS_x64_Standalone.zip'), 'Audiobench.app'], working_dir=standalone_source)
+        # command(['zip', '-r', artifact_target.joinpath(
+        #     'Audiobench_MacOS_x64_VST3.zip'), 'Audiobench.vst3'], working_dir=vst3_source)
+        # command(['zip', '-r', artifact_target.joinpath(
+        #     'Audiobench_MacOS_x64_AU.zip'), 'Audiobench.component'], working_dir=au_source)
+        cpdir(standalone_source, standalone_target)
+        cpdir(vst3_source, vst3_target)
+        cpdir(au_source, au_target)
     else:
         cp(standalone_source, standalone_target)
         cp(vst3_source, vst3_target)
+    cp(clib_source, clib_target)
+    cp(julia_source, julia_target)
 
 
 def run_standalone():
@@ -273,14 +315,15 @@ def check_version():
 
 
 def build_juce6_win():
-    JUCE6_PREFIX = JUCE_FRONTEND_ROOT.joinpath('juce6_built')
+    JUCE6_PREFIX = PROJECT_ROOT.joinpath('dependencies', 'juce6_built')
     slashed_prefix = str(JUCE6_PREFIX).replace('\\', '/')
     set_env('JUCE6_PREFIX', slashed_prefix)
     mkdir(JUCE6_PREFIX)
+    working_dir = PROJECT_ROOT.joinpath('dependencies', 'juce')
     command(['cmake', '-Bcmake-build-install', '-DCMAKE_INSTALL_PREFIX={}'.format(
-        slashed_prefix), '-GVisual Studio 16 2019', '-A', 'x64', '-Thost=x64'], working_dir=JUCE_FRONTEND_ROOT.joinpath('juce_git'))
-    command(['cmake', '--build', 'cmake-build-install', '--target',
-             'install'], working_dir=JUCE_FRONTEND_ROOT.joinpath('juce_git'))
+        slashed_prefix), '-GVisual Studio 16 2019', '-A', 'x64', '-Thost=x64'], working_dir=working_dir)
+    command(['cmake', '--build', 'cmake-build-install',
+             '--target', 'install'], working_dir=working_dir)
     set_env('JUCE_DIR', str(JUCE6_PREFIX.joinpath(
         'lib', 'cmake', 'JUCE-6.0.0')).replace('\\', '/'))
 
@@ -416,7 +459,7 @@ JOBS = {
     'deps': Job('Download or build necessary dependencies', ['dep_julia', 'dep_julia_packages', 'dep_juce'], get_dependencies),
     'env': Job('Run a terminal after setting variables and installing deps', ['deps'], open_terminal),
     'remove_juce_splash': Job('Remove JUCE splash screen (Audiobench is GPLv3)', [], remove_juce_splash),
-    'clib': Job('Build Audiobench as a static library', ['deps'], build_clib),
+    'clib': Job('Build Audiobench as a dynamic library', ['deps'], build_clib),
     'juce_frontend': Job('Build the JUCE frontend for Audiobench', ['remove_juce_splash', 'clib'], build_juce_frontend),
     'run': Job('Run the standalone version of Audiobench', ['juce_frontend'], run_standalone),
     'test': Job('Test all Rust components in the project', ['deps'], run_tests),
