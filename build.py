@@ -106,8 +106,6 @@ JUCE_FRONTEND_ROOT = PROJECT_ROOT.joinpath('components', 'juce_frontend')
 # Tooling on windows expects forward slashes.
 set_env('PROJECT_ROOT', str(PROJECT_ROOT).replace('\\', '/'))
 set_env('RUST_OUTPUT_DIR', str(RUST_OUTPUT_DIR).replace('\\', '/'))
-set_env('LLVM_CONFIG_PATH', str(PROJECT_ROOT.joinpath(
-    'dependencies', 'llvm', 'bin', 'llvm-config')).replace('\\', '/'))
 set_env('JULIA_DIR', str(PROJECT_ROOT.joinpath(
     'dependencies', 'julia')).replace('\\', '/'))
 if not ON_WINDOWS:
@@ -336,40 +334,6 @@ def get_julia_packages():
     mark_dep_complete('julia_packages', 1)
 
 
-def get_llvm():
-    if should_skip_dep('llvm', 2):
-        return
-    print('Setting up LLVM 11...')
-    checkout_path = Path('dependencies', 'llvm_src')
-    mkdir(checkout_path)
-    args = ['git', 'clone', '--depth', '1',
-            'https://github.com/llvm/llvm-project', '-b', 'release/11.x']
-    if ON_WINDOWS:
-        args += ['--config', 'core.autocrlf=false']
-    command(args, checkout_path)
-
-    print('Running cmake to configure build...')
-    source_path = checkout_path.joinpath('llvm-project')
-    cmake_path = source_path.joinpath('build')
-    mkdir(cmake_path)
-    cmake_command = ['cmake']
-    if ON_WINDOWS:
-        cmake_command += ['-GVisual Studio 16 2019']
-    cmake_command += ['../llvm']
-    command(cmake_command, cmake_path)
-
-    print('Building LLVM...')
-    command(['cmake', '--build', '.'], cmake_path)
-
-    print('Installing built files...')
-    mkdir(Path('dependencies', 'llvm'))
-    prefix = Path('dependencies', 'llvm').absolute()
-    command(['cmake', '-DCMAKE_INSTALL_PREFIX=' + str(prefix),
-             '-P', 'cmake_install.cmake'], cmake_path)
-    rmdir(checkout_path)
-    mark_dep_complete('llvm', 2)
-
-
 def get_julia():
     if should_skip_dep('julia', 1):
         return
@@ -397,7 +361,8 @@ def get_julia():
         print('Extracting...')
         command(['hdiutil', 'attach', target])
         rmdir('dependencies/julia')
-        command(['cp', '-r', '/Volumes/Julia-1.5.3/Julia-1.5.app/Contents/Resources/julia/', 'dependencies/julia'])
+        command(
+            ['cp', '-r', '/Volumes/Julia-1.5.3/Julia-1.5.app/Contents/Resources/julia/', 'dependencies/julia'])
         rmdir(target)
     if ON_LINUX:
         url = 'https://julialang-s3.julialang.org/bin/linux/x64/1.5/julia-1.5.3-linux-x86_64.tar.gz'
@@ -447,9 +412,8 @@ JOBS = {
     'clean': Job('Delete all artifacts and intermediate files', [], clean),
     'dep_julia': Job('Build the "julia" dependency', [], get_julia),
     'dep_julia_packages': Job('Build the "julia_packages" dependency', [], get_julia_packages),
-    'dep_llvm': Job('Build the "llvm" dependency', [], get_llvm),
     'dep_juce': Job('Build the "juce" dependency', [], get_juce),
-    'deps': Job('Download or build necessary dependencies', ['dep_julia', 'dep_julia_packages', 'dep_llvm', 'dep_juce'], get_dependencies),
+    'deps': Job('Download or build necessary dependencies', ['dep_julia', 'dep_julia_packages', 'dep_juce'], get_dependencies),
     'env': Job('Run a terminal after setting variables and installing deps', ['deps'], open_terminal),
     'remove_juce_splash': Job('Remove JUCE splash screen (Audiobench is GPLv3)', [], remove_juce_splash),
     'clib': Job('Build Audiobench as a static library', ['deps'], build_clib),

@@ -21,66 +21,36 @@ jobs:
     - name: Check version numbers
       run: ./build.py check_version
 
-  build-windows:
-    runs-on: windows-latest
+  build:
+    strategy:
+      matrix:
+        os: ['ubuntu-latest', 'windows-latest', 'macOS-latest']
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v2
       with:
         lfs: 'true' 
-    - name: Install Dependencies
-      run: |
-        echo "Prebuilt LLVM development libraries for Windows because no one else has them apparently."
-        git clone "https://gitlab.com/Code_Cube/llvm-win.git" "C:\LLVM"
-    - name: Build
-      run: python build.py juce_frontend --release --github-runner
-      env:
-        LLVM_SYS_70_PREFIX: C:\LLVM\ 
-    - name: Upload Artifacts
-      uses: actions/upload-artifact@v2
+    - uses: actions/setup-python@v2
       with:
-        name: artifacts-bin-windows
-        path: artifacts/bin/
-    
-  build-macos:
-    runs-on: macos-latest
-    steps:
-    - uses: actions/checkout@v2
-      with:
-        lfs: 'true' 
-    - name: Install Dependencies
-      run: |
-        brew install llvm@7
-    - name: Build
+        python-version: '3.7'
+    - name: MacOS-specific setup
+      if: ${{ matrix.os == 'macOS-latest' }}
       run: |
         export OPENSSL_ROOT_DIR=$(brew --prefix openssl)
         export OPENSSL_LIB_DIR=$(brew --prefix openssl)"/lib"
         export OPENSSL_INCLUDE_DIR=$(brew --prefix openssl)"/include"
-        ./build.py juce_frontend --release --github-runner
-      env:
-        LLVM_SYS_70_PREFIX: /usr/local/Cellar/llvm@7/7.1.0_2
-    - name: Upload Artifacts
-      uses: actions/upload-artifact@v2
-      with:
-        name: artifacts-bin-macos
-        path: artifacts/bin/
-    
-  build-linux:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v2
-      with:
-        lfs: 'true' 
-    - name: Install Dependencies
+    - name: Linux-specific setup
+      if: ${{ matrix.os == 'ubuntu-latest' }}
       run: |
         sudo apt update
-        sudo apt -y install llvm-7 libxrandr-dev libxinerama-dev libxcursor-dev libasound-dev extra-cmake-modules libxcb-shape0-dev libxcb-xfixes0-dev
-        export LLVM_SYS_70_PREFIX=/usr/bin/llvm-7/
+        sudo apt -y install libxrandr-dev libxinerama-dev libxcursor-dev libasound-dev extra-cmake-modules libxcb-shape0-dev libxcb-xfixes0-dev
     - name: Build
-      run: ./build.py juce_frontend --release --github-runner
+      run: python build.py juce_frontend --release --github-runner
     - name: Upload Artifacts
       uses: actions/upload-artifact@v2
       with:
-        name: artifacts-bin-linux
+        name: artifacts-bin-${{ matrix.os }}
         path: artifacts/bin/
   
   build-book:
@@ -102,7 +72,7 @@ jobs:
         path: docs/book/book/
     
   deploy-site:
-    needs: [build-windows, build-macos, build-linux, build-book]
+    needs: [build, build-book]
     runs-on: ubuntu-latest
     if: github.event_name == 'push'
     steps:
@@ -118,15 +88,15 @@ jobs:
         cp -r docs/website/src/* website/
     - uses: actions/download-artifact@v2
       with:
-        name: artifacts-bin-windows
+        name: artifacts-bin-windows-latest
         path: website/bin/
     - uses: actions/download-artifact@v2
       with:
-        name: artifacts-bin-macos
+        name: artifacts-bin-macOS-latest
         path: website/bin/
     - uses: actions/download-artifact@v2
       with:
-        name: artifacts-bin-linux
+        name: artifacts-bin-ubuntu-latest
         path: website/bin/
     - uses: actions/download-artifact@v2
       with:
