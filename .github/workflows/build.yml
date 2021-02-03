@@ -38,11 +38,7 @@ jobs:
     - name: Windows-specific setup
       if: ${{ matrix.os == 'windows-latest' }}
       run: |
-        echo "$env:Path;C:\msys64\mingw64\bin" >> $env:GITHUB_PATH
-    - name: Windows-specific setup
-      if: ${{ matrix.os == 'windows-latest' }}
-      run: |
-        echo $env:Path
+        # echo "$env:Path;C:\msys64\mingw64\bin" >> $env:GITHUB_PATH
         choco install cygwin --params "/InstallDir:D:\Cygwin"
     - name: MacOS-specific setup
       if: ${{ matrix.os == 'macOS-latest' }}
@@ -57,10 +53,9 @@ jobs:
         sudo apt -y install libxrandr-dev libxinerama-dev libxcursor-dev libasound-dev extra-cmake-modules libxcb-shape0-dev libxcb-xfixes0-dev
     - name: Build
       run: |
-        echo $Env:Path
+        $Env:Path += ';C:\msys64\mingw64\bin;'
         python build.py juce_frontend --release --github-runner
       env:
-        LIBCLANG_PATH: C:/msys64/mingw64/bin/libclang.dll
         CYGWIN_DIR: D:\Cygwin
     - name: Upload Artifacts
       uses: actions/upload-artifact@v2
