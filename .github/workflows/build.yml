@@ -38,8 +38,11 @@ jobs:
     - name: Windows-specific setup
       if: ${{ matrix.os == 'windows-latest' }}
       run: |
-        powershell -Command "[System.Environment]::SetEnvironmentVariable('Path', '$Env:Path;C:\msys64\mingw64\bin;', [System.EnvironmentVariableTarget]::User)"
-        echo $Env:Path
+        [System.Environment]::SetEnvironmentVariable('Path', '$env:Path;C:\msys64\mingw64\bin;', 'User')
+    - name: Windows-specific setup
+      if: ${{ matrix.os == 'windows-latest' }}
+      run: |
+        echo $env:Path
         choco install cygwin --params "/InstallDir:D:\Cygwin"
     - name: MacOS-specific setup
       if: ${{ matrix.os == 'macOS-latest' }}
