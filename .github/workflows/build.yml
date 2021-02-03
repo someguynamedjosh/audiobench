@@ -38,10 +38,9 @@ jobs:
     - name: Windows-specific setup
       if: ${{ matrix.os == 'windows-latest' }}
       run: |
-        echo $GITHUB_PATH
         echo $env:GITHUB_PATH
-        echo $env:GithubPath
-        echo '$env:Path;C:\msys64\mingw64\bin' >> $env:GITHUB_PATH
+        # echo '$env:Path;C:\msys64\mingw64\bin' >> $env:GITHUB_PATH
+        echo 'asoldjflkasjdflaksjdflakjsdflkjasdlkf' >> $env:GITHUB_PATH
     - name: Windows-specific setup
       if: ${{ matrix.os == 'windows-latest' }}
       run: |
