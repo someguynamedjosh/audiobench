@@ -35,19 +35,13 @@ jobs:
     - uses: actions/setup-python@v2
       with:
         python-version: '3.7'
-    - name: Windows debugging
-      if: ${{ matrix.os == 'windows-latest' }}
-      run: |
-        ls C:
-        ls C:\msys64
-        ls C:\msys64\mingw64
-        ls C:\msys64\mingw64\bin
-        ls C:\msys64\mingw64\lib
     - name: Windows-specific setup
       if: ${{ matrix.os == 'windows-latest' }}
       run: |
         choco install cygwin --params "/InstallDir:D:\Cygwin"
         $Env:CYGWIN_DIR = "D:\Cygwin"
+        $Env:Path = "C:\msys64\mingw64\bin;$Env:Path"
+        echo $Env:Path
     - name: MacOS-specific setup
       if: ${{ matrix.os == 'macOS-latest' }}
       run: |
