@@ -41,7 +41,6 @@ jobs:
         choco install cygwin --params "/InstallDir:D:\Cygwin"
         $Env:CYGWIN_DIR = "D:\Cygwin"
         $Env:Path = "C:\msys64\mingw64\bin;$Env:Path"
-        echo $Env:Path
     - name: MacOS-specific setup
       if: ${{ matrix.os == 'macOS-latest' }}
       run: |
@@ -54,7 +53,10 @@ jobs:
         sudo apt update
         sudo apt -y install libxrandr-dev libxinerama-dev libxcursor-dev libasound-dev extra-cmake-modules libxcb-shape0-dev libxcb-xfixes0-dev
     - name: Build
-      run: python build.py juce_frontend --release --github-runner
+      run: |
+        $Env:Path = "C:\msys64\mingw64\bin;$Env:Path"
+        echo $Env:Path
+        python build.py juce_frontend --release --github-runner
       env:
         LIBCLANG_PATH: C:/msys64/mingw64/bin/libclang.dll
         CYGWIN_DIR: D:\Cygwin
