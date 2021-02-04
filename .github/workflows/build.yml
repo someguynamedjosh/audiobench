@@ -38,7 +38,14 @@ jobs:
     - name: Windows-specific setup
       if: ${{ matrix.os == 'windows-latest' }}
       run: |
-        # echo "$env:Path;C:\msys64\mingw64\bin" >> $env:GITHUB_PATH
+        mkdir C:\libclang-dlls\
+        cp C:\msys64\mingw64\bin\libffi-7.dll C:\libclang-dlls\
+        cp C:\msys64\mingw64\bin\libgcc_s_seh-1.dll C:\libclang-dlls\
+        cp C:\msys64\mingw64\bin\libLLVM.dll C:\libclang-dlls\
+        cp C:\msys64\mingw64\bin\libstdc++-6.dll C:\libclang-dlls\
+        cp C:\msys64\mingw64\bin\libwinpthread-1.dll C:\libclang-dlls\
+        cp C:\msys64\mingw64\bin\zlib1.dll C:\libclang-dlls\
+        echo "C:\libclang-dlls\" >> $env:GITHUB_PATH
         choco install cygwin --params "/InstallDir:D:\Cygwin"
     - name: MacOS-specific setup
       if: ${{ matrix.os == 'macOS-latest' }}
@@ -53,7 +60,6 @@ jobs:
         sudo apt -y install libxrandr-dev libxinerama-dev libxcursor-dev libasound-dev extra-cmake-modules libxcb-shape0-dev libxcb-xfixes0-dev
     - name: Build
       run: |
-        $Env:Path += ';C:\msys64\mingw64\bin;'
         python build.py juce_frontend --release --github-runner
       env:
         CYGWIN_DIR: D:\Cygwin
