@@ -38,14 +38,15 @@ jobs:
     - name: Windows-specific setup
       if: ${{ matrix.os == 'windows-latest' }}
       run: |
-        mkdir C:\libclang-dlls\
-        cp C:\msys64\mingw64\bin\libffi-7.dll C:\libclang-dlls\
-        cp C:\msys64\mingw64\bin\libgcc_s_seh-1.dll C:\libclang-dlls\
-        cp C:\msys64\mingw64\bin\libLLVM.dll C:\libclang-dlls\
-        cp C:\msys64\mingw64\bin\libstdc++-6.dll C:\libclang-dlls\
-        cp C:\msys64\mingw64\bin\libwinpthread-1.dll C:\libclang-dlls\
-        cp C:\msys64\mingw64\bin\zlib1.dll C:\libclang-dlls\
-        echo "C:\libclang-dlls\" >> $env:GITHUB_PATH
+        # mkdir C:\libclang-dlls\
+        # cp C:\msys64\mingw64\bin\libffi-7.dll C:\libclang-dlls\
+        # cp C:\msys64\mingw64\bin\libgcc_s_seh-1.dll C:\libclang-dlls\
+        # cp C:\msys64\mingw64\bin\libLLVM.dll C:\libclang-dlls\
+        # cp C:\msys64\mingw64\bin\libstdc++-6.dll C:\libclang-dlls\
+        # cp C:\msys64\mingw64\bin\libwinpthread-1.dll C:\libclang-dlls\
+        # cp C:\msys64\mingw64\bin\zlib1.dll C:\libclang-dlls\
+        # echo "C:\libclang-dlls\" >> $env:GITHUB_PATH
+        echo "LIBCLANG_PATH=$((gcm clang).source -replace "clang.exe")" >> $env:GITHUB_ENV
         choco install cygwin --params "/InstallDir:D:\Cygwin"
     - name: MacOS-specific setup
       if: ${{ matrix.os == 'macOS-latest' }}
