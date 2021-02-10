@@ -62,21 +62,20 @@ target_include_directories(
 )
 
 if(WIN32)
-    add_library(julia "$ENV{PROJECT_ROOT}/dependencies/julia/bin/libjulia.dll")
+    add_library(julia SHARED IMPORTED GLOBAL)
     set_target_properties(julia PROPERTIES
-        LINKER_LANGUAGE C
         IMPORTED_LOCATION "$ENV{PROJECT_ROOT}/dependencies/julia/bin/libjulia.dll"
         IMPORTED_IMPLIB "$ENV{PROJECT_ROOT}/dependencies/julia/lib/libjulia.dll.a"
         INTERFAFCE_INCLUDE_DIRECTORIES "$ENV{PROJECT_ROOT}/dependencies/julia/include/"
     )
 elseif(APPLE)
-    add_library(julia SHARED IMPORTED)
+    add_library(julia SHARED IMPORTED GLOBAL)
     set_target_properties(julia PROPERTIES
         IMPORTED_LOCATION "$ENV{PROJECT_ROOT}/dependencies/julia/lib/libjulia.dylib"
         INTERFAFCE_INCLUDE_DIRECTORIES "$ENV{PROJECT_ROOT}/dependencies/julia/include/"
     )
 else()
-    add_library(julia SHARED IMPORTED)
+    add_library(julia SHARED IMPORTED GLOBAL)
     set_target_properties(julia PROPERTIES
         IMPORTED_LOCATION "$ENV{PROJECT_ROOT}/dependencies/julia/lib/libjulia.so"
         INTERFAFCE_INCLUDE_DIRECTORIES "$ENV{PROJECT_ROOT}/dependencies/julia/include/"
