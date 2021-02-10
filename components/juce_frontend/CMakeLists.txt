@@ -135,6 +135,7 @@ if(WIN32)
         # AudioPluginData           # If we'd created a binary data target, we'd link to it here
         juce::juce_audio_utils
         "$ENV{RUST_OUTPUT_DIR}/audiobench_clib.lib"
+        julia
         Crypt32
         Ncrypt
         Secur32
@@ -149,6 +150,7 @@ elseif(APPLE)
         # AudioPluginData           # If we'd created a binary data target, we'd link to it here
         juce::juce_audio_utils
         "$ENV{RUST_OUTPUT_DIR}/libaudiobench_clib.a"
+        julia
         ${CURL_LIBRARIES}
         ${SECURITY_LIBRARY}
         ffi
