@@ -760,7 +760,7 @@ checksum = "dc6f3ad7b9d11a0c00842ff8de1b60ee58661048eb8049ed33c73594f359d7e6"
 [[package]]
 name = "jl-sys"
 version = "0.10.0"
-source = "git+https://github.com/joshua-maros/jlrs?rev=0b727663918b21d51d6f499b00e0f3e73a1ed456#0b727663918b21d51d6f499b00e0f3e73a1ed456"
+source = "git+https://github.com/joshua-maros/jlrs#0f05c16ea90b3e92a882e9a4e215e002a15d4859"
 dependencies = [
  "bindgen",
 ]
@@ -768,10 +768,10 @@ dependencies = [
 [[package]]
 name = "jlrs"
 version = "0.8.0"
-source = "git+https://github.com/joshua-maros/jlrs?rev=0b727663918b21d51d6f499b00e0f3e73a1ed456#0b727663918b21d51d6f499b00e0f3e73a1ed456"
+source = "git+https://github.com/joshua-maros/jlrs#0f05c16ea90b3e92a882e9a4e215e002a15d4859"
 dependencies = [
  "jl-sys",
- "jlrs-derive 0.2.0 (git+https://github.com/joshua-maros/jlrs?rev=0b727663918b21d51d6f499b00e0f3e73a1ed456)",
+ "jlrs-derive 0.2.0 (git+https://github.com/joshua-maros/jlrs)",
  "smallvec",
 ]
 
@@ -789,7 +789,7 @@ dependencies = [
 [[package]]
 name = "jlrs-derive"
 version = "0.2.0"
-source = "git+https://github.com/joshua-maros/jlrs?rev=0b727663918b21d51d6f499b00e0f3e73a1ed456#0b727663918b21d51d6f499b00e0f3e73a1ed456"
+source = "git+https://github.com/joshua-maros/jlrs#0f05c16ea90b3e92a882e9a4e215e002a15d4859"
 dependencies = [
  "proc-macro2",
  "quote",
