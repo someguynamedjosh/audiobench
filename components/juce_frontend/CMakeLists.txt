@@ -62,6 +62,22 @@ target_include_directories(
 )
 
 add_library(julia SHARED IMPORTED)
+if(WIN32)
+    set_target_properties(julia PROPERTIES
+        IMPORTED_LOCATION "$ENV{PROJECT_ROOT}/dependencies/julia/lib/libjulia.dll.a"
+        INTERFAFCE_INCLUDE_DIRECTORIES "$ENV{PROJECT_ROOT}/dependencies/julia/include/"
+    )
+elseif(APPLE)
+    set_target_properties(julia PROPERTIES
+        IMPORTED_LOCATION "$ENV{PROJECT_ROOT}/dependencies/julia/lib/libjulia.dylib"
+        INTERFAFCE_INCLUDE_DIRECTORIES "$ENV{PROJECT_ROOT}/dependencies/julia/include/"
+    )
+else()
+    set_target_properties(julia PROPERTIES
+        IMPORTED_LOCATION "$ENV{PROJECT_ROOT}/dependencies/julia/lib/libjulia.so"
+        INTERFAFCE_INCLUDE_DIRECTORIES "$ENV{PROJECT_ROOT}/dependencies/julia/include/"
+    )
+endif()
 
 # `juce_generate_juce_header` will create a JuceHeader.h for a given target, which will be generated
 # into your build tree. This should be included with `#include <JuceHeader.h>`. The include path for
@@ -113,24 +129,6 @@ target_compile_definitions(
 # here too. This is a standard CMake command.
 
 if(WIN32)
-    # Statically link visual c++ runtime so it doesn't inexplicably crash if the user
-    # hasn't installed msvcrt on their system.
-    set_property(TARGET Audiobench PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded")
-    # And of course those changes don't propogate to the other targets because that would be too 
-    # easy. Don't worry, I've already made the necessary blood sacrifices to the daemons of 
-    # hard-coding and code duplication.
-    set_property(TARGET Audiobench_Standalone PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded")
-    set_property(TARGET Audiobench_VST3 PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded")
-    # And yet something still tries to drag in the dynamically-linked library.
-    set_property(TARGET Audiobench PROPERTY LINK_FLAGS "/NODEFAULTLIB:MSVCRT")
-    set_property(TARGET Audiobench_Standalone PROPERTY LINK_FLAGS "/NODEFAULTLIB:MSVCRT")
-    set_property(TARGET Audiobench_VST3 PROPERTY LINK_FLAGS "/NODEFAULTLIB:MSVCRT")
-
-    set_target_properties(julia PROPERTIES
-        IMPORTED_LOCATION "$ENV{PROJECT_ROOT}/dependencies/julia/lib/libjulia.dll.a"
-        INTERFAFCE_INCLUDE_DIRECTORIES "$ENV{PROJECT_ROOT}/dependencies/julia/include/"
-    )
-
     target_link_libraries(
         Audiobench PRIVATE
         # AudioPluginData           # If we'd created a binary data target, we'd link to it here
@@ -144,11 +142,6 @@ if(WIN32)
         userenv
     )
 elseif(APPLE)
-    set_target_properties(julia PROPERTIES
-        IMPORTED_LOCATION "$ENV{PROJECT_ROOT}/dependencies/julia/lib/libjulia.dylib"
-        INTERFAFCE_INCLUDE_DIRECTORIES "$ENV{PROJECT_ROOT}/dependencies/julia/include/"
-    )
-
     find_package(CURL REQUIRED)
     find_library(SECURITY_LIBRARY Security)
     target_link_libraries(
@@ -169,11 +162,6 @@ else()
     find_package(ECM REQUIRED NO_MODULE)
     set(CMAKE_MODULE_PATH ${ECM_FIND_MODULE_DIR})
     find_package(XCB REQUIRED COMPONENTS XCB RENDER SHAPE XFIXES)
-
-    set_target_properties(julia PROPERTIES
-        IMPORTED_LOCATION "$ENV{PROJECT_ROOT}/dependencies/julia/lib/libjulia.so"
-        INTERFAFCE_INCLUDE_DIRECTORIES "$ENV{PROJECT_ROOT}/dependencies/julia/include/"
-    )
 
     target_link_libraries(
         Audiobench PRIVATE
