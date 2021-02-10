@@ -62,10 +62,6 @@ target_include_directories(
 )
 
 add_library(julia SHARED IMPORTED)
-set_target_properties(julia PROPERTIES
-    IMPORTED_LOCATION "$ENV{PROJECT_ROOT}/dependencies/julia/lib/libjulia.so"
-    INTERFAFCE_INCLUDE_DIRECTORIES "$ENV{PROJECT_ROOT}/dependencies/julia/include/"
-)
 
 # `juce_generate_juce_header` will create a JuceHeader.h for a given target, which will be generated
 # into your build tree. This should be included with `#include <JuceHeader.h>`. The include path for
@@ -130,6 +126,11 @@ if(WIN32)
     set_property(TARGET Audiobench_Standalone PROPERTY LINK_FLAGS "/NODEFAULTLIB:MSVCRT")
     set_property(TARGET Audiobench_VST3 PROPERTY LINK_FLAGS "/NODEFAULTLIB:MSVCRT")
 
+    set_target_properties(julia PROPERTIES
+        IMPORTED_LOCATION "$ENV{PROJECT_ROOT}/dependencies/julia/lib/libjulia.dll.a"
+        INTERFAFCE_INCLUDE_DIRECTORIES "$ENV{PROJECT_ROOT}/dependencies/julia/include/"
+    )
+
     target_link_libraries(
         Audiobench PRIVATE
         # AudioPluginData           # If we'd created a binary data target, we'd link to it here
@@ -143,6 +144,11 @@ if(WIN32)
         userenv
     )
 elseif(APPLE)
+    set_target_properties(julia PROPERTIES
+        IMPORTED_LOCATION "$ENV{PROJECT_ROOT}/dependencies/julia/lib/libjulia.dylib"
+        INTERFAFCE_INCLUDE_DIRECTORIES "$ENV{PROJECT_ROOT}/dependencies/julia/include/"
+    )
+
     find_package(CURL REQUIRED)
     find_library(SECURITY_LIBRARY Security)
     target_link_libraries(
@@ -163,6 +169,11 @@ else()
     find_package(ECM REQUIRED NO_MODULE)
     set(CMAKE_MODULE_PATH ${ECM_FIND_MODULE_DIR})
     find_package(XCB REQUIRED COMPONENTS XCB RENDER SHAPE XFIXES)
+
+    set_target_properties(julia PROPERTIES
+        IMPORTED_LOCATION "$ENV{PROJECT_ROOT}/dependencies/julia/lib/libjulia.so"
+        INTERFAFCE_INCLUDE_DIRECTORIES "$ENV{PROJECT_ROOT}/dependencies/julia/include/"
+    )
 
     target_link_libraries(
         Audiobench PRIVATE
