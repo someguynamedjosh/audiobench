@@ -64,7 +64,8 @@ target_include_directories(
 add_library(julia SHARED IMPORTED)
 if(WIN32)
     set_target_properties(julia PROPERTIES
-        IMPORTED_LOCATION "$ENV{PROJECT_ROOT}/dependencies/julia/lib/libjulia.dll.a"
+        IMPORTED_LOCATION "$ENV{PROJECT_ROOT}/dependencies/julia/bin/libjulia.dll"
+        IMPORTED_IMPLIB "$ENV{PROJECT_ROOT}/dependencies/julia/lib/libjulia.dll.a"
         INTERFAFCE_INCLUDE_DIRECTORIES "$ENV{PROJECT_ROOT}/dependencies/julia/include/"
     )
 elseif(APPLE)
