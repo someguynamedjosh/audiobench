@@ -62,7 +62,7 @@ target_include_directories(
 )
 
 if(WIN32)
-    add_library(julia julia.dll)
+    add_library(julia "$ENV{PROJECT_ROOT}/dependencies/julia/bin/libjulia.dll")
     set_target_properties(julia PROPERTIES
         LINKER_LANGUAGE C
         IMPORTED_LOCATION "$ENV{PROJECT_ROOT}/dependencies/julia/bin/libjulia.dll"
