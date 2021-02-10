@@ -60,8 +60,10 @@ jobs:
         # cp C:\msys64\mingw64\bin\libwinpthread-1.dll C:\libclang-dlls\
         # cp C:\msys64\mingw64\bin\zlib1.dll C:\libclang-dlls\
         # echo "C:\libclang-dlls\" >> $env:GITHUB_PATH
+        choco install cygwin --params "/InstallDir:D:\Cygwin"
         python build.py juce_frontend --release --github-runner
       env:
+        CYGWIN_DIR: D:\Cygwin
         LIBCLANG_PATH: ${{ runner.temp }}/llvm/lib
     - name: Build (MacOS-specific)
       if: ${{ matrix.os == 'macOS-latest' }}
