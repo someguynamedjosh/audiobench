@@ -55,24 +55,33 @@ target_include_directories(
     "$ENV{PROJECT_ROOT}/components/audiobench_clib/"
 )
 
+add_library(julia SHARED IMPORTED GLOBAL)
+add_library(audiobench_clib SHARED IMPORTED GLOBAL)
 if(WIN32)
-    add_library(julia SHARED IMPORTED GLOBAL)
     set_target_properties(julia PROPERTIES
         IMPORTED_LOCATION "$ENV{PROJECT_ROOT}/dependencies/julia/bin/libjulia.dll"
         IMPORTED_IMPLIB "$ENV{PROJECT_ROOT}/dependencies/julia/lib/libjulia.dll.a"
         INTERFAFCE_INCLUDE_DIRECTORIES "$ENV{PROJECT_ROOT}/dependencies/julia/include/"
     )
+    set_target_properties(audiobench_clib PROPERTIES
+        IMPORTED_LOCATION "$ENV{RUST_OUTPUT_DIR}/audiobench_clib.dll"
+        IMPORTED_IMPLIB "$ENV{RUST_OUTPUT_DIR}/audiobench_clib.lib"
+    )
 elseif(APPLE)
-    add_library(julia SHARED IMPORTED GLOBAL)
     set_target_properties(julia PROPERTIES
         IMPORTED_LOCATION "$ENV{PROJECT_ROOT}/dependencies/julia/lib/libjulia.dylib"
         INTERFAFCE_INCLUDE_DIRECTORIES "$ENV{PROJECT_ROOT}/dependencies/julia/include/"
     )
+    set_target_properties(audiobench_clib PROPERTIES
+        IMPORTED_LOCATION "$ENV{RUST_OUTPUT_DIR}/libaudiobench_clib.dylib"
+    )
 else()
-    add_library(julia SHARED IMPORTED GLOBAL)
     set_target_properties(julia PROPERTIES
         IMPORTED_LOCATION "$ENV{PROJECT_ROOT}/dependencies/julia/lib/libjulia.so"
         INTERFAFCE_INCLUDE_DIRECTORIES "$ENV{PROJECT_ROOT}/dependencies/julia/include/"
+    )
+    set_target_properties(audiobench_clib PROPERTIES
+        IMPORTED_LOCATION "$ENV{RUST_OUTPUT_DIR}/libaudiobench_clib.so"
     )
 endif()
 
@@ -130,7 +139,7 @@ if(WIN32)
         Audiobench PRIVATE
         # AudioPluginData           # If we'd created a binary data target, we'd link to it here
         juce::juce_audio_utils
-        "$ENV{RUST_OUTPUT_DIR}/audiobench_clib.dll"
+        audiobench_clib
         julia
         Crypt32
         Ncrypt
@@ -145,7 +154,7 @@ elseif(APPLE)
         Audiobench PRIVATE
         # AudioPluginData           # If we'd created a binary data target, we'd link to it here
         juce::juce_audio_utils
-        "$ENV{RUST_OUTPUT_DIR}/libaudiobench_clib.so"
+        audiobench_clib
         julia
         ${CURL_LIBRARIES}
         ${SECURITY_LIBRARY}
@@ -164,7 +173,7 @@ else()
         Audiobench PRIVATE
         # AudioPluginData           # If we'd created a binary data target, we'd link to it here
         juce::juce_audio_utils
-        "$ENV{RUST_OUTPUT_DIR}/libaudiobench_clib.so"
+        audiobench_clib
         julia
         z
         ssl
