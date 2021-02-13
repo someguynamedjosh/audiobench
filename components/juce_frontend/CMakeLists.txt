@@ -65,7 +65,7 @@ if(WIN32)
     )
     set_target_properties(audiobench_clib PROPERTIES
         IMPORTED_LOCATION "$ENV{RUST_OUTPUT_DIR}/audiobench_clib.dll"
-        IMPORTED_IMPLIB "$ENV{RUST_OUTPUT_DIR}/audiobench_clib.lib"
+        IMPORTED_IMPLIB "$ENV{RUST_OUTPUT_DIR}/audiobench_clib.dll.lib"
     )
 elseif(APPLE)
     set_target_properties(julia PROPERTIES
