@@ -246,7 +246,7 @@ def build_installer():
         command(['sh', 'build.sh'], PROJECT_ROOT.joinpath('components', 'installer_linux'))
     else:
         print('Not implemented alskdjlaksdj')
-        exit(1)
+        # exit(1)
 
 
 def run_standalone():
