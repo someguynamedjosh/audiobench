@@ -107,11 +107,18 @@ RUST_OUTPUT_DIR = PROJECT_ROOT.joinpath(
     'target', ['debug', 'release'][DO_RELEASE])
 JUCE_FRONTEND_ROOT = PROJECT_ROOT.joinpath('components', 'juce_frontend')
 
+cargo_toml = open('components/audiobench/Cargo.toml',
+                    'r', encoding='utf8').read()
+version_start = cargo_toml.find('version = "') + len('version = "')
+version_end = cargo_toml.find('"', version_start)
+CRATE_VERSION = cargo_toml[version_start:version_end]
+
 # Tooling on windows expects forward slashes.
 set_env('PROJECT_ROOT', str(PROJECT_ROOT).replace('\\', '/'))
 set_env('RUST_OUTPUT_DIR', str(RUST_OUTPUT_DIR).replace('\\', '/'))
 set_env('JULIA_DIR', str(PROJECT_ROOT.joinpath(
     'dependencies', 'julia')).replace('\\', '/'))
+set_env('CRATE_VERSION', CRATE_VERSION)
 if not ON_WINDOWS:
     set_env('LD_LIBRARY_PATH', get_env('LD_LIBRARY_PATH') + ':' +
             str(PROJECT_ROOT.joinpath('dependencies', 'julia', 'lib')))
@@ -197,7 +204,7 @@ def build_juce_frontend():
             'Audiobench_MacOS_x64_Standalone.app')
         vst3_target = vst3_target.joinpath(
             'Audiobench_MacOS_x64_VST3.vst3')
-        au_target = vst3_target.joinpath(
+        au_target = au_target.joinpath(
             'Audiobench_MacOS_x64_AU.component')
         clib_target = clib_target.joinpath('libaudiobench_clib.dylib')
 
@@ -244,6 +251,8 @@ def build_juce_frontend():
 def build_installer():
     if ON_LINUX:
         command(['sh', 'build.sh'], PROJECT_ROOT.joinpath('components', 'installer_linux'))
+    elif ON_MAC:
+        command(['sh', 'build.sh'], PROJECT_ROOT.joinpath('components', 'installer_macos'))
     else:
         print('Not implemented alskdjlaksdj')
         # exit(1)
@@ -285,12 +294,7 @@ def check_version():
     expected_version = version + 1
     good = True
 
-    cargo_toml = open('components/audiobench/Cargo.toml',
-                      'r', encoding='utf8').read()
-    version_start = cargo_toml.find('version = "') + len('version = "')
-    version_end = cargo_toml.find('"', version_start)
-    cargo_version = cargo_toml[version_start:version_end]
-    minor_version = int(cargo_version.split('.')[1].strip())
+    minor_version = int(CRATE_VERSION.split('.')[1].strip())
     if minor_version != expected_version:
         print('ERROR in components/audiobench/Cargo.toml:')
         print('Expected minor version to be ' +
