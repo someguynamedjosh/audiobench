@@ -44,6 +44,10 @@ def cp(src, dst):
     shutil.copy2(src, dst)
 
 
+def cpdir(src, dst):
+    shutil.copytree(src, dst)
+
+
 def should_skip_dep(name: str, version: int) -> bool:
     """Returns true if the dependency is already set up"""
     mkdir(PROJECT_ROOT.joinpath('dependencies', name))
@@ -218,9 +222,6 @@ def build_juce_frontend():
     # Mac requires an extra packaging step whose output goes directly in artifacts/bin/. Other
     # platforms require copying the artifacts to the folder.
     if ON_MAC:
-        print('alskdjflaksdf not implemented')
-        exit(1)
-        au_source = artifact_source.joinpath('AU')
         # Add DS_Store and bg,png
         # NOTE: The DS_Store_VST3 file is just a copy of the Standalone file, never got around to
         # making an actual version of it.
@@ -233,12 +234,15 @@ def build_juce_frontend():
         #     cp(ds_store_path, source.joinpath('.DS_Store'))
 
         # Convert everything to zips.
-        command(['zip', '-r', artifact_target.joinpath(
-            'Audiobench_MacOS_x64_Standalone.zip'), 'Audiobench.app'], working_dir=standalone_source)
-        command(['zip', '-r', artifact_target.joinpath(
-            'Audiobench_MacOS_x64_VST3.zip'), 'Audiobench.vst3'], working_dir=vst3_source)
-        command(['zip', '-r', artifact_target.joinpath(
-            'Audiobench_MacOS_x64_AU.zip'), 'Audiobench.component'], working_dir=au_source)
+        # command(['zip', '-r', artifact_target.joinpath(
+        #     'Audiobench_MacOS_x64_Standalone.zip'), 'Audiobench.app'], working_dir=standalone_source)
+        # command(['zip', '-r', artifact_target.joinpath(
+        #     'Audiobench_MacOS_x64_VST3.zip'), 'Audiobench.vst3'], working_dir=vst3_source)
+        # command(['zip', '-r', artifact_target.joinpath(
+        #     'Audiobench_MacOS_x64_AU.zip'), 'Audiobench.component'], working_dir=au_source)
+        cpdir(standalone_source, standalone_target)
+        cpdir(vst3_source, vst3_target)
+        cpdir(au_source, au_target)
     else:
         cp(standalone_source, standalone_target)
         cp(vst3_source, vst3_target)
