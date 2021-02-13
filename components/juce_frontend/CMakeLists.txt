@@ -159,7 +159,6 @@ elseif(APPLE)
         ${CURL_LIBRARIES}
         ${SECURITY_LIBRARY}
         ffi
-        tinfo
         z
     )
 else()
