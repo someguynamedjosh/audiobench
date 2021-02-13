@@ -49,30 +49,20 @@ jobs:
         version: 10.0
         directory: ${{ runner.temp }}/llvm
         cached: ${{ steps.cache-llvm.outputs.cache-hit }}
-    - name: Build (Windows-specific)
+    - name: Build on Windows
       if: ${{ matrix.os == 'windows-latest' }}
       run: |
-        # mkdir C:\libclang-dlls\
-        # cp C:\msys64\mingw64\bin\libffi-7.dll C:\libclang-dlls\
-        # cp C:\msys64\mingw64\bin\libgcc_s_seh-1.dll C:\libclang-dlls\
-        # cp C:\msys64\mingw64\bin\libLLVM.dll C:\libclang-dlls\
-        # cp C:\msys64\mingw64\bin\libstdc++-6.dll C:\libclang-dlls\
-        # cp C:\msys64\mingw64\bin\libwinpthread-1.dll C:\libclang-dlls\
-        # cp C:\msys64\mingw64\bin\zlib1.dll C:\libclang-dlls\
-        # echo "C:\libclang-dlls\" >> $env:GITHUB_PATH
-        choco install cygwin --params "/InstallDir:D:\Cygwin"
         python build.py juce_frontend --release --github-runner
       env:
-        CYGWIN_DIR: D:\Cygwin
         LIBCLANG_PATH: ${{ runner.temp }}/llvm/lib
-    - name: Build (MacOS-specific)
+    - name: Build on MacOS
       if: ${{ matrix.os == 'macOS-latest' }}
       run: |
         export OPENSSL_ROOT_DIR=$(brew --prefix openssl)
         export OPENSSL_LIB_DIR=$(brew --prefix openssl)"/lib"
         export OPENSSL_INCLUDE_DIR=$(brew --prefix openssl)"/include"
         python build.py juce_frontend --release --github-runner
-    - name: Build (Linux-specific)
+    - name: Build on Linux
       if: ${{ matrix.os == 'ubuntu-latest' }}
       run: |
         sudo apt update

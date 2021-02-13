@@ -7,12 +7,6 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
     set(MACOS TRUE)
 endif()
 
-# Statically link c++ runtime because installing it is a pain
-if (WIN32)
-    cmake_policy(SET CMP0091 NEW)
-    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded")
-endif()
-
 # The top-level CMakeLists.txt file for a project must contain a literal, direct call to the
 # `project()` command. `project()` sets up some helpful variables that describe source/binary
 # directories, and the current project version. This is a standard CMake command.
@@ -136,7 +130,7 @@ if(WIN32)
         Audiobench PRIVATE
         # AudioPluginData           # If we'd created a binary data target, we'd link to it here
         juce::juce_audio_utils
-        "$ENV{RUST_OUTPUT_DIR}/audiobench_clib.lib"
+        "$ENV{RUST_OUTPUT_DIR}/audiobench_clib.dll"
         julia
         Crypt32
         Ncrypt
@@ -151,7 +145,7 @@ elseif(APPLE)
         Audiobench PRIVATE
         # AudioPluginData           # If we'd created a binary data target, we'd link to it here
         juce::juce_audio_utils
-        "$ENV{RUST_OUTPUT_DIR}/libaudiobench_clib.a"
+        "$ENV{RUST_OUTPUT_DIR}/libaudiobench_clib.so"
         julia
         ${CURL_LIBRARIES}
         ${SECURITY_LIBRARY}
@@ -170,7 +164,7 @@ else()
         Audiobench PRIVATE
         # AudioPluginData           # If we'd created a binary data target, we'd link to it here
         juce::juce_audio_utils
-        "$ENV{RUST_OUTPUT_DIR}/libaudiobench_clib.a"
+        "$ENV{RUST_OUTPUT_DIR}/libaudiobench_clib.so"
         julia
         z
         ssl
