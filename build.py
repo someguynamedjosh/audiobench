@@ -170,54 +170,46 @@ def build_juce_frontend():
         'VST3', 'Audiobench.vst3', 'Contents')
     au_source = None
     clib_source = RUST_OUTPUT_DIR.joinpath()
-    julia_source = PROJECT_ROOT.joinpath('dependencies', 'julia')
 
     artifact_target = PROJECT_ROOT.joinpath('artifacts', 'bin')
     standalone_target = artifact_target.joinpath()
     vst3_target = artifact_target.joinpath()
     au_source = None
     clib_target = artifact_target.joinpath()
-    julia_target = artifact_target.joinpath()
 
     if ON_WINDOWS:
         standalone_source = standalone_source.joinpath('Audiobench.exe')
         vst3_source = vst3_source.joinpath('x86_64-win', 'Audiobench.vst3')
         clib_source = clib_source.joinpath('audiobench_clib.dll')
-        julia_source = julia_source.joinpath('bin', 'libjulia.dll')
 
         standalone_target = standalone_target.joinpath(
             'Audiobench_Windows_x64_Standalone.exe')
         vst3_target = vst3_target.joinpath('Audiobench_Windows_x64_VST3.vst3')
         clib_target = clib_target.joinpath('audiobench_clib.dll')
-        julia_target = julia_target.joinpath('julia.dll')
     
     if ON_MAC:
         standalone_source = standalone_source.joinpath('Audiobench.app')
         vst3_source = artifact_source.joinpath('VST3', 'Audiobench.vst3')
         au_source = artifact_source.joinpath('AU', 'Audiobench.component')
         clib_source = clib_source.joinpath('libaudiobench_clib.dylib')
-        julia_source = julia_source.joinpath('lib', 'libjulia.dylib')
 
         standalone_target = standalone_target.joinpath(
             'Audiobench_MacOS_x64_Standalone.app')
-        vst3_target = standalone_target.joinpath(
+        vst3_target = vst3_target.joinpath(
             'Audiobench_MacOS_x64_VST3.vst3')
-        au_target = standalone_target.joinpath(
+        au_target = vst3_target.joinpath(
             'Audiobench_MacOS_x64_AU.component')
         clib_target = clib_target.joinpath('libaudiobench_clib.dylib')
-        julia_target = julia_target.joinpath('libjulia.dylib')
 
     if ON_LINUX:
         standalone_source = standalone_source.joinpath('Audiobench')
         vst3_source = vst3_source.joinpath('x86_64-linux', 'Audiobench.so')
         clib_source = clib_source.joinpath('libaudiobench_clib.so')
-        julia_source = julia_source.joinpath('lib', 'libjulia.so')
 
         standalone_target = standalone_target.joinpath(
             'Audiobench_Linux_x64_Standalone.bin')
         vst3_target = vst3_target.joinpath('Audiobench_Linux_x64_VST3.vst3')
         clib_target = clib_target.joinpath('libaudiobench_clib.so')
-        julia_target = julia_target.joinpath('libjulia.so')
 
     # Mac requires an extra packaging step whose output goes directly in artifacts/bin/. Other
     # platforms require copying the artifacts to the folder.
@@ -247,7 +239,14 @@ def build_juce_frontend():
         cp(standalone_source, standalone_target)
         cp(vst3_source, vst3_target)
     cp(clib_source, clib_target)
-    cp(julia_source, julia_target)
+
+
+def build_installer():
+    if ON_LINUX:
+        command(['sh', 'build.sh'], PROJECT_ROOT.joinpath('components', 'installer_linux'))
+    else:
+        print('Not implemented alskdjlaksdj')
+        exit(1)
 
 
 def run_standalone():
@@ -461,6 +460,7 @@ JOBS = {
     'remove_juce_splash': Job('Remove JUCE splash screen (Audiobench is GPLv3)', [], remove_juce_splash),
     'clib': Job('Build Audiobench as a dynamic library', ['deps'], build_clib),
     'juce_frontend': Job('Build the JUCE frontend for Audiobench', ['remove_juce_splash', 'clib'], build_juce_frontend),
+    'installer': Job('Build a publishable installer', ['juce_frontend'], build_installer),
     'run': Job('Run the standalone version of Audiobench', ['juce_frontend'], run_standalone),
     'test': Job('Test all Rust components in the project', ['deps'], run_tests),
     'benchmark': Job('Run a benchmarking suite', ['deps'], run_benchmark),

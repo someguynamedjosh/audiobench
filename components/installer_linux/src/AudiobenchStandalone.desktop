@@ -1,0 +1,12 @@
+#!/usr/bin/env xdg-open
+
+[Desktop Entry]
+
+Type=Application
+Version=1.0
+Name=Audiobench (Standalone)
+Comment=Open-source modular synthesizer
+Path=/usr/bin/
+Exec=Audiobench.bin
+Terminal=false
+Categories=Audio;AudioVideo

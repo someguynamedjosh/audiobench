@@ -51,7 +51,7 @@ jobs:
     - name: Build on Windows
       if: ${{ matrix.os == 'windows-latest' }}
       run: |
-        python build.py juce_frontend --release --github-runner
+        python build.py installer --release --github-runner
       env:
         LIBCLANG_PATH: ${{ runner.temp }}/llvm/lib
     - name: Build on MacOS
@@ -60,18 +60,18 @@ jobs:
         export OPENSSL_ROOT_DIR=$(brew --prefix openssl)
         export OPENSSL_LIB_DIR=$(brew --prefix openssl)"/lib"
         export OPENSSL_INCLUDE_DIR=$(brew --prefix openssl)"/include"
-        python build.py juce_frontend --release --github-runner
+        python build.py installer --release --github-runner
     - name: Build on Linux
       if: ${{ matrix.os == 'ubuntu-latest' }}
       run: |
         sudo apt update
         sudo apt -y install libxrandr-dev libxinerama-dev libxcursor-dev libasound-dev extra-cmake-modules libxcb-shape0-dev libxcb-xfixes0-dev
-        python build.py juce_frontend --release --github-runner
+        python build.py installer --release --github-runner
     - name: Upload Artifacts
       uses: actions/upload-artifact@v2
       with:
-        name: artifacts-bin-${{ matrix.os }}
-        path: artifacts/bin/
+        name: artifacts-installer-${{ matrix.os }}
+        path: artifacts/installer/
   
   build-book:
     runs-on: ubuntu-latest
