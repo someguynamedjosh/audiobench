@@ -15,6 +15,10 @@ cp $ARTIFACTS/libaudiobench_clib.dylib $TARGET/
 
 cd macos-installer-builder/macOS-x64/
 yes n | ./build-macos-x64.sh Audiobench $CRATE_VERSION
-mv macos-installer-builder/macOS-x64/target/pkg/*.pkg ../../artifacts/installer/
+ls macos-installer-builder/macOS-x64/
+ls macos-installer-builder/macOS-x64/target/
+ls macos-installer-builder/macOS-x64/target/pkg
+ls macos-installer-builder/macOS-x64/target/*
+# mv macos-installer-builder/macOS-x64/target/pkg/*.pkg ../../artifacts/installer/
 
 rm -rf macos-installer-builder/
