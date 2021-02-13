@@ -43,7 +43,7 @@ Check that your cmake version is at least `3.15` with `cmake --version`.
 ### Build Process
 
 The build system is contained in `build.py`. It can be run by doing `./build.py`
-or `python3 build.py`, the first form may not work on Windows. Running it will
+or `python build.py`, the first form may not work on Windows. Running it will
 provide a description of how it can be used. The most common uses are as
 follows:
 - `./build.py juce_frontend --release` builds a release version of the

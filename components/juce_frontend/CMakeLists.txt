@@ -7,12 +7,6 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
     set(MACOS TRUE)
 endif()
 
-# Statically link c++ runtime because installing it is a pain
-if (WIN32)
-    cmake_policy(SET CMP0091 NEW)
-    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded")
-endif()
-
 # The top-level CMakeLists.txt file for a project must contain a literal, direct call to the
 # `project()` command. `project()` sets up some helpful variables that describe source/binary
 # directories, and the current project version. This is a standard CMake command.
@@ -61,11 +55,35 @@ target_include_directories(
     "$ENV{PROJECT_ROOT}/components/audiobench_clib/"
 )
 
-add_library(julia SHARED IMPORTED)
-set_target_properties(julia PROPERTIES
-    IMPORTED_LOCATION "$ENV{PROJECT_ROOT}/dependencies/julia/lib/libjulia.so"
-    INTERFAFCE_INCLUDE_DIRECTORIES "$ENV{PROJECT_ROOT}/dependencies/julia/include/"
-)
+add_library(julia SHARED IMPORTED GLOBAL)
+add_library(audiobench_clib SHARED IMPORTED GLOBAL)
+if(WIN32)
+    set_target_properties(julia PROPERTIES
+        IMPORTED_LOCATION "$ENV{PROJECT_ROOT}/dependencies/julia/bin/libjulia.dll"
+        IMPORTED_IMPLIB "$ENV{PROJECT_ROOT}/dependencies/julia/lib/libjulia.dll.a"
+        INTERFAFCE_INCLUDE_DIRECTORIES "$ENV{PROJECT_ROOT}/dependencies/julia/include/"
+    )
+    set_target_properties(audiobench_clib PROPERTIES
+        IMPORTED_LOCATION "$ENV{RUST_OUTPUT_DIR}/audiobench_clib.dll"
+        IMPORTED_IMPLIB "$ENV{RUST_OUTPUT_DIR}/audiobench_clib.dll.lib"
+    )
+elseif(APPLE)
+    set_target_properties(julia PROPERTIES
+        IMPORTED_LOCATION "$ENV{PROJECT_ROOT}/dependencies/julia/lib/libjulia.dylib"
+        INTERFAFCE_INCLUDE_DIRECTORIES "$ENV{PROJECT_ROOT}/dependencies/julia/include/"
+    )
+    set_target_properties(audiobench_clib PROPERTIES
+        IMPORTED_LOCATION "$ENV{RUST_OUTPUT_DIR}/libaudiobench_clib.dylib"
+    )
+else()
+    set_target_properties(julia PROPERTIES
+        IMPORTED_LOCATION "$ENV{PROJECT_ROOT}/dependencies/julia/lib/libjulia.so"
+        INTERFAFCE_INCLUDE_DIRECTORIES "$ENV{PROJECT_ROOT}/dependencies/julia/include/"
+    )
+    set_target_properties(audiobench_clib PROPERTIES
+        IMPORTED_LOCATION "$ENV{RUST_OUTPUT_DIR}/libaudiobench_clib.so"
+    )
+endif()
 
 # `juce_generate_juce_header` will create a JuceHeader.h for a given target, which will be generated
 # into your build tree. This should be included with `#include <JuceHeader.h>`. The include path for
@@ -117,24 +135,12 @@ target_compile_definitions(
 # here too. This is a standard CMake command.
 
 if(WIN32)
-    # Statically link visual c++ runtime so it doesn't inexplicably crash if the user
-    # hasn't installed msvcrt on their system.
-    set_property(TARGET Audiobench PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded")
-    # And of course those changes don't propogate to the other targets because that would be too 
-    # easy. Don't worry, I've already made the necessary blood sacrifices to the daemons of 
-    # hard-coding and code duplication.
-    set_property(TARGET Audiobench_Standalone PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded")
-    set_property(TARGET Audiobench_VST3 PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded")
-    # And yet something still tries to drag in the dynamically-linked library.
-    set_property(TARGET Audiobench PROPERTY LINK_FLAGS "/NODEFAULTLIB:MSVCRT")
-    set_property(TARGET Audiobench_Standalone PROPERTY LINK_FLAGS "/NODEFAULTLIB:MSVCRT")
-    set_property(TARGET Audiobench_VST3 PROPERTY LINK_FLAGS "/NODEFAULTLIB:MSVCRT")
-
     target_link_libraries(
         Audiobench PRIVATE
         # AudioPluginData           # If we'd created a binary data target, we'd link to it here
         juce::juce_audio_utils
-        "$ENV{RUST_OUTPUT_DIR}/audiobench_clib.lib"
+        audiobench_clib
+        julia
         Crypt32
         Ncrypt
         Secur32
@@ -148,11 +154,11 @@ elseif(APPLE)
         Audiobench PRIVATE
         # AudioPluginData           # If we'd created a binary data target, we'd link to it here
         juce::juce_audio_utils
-        "$ENV{RUST_OUTPUT_DIR}/libaudiobench_clib.a"
+        audiobench_clib
+        julia
         ${CURL_LIBRARIES}
         ${SECURITY_LIBRARY}
         ffi
-        tinfo
         z
     )
 else()
@@ -162,14 +168,11 @@ else()
     set(CMAKE_MODULE_PATH ${ECM_FIND_MODULE_DIR})
     find_package(XCB REQUIRED COMPONENTS XCB RENDER SHAPE XFIXES)
 
-    set(THREADS_PREFER_PTHREAD_FLAG ON)
-    find_package(Threads REQUIRED)
-
     target_link_libraries(
         Audiobench PRIVATE
         # AudioPluginData           # If we'd created a binary data target, we'd link to it here
         juce::juce_audio_utils
-        "$ENV{RUST_OUTPUT_DIR}/libaudiobench_clib.a"
+        audiobench_clib
         julia
         z
         ssl
@@ -177,5 +180,6 @@ else()
         ffi
         ${XCB_LIBRARIES}
         tinfo
+        pthread
     )
 endif()

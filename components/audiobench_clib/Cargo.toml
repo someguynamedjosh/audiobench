@@ -6,7 +6,7 @@ edition = "2018"
 
 [lib]
 name = "audiobench_clib"
-crate-type = ["staticlib"]
+crate-type = ["cdylib"]
 
 [dependencies]
 audiobench = { path = "../audiobench" }
