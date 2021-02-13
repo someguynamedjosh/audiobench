@@ -504,9 +504,9 @@ checksum = "3dcaa9ae7725d12cdb85b3ad99a434db70b468c09ded17e012d86b5c1010f7a7"
 
 [[package]]
 name = "funty"
-version = "1.1.0"
+version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fed34cd105917e91daa4da6b3728c47b068749d6a62c59811f06ed2ac71d9da7"
+checksum = "1847abb9cb65d566acd5942e94aea9c8f547ad02c98e1649326fc0e8910b8b1e"
 
 [[package]]
 name = "futures-channel"
@@ -777,7 +777,7 @@ checksum = "dd25036021b0de88a0aff6b850051563c6516d0bf53f8638938edbb9de732736"
 [[package]]
 name = "jl-sys"
 version = "0.10.0"
-source = "git+https://github.com/joshua-maros/jlrs#4c0d41a9a4b84efb78ed21a907f79addeb7ad007"
+source = "git+https://github.com/joshua-maros/jlrs#7c144afcbc1e0889e01125b5c0d00c390d79e80c"
 dependencies = [
  "bindgen",
 ]
@@ -785,7 +785,7 @@ dependencies = [
 [[package]]
 name = "jlrs"
 version = "0.8.0"
-source = "git+https://github.com/joshua-maros/jlrs#4c0d41a9a4b84efb78ed21a907f79addeb7ad007"
+source = "git+https://github.com/joshua-maros/jlrs#7c144afcbc1e0889e01125b5c0d00c390d79e80c"
 dependencies = [
  "jl-sys",
  "jlrs-derive 0.2.0 (git+https://github.com/joshua-maros/jlrs)",
@@ -806,7 +806,7 @@ dependencies = [
 [[package]]
 name = "jlrs-derive"
 version = "0.2.0"
-source = "git+https://github.com/joshua-maros/jlrs#4c0d41a9a4b84efb78ed21a907f79addeb7ad007"
+source = "git+https://github.com/joshua-maros/jlrs#7c144afcbc1e0889e01125b5c0d00c390d79e80c"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1276,9 +1276,9 @@ checksum = "a1d01941d82fa2ab50be1e79e6714289dd7cde78eba4c074bc5a4374f650dfe0"
 
 [[package]]
 name = "quote"
-version = "1.0.8"
+version = "1.0.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "991431c3519a3f36861882da93630ce66b52918dcf1b8e2fd66b397fc96f28df"
+checksum = "c3d0b9745dc2debf507c8422de05d7226cc1f0644216dfdfead988f9b1ab32a7"
 dependencies = [
  "proc-macro2",
 ]
@@ -1724,9 +1724,9 @@ dependencies = [
 
 [[package]]
 name = "tap"
-version = "1.0.0"
+version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "36474e732d1affd3a6ed582781b3683df3d0563714c59c39591e8ff707cf078e"
+checksum = "55937e1799185b12863d447f42597ed69d9928686b8d88a1df17376a097d8369"
 
 [[package]]
 name = "tempfile"
