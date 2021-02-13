@@ -181,7 +181,7 @@ def build_juce_frontend():
     artifact_target = PROJECT_ROOT.joinpath('artifacts', 'bin')
     standalone_target = artifact_target.joinpath()
     vst3_target = artifact_target.joinpath()
-    au_target = None
+    au_target = artifact_target.joinpath()
     clib_target = artifact_target.joinpath()
 
     if ON_WINDOWS:
