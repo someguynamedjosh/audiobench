@@ -72,7 +72,7 @@ jobs:
       uses: actions/upload-artifact@v2
       with:
         name: artifacts-installer-${{ matrix.os }}
-        path: artifacts/
+        path: artifacts/installer/
   
   build-book:
     runs-on: ubuntu-latest
