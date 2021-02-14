@@ -136,7 +136,7 @@ jobs:
   deploy-site:
     needs: [build, build-book]
     runs-on: ubuntu-latest
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' && github.base_ref == 'release'
     steps:
     - uses: actions/checkout@v2
       with:
