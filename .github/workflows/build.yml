@@ -95,7 +95,7 @@ jobs:
   beta-release:
     needs: [build, build-book]
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.base_ref == 'beta'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/beta'
     steps:
     - uses: actions/download-artifact@v2
       with:
@@ -136,7 +136,7 @@ jobs:
   deploy-site:
     needs: [build, build-book]
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.base_ref == 'release'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/release'
     steps:
     - uses: actions/checkout@v2
       with:
