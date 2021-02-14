@@ -91,6 +91,47 @@ jobs:
       with:
         name: book-html
         path: docs/book/book/
+  
+  beta-release:
+    needs: [build, build-book]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.base_ref == 'beta'
+    steps:
+    - uses: actions/download-artifact@v2
+      with:
+        name: artifacts-installer-windows-latest
+        path: windows/
+    - uses: actions/download-artifact@v2
+      with:
+        name: artifacts-installer-macOS-latest
+        path: macos/
+    - uses: actions/download-artifact@v2
+      with:
+        name: artifacts-installer-ubuntu-latest
+        path: linux/
+    - uses: actions/download-artifact@v2
+      with:
+        name: book-html
+        path: book/
+    - name: Organize files
+      run: |
+        mv windows/AudiobenchInstaller.exe ./AudiobenchWindowsSetup.exe
+        mv macos/Audiobench.pkg ./AudiobenchMacOSSetup.pkg
+        mv linux/Installer_Linux_x64.sh ./AudiobenchLinuxSetup.sh
+        cd book
+        zip ../Book.zip ./*
+    - name: Publish release
+      uses: "marvinpinto/action-automatic-releases@latest"
+      with:
+        repo_token: "${{ secrets.GITHUB_TOKEN }}"
+        automatic_release_tag: "latest-beta"
+        prerelease: true
+        title: "Latest Beta Release"
+        files: |
+          AudiobenchWindowsSetup.exe
+          AudiobenchMacOSSetup.pkg
+          AudiobenchLinuxSetup.sh
+          Book.zip
     
   deploy-site:
     needs: [build, build-book]
