@@ -249,13 +249,16 @@ def build_juce_frontend():
 
 
 def build_installer():
+    mkdir(PROJECT_ROOT.joinpath('artifacts', 'installer'))
     if ON_LINUX:
         command(['sh', 'build.sh'], PROJECT_ROOT.joinpath('components', 'installer_linux'))
-    elif ON_MAC:
+    if ON_MAC:
         command(['sh', 'build.sh'], PROJECT_ROOT.joinpath('components', 'installer_macos'))
-    else:
-        print('Not implemented alskdjlaksdj')
-        # exit(1)
+    if ON_WINDOWS:
+        src_root = PROJECT_ROOT.joinpath('components', 'installer_windows')
+        nsis_path = "C:/Program Files (x86)/NSIS/Bin/makensis.exe"
+        command([nsis_path, 'main.nsi'], working_dir=src_root)
+        cp(src_root.joinpath('AudiobenchInstaller.exe'), PROJECT_ROOT.joinpath('artifacts', 'installer'))
 
 
 def run_standalone():

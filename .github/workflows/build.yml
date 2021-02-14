@@ -51,6 +51,7 @@ jobs:
     - name: Build on Windows
       if: ${{ matrix.os == 'windows-latest' }}
       run: |
+        choco install nsis
         python build.py installer --release --github-runner
       env:
         LIBCLANG_PATH: ${{ runner.temp }}/llvm/lib
@@ -72,11 +73,6 @@ jobs:
       with:
         name: artifacts-installer-${{ matrix.os }}
         path: artifacts/
-    - name: Upload Julia install 
-      uses: actions/upload-artifact@v2
-      with:
-        name: artifacts-julia-${{ matrix.os }}
-        path: dependencies/julia/
   
   build-book:
     runs-on: ubuntu-latest

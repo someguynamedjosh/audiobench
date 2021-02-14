@@ -19,6 +19,7 @@ ls
 ls target/
 ls target/pkg
 ls target/*
-mv target/pkg/*.pkg ../../artifacts/installer/
+mkdir -p ../../artifacts/installer/
+mv target/pkg/*.pkg ../../artifacts/installer/Audiobench.pkg
 
 rm -rf macos-installer-builder/
