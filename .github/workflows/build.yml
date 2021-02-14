@@ -2,7 +2,7 @@ name: Build All Artifacts
 
 on:
   push:
-    branches: [ release ]
+    branches: [ beta, release ]
   pull_request:
     branches: [ beta, release ]
 
