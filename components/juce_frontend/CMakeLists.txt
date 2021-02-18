@@ -179,7 +179,6 @@ else()
         crypto
         ffi
         ${XCB_LIBRARIES}
-        tinfo
         pthread
     )
 endif()

@@ -127,9 +127,19 @@ impl DurationControl {
         // This assert does not protect anything but it *is* indicative of a bug.
         debug_assert!(!self.fraction_mode);
         self.fraction_mode = true;
-        // TODO: Try to convert the decimal value back to fractional?
-        self.fraction_numerator = 1;
-        self.fraction_denominator = 4;
+        // Numerator, denominator, distance.
+        let mut closest_match = (1, 1, 1.0);
+        for &den in &[2, 3, 4, 5, 6, 8, 10, 12, 15, 16, 20, 24, 32] {
+            for num in 1..21 {
+                let decimal_value = num as f32 / den as f32;
+                let distance = (self.get_decimal_value() - decimal_value).abs();
+                if distance < closest_match.2 {
+                    closest_match = (num, den, distance);
+                }
+            }
+        }
+        self.fraction_numerator = closest_match.0;
+        self.fraction_denominator = closest_match.1;
         UpdateRequest::UpdateDynData
     }
 

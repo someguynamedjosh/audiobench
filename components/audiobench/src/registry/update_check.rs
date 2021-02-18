@@ -61,9 +61,6 @@ pub fn spawn_update_checker(
     response_channel: Sender<(String, Option<UpdateInfo>)>,
 ) {
     std::thread::spawn(move || {
-        // TODO: rust-native-tls has a bug which rejects domain names with underscores. PITA when
-        // I'm hosting an update checker on code_cube.gitlab.io! Relevant bug report:
-        // https://github.com/sfackler/rust-native-tls/issues/177
         let mut client = ClientBuilder::new().use_rustls_tls().build().unwrap();
         for url in urls_to_check.into_iter() {
             let info = retrieve_info(&mut client, &url);

@@ -150,9 +150,12 @@ impl JuliaThread {
         self.set_status(Status::Busy);
         if let Some(_) = self.comms.new_global_params.take() {
             let params = self.comms.global_params.load();
-            self.executor
-                .change_parameters(&params)
-                .expect("TODO: Handle error.");
+            let result = self.executor
+                .change_parameters(&params);
+            if let Err(message) = result {
+                // TODO: Error
+                unimplemented!("Julia error:\n{}", message);
+            }
             self.global_params = params;
         } else if let Some((code, dyn_data)) = self.comms.new_note_graph_code.take() {
             self.notes.silence_all();
@@ -162,6 +165,7 @@ impl JuliaThread {
                 .change_generated_code(code)
                 .map_err(|err| format!("Error encountered while loading new patch code:\n{}", err));
             if let Err(err) = res {
+                // TODO: Error
                 self.set_status(Status::Error);
                 unimplemented!("Julia error:\n{}", err);
                 // let mut ctd = self.ctd_mux.lock().unwrap();

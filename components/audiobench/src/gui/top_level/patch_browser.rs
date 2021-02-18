@@ -302,23 +302,25 @@ impl PatchBrowser {
             let mut state = this.state.borrow_mut();
             let res = state.entries[index].borrow_mut().delete_from_disk();
             if let Err(err) = res {
-                eprintln!("TODO: Nice error, failed to delete patch: {}", err);
-            } else {
-                state.entries.remove(index);
-                state.alphabetical_order.remove(order_index);
-                for other_index in &mut state.alphabetical_order {
-                    if *other_index > index {
-                        *other_index -= 1;
-                    }
+                this.with_gui_state_mut(|state| {
+                    state.add_error_status(format!("{}", err));
+                });
+                return;
+            }
+            state.entries.remove(index);
+            state.alphabetical_order.remove(order_index);
+            for other_index in &mut state.alphabetical_order {
+                if *other_index > index {
+                    *other_index -= 1;
                 }
-                if let Some(current_entry_index) = state.current_entry_index {
-                    if current_entry_index == index {
-                        state.current_entry_index = None;
-                    } else if current_entry_index > index {
-                        // index cannot be smaller than zero.
-                        debug_assert!(current_entry_index > 0);
-                        state.current_entry_index = Some(current_entry_index - 1);
-                    }
+            }
+            if let Some(current_entry_index) = state.current_entry_index {
+                if current_entry_index == index {
+                    state.current_entry_index = None;
+                } else if current_entry_index > index {
+                    // index cannot be smaller than zero.
+                    debug_assert!(current_entry_index > 0);
+                    state.current_entry_index = Some(current_entry_index - 1);
                 }
             }
         })

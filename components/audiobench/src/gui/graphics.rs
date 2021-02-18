@@ -269,7 +269,7 @@ impl<'a> GrahpicsWrapper {
     ) {
         let top_left = top_left.into();
         let size = size.into();
-        // TODO: Assert that text is ASCII.
+        assert!(text.is_ascii());
         let raw_text = text.as_bytes();
         let mut raw_text = Vec::from(raw_text);
         raw_text.push(0);
@@ -289,7 +289,7 @@ impl<'a> GrahpicsWrapper {
 
     pub fn draw_console_text<T: Into<Vec2D>>(&mut self, size: T, text: &str) {
         let size = size.into();
-        // TODO: Assert that text is ASCII.
+        assert!(text.is_ascii());
         let raw_text = text.as_bytes();
         let mut raw_text = Vec::from(raw_text);
         raw_text.push(0);
