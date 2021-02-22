@@ -6,7 +6,7 @@ mkdir target/
 cp src/* target/
 rm target/decompress.sh
 cp ../../artifacts/bin/Audiobench_Linux_x64_Standalone.bin target/Audiobench.bin
-cp ../../artifacts/bin/Audiobench_Linux_x64_VST3.vst3 target/Audiobench.vst3
+cp ../../artifacts/bin/Audiobench_Linux_x64_VST3.so target/Audiobench.so
 cp ../../artifacts/bin/libaudiobench_clib.so target/
 cp -r ../../dependencies/julia target/
 rm target/julia/*.txt

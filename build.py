@@ -173,8 +173,7 @@ def build_juce_frontend():
     artifact_source = JUCE_FRONTEND_ROOT.joinpath('_build', 'Audiobench_artefacts', [
         'Debug', 'Release'][DO_RELEASE])
     standalone_source = artifact_source.joinpath('Standalone')
-    vst3_source = artifact_source.joinpath(
-        'VST3', 'Audiobench.vst3', 'Contents')
+    vst3_source = artifact_source.joinpath('VST3', 'Audiobench.vst3')
     au_source = None
     clib_source = RUST_OUTPUT_DIR.joinpath()
 
@@ -186,7 +185,6 @@ def build_juce_frontend():
 
     if ON_WINDOWS:
         standalone_source = standalone_source.joinpath('Audiobench.exe')
-        vst3_source = vst3_source.joinpath('x86_64-win', 'Audiobench.vst3')
         clib_source = clib_source.joinpath('audiobench_clib.dll')
 
         standalone_target = standalone_target.joinpath(
@@ -196,7 +194,6 @@ def build_juce_frontend():
     
     if ON_MAC:
         standalone_source = standalone_source.joinpath('Audiobench.app')
-        vst3_source = artifact_source.joinpath('VST3', 'Audiobench.vst3')
         au_source = artifact_source.joinpath('AU', 'Audiobench.component')
         clib_source = clib_source.joinpath('libaudiobench_clib.dylib')
 
@@ -210,7 +207,6 @@ def build_juce_frontend():
 
     if ON_LINUX:
         standalone_source = standalone_source.joinpath('Audiobench')
-        vst3_source = vst3_source.joinpath('x86_64-linux', 'Audiobench.so')
         clib_source = clib_source.joinpath('libaudiobench_clib.so')
 
         standalone_target = standalone_target.joinpath(
@@ -240,11 +236,10 @@ def build_juce_frontend():
         # command(['zip', '-r', artifact_target.joinpath(
         #     'Audiobench_MacOS_x64_AU.zip'), 'Audiobench.component'], working_dir=au_source)
         cpdir(standalone_source, standalone_target)
-        cpdir(vst3_source, vst3_target)
         cpdir(au_source, au_target)
     else:
         cp(standalone_source, standalone_target)
-        cp(vst3_source, vst3_target)
+    cpdir(vst3_source, vst3_target)
     cp(clib_source, clib_target)
 
 

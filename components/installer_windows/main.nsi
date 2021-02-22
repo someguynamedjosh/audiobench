@@ -90,7 +90,7 @@ Section
     File /oname=Audiobench.exe "..\..\artifacts\bin\Audiobench_Windows_x64_Standalone.exe"
     File /oname=audiobench_clib.dll "..\..\artifacts\bin\audiobench_clib.dll"
     SetOutPath "$PROGRAMFILES64\Common Files\VST3\"
-    File /oname=Audiobench.vst3 "..\..\artifacts\bin\Audiobench_Windows_x64_VST3.vst3"
+    File /oname=Audiobench.vst3 /r "..\..\artifacts\bin\Audiobench_Windows_x64_VST3.vst3"
     SetOutPath "$INSTDIR\julia"
     File /r "..\..\dependencies\julia\"
     WriteUninstaller "$INSTDIR\uninstaller.exe"

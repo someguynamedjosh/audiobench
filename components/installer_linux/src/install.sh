@@ -12,9 +12,13 @@ echo "If you are asked for your password, it is for permission to copy to these 
 
 chmod +x Audiobench.bin
 sudo mv ./Audiobench.bin /usr/bin/
-chmod +x Audiobench.vst3
+
+chmod +x Audiobench.vst3/Contents/x86_64-linux/Audiobench.so
 sudo mkdir -p /usr/lib/vst3
-sudo mv ./Audiobench.vst3 /usr/lib/vst3/
+sudo rm -rf /usr/lib/vst3/Audiobench.vst3
+sudo mv ./Audiobench.vst3 /usr/lib/vst3/Audiobench.vst3
+
+chmod +x ./libaudiobench_clib.so
 sudo mv ./libaudiobench_clib.so /usr/lib/
 
 sudo rm /usr/lib/libjulia.so*
