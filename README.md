@@ -33,7 +33,8 @@ systems with the following command:
 sudo apt -y install \
   git python3 make gcc cmake \
   libxrandr-dev libxinerama-dev libxcursor-dev libasound-dev libtinfo-dev \
-  extra-cmake-modules libxcb-shape0-dev libxcb-xfixes0-dev libclang-dev
+  extra-cmake-modules libxcb-shape0-dev libxcb-xfixes0-dev libclang-dev \
+  libjack0 libjack-dev
 ```
 
 You must also install the Rust toolchain from [rustup.rs](https://rustup.rs)

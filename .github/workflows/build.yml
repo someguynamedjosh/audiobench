@@ -66,7 +66,7 @@ jobs:
       if: ${{ matrix.os == 'ubuntu-latest' }}
       run: |
         sudo apt update
-        sudo apt -y install libxrandr-dev libxinerama-dev libxcursor-dev libasound-dev extra-cmake-modules libxcb-shape0-dev libxcb-xfixes0-dev
+        sudo apt -y install libxrandr-dev libxinerama-dev libxcursor-dev libasound-dev extra-cmake-modules libxcb-shape0-dev libxcb-xfixes0-dev libjack0 libjack-dev
         python build.py installer --release --github-runner
     - name: Upload Artifacts
       uses: actions/upload-artifact@v2
