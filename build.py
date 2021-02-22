@@ -45,6 +45,7 @@ def cp(src, dst):
 
 
 def cpdir(src, dst):
+    rmdir(dst)
     shutil.copytree(src, dst)
 
 
@@ -121,7 +122,8 @@ set_env('JULIA_DIR', str(PROJECT_ROOT.joinpath(
 set_env('CRATE_VERSION', CRATE_VERSION)
 if not ON_WINDOWS:
     set_env('LD_LIBRARY_PATH', get_env('LD_LIBRARY_PATH') + ':' +
-            str(PROJECT_ROOT.joinpath('dependencies', 'julia', 'lib')))
+            str(PROJECT_ROOT.joinpath('dependencies', 'julia', 'lib')) + ':' + 
+            str(PROJECT_ROOT.joinpath('artifacts', 'bin')))
 mkdir(Path('dependencies'))
 
 
@@ -212,7 +214,7 @@ def build_juce_frontend():
         standalone_target = standalone_target.joinpath(
             'Audiobench_Linux_x64_Standalone.bin')
         vst3_target = vst3_target.joinpath('Audiobench_Linux_x64_VST3.vst3')
-        clib_target = clib_target.joinpath('libaudiobench_clib.so')
+        clib_target = clib_target.joinpath('libaudiobench_clib.so.0')
 
     # Mac requires an extra packaging step whose output goes directly in artifacts/bin/. Other
     # platforms require copying the artifacts to the folder.

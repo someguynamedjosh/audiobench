@@ -12,3 +12,6 @@ crate-type = ["cdylib"]
 audiobench = { path = "../audiobench" }
 scui = { path = "../scui" }
 shared_util = { path = "../shared_util" }
+
+[build-dependencies]
+cdylib-link-lines = "0.1"
