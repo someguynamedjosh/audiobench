@@ -1,12 +1,4 @@
-use crate::{
-    engine::controls::AnyControl,
-    gui::{
-        constants::*, graphics::GrahpicsWrapper, top_level::graph::ModuleGraph, GuiTab,
-        InteractionHint, Tooltip,
-    },
-    registry::{module_template::ModuleTemplate, Registry},
-    scui_config::{DropTarget, MaybeMouseBehavior, Renderer},
-};
+use crate::{engine::controls::AnyControl, gui::{GuiTab, InteractionHint, TabArchetype, Tooltip, constants::*, graphics::GrahpicsWrapper, top_level::graph::ModuleGraph}, registry::{module_template::ModuleTemplate, Registry}, scui_config::{DropTarget, MaybeMouseBehavior, Renderer}};
 use owning_ref::OwningRef;
 use scui::{MouseMods, OnClickBehavior, Vec2D, WidgetImpl};
 use shared_util::prelude::*;
@@ -273,4 +265,8 @@ impl WidgetImpl<Renderer, DropTarget> for ModuleBrowser {
     }
 }
 
-impl GuiTab for Rc<ModuleBrowser> {}
+impl GuiTab for Rc<ModuleBrowser> {
+    fn get_archetype(&self) -> TabArchetype {
+        TabArchetype::ModuleBrowser(Rc::clone(&self.state.borrow().add_to_graph))
+    }
+}

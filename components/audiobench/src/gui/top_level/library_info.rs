@@ -1,10 +1,4 @@
-use crate::{
-    config::{ENGINE_INFO, ENGINE_UPDATE_URL, ENGINE_VERSION},
-    engine::controls::AnyControl,
-    gui::{constants::*, graphics::GrahpicsWrapper, GuiTab, InteractionHint, Tooltip},
-    registry::{module_template::ModuleTemplate, Registry},
-    scui_config::{DropTarget, MaybeMouseBehavior, Renderer},
-};
+use crate::{config::{ENGINE_INFO, ENGINE_UPDATE_URL, ENGINE_VERSION}, engine::controls::AnyControl, gui::{GuiTab, InteractionHint, TabArchetype, Tooltip, constants::*, graphics::GrahpicsWrapper}, registry::{module_template::ModuleTemplate, Registry}, scui_config::{DropTarget, MaybeMouseBehavior, Renderer}};
 use scui::{MouseMods, OnClickBehavior, Vec2D, WidgetImpl};
 use shared_util::prelude::*;
 
@@ -306,4 +300,8 @@ impl WidgetImpl<Renderer, DropTarget> for LibraryInfo {
     }
 }
 
-impl GuiTab for Rc<LibraryInfo> {}
+impl GuiTab for Rc<LibraryInfo> {
+    fn get_archetype(&self) -> TabArchetype {
+        TabArchetype::LibraryInfo
+    }
+}

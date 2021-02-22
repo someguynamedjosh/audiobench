@@ -1,5 +1,5 @@
 use crate::{
-    gui::{constants::*, top_level::graph::ModuleGraph, GuiTab},
+    gui::{constants::*, top_level::graph::ModuleGraph, GuiTab, TabArchetype},
     scui_config::{DropTarget, MaybeMouseBehavior, Renderer},
 };
 use scui::{ChildHolder, MouseMods, Vec2D, WidgetImpl};
@@ -60,4 +60,8 @@ impl WidgetImpl<Renderer, DropTarget> for NoteGraph {
     }
 }
 
-impl GuiTab for Rc<NoteGraph> {}
+impl GuiTab for Rc<NoteGraph> {
+    fn get_archetype(&self) -> TabArchetype {
+        TabArchetype::NoteGraph
+    }
+}
