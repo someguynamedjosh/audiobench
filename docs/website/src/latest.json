@@ -1,7 +1,9 @@
 {
-    "version": 1,
+    "version": "0.2.1",
     "changes": [
-        "Nothing, it's the first version."
+        "Many tweaks and bugfixes",
+        "Better compatibility across formats and platforms",
+        "Added support for the Julia language"
     ],
     "download_url": "https://bit.ly/adb_update"
 }

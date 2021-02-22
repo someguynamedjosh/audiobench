@@ -1,12 +1,5 @@
 use num::Float;
-use serde::{
-    de::{Error, Visitor},
-    Deserialize, Deserializer,
-};
-use std::{
-    fmt::{self, Display, Formatter},
-    str::FromStr,
-};
+use std::fmt::Display;
 
 mod nvec;
 mod search;
@@ -14,79 +7,11 @@ mod search;
 pub mod mini_serde;
 pub mod perf_counter;
 pub mod prelude;
+pub mod version;
 pub use nvec::*;
 pub use perf_counter::{NoopPerfCounter, PerfCounter, PerfSectionGuard, SimplePerfCounter};
 pub use search::*;
-
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub struct Version {
-    pub maj: u8,
-    pub min: u8,
-    pub patch: u8,
-}
-
-impl Version {
-    pub fn new(maj: u8, min: u8, patch: u8) -> Self {
-        assert!(maj < 16);
-        assert!(min < 32);
-        assert!(patch < 128);
-        Self { maj, min, patch }
-    }
-
-    pub const unsafe fn new_unchecked(maj: u8, min: u8, patch: u8) -> Self {
-        Self { maj, min, patch }
-    }
-}
-
-impl Display for Version {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}.{}.{}", self.maj, self.min, self.patch)
-    }
-}
-
-impl FromStr for Version {
-    type Err = ();
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let parts: Vec<_> = s.split('.').collect();
-        if parts.len() != 3 {
-            return Err(());
-        }
-        let maj = parts[0].parse().map_err(|_| ())?;
-        let min = parts[1].parse().map_err(|_| ())?;
-        let patch = parts[2].parse().map_err(|_| ())?;
-        if maj >= 16 || min >= 32 || patch >= 128 {
-            return Err(());
-        }
-        Ok(Self { maj, min, patch })
-    }
-}
-
-impl<'de> Deserialize<'de> for Version {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        deserializer.deserialize_str(VersionVisitor)
-    }
-}
-
-struct VersionVisitor;
-
-impl<'de> Visitor<'de> for VersionVisitor {
-    type Value = Version;
-
-    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        write!(formatter, "a version number in the form maj.min.patch")
-    }
-
-    fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
-    where
-        E: Error,
-    {
-        Version::from_str(v).map_err(|_| E::custom(format!("incorrectly formatted version")))
-    }
-}
+pub use version::*;
 
 pub trait FloatUtil: Sized + Copy {
     /// Converts from the range [from_min,from_max] to [0,1]

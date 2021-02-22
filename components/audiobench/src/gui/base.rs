@@ -189,9 +189,11 @@ impl Root {
         let this = Rc::new(Self::create(parent, state));
         let tab1 = PatchBrowser::new(&this);
         let tab2 = NoteGraph::new(&this);
+        let tab3 = LibraryInfo::new(&this);
         this.with_gui_state_mut(|state| {
             state.add_tab(tab1);
             state.add_tab(tab2);
+            state.add_tab(tab3);
         });
         let header = Header::new(&this);
         this.children.borrow_mut().header = Some(header);

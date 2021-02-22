@@ -459,10 +459,9 @@ impl Registry {
 
     pub fn any_updates_available(&self) -> bool {
         if let Some(Some(info)) = self.checked_updates.get(ENGINE_UPDATE_URL) {
-            // TODO: Update check. unimplemented!()
-            // if info.version > ENGINE_VERSION {
-            //     return true;
-            // }
+            if info.version > ENGINE_VERSION {
+                return true;
+            }
         }
         false
     }
