@@ -150,6 +150,8 @@ pub fn parse_yaml(input: &str, filename: &str) -> Result<YamlNode, String> {
                     if pos.1 > current_indent_level {
                         error!("Too much indentation");
                     }
+                } else if c == '\t' {
+                    error!("Yaml files should be indented with two spaces, not tabs");
                 } else if c == '\n' {
                     error!("Unexpected newline");
                 } else {
