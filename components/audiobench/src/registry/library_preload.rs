@@ -121,7 +121,8 @@ impl<R: Read + Seek> LibraryContentProvider for ZippedLibraryContentProvider<R> 
     }
 
     fn get_file_name(&mut self, index: usize) -> String {
-        let value = self.archive
+        let value = self
+            .archive
             .by_index(self.non_directory_files[index])
             .unwrap()
             .name()

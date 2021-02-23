@@ -287,7 +287,9 @@ impl PatchBrowser {
                     state.add_error_message(format!("ERROR: Patch data is corrupt."))
                 });
             } else {
-                this.with_gui_state_mut(|state| state.add_success_message(format!("Patch loaded.")));
+                this.with_gui_state_mut(|state| {
+                    state.add_success_message(format!("Patch loaded."))
+                });
             }
         })
     }

@@ -104,8 +104,8 @@ macro_rules! make_int_box_widget {
                 let tooltip = Tooltip {
                     text: self.state.borrow().tooltip.clone(),
                     interaction: vec![
-                        InteractionHint::LeftClick, 
-                        InteractionHint::LeftClickAndDrag, 
+                        InteractionHint::LeftClick,
+                        InteractionHint::LeftClickAndDrag,
                         InteractionHint::DoubleClick
                     ],
                 };
