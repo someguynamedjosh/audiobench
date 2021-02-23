@@ -117,6 +117,8 @@ target_compile_definitions(
     JUCE_WEB_BROWSER=0  
     JUCE_USE_CURL=0     
     JUCE_VST3_CAN_REPLACE_VST2=0
+    JUCE_ALSA=1
+    JUCE_JACK=1
 )
 
 # If your target needs extra binary assets, you can add them here. The first argument is the name of
@@ -179,7 +181,6 @@ else()
         crypto
         ffi
         ${XCB_LIBRARIES}
-        tinfo
         pthread
     )
 endif()

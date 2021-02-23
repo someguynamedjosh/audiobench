@@ -7,7 +7,7 @@ use crate::{
         constants::*,
         graphics::GrahpicsWrapper,
         top_level::{graph::Module, ModuleBrowser},
-        InteractionHint, Tooltip,
+        InteractionHint, TabArchetype, Tooltip,
     },
     registry::module_template::ModuleTemplate,
     scui_config::{DropTarget, MaybeMouseBehavior, Renderer},
@@ -283,7 +283,7 @@ impl MouseBehavior<DropTarget> for GraphInteract {
         let tab = ModuleBrowser::new(&self.graph, Rc::clone(&self.graph));
         let interface = self.graph.provide_gui_interface();
         let mut state = interface.state.borrow_mut();
-        state.add_tab(tab);
+        state.switch_to_or_open(Rc::new(tab));
     }
 }
 

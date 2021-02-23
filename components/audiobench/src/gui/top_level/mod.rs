@@ -2,11 +2,13 @@
 
 pub mod graph;
 mod header;
+mod library_info;
 mod module_browser;
 mod note_graph;
 mod patch_browser;
 
 pub use header::Header;
+pub use library_info::*;
 pub use module_browser::*;
 pub use note_graph::*;
 pub use patch_browser::*;

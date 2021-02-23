@@ -22,7 +22,6 @@ pub struct FloatInRangeControl {
     pub default: f32,
     pub automation: Vec<AutomationLane>,
     pub suffix: String,
-    // TODO: Automation.
 }
 
 impl FloatInRangeControl {

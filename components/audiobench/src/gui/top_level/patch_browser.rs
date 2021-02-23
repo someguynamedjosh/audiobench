@@ -1,8 +1,8 @@
 use crate::{
     gui::{
         constants::*,
-        ui_widgets::{IconButton, TextBox},
-        GuiTab, InteractionHint, Tooltip,
+        ui_widgets::{IconButton, TabButton, TextBox},
+        GuiTab, InteractionHint, TabArchetype, Tooltip,
     },
     registry::save_data::Patch,
     scui_config::{DropTarget, MaybeMouseBehavior, Renderer},
@@ -27,6 +27,8 @@ scui::widget! {
         new_button: ChildHolder<Rc<IconButton>>,
         copy_button: ChildHolder<Rc<IconButton>>,
         paste_button: ChildHolder<Rc<IconButton>>,
+
+        tab_buttons: Vec<Rc<TabButton>>,
     }
 }
 
@@ -117,6 +119,26 @@ impl PatchBrowser {
             "Paste and load a patch from your clipboard",
         );
 
+        let mut tab_buttons = Vec::new();
+        let x = GRID_P + HW + GRID_P;
+        tab_buttons.push(TabButton::new(
+            &this,
+            (x, 0.0),
+            registry.lookup_icon("Factory:module").unwrap(),
+            TabArchetype::NoteGraph,
+            "Module Graph".into(),
+            "Edit the modules in this patch".into(),
+        ));
+        let x = x + TabButton::SIZE + GRID_P;
+        tab_buttons.push(TabButton::new(
+            &this,
+            (x, 0.0),
+            registry.lookup_icon("Factory:library").unwrap(),
+            TabArchetype::LibraryInfo,
+            "Library Info".into(),
+            "View information and updates for installed libraries (including the builtin factory library)".into(),
+        ));
+
         let this2 = Rc::clone(&this);
         let name_box = TextBox::new(
             &this,
@@ -140,6 +162,7 @@ impl PatchBrowser {
         children.new_button = new_button.into();
         children.copy_button = copy_button.into();
         children.paste_button = paste_button.into();
+        children.tab_buttons = tab_buttons;
         drop(children);
 
         this
@@ -302,23 +325,25 @@ impl PatchBrowser {
             let mut state = this.state.borrow_mut();
             let res = state.entries[index].borrow_mut().delete_from_disk();
             if let Err(err) = res {
-                eprintln!("TODO: Nice error, failed to delete patch: {}", err);
-            } else {
-                state.entries.remove(index);
-                state.alphabetical_order.remove(order_index);
-                for other_index in &mut state.alphabetical_order {
-                    if *other_index > index {
-                        *other_index -= 1;
-                    }
+                this.with_gui_state_mut(|state| {
+                    state.add_error_status(format!("{}", err));
+                });
+                return;
+            }
+            state.entries.remove(index);
+            state.alphabetical_order.remove(order_index);
+            for other_index in &mut state.alphabetical_order {
+                if *other_index > index {
+                    *other_index -= 1;
                 }
-                if let Some(current_entry_index) = state.current_entry_index {
-                    if current_entry_index == index {
-                        state.current_entry_index = None;
-                    } else if current_entry_index > index {
-                        // index cannot be smaller than zero.
-                        debug_assert!(current_entry_index > 0);
-                        state.current_entry_index = Some(current_entry_index - 1);
-                    }
+            }
+            if let Some(current_entry_index) = state.current_entry_index {
+                if current_entry_index == index {
+                    state.current_entry_index = None;
+                } else if current_entry_index > index {
+                    // index cannot be smaller than zero.
+                    debug_assert!(current_entry_index > 0);
+                    state.current_entry_index = Some(current_entry_index - 1);
                 }
             }
         })
@@ -465,4 +490,8 @@ impl WidgetImpl<Renderer, DropTarget> for PatchBrowser {
     }
 }
 
-impl GuiTab for Rc<PatchBrowser> {}
+impl GuiTab for Rc<PatchBrowser> {
+    fn get_archetype(&self) -> TabArchetype {
+        TabArchetype::PatchBrowser
+    }
+}

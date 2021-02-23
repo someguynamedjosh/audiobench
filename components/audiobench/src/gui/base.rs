@@ -107,6 +107,61 @@ impl Status {
     }
 }
 
+#[derive(Clone)]
+pub enum TabArchetype {
+    PatchBrowser,
+    NoteGraph,
+    ModuleBrowser(Rc<graph::ModuleGraph>),
+    LibraryInfo,
+}
+
+impl TabArchetype {
+    /// Returns true if the two archetypes represent the same GUI layout, presenting the same
+    /// information and tools.
+    pub fn equivalent(&self, other: &Self) -> bool {
+        use TabArchetype::*;
+        match self {
+            PatchBrowser => {
+                if let PatchBrowser = other {
+                    true
+                } else {
+                    false
+                }
+            }
+            NoteGraph => {
+                if let NoteGraph = other {
+                    true
+                } else {
+                    false
+                }
+            }
+            ModuleBrowser(a) => {
+                if let ModuleBrowser(b) = other {
+                    Rc::ptr_eq(a, b)
+                } else {
+                    false
+                }
+            }
+            LibraryInfo => {
+                if let LibraryInfo = other {
+                    true
+                } else {
+                    false
+                }
+            }
+        }
+    }
+
+    pub fn instantiate(self, parent: &impl PatchBrowserParent) -> Rc<dyn GuiTab> {
+        match self {
+            Self::PatchBrowser => Rc::new(PatchBrowser::new(parent)) as _,
+            Self::NoteGraph => Rc::new(NoteGraph::new(parent)) as _,
+            Self::ModuleBrowser(add_to) => Rc::new(ModuleBrowser::new(parent, add_to)) as _,
+            Self::LibraryInfo => Rc::new(LibraryInfo::new(parent)) as _,
+        }
+    }
+}
+
 pub struct GuiState {
     pub registry: Rcrc<Registry>,
     pub engine: Rcrc<UiThreadEngine>,
@@ -141,8 +196,22 @@ impl GuiState {
         self.tooltip.add_control_automation(from_control);
     }
 
-    pub fn add_tab(&mut self, tab: impl GuiTab + 'static) {
-        self.tabs.push(Rc::new(tab));
+    pub fn switch_to_or_open(&mut self, tab: Rc<dyn GuiTab>) {
+        let archetype = tab.get_archetype();
+        for (index, candidate) in self.tabs.iter().enumerate() {
+            if candidate.get_archetype().equivalent(&archetype) {
+                self.current_tab_index = index;
+                tab.on_removed();
+                return;
+            }
+        }
+        self.current_tab_index = self.tabs.len();
+        self.tabs.push(tab)
+    }
+
+    pub fn focus_tab_by_index(&mut self, index: usize) {
+        assert!(index < self.tabs.len());
+        self.current_tab_index = index;
     }
 
     pub fn all_tabs(&self) -> impl Iterator<Item = &Rc<dyn GuiTab>> {
@@ -151,12 +220,6 @@ impl GuiState {
 
     pub fn get_current_tab_index(&self) -> usize {
         self.current_tab_index
-    }
-
-    pub fn focus_tab_by_index(&mut self, index: usize) {
-        if index < self.tabs.len() {
-            self.current_tab_index = index;
-        }
     }
 
     pub fn add_success_status(&mut self, message: String) {
@@ -187,12 +250,8 @@ impl Root {
     fn new(parent: &impl RootParent) -> Rc<Self> {
         let state = RootState {};
         let this = Rc::new(Self::create(parent, state));
-        let tab1 = PatchBrowser::new(&this);
-        let tab2 = NoteGraph::new(&this);
-        this.with_gui_state_mut(|state| {
-            state.add_tab(tab1);
-            state.add_tab(tab2);
-        });
+        let main = Rc::new(PatchBrowser::new(&this));
+        this.with_gui_state_mut(|state| state.switch_to_or_open(main));
         let header = Header::new(&this);
         this.children.borrow_mut().header = Some(header);
         this
@@ -267,6 +326,8 @@ pub trait GuiTab: Widget<Renderer, DropTarget> {
     fn is_pinned(self: &Self) -> bool {
         false
     }
+
+    fn get_archetype(&self) -> TabArchetype;
 }
 
 pub type Gui = scui::Gui<GuiState, DropTarget, Rc<Root>>;

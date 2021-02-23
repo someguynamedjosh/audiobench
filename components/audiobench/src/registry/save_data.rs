@@ -9,8 +9,11 @@ use shared_util::{
     mini_serde::{MiniDes, MiniSer},
     prelude::*,
 };
-use std::io::{self, Write};
-use std::path::PathBuf;
+use std::{
+    error::Error,
+    io::{self, Write},
+    path::PathBuf,
+};
 
 #[derive(Debug, Clone)]
 enum PatchSource {
@@ -212,11 +215,11 @@ impl Patch {
         Ok(())
     }
 
-    pub fn write(&mut self) -> io::Result<()> {
+    pub fn write(&mut self) -> Result<(), Box<dyn Error>> {
         let path = if let PatchSource::Writable(path) = &self.source {
             path
         } else {
-            panic!("Cannot write a non-writable patch!");
+            return Err(format!("Cannot write to a non-writable patch!").into());
         };
         let file = std::fs::File::create(path)?;
         self.exists_on_disk = true;
@@ -226,11 +229,11 @@ impl Patch {
         Ok(())
     }
 
-    pub fn delete_from_disk(&mut self) -> io::Result<()> {
+    pub fn delete_from_disk(&mut self) -> Result<(), Box<dyn Error>> {
         let path = if let PatchSource::Writable(path) = &self.source {
             path
         } else {
-            panic!("Cannot delete a non-writable patch!");
+            return Err(format!("Cannot delete a non-writable patch!").into());
         };
         if self.exists_on_disk {
             std::fs::remove_file(path)?;

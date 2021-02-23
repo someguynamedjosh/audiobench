@@ -34,6 +34,7 @@ struct UiThreadData {
     dyn_data_collector: DynDataCollector,
     feedback_displayer: FeedbackDisplayer,
     current_patch_save_data: Rcrc<Patch>,
+    posted_error: Option<String>,
 }
 
 pub(super) struct Communication {
@@ -116,6 +117,7 @@ pub fn new_engine(
         dyn_data_collector,
         feedback_displayer,
         current_patch_save_data: default_patch,
+        posted_error: None,
     };
 
     let atd = AudioThreadData {
@@ -182,6 +184,14 @@ impl UiThreadEngine {
         let mut patch_ref = self.data.current_patch_save_data.borrow_mut();
         patch_ref.set_name(name);
         patch_ref.write().unwrap();
+    }
+
+    pub fn post_error(&mut self, message: String) {
+        self.data.posted_error = Some(message);
+    }
+
+    pub fn take_posted_error(&mut self) -> Option<String> {
+        self.data.posted_error.take()
     }
 
     pub fn borrow_registry(&self) -> &Rcrc<Registry> {
@@ -278,7 +288,13 @@ impl UiThreadEngine {
         let params = self.comms.global_params.load();
         let new_gen = codegen::generate_code(&*module_graph_ref, &params)
             .map_err(|_| format!("The note graph cannot contain feedback loops"));
-        let new_gen = new_gen.expect("TODO: Nice error.");
+        let new_gen = if let Ok(value) = new_gen {
+            value
+        } else {
+            drop(module_graph_ref);
+            self.post_error("Module graph contains feedback loops.".to_owned());
+            return;
+        };
         drop(module_graph_ref);
         self.comms.new_dyn_data.store(None);
         let dyn_data = new_gen.dyn_data_collector.collect();
