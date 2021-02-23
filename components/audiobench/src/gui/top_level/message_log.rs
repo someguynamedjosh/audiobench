@@ -49,11 +49,13 @@ impl WidgetImpl<Renderer, DropTarget> for MessageLog {
             let num_lines = message.text.split("\n").count();
             let height = GRID_P * 2.0 + num_lines as f32 * LINE_HEIGHT;
             renderer.set_color(&message.color);
-            renderer.draw_rounded_rect(
-                (GRID_P, y),
-                (TAB_BODY_WIDTH - GRID_P * 2.0, height),
-                CORNER_SIZE,
-            );
+            let top_right = (GRID_P, y);
+            let size = (TAB_BODY_WIDTH - GRID_P * 2.0, height);
+            renderer.draw_rounded_rect(top_right, size, CORNER_SIZE);
+            renderer.set_color(&COLOR_BG1);
+            renderer.set_alpha(0.8);
+            renderer.draw_rounded_rect(top_right, size, CORNER_SIZE);
+            renderer.set_alpha(1.0);
             y += GRID_P;
             renderer.set_color(&COLOR_FG1);
             for line in message.text.split("\n") {

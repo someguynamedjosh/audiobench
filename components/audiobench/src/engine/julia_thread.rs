@@ -45,49 +45,34 @@ pub(super) fn entry(
     render_pipe: Receiver<RenderRequest>,
     poll_pipe: Receiver<()>,
     audio_response_pipe: Sender<AudioResponse>,
+    error_report_pipe: Sender<String>,
 ) {
     let executor = AudiobenchExecutor::new(registry_source, &global_params).map_err(|err| {
         format!(
-            concat!(
-                "Failed to initialize execution environment!\n",
-                "This is a critical error, please submit a bug report containing this ",
-                "error:\n\n{}"
-            ),
+            "Failed to initialize execution environment! (See message log for details.)\n\n{}",
             err
         )
     });
     let mut executor = match executor {
         Ok(value) => value,
         Err(err) => {
-            eprintln!("Error message:\n{}", err);
+            error_report_pipe.send(err);
             comms.julia_thread_status.store(Status::Error);
-            unimplemented!();
-            // let mut ctd = ctd_mux.lock().unwrap();
-            // ctd.julia_thread_status = Status::Error;
-            // ctd.critical_error = Some(err);
-            // return;
+            panic!("Unrecoverable error.");
         }
     };
     let res = executor
         .change_generated_code(default_patch_code)
         .map_err(|err| {
             format!(
-                concat!(
-                    "Default patch failed to compile!\n",
-                    "This is a critical error, please submit a bug report containing this ",
-                    "error:\n\n{}"
-                ),
+                "Default patch failed to compile! (See message log for details.)\n\n{}",
                 err
             )
         });
     if let Err(err) = res {
-        eprintln!("Error: {}", err);
+        error_report_pipe.send(err);
         comms.julia_thread_status.store(Status::Error);
-        unimplemented!();
-        // let mut ctd = ctd_mux.lock().unwrap();
-        // ctd.julia_thread_status = Status::Error;
-        // ctd.critical_error = Some(err);
-        // return;
+        panic!("Unrecoverable error.");
     }
 
     let mut thread = JuliaThread {
@@ -99,6 +84,7 @@ pub(super) fn entry(
         render_pipe,
         poll_pipe,
         audio_response_pipe,
+        error_report_pipe,
     };
     thread.entry();
 }
@@ -112,6 +98,7 @@ struct JuliaThread {
     render_pipe: Receiver<RenderRequest>,
     poll_pipe: Receiver<()>,
     audio_response_pipe: Sender<AudioResponse>,
+    error_report_pipe: Sender<String>,
 }
 
 // TODO: Preheat JIT unimplemented!()
@@ -146,32 +133,36 @@ impl JuliaThread {
         self.set_status(Status::Error);
     }
 
+    fn report_julia_error(&mut self, message: String) {
+        self.error_report_pipe.send(message);
+        self.set_status(Status::Error);
+    }
+
     fn poll_comms(&mut self) {
         self.set_status(Status::Busy);
         if let Some(_) = self.comms.new_global_params.take() {
             let params = self.comms.global_params.load();
-            let result = self.executor
-                .change_parameters(&params);
-            if let Err(message) = result {
-                // TODO: Error
-                unimplemented!("Julia error:\n{}", message);
+            let result = self.executor.change_parameters(&params);
+            if let Err(err) = result {
+                let message = format!(
+                    "Failed to load new parameter code, see message log for details.\n\n{}",
+                    err
+                );
+                let message = self.report_julia_error(message);
+                panic!("Unrecoverable error.");
             }
             self.global_params = params;
         } else if let Some((code, dyn_data)) = self.comms.new_note_graph_code.take() {
             self.notes.silence_all();
             self.dyn_data = dyn_data;
-            let res = self
-                .executor
-                .change_generated_code(code)
-                .map_err(|err| format!("Error encountered while loading new patch code:\n{}", err));
+            let res = self.executor.change_generated_code(code);
             if let Err(err) = res {
-                // TODO: Error
-                self.set_status(Status::Error);
-                unimplemented!("Julia error:\n{}", err);
-                // let mut ctd = self.ctd_mux.lock().unwrap();
-                // ctd.julia_thread_status = Status::Error;
-                // ctd.critical_error = Some(err);
-                // return;
+                let message = format!(
+                    "Failed to load new patch code, see message log for details.\n\n{}",
+                    err
+                );
+                self.report_julia_error(message);
+                panic!("Unrecoverable error.");
             }
         } else if let Some(data) = self.comms.new_dyn_data.take() {
             self.dyn_data = data;
@@ -187,9 +178,15 @@ impl JuliaThread {
             match event {
                 NoteEvent::StartNote { index, velocity } => {
                     let static_index = self.notes.start_note(index, velocity);
-                    self.executor
-                        .reset_static_data(static_index)
-                        .expect("TODO: Handle error.");
+                    let result = self.executor.reset_static_data(static_index);
+                    if let Err(err) = result {
+                        let message = format!(
+                            "Encountered Julia error, see message log for details.\n\n{}",
+                            err
+                        );
+                        self.report_julia_error(message);
+                        // This error is "recoverable"
+                    }
                 }
                 NoteEvent::ReleaseNote { index } => {
                     self.notes.release_note(index);
@@ -207,7 +204,15 @@ impl JuliaThread {
         );
         let new_feedback_data = match result {
             Ok(v) => v,
-            Err(err) => unimplemented!("Handle Julia error:\n{}", err),
+            Err(err) => {
+                let message = format!(
+                    "Encountered Julia error while executing, see message log for details.\n\n{}",
+                    err
+                );
+                self.report_julia_error(message);
+                // This error is "recoverable"
+                None
+            }
         };
         if new_feedback_data.is_some() {
             self.comms.new_feedback.store(new_feedback_data);
