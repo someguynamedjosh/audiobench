@@ -86,12 +86,12 @@ impl Tooltip {
 }
 
 #[derive(Clone)]
-pub struct Status {
+pub struct StatusMessage {
     pub text: String,
     pub color: (u8, u8, u8),
 }
 
-impl Status {
+impl StatusMessage {
     fn success(text: String) -> Self {
         Self {
             text,
@@ -113,6 +113,7 @@ pub enum TabArchetype {
     NoteGraph,
     ModuleBrowser(Rc<graph::ModuleGraph>),
     LibraryInfo,
+    MessageLog,
 }
 
 impl TabArchetype {
@@ -149,6 +150,13 @@ impl TabArchetype {
                     false
                 }
             }
+            MessageLog => {
+                if let LibraryInfo = other {
+                    true
+                } else {
+                    false
+                }
+            }
         }
     }
 
@@ -158,6 +166,7 @@ impl TabArchetype {
             Self::NoteGraph => Rc::new(NoteGraph::new(parent)) as _,
             Self::ModuleBrowser(add_to) => Rc::new(ModuleBrowser::new(parent, add_to)) as _,
             Self::LibraryInfo => Rc::new(LibraryInfo::new(parent)) as _,
+            Self::MessageLog => Rc::new(MessageLog::new(parent)) as _,
         }
     }
 }
@@ -165,7 +174,8 @@ impl TabArchetype {
 pub struct GuiState {
     pub registry: Rcrc<Registry>,
     pub engine: Rcrc<UiThreadEngine>,
-    status: Option<Status>,
+    messages: Vec<StatusMessage>,
+    last_message: bool,
     tooltip: Tooltip,
     // Yeah I know  this is doing Rc<Rc<Widget>> but I don't know what else to do at the moment.
     tabs: Vec<Rc<dyn GuiTab>>,
@@ -177,7 +187,8 @@ impl GuiState {
         Self {
             registry,
             engine,
-            status: None,
+            messages: Vec::new(),
+            last_message: false,
             tooltip: Default::default(),
             tabs: Vec::new(),
             current_tab_index: 0,
@@ -222,20 +233,33 @@ impl GuiState {
         self.current_tab_index
     }
 
-    pub fn add_success_status(&mut self, message: String) {
-        self.status = Some(Status::success(message));
+    pub fn add_message(&mut self, message: StatusMessage) {
+        self.messages.push(message);
+        self.last_message = true;
     }
 
-    pub fn add_error_status(&mut self, message: String) {
-        self.status = Some(Status::error(message));
+    pub fn add_success_message(&mut self, message: String) {
+        self.add_message(StatusMessage::success(message))
     }
 
-    pub fn clear_status(&mut self) {
-        self.status = None;
+    pub fn add_error_message(&mut self, message: String) {
+        self.add_message(StatusMessage::error(message))
     }
 
-    pub fn borrow_status(&self) -> &Option<Status> {
-        &self.status
+    pub fn clear_last_message(&mut self) {
+        self.last_message = false;
+    }
+
+    pub fn borrow_last_message(&self) -> Option<&StatusMessage> {
+        if self.last_message {
+            self.messages.last()
+        } else {
+            None
+        }
+    }
+
+    pub fn borrow_all_messages(&self) -> &[StatusMessage] {
+        &self.messages[..]
     }
 }
 
@@ -281,7 +305,7 @@ impl WidgetImpl<Renderer, DropTarget> for Root {
         mouse_pos: Vec2D,
         mods: &MouseMods,
     ) -> MaybeMouseBehavior {
-        self.with_gui_state_mut(|state| state.clear_status());
+        self.with_gui_state_mut(|state| state.clear_last_message());
         ris!(self.get_mouse_behavior_children(mouse_pos, mods));
         self.get_current_tab().get_mouse_behavior(mouse_pos, mods)
     }
@@ -300,6 +324,13 @@ impl WidgetImpl<Renderer, DropTarget> for Root {
     }
 
     fn draw_impl(self: &Rc<Self>, renderer: &mut Renderer) {
+        self.with_gui_state_mut(|state| {
+            let new_errors = state.engine.borrow_mut().take_posted_errors();
+            for error in new_errors {
+                state.add_error_message(error);
+            }
+        });
+
         renderer.set_color(&COLOR_BG0);
         renderer.draw_rect(0, (ROOT_WIDTH, ROOT_HEIGHT));
         self.get_current_tab().draw(renderer);

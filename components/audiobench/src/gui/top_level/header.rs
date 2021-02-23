@@ -98,10 +98,10 @@ impl WidgetImpl<Renderer, DropTarget> for Header {
 
         self.with_gui_state(|state| {
             let tooltip = &state.borrow_tooltip();
-            let (text, color) = if let Some(status) = state.borrow_status() {
-                (&status.text, &status.color)
+            let (text, color) = if let Some(status) = state.borrow_last_message() {
+                (status.text.split("\n").next().unwrap(), &status.color)
             } else {
-                (&tooltip.text, &COLOR_BG0)
+                (&tooltip.text[..], &COLOR_BG0)
             };
             r.set_color(color);
             let tooltip_size: Vec2D = (ROOT_WIDTH - GP * 2.0, TOOLTIP_HEIGHT).into();
