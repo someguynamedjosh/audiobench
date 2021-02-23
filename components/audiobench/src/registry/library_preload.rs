@@ -73,7 +73,12 @@ impl LibraryContentProvider for DirectoryLibraryContentProvider {
     }
 
     fn get_file_name(&mut self, index: usize) -> String {
-        self.file_paths[index].to_string_lossy().into()
+        let value: String = self.file_paths[index].to_string_lossy().into();
+        if cfg!(windows) {
+            value.replace("\\", "/")
+        } else {
+            value
+        }
     }
 
     fn get_full_path(&mut self, index: usize) -> Option<PathBuf> {
@@ -116,11 +121,16 @@ impl<R: Read + Seek> LibraryContentProvider for ZippedLibraryContentProvider<R> 
     }
 
     fn get_file_name(&mut self, index: usize) -> String {
-        self.archive
+        let value = self.archive
             .by_index(self.non_directory_files[index])
             .unwrap()
             .name()
-            .to_owned()
+            .to_owned();
+        if cfg!(windows) {
+            value.replace("\\", "/")
+        } else {
+            value
+        }
     }
 
     fn get_full_path(&mut self, _index: usize) -> Option<PathBuf> {
