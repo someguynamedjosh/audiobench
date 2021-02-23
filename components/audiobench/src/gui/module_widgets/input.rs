@@ -116,7 +116,13 @@ impl MouseBehavior<DropTarget> for InputBehavior {
     }
 
     fn on_drop(self: Box<Self>, drop_target: Option<DropTarget>) {
-        self.connector.on_drop(drop_target)
+        if let Some(DropTarget::Output(..)) = &drop_target {
+        } else {
+            // We did not connect to another output, so we should disconnect any existing output.
+            self.control.borrow_mut().disconnect();
+            self.engine.borrow_mut().regenerate_code();
+        };
+        self.connector.on_drop(drop_target);
     }
 }
 
