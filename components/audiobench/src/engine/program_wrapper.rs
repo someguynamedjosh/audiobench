@@ -28,9 +28,9 @@ struct NoteInput {
 }
 
 impl NoteInput {
-    fn from(other: &NoteData, params: &GlobalParameters) -> Self {
+    fn from(other: &NoteData, params: &GlobalParameters, pitch_mul: f32) -> Self {
         Self {
-            pitch: other.pitch,
+            pitch: other.pitch * pitch_mul,
             velocity: other.velocity,
             elapsed_time: other.elapsed_samples as f32 / params.sample_rate as f32,
             elapsed_beats: other.elapsed_beats,
@@ -307,8 +307,9 @@ impl AudiobenchExecutor {
         };
         let mut feedback_data = None;
 
+        let pitch_mul = (2.0f32).powf(global_data.pitch_wheel * 7.0 / 12.0);
         for note in notes.active_notes_mut() {
-            let note_input = NoteInput::from(&note.data, &self.parameters);
+            let note_input = NoteInput::from(&note.data, &self.parameters, pitch_mul);
             let static_index = note.static_index;
             let do_feedback = feedback_note == Some(static_index);
 

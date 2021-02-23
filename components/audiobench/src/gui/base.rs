@@ -151,7 +151,7 @@ impl TabArchetype {
                 }
             }
             MessageLog => {
-                if let LibraryInfo = other {
+                if let MessageLog = other {
                     true
                 } else {
                     false
