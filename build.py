@@ -284,31 +284,43 @@ def check_version():
     import requests
     latest = requests.get(
         'https://joshua-maros.github.io/audiobench/latest.json').json()
-    version = int(latest['version'])
-    expected_version = version + 1
-    good = True
+    last_version = [int(d) for d in latest['version'].split('.')]
+    numeric_crate_version = [int(d) for d in CRATE_VERSION.split('.')]
 
-    minor_version = int(CRATE_VERSION.split('.')[1].strip())
-    if minor_version != expected_version:
+    good = False
+    for crate, last in zip(numeric_crate_version, last_version):
+        if crate == last + 1:
+            good = True
+            break
+
+    if not good:
         print('ERROR in components/audiobench/Cargo.toml:')
-        print('Expected minor version to be ' +
-              str(expected_version) + ' but found ' + str(minor_version))
-        good = False
+        print('Version number was not incremented correctly.')
+        print('Last version was ' + latest['version'] + ' but the crate version is ' + CRATE_VERSION)
 
     latest_json = open('docs/website/src/latest.json',
                        'r', encoding='utf8').read()
     version_start = latest_json.find('"version": ') + len('"version": ')
     version_end = latest_json.find(',', version_start)
-    latest_version = int(latest_json[version_start:version_end].strip())
-    if latest_version != expected_version:
+    latest_version = latest_json[version_start:version_end].strip()
+    if latest_version != CRATE_VERSION:
         print('ERROR in docs/website/src/latest.json:')
-        print('Expected version to be ' + str(expected_version) +
+        print('Expected version to be ' + CRATE_VERSION +
               ' but found ' + str(latest_version))
         good = False
 
     if not good:
         exit(1)
     print('Version has been incremented correctly.')
+
+
+# This is only invoked in the CI script.
+def set_release_version():
+    # https://docs.github.com/en/actions/reference/workflow-commands-for-github-actions#using-workflow-commands-to-access-toolkit-functions
+    print('::set-output name=RELEASE_NAME::' + CRATE_VERSION)
+    index = open('docs/website/src/index.js', 'r').read()
+    index.replace('RELEASE_NAME', CRATE_VERSION)
+    open('docs/website/index.js', 'w').write(index)
 
 
 def build_juce6_win():
@@ -469,6 +481,8 @@ if ON_WINDOWS:
     JOBS['juce6'] = Job('Build JUCE6 library (necessary on Windows)', [
         'remove_juce_splash'], build_juce6_win)
     JOBS['juce_frontend'].dependencies.append('juce6')
+if ON_GITHUB_RUNNER:
+    JOBS['set_release_version'] = Job('Set release version', [], set_release_version)
 
 if args.job not in JOBS:
     print('ERROR: There is no job named "' + args.job + '"')
