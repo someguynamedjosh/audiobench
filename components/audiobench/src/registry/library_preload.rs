@@ -7,14 +7,14 @@ use std::{
 };
 
 pub struct LibraryInfo {
+    pub internal_name: String,
     pub pretty_name: String,
     pub description: String,
     pub version: Version,
-    // min_engine_version check is handled by parse_library_info.
+    pub dependencies: Vec<(String, Version)>,
 }
 
 pub(super) struct PreloadedLibrary {
-    pub internal_name: String,
     pub content: Box<dyn LibraryContentProvider>,
     pub info: LibraryInfo,
 }
@@ -73,7 +73,12 @@ impl LibraryContentProvider for DirectoryLibraryContentProvider {
     }
 
     fn get_file_name(&mut self, index: usize) -> String {
-        self.file_paths[index].to_string_lossy().into()
+        let value: String = self.file_paths[index].to_string_lossy().into();
+        if cfg!(windows) {
+            value.replace("\\", "/")
+        } else {
+            value
+        }
     }
 
     fn get_full_path(&mut self, index: usize) -> Option<PathBuf> {
@@ -116,11 +121,17 @@ impl<R: Read + Seek> LibraryContentProvider for ZippedLibraryContentProvider<R> 
     }
 
     fn get_file_name(&mut self, index: usize) -> String {
-        self.archive
+        let value = self
+            .archive
             .by_index(self.non_directory_files[index])
             .unwrap()
             .name()
-            .to_owned()
+            .to_owned();
+        if cfg!(windows) {
+            value.replace("\\", "/")
+        } else {
+            value
+        }
     }
 
     fn get_full_path(&mut self, _index: usize) -> Option<PathBuf> {
@@ -156,36 +167,45 @@ fn parse_library_info(name: &str, buffer: Vec<u8>) -> Result<LibraryInfo, String
         )
     })?;
     let yaml = yaml::parse_yaml(&buffer_as_text, name)?;
+    let internal_name = yaml.unique_child("internal_name")?.value.clone();
     let pretty_name = yaml.unique_child("pretty_name")?.value.clone();
     let description = yaml.unique_child("description")?.value.clone();
     let version = yaml.unique_child("version")?.parse()?;
-    // TODO: Min engine version check. unimplemented!()
-    // let min_engine_version = yaml
-    //     .unique_child("min_engine_version")?
-    //     .parse_ranged(Some(0), Some(0xFFFF))?;
-    // if min_engine_version > ENGINE_VERSION as i32 {
-    //     return Err(format!(
-    //         concat!(
-    //             "ERROR: This library requires at least version {} of Audiobench.\n",
-    //             "You are currently running version {}.",
-    //         ),
-    //         min_engine_version, ENGINE_VERSION
-    //     ));
-    // }
+    let mut dependencies = Vec::new();
+    if let Ok(child) = yaml.unique_child("dependencies") {
+        for child in &child.children {
+            dependencies.push((child.name.clone(), child.parse()?));
+        }
+    }
+    if !dependencies.iter().any(|(name, _)| name == "Factory")
+        && internal_name != "User"
+        && internal_name != "Factory"
+    {
+        return Err(format!(
+            concat!(
+                "ERROR: The library {} is missing a dependency on the Factory library. ",
+                "Try adding the following lines in its library_info.yaml:\n",
+                "dependencies:\n",
+                "  Factory: {}"
+            ),
+            internal_name, ENGINE_VERSION
+        ));
+    }
     Ok(LibraryInfo {
+        internal_name,
         pretty_name,
         description,
         version,
+        dependencies,
     })
 }
 
 pub(super) fn preload_library(
-    lib_name: String,
     mut content: Box<dyn LibraryContentProvider>,
 ) -> Result<PreloadedLibrary, String> {
     for index in 0..content.get_num_files() {
         if &content.get_file_name(index) == "library_info.yaml" {
-            let lib_info_name = format!("{}:{}", lib_name, "library_info.yaml");
+            let lib_info_name = format!("library_info.yaml");
             let buffer = content.read_file_contents(index).map_err(|err| {
                 format!(
                     "ERROR: Failed to read file {}, caused by:\n{}",
@@ -199,16 +219,12 @@ pub(super) fn preload_library(
                 )
             })?;
             return Ok(PreloadedLibrary {
-                internal_name: lib_name,
                 info: lib_info,
                 content,
             });
         }
     }
-    Err(format!(
-        "ERROR: {} does not have a library_info.yaml file",
-        lib_name
-    ))
+    Err(format!("ERROR: could not find a library_info.yaml file",))
 }
 
 pub(super) fn preload_library_from_path(path: &Path) -> Result<PreloadedLibrary, String> {
@@ -219,7 +235,7 @@ pub(super) fn preload_library_from_path(path: &Path) -> Result<PreloadedLibrary,
         .into();
     if path.is_dir() {
         let content = DirectoryLibraryContentProvider::new(path.to_owned())?;
-        preload_library(lib_name, Box::new(content))
+        preload_library(Box::new(content))
     } else {
         let extension_index = lib_name.rfind(".").unwrap_or(lib_name.len());
         if &lib_name[extension_index..] != ".ablib" {
@@ -232,6 +248,6 @@ pub(super) fn preload_library_from_path(path: &Path) -> Result<PreloadedLibrary,
         let file = File::open(path)
             .map_err(|e| format!("ERROR: Failed to open file, caused by:\nERROR: {}", e))?;
         let content = ZippedLibraryContentProvider::new(file)?;
-        preload_library(lib_name, Box::new(content))
+        preload_library(Box::new(content))
     }
 }

@@ -15,7 +15,7 @@ pub const ENGINE_INFO: &'static str = concat!(
     "including selling any audio, patches, or modules you make with or for it. If you make ",
     "modifications to the source code you must make those changes freely available under the GNU ",
     "General Public License, Version 3. Source code is available at ",
-    "https://gitlab.com/Code_Cube/audio-bench."
+    "https://github.com/joshua-maros/audiobench."
 );
 #[cfg(debug_assertions)]
 pub const ENGINE_UPDATE_URL: &'static str = "http://localhost:8000/latest.json";

@@ -43,7 +43,7 @@ PRODUCT=__PRODUCT__
 
 echo "Application uninstalling process started"
 # remove link to shorcut file
-find "/usr/local/bin/" -name "__PRODUCT__-__VERSION__" | xargs rm
+find "/usr/local/bin/" -name "__PRODUCT__" | xargs rm
 if [ $? -eq 0 ]
 then
   echo "[1/3] [DONE] Successfully deleted shortcut links"
@@ -61,7 +61,7 @@ else
 fi
 
 #remove application source distribution
-[ -e "/Library/${PRODUCT}/${VERSION}" ] && rm -rf "/Library/${PRODUCT}/${VERSION}"
+[ -e "/Library/${PRODUCT}" ] && rm -rf "/Library/${PRODUCT}"
 if [ $? -eq 0 ]
 then
   echo "[3/3] [DONE] Successfully deleted application"

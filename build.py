@@ -207,6 +207,20 @@ def build_juce_frontend():
             'Audiobench_MacOS_x64_AU.component')
         clib_target = clib_target.joinpath('libaudiobench_clib.dylib')
 
+        # Change linkage paths.
+        old_clib_path = '/usr/local/lib/libaudiobench_clib.0.1.0.dylib'
+        new_clib_path = '/Library/Audiobench/libaudiobench_clib.dylib'
+        old_julia_path = '@rpath/libjulia.dylib'
+        new_julia_path = '/Library/Audiobench/Julia.app/lib/libjulia.dylib'
+        files_to_change = [
+            au_source.joinpath('Contents', 'MacOS', 'Audiobench'),
+            standalone_source.joinpath('Contents', 'MacOS', 'Audiobench'),
+            vst3_source.joinpath('Contents', 'MacOS', 'Audiobench'),
+        ]
+        for fpath in files_to_change:
+            command(['install_name_tool', '-change', old_clib_path, new_clib_path, fpath])
+            command(['install_name_tool', '-change', old_julia_path, new_julia_path, fpath])
+
     if ON_LINUX:
         standalone_source = standalone_source.joinpath('Audiobench')
         clib_source = clib_source.joinpath('libaudiobench_clib.so')
@@ -216,27 +230,7 @@ def build_juce_frontend():
         vst3_target = vst3_target.joinpath('Audiobench_Linux_x64_VST3.vst3')
         clib_target = clib_target.joinpath('libaudiobench_clib.so.0')
 
-    # Mac requires an extra packaging step whose output goes directly in artifacts/bin/. Other
-    # platforms require copying the artifacts to the folder.
     if ON_MAC:
-        # Add DS_Store and bg,png
-        # NOTE: The DS_Store_VST3 file is just a copy of the Standalone file, never got around to
-        # making an actual version of it.
-        # bg_png_path = JUCE_FRONTEND_ROOT.joinpath('osx_stuff', 'bg.png')
-        # for source in [standalone_source, vst3_source, au_source]:
-        #     name = source.name
-        #     ds_store_path = JUCE_FRONTEND_ROOT.joinpath('osx_stuff', 'DS_Store_' + name)
-        #     mkdir(source.joinpath('.background'))
-        #     cp(bg_png_path, source.joinpath('.background', 'bg.png'))
-        #     cp(ds_store_path, source.joinpath('.DS_Store'))
-
-        # Convert everything to zips.
-        # command(['zip', '-r', artifact_target.joinpath(
-        #     'Audiobench_MacOS_x64_Standalone.zip'), 'Audiobench.app'], working_dir=standalone_source)
-        # command(['zip', '-r', artifact_target.joinpath(
-        #     'Audiobench_MacOS_x64_VST3.zip'), 'Audiobench.vst3'], working_dir=vst3_source)
-        # command(['zip', '-r', artifact_target.joinpath(
-        #     'Audiobench_MacOS_x64_AU.zip'), 'Audiobench.component'], working_dir=au_source)
         cpdir(standalone_source, standalone_target)
         cpdir(au_source, au_target)
     else:
@@ -290,31 +284,43 @@ def check_version():
     import requests
     latest = requests.get(
         'https://joshua-maros.github.io/audiobench/latest.json').json()
-    version = int(latest['version'])
-    expected_version = version + 1
-    good = True
+    last_version = [int(d) for d in latest['version'].split('.')]
+    numeric_crate_version = [int(d) for d in CRATE_VERSION.split('.')]
 
-    minor_version = int(CRATE_VERSION.split('.')[1].strip())
-    if minor_version != expected_version:
+    good = False
+    for crate, last in zip(numeric_crate_version, last_version):
+        if crate == last + 1:
+            good = True
+            break
+
+    if not good:
         print('ERROR in components/audiobench/Cargo.toml:')
-        print('Expected minor version to be ' +
-              str(expected_version) + ' but found ' + str(minor_version))
-        good = False
+        print('Version number was not incremented correctly.')
+        print('Last version was ' + latest['version'] + ' but the crate version is ' + CRATE_VERSION)
 
     latest_json = open('docs/website/src/latest.json',
                        'r', encoding='utf8').read()
     version_start = latest_json.find('"version": ') + len('"version": ')
     version_end = latest_json.find(',', version_start)
-    latest_version = int(latest_json[version_start:version_end].strip())
-    if latest_version != expected_version:
+    latest_version = latest_json[version_start:version_end].strip()
+    if latest_version != CRATE_VERSION:
         print('ERROR in docs/website/src/latest.json:')
-        print('Expected version to be ' + str(expected_version) +
+        print('Expected version to be ' + CRATE_VERSION +
               ' but found ' + str(latest_version))
         good = False
 
     if not good:
         exit(1)
     print('Version has been incremented correctly.')
+
+
+# This is only invoked in the CI script.
+def set_release_version():
+    # https://docs.github.com/en/actions/reference/workflow-commands-for-github-actions#using-workflow-commands-to-access-toolkit-functions
+    print('::set-output name=RELEASE_NAME::' + CRATE_VERSION)
+    index = open('docs/website/src/index.js', 'r').read()
+    index.replace('RELEASE_NAME', CRATE_VERSION)
+    open('docs/website/index.js', 'w').write(index)
 
 
 def build_juce6_win():
@@ -475,6 +481,8 @@ if ON_WINDOWS:
     JOBS['juce6'] = Job('Build JUCE6 library (necessary on Windows)', [
         'remove_juce_splash'], build_juce6_win)
     JOBS['juce_frontend'].dependencies.append('juce6')
+if ON_GITHUB_RUNNER:
+    JOBS['set_release_version'] = Job('Set release version', [], set_release_version)
 
 if args.job not in JOBS:
     print('ERROR: There is no job named "' + args.job + '"')

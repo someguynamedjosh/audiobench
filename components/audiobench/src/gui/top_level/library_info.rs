@@ -1,4 +1,12 @@
-use crate::{config::{ENGINE_INFO, ENGINE_UPDATE_URL, ENGINE_VERSION}, engine::controls::AnyControl, gui::{GuiTab, InteractionHint, TabArchetype, Tooltip, constants::*, graphics::GrahpicsWrapper}, registry::{module_template::ModuleTemplate, Registry}, scui_config::{DropTarget, MaybeMouseBehavior, Renderer}};
+use crate::{
+    config::{ENGINE_INFO, ENGINE_UPDATE_URL, ENGINE_VERSION},
+    engine::controls::AnyControl,
+    gui::{
+        constants::*, graphics::GrahpicsWrapper, GuiTab, InteractionHint, TabArchetype, Tooltip,
+    },
+    registry::{module_template::ModuleTemplate, Registry},
+    scui_config::{DropTarget, MaybeMouseBehavior, Renderer},
+};
 use scui::{MouseMods, OnClickBehavior, Vec2D, WidgetImpl};
 use shared_util::prelude::*;
 
@@ -147,7 +155,7 @@ impl LibraryInfo {
 fn open_browser(this: Rc<LibraryInfo>, url: String) {
     if let Err(err) = webbrowser::open(&url) {
         this.with_gui_state_mut(|state| {
-            state.add_error_status(format!(
+            state.add_error_message(format!(
                 "Failed to open web browser, see console for details."
             ));
             eprintln!("WARNING: Failed to open web browser, caused by:\n{}", err);
@@ -275,9 +283,7 @@ impl WidgetImpl<Renderer, DropTarget> for LibraryInfo {
             "Installed Libraries",
         );
         y += TITLE_FONT_SIZE + GRID_P;
-        state
-            .mouse_actions
-            .push((y, LibraryInfoMouseAction::None));
+        state.mouse_actions.push((y, LibraryInfoMouseAction::None));
         let LibraryInfoState {
             libraries,
             mouse_actions,

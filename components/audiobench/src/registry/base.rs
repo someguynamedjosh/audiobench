@@ -204,11 +204,30 @@ impl Registry {
     }
 
     fn load_library(&mut self, mut library: PreloadedLibrary) -> Result<LibraryInfo, String> {
+        for (name, requirement) in &library.info.dependencies {
+            if name == "Factory" {
+                if !ENGINE_VERSION.compatible_for(*requirement) {
+                    return Err(format!(
+                        concat!(
+                            "ERROR: This library requires the {} (or similarly compatible) ",
+                            "version of the {} library but you have version {}."
+                        ),
+                        requirement, name, ENGINE_VERSION
+                    ));
+                }
+            } else {
+                return Err(format!(concat!(
+                    "ERROR: Dependencies on libraries other than the Factory",
+                    "library is unimplemented."
+                )));
+            }
+        }
+        let internal_name = library.info.internal_name.clone();
         // Add entries to script hash table.
         self.general_scripts_by_library
-            .insert(library.internal_name.clone(), Vec::new());
+            .insert(internal_name.clone(), Vec::new());
         self.module_scripts_by_library
-            .insert(library.internal_name.clone(), Vec::new());
+            .insert(internal_name.clone(), Vec::new());
         // Load icons before other data.
         for index in 0..library.content.get_num_files() {
             let file_name = library.content.get_file_name(index);
@@ -216,7 +235,7 @@ impl Registry {
                 let full_path = library.content.get_full_path(index);
                 let contents = library.content.read_file_contents(index)?;
                 let delayed_error =
-                    self.load_resource(&library.internal_name, &file_name, full_path, contents)?;
+                    self.load_resource(&internal_name, &file_name, full_path, contents)?;
                 assert!(
                     delayed_error.is_none(),
                     "Icons should not cause delayed errors."
@@ -230,7 +249,7 @@ impl Registry {
                 let full_path = library.content.get_full_path(index);
                 let contents = library.content.read_file_contents(index)?;
                 delayed_error = delayed_error.or(self.load_resource(
-                    &library.internal_name,
+                    &internal_name,
                     &file_name,
                     full_path,
                     contents,
@@ -240,7 +259,7 @@ impl Registry {
         if let Some(DelayedError::DuplicateSaveId(dupl_id)) = delayed_error {
             let mut save_ids = HashSet::new();
             for (this_lib_name, save_id) in self.modules_by_serialized_id.keys() {
-                if this_lib_name == &library.internal_name {
+                if this_lib_name == &internal_name {
                     save_ids.insert(*save_id);
                 }
             }
@@ -286,14 +305,12 @@ impl Registry {
             let content = ZippedLibraryContentProvider::new(reader).map_err(|err| {
                 format!("ERROR: Failed to open Factory library, caused by:\n{}", err)
             })?;
-            library_preload::preload_library("Factory".to_owned(), Box::new(content)).map_err(
-                |err| {
-                    format!(
-                        "ERROR: Failed to preload Factory library, caused by:\n{}",
-                        err
-                    )
-                },
-            )?
+            library_preload::preload_library(Box::new(content)).map_err(|err| {
+                format!(
+                    "ERROR: Failed to preload Factory library, caused by:\n{}",
+                    err
+                )
+            })?
         };
         let factory_lib_info = self
             .load_library(factory_library)
@@ -325,7 +342,7 @@ impl Registry {
                         err
                     )
                 })?;
-            let internal_name = library.internal_name.clone();
+            let internal_name = library.info.internal_name.clone();
             let info = self.load_library(library).map_err(|err| {
                 format!(
                     "ERROR: Failed to load library {}, caused by:\n{}",

@@ -34,7 +34,7 @@ gui:
   category: Utility
   tooltip: Mixes together four different audio channels with amplitude controls for each
   width: 4
-  height: 2
+  height: 4
   widgets:
     Input:
       y: 0

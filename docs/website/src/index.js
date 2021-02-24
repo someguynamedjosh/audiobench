@@ -33,8 +33,7 @@ function linkClicked(name) {
 }
 
 function startDownload(from, artifactUrl) {
-    let extension = artifactUrl.substr(artifactUrl.lastIndexOf('.') + 1);
-    let prettyArtifactName = 'Audiobench.' + extension;
+    let prettyArtifactName = '';
     let manualLink = document.getElementById('manual-link');
     manualLink.href = artifactUrl;
     manualLink.setAttribute('download', prettyArtifactName);
@@ -47,26 +46,12 @@ function startDownload(from, artifactUrl) {
 
 function makeDownloadButton(name, parentMenu, artifactName) {
     document.getElementById(name).addEventListener('click', event => {
-        startDownload(parentMenu, 'bin/' + artifactName);
+        startDownload(parentMenu, 'https://github.com/joshua-maros/audiobench/releases/download/RELEASE_NAME/' + artifactName);
     });
 }
 
 window.addEventListener('DOMContentLoaded', event => {
-    document.getElementById('btn-windows').addEventListener('click', event => {
-        transitionMenu('download-menu-root', 'download-menu-windows');
-    });
-    document.getElementById('btn-macos').addEventListener('click', event => {
-        transitionMenu('download-menu-root', 'download-menu-macos');
-    });
-    document.getElementById('btn-linux').addEventListener('click', event => {
-        transitionMenu('download-menu-root', 'download-menu-linux');
-    });
-
-    makeDownloadButton('btn-windows-standalone', 'download-menu-windows', 'Audiobench_Windows_x64_Standalone.exe');
-    makeDownloadButton('btn-windows-vst3', 'download-menu-windows', 'Audiobench_Windows_x64_VST3.vst3');
-    makeDownloadButton('btn-macos-standalone', 'download-menu-macos', 'Audiobench_MacOS_x64_Standalone.zip');
-    makeDownloadButton('btn-macos-au', 'download-menu-macos', 'Audiobench_MacOS_x64_AU.zip');
-    makeDownloadButton('btn-macos-vst3', 'download-menu-macos', 'Audiobench_MacOS_x64_VST3.zip');
-    makeDownloadButton('btn-linux-standalone', 'download-menu-linux', 'Audiobench_Linux_x64_Standalone.bin');
-    makeDownloadButton('btn-linux-vst3', 'download-menu-linux', 'Audiobench_Linux_x64_VST3.so');
+    makeDownloadButton('btn-windows', 'download-menu-root', 'AudiobenchWindowsSetup.exe');
+    makeDownloadButton('btn-macos', 'download-menu-root', 'AudiobenchMacOSSetup.pkg');
+    makeDownloadButton('btn-linux', 'download-menu-root', 'AudiobenchLinuxSetup.sh');
 });

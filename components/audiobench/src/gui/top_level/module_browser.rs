@@ -1,4 +1,12 @@
-use crate::{engine::controls::AnyControl, gui::{GuiTab, InteractionHint, TabArchetype, Tooltip, constants::*, graphics::GrahpicsWrapper, top_level::graph::ModuleGraph}, registry::{module_template::ModuleTemplate, Registry}, scui_config::{DropTarget, MaybeMouseBehavior, Renderer}};
+use crate::{
+    engine::controls::AnyControl,
+    gui::{
+        constants::*, graphics::GrahpicsWrapper, top_level::graph::ModuleGraph, GuiTab,
+        InteractionHint, TabArchetype, Tooltip,
+    },
+    registry::{module_template::ModuleTemplate, Registry},
+    scui_config::{DropTarget, MaybeMouseBehavior, Renderer},
+};
 use owning_ref::OwningRef;
 use scui::{MouseMods, OnClickBehavior, Vec2D, WidgetImpl};
 use shared_util::prelude::*;

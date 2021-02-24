@@ -15,8 +15,6 @@ use crossbeam_utils::atomic::AtomicCell;
 use julia_helper::GeneratedCode;
 use shared_util::prelude::*;
 use std::{
-    path::PathBuf,
-    str::FromStr,
     sync::Mutex,
     time::{Duration, Instant},
 };
@@ -34,7 +32,8 @@ struct UiThreadData {
     dyn_data_collector: DynDataCollector,
     feedback_displayer: FeedbackDisplayer,
     current_patch_save_data: Rcrc<Patch>,
-    posted_error: Option<String>,
+    posted_errors: Vec<String>,
+    julia_errors: Receiver<String>,
 }
 
 pub(super) struct Communication {
@@ -110,6 +109,7 @@ pub fn new_engine(
     let (renderi, rendero) = crossbeam_channel::bounded(0);
     let (polli, pollo) = crossbeam_channel::bounded(0xFF);
     let (audio_resi, audio_reso) = crossbeam_channel::bounded(0);
+    let (jerrori, jerroro) = crossbeam_channel::unbounded();
 
     let utd = UiThreadData {
         registry: Rc::clone(&registry_ptr),
@@ -117,7 +117,8 @@ pub fn new_engine(
         dyn_data_collector,
         feedback_displayer,
         current_patch_save_data: default_patch,
-        posted_error: None,
+        posted_errors: Vec::new(),
+        julia_errors: jerroro,
     };
 
     let atd = AudioThreadData {
@@ -155,6 +156,7 @@ pub fn new_engine(
             rendero,
             pollo,
             audio_resi,
+            jerrori,
         );
     };
     std::thread::Builder::new()
@@ -175,8 +177,8 @@ pub fn new_engine(
 }
 
 impl UiThreadEngine {
-    pub fn is_julia_thread_busy(&self) -> bool {
-        self.comms.julia_thread_status.load() == julia_thread::Status::Busy
+    pub fn get_julia_thread_status(&self) -> julia_thread::Status {
+        self.comms.julia_thread_status.load()
     }
 
     pub fn rename_current_patch(&mut self, name: String) {
@@ -187,11 +189,15 @@ impl UiThreadEngine {
     }
 
     pub fn post_error(&mut self, message: String) {
-        self.data.posted_error = Some(message);
+        self.data.posted_errors.push(message);
     }
 
-    pub fn take_posted_error(&mut self) -> Option<String> {
-        self.data.posted_error.take()
+    pub fn take_posted_errors(&mut self) -> Vec<String> {
+        let mut errors = std::mem::take(&mut self.data.posted_errors);
+        while let Ok(error) = self.data.julia_errors.try_recv() {
+            errors.push(error);
+        }
+        errors
     }
 
     pub fn borrow_registry(&self) -> &Rcrc<Registry> {
@@ -286,8 +292,7 @@ impl UiThreadEngine {
     pub fn regenerate_code(&mut self) {
         let module_graph_ref = self.data.module_graph.borrow();
         let params = self.comms.global_params.load();
-        let new_gen = codegen::generate_code(&*module_graph_ref, &params)
-            .map_err(|_| format!("The note graph cannot contain feedback loops"));
+        let new_gen = codegen::generate_code(&*module_graph_ref, &params);
         let new_gen = if let Ok(value) = new_gen {
             value
         } else {

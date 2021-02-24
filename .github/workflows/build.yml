@@ -119,7 +119,7 @@ jobs:
         mv macos/Audiobench.pkg ./AudiobenchMacOSSetup.pkg
         mv linux/Installer_Linux_x64.sh ./AudiobenchLinuxSetup.sh
         cd book
-        zip ../Book.zip ./*
+        zip ../Book.zip -r ./*
     - name: Publish release
       uses: "marvinpinto/action-automatic-releases@latest"
       with:

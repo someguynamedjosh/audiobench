@@ -28,9 +28,9 @@ struct NoteInput {
 }
 
 impl NoteInput {
-    fn from(other: &NoteData, params: &GlobalParameters) -> Self {
+    fn from(other: &NoteData, params: &GlobalParameters, pitch_mul: f32) -> Self {
         Self {
-            pitch: other.pitch,
+            pitch: other.pitch * pitch_mul,
             velocity: other.velocity,
             elapsed_time: other.elapsed_samples as f32 / params.sample_rate as f32,
             elapsed_beats: other.elapsed_beats,
@@ -175,6 +175,19 @@ pub(super) struct AudiobenchExecutor {
 }
 
 impl AudiobenchExecutor {
+    fn beautify_stack_trace(trace: String) -> String {
+        let mut trace = &trace[..];
+        let mut result = String::new();
+        while let Some(index) = trace.find("exec(") {
+            result.push_str(&trace[..index + 5]);
+            trace = &trace[index + 5..];
+            let end = trace.find(')').unwrap_or(0);
+            trace = &trace[end..];
+        }
+        result.push_str(trace);
+        result
+    }
+
     pub fn new(
         registry_source: GeneratedCode,
         parameters: &GlobalParameters,
@@ -218,13 +231,19 @@ impl AudiobenchExecutor {
         );
         let parameter_code =
             GeneratedCode::from_unique_source("Generated:parameters.jl", &parameter_code);
-        self.base.add_global_code(parameter_code)?;
+        self.base
+            .add_global_code(parameter_code)
+            .map_err(Self::beautify_stack_trace)?;
         // Redefine the registry module because it may have been previously compiled with old
         // parameters.
-        self.base.add_global_code(self.registry_source.clone())?;
+        self.base
+            .add_global_code(self.registry_source.clone())
+            .map_err(Self::beautify_stack_trace)?;
         // Redefine the Generated module to be blank because it may have been previously compiled
         // with old parameters.
-        self.base.add_global_code(self.generated_source.clone())?;
+        self.base
+            .add_global_code(self.generated_source.clone())
+            .map_err(Self::beautify_stack_trace)?;
         Ok(())
     }
 
@@ -232,10 +251,15 @@ impl AudiobenchExecutor {
         let mut temp_file = std::env::temp_dir();
         temp_file.push("audiobench_note_graph_code.jl");
         if std::fs::write(temp_file.clone(), generated_code.as_str()).is_err() {
-            return Err(format!("ERROR: Failed to open {:?} for writing.", temp_file));
+            return Err(format!(
+                "ERROR: Failed to open {:?} for writing.",
+                temp_file
+            ));
         }
         self.generated_source = generated_code.clone();
-        self.base.add_global_code(generated_code)?;
+        self.base
+            .add_global_code(generated_code)
+            .map_err(Self::beautify_stack_trace)?;
         self.loaded = true;
         Ok(())
     }
@@ -283,12 +307,13 @@ impl AudiobenchExecutor {
         };
         let mut feedback_data = None;
 
+        let pitch_mul = (2.0f32).powf(global_data.pitch_wheel * 7.0 / 12.0);
         for note in notes.active_notes_mut() {
-            let note_input = NoteInput::from(&note.data, &self.parameters);
+            let note_input = NoteInput::from(&note.data, &self.parameters, pitch_mul);
             let static_index = note.static_index;
             let do_feedback = feedback_note == Some(static_index);
 
-            self.base.call_fn(
+            let res = self.base.call_fn(
                 &["Main", "Generated", "exec"],
                 |frame, inputs| {
                     inputs.append(&mut global_data.as_julia_values(frame)?);
@@ -354,7 +379,8 @@ impl AudiobenchExecutor {
 
                     Ok(Ok(()))
                 },
-            )??;
+            );
+            res.map_err(Self::beautify_stack_trace)??;
         }
 
         notes.advance_all_notes(&self.parameters, global_data);

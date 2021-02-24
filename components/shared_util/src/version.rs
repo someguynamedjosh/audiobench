@@ -23,6 +23,20 @@ impl Version {
         Self { maj, min, patch }
     }
 
+    pub fn compatible_for(self, requirement: Version) -> bool {
+        if self.maj == 0 && requirement.maj == 0 {
+            self.min == requirement.min && self.patch >= requirement.patch
+        } else if self.maj == requirement.maj {
+            if self.min == requirement.min {
+                self.patch >= requirement.patch
+            } else { 
+                self.min > requirement.min
+            }
+        } else {
+            false
+        }
+    }
+
     pub const unsafe fn new_unchecked(maj: u8, min: u8, patch: u8) -> Self {
         Self { maj, min, patch }
     }

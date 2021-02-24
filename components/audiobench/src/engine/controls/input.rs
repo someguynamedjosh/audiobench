@@ -113,6 +113,10 @@ impl InputControl {
     pub fn next_default(&mut self) {
         self.default = (self.default + 1) % default_option_descriptions_for(self.get_type()).len();
     }
+
+    pub fn disconnect(&mut self) {
+        self.connection = None;
+    }
 }
 
 #[rustfmt::skip]

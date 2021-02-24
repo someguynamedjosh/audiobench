@@ -7,3 +7,4 @@ pub mod parts;
 mod program_wrapper;
 
 pub use base::*;
+pub use julia_thread::Status;

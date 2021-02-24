@@ -138,6 +138,15 @@ impl PatchBrowser {
             "Library Info".into(),
             "View information and updates for installed libraries (including the builtin factory library)".into(),
         ));
+        let x = x + TabButton::SIZE + GRID_P;
+        tab_buttons.push(TabButton::new(
+            &this,
+            (x, 0.0),
+            registry.lookup_icon("Factory:message_log").unwrap(),
+            TabArchetype::MessageLog,
+            "Message Log".into(),
+            "View a log of all info/warning/error messages from this session".into(),
+        ));
 
         let this2 = Rc::clone(&this);
         let name_box = TextBox::new(
@@ -200,7 +209,7 @@ impl PatchBrowser {
             }
             drop(engine);
             this.with_gui_state_mut(|state| {
-                state.add_success_status("Patch saved successfully.".to_owned())
+                state.add_success_message("Patch saved successfully.".to_owned())
             });
         })
     }
@@ -224,7 +233,7 @@ impl PatchBrowser {
                 clipboard::ClipboardProvider::new().unwrap();
             clipboard.set_contents(patch_data).unwrap();
             this.with_gui_state_mut(|state| {
-                state.add_success_status("Patch data copied to clipboard.".to_owned())
+                state.add_success_message("Patch data copied to clipboard.".to_owned())
             })
         })
     }
@@ -249,7 +258,7 @@ impl PatchBrowser {
             if let Ok(patch) = res {
                 this.after_new_patch(patch);
                 this.with_gui_state_mut(|state| {
-                    state.add_success_status(
+                    state.add_success_message(
                         concat!(
                             "Patch data loaded from clipboard. (Click the save button if you want",
                             "to keep it.)"
@@ -259,7 +268,7 @@ impl PatchBrowser {
                 });
             } else if let Err(err) = res {
                 this.with_gui_state_mut(|state| {
-                    state.add_error_status(err);
+                    state.add_error_message(err);
                 });
             }
         })
@@ -275,10 +284,12 @@ impl PatchBrowser {
             this.update_on_patch_change(&patch);
             if let Err(..) = engine.borrow_mut().load_patch(patch) {
                 this.with_gui_state_mut(|state| {
-                    state.add_error_status(format!("ERROR: Patch data is corrupt."))
+                    state.add_error_message(format!("ERROR: Patch data is corrupt."))
                 });
             } else {
-                this.with_gui_state_mut(|state| state.add_success_status(format!("Patch loaded.")));
+                this.with_gui_state_mut(|state| {
+                    state.add_success_message(format!("Patch loaded."))
+                });
             }
         })
     }
@@ -326,7 +337,7 @@ impl PatchBrowser {
             let res = state.entries[index].borrow_mut().delete_from_disk();
             if let Err(err) = res {
                 this.with_gui_state_mut(|state| {
-                    state.add_error_status(format!("{}", err));
+                    state.add_error_message(format!("{}", err));
                 });
                 return;
             }
