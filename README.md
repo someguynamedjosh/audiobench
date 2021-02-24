@@ -20,11 +20,9 @@ First, make sure you have installed all the necessary tools and dependencies:
 - A Rust toolchain compatible with MSVC (this has been the default since 2017.)
 
 ### MacOS Dependencies
-- `git`
-- `python3`
-- `cmake` >= 3.15
-- Xcode toolchain
-- Rust toolchain
+- Homebrew (and the XCode tools that come with it)
+- Additional tools: `brew install git python3 cmake`
+- Rust toolchain from [rustup.rs](https://rustup.rs)
 
 ### Linux Dependencies
 Several tools and libraries are necessary. They can be installed on Debian-based
@@ -47,9 +45,9 @@ The build system is contained in `build.py`. It can be run by doing `./build.py`
 or `python build.py`, the first form may not work on Windows. Running it will
 provide a description of how it can be used. The most common uses are as
 follows:
-- `./build.py juce_frontend --release` builds a release version of the
-  standalone and plugin versions of Audiobench. The results are placed in
-  `artifacts/bin/`.
+- `./build.py installer --release` builds a release version of the
+  standalone and plugin versions of Audiobench and packages them into an
+  installer. The results are placed in `artifacts/installer/`.
 - `./build.py run` builds and runs a debug version.
 - `./build.py benchmark --release` runs performance tests and measures how long
   different parts of the code take to run.

@@ -1,10 +1,14 @@
 #!/bin/bash
 
 #Custermize this for your application
-APPLICATION_FILE_PATH=bin/wso2server.sh
+APPLICATION_FILE_PATH=Audiobench.app
 
 #Parameters
-PRODUCT_HOME=/Library/__PRODUCT__/__VERSION__
+PRODUCT_HOME=/Library/__PRODUCT__
+
+mv /Library/__PRODUCT__/__VERSION__ /tmp/Audiobench 
+rm -rf $PRODUCT_HOME
+mv /tmp/Audiobench $PRODUCT_HOME
 
 echo "Post installation process started"
 
@@ -15,6 +19,6 @@ chmod -R 755 .
 [ -d /usr/local/bin ] || mkdir /usr/local/bin
 
 #Add application shortcut to /usr/local/bin
-rm -f /usr/local/bin/__PRODUCT__-__VERSION__
-ln -s ${PRODUCT_HOME}/${APPLICATION_FILE_PATH} /usr/local/bin/__PRODUCT__-__VERSION__
+rm -f /usr/local/bin/__PRODUCT__
+ln -s ${PRODUCT_HOME}/${APPLICATION_FILE_PATH} /usr/local/bin/__PRODUCT__
 echo "Post installation process finished"
