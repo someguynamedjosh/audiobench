@@ -58,7 +58,6 @@ jobs:
     - name: Build Website
       run: |
         cd docs/website/src/
-        rm latest.json
         echo "{" >> latest.json
         echo "  \"version\": \"${{ steps.create_release.outputs.upload_url }}\"," >> latest.json
         echo "  \"changes\": []," >> latest.json
