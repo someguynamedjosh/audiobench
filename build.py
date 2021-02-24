@@ -293,25 +293,13 @@ def check_version():
             good = True
             break
 
-    if not good:
+    if good:
+        print('Version has been incremented correctly.')
+    else:
         print('ERROR in components/audiobench/Cargo.toml:')
         print('Version number was not incremented correctly.')
         print('Last version was ' + latest['version'] + ' but the crate version is ' + CRATE_VERSION)
-
-    latest_json = open('docs/website/src/latest.json',
-                       'r', encoding='utf8').read()
-    version_start = latest_json.find('"version": ') + len('"version": ')
-    version_end = latest_json.find(',', version_start)
-    latest_version = latest_json[version_start:version_end].strip()
-    if latest_version != CRATE_VERSION:
-        print('ERROR in docs/website/src/latest.json:')
-        print('Expected version to be ' + CRATE_VERSION +
-              ' but found ' + str(latest_version))
-        good = False
-
-    if not good:
         exit(1)
-    print('Version has been incremented correctly.')
 
 
 # This is only invoked in the CI script.
