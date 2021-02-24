@@ -16,9 +16,19 @@ echo "Post installation process started"
 echo "Change permissions in product home"
 cd ${PRODUCT_HOME}
 chmod -R 755 .
-[ -d /usr/local/bin ] || mkdir /usr/local/bin
 
 #Add application shortcut to /usr/local/bin
-rm -f /usr/local/bin/__PRODUCT__
-ln -s ${PRODUCT_HOME}/${APPLICATION_FILE_PATH} /usr/local/bin/__PRODUCT__
+rm -f /Applications/Audiobench.bin
+ln -s ${PRODUCT_HOME}/${APPLICATION_FILE_PATH} /Applications/Audiobench.bin
+
+VST3_PATH=/Library/Audio/Plug-ins/VST3
+[ -d $VST3_PATH ] || mkdir -p $VST3_PATH
+rm -f $VST3_PATH/Audiobench.vst3
+ln -s ${PRODUCT_HOME}/Audiobench.vst3 $VST3_PATH/Audiobench.vst3
+
+AU_PATH=/Library/Audio/Plug-ins/Components
+[ -d $AU_PATH ] || mkdir -p $AU_PATH
+rm -f $AU_PATH/Audiobench.component
+ln -s ${PRODUCT_HOME}/Audiobench.component $AU_PATH/Audiobench.component
+
 echo "Post installation process finished"
