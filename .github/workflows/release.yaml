@@ -12,30 +12,12 @@ jobs:
       run: |
         ./build.py check_version --github-runner
         ./build.py set_release_version --github-runner
-    - name: Download latest Windows installer
-      uses: dsaltares/fetch-gh-release-asset@master
-      with:
-        version: "latest-beta"
-        file: "AudiobenchWindowsSetup.exe"
-        token: ${{ secrets.YOUR_TOKEN }}
-    - name: Download latest MacOS installer
-      uses: dsaltares/fetch-gh-release-asset@master
-      with:
-        version: "latest-beta"
-        file: "AudiobenchMacOSSetup.pkg"
-        token: ${{ secrets.YOUR_TOKEN }}
-    - name: Download latest Linux installer
-      uses: dsaltares/fetch-gh-release-asset@master
-      with:
-        version: "latest-beta"
-        file: "AudiobenchLinuxSetup.sh"
-        token: ${{ secrets.YOUR_TOKEN }}
-    - name: Download latest book
-      uses: dsaltares/fetch-gh-release-asset@master
-      with:
-        version: "latest-beta"
-        file: "Book.zip"
-        token: ${{ secrets.YOUR_TOKEN }}
+    - name: Download artifacts
+      run: |
+        wget https://github.com/joshua-maros/audiobench/releases/download/latest-beta/AudiobenchWindowsSetup.exe
+        wget https://github.com/joshua-maros/audiobench/releases/download/latest-beta/AudiobenchMacOSSetup.pkg
+        wget https://github.com/joshua-maros/audiobench/releases/download/latest-beta/AudiobenchLinuxSetup.sh
+        wget https://github.com/joshua-maros/audiobench/releases/download/latest-beta/Book.zip
     - name: Create Release
       id: create_release
       uses: actions/create-release@v1

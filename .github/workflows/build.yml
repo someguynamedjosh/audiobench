@@ -2,25 +2,14 @@ name: Build All Artifacts
 
 on:
   push:
-    branches: [ beta, release ]
+    branches: [ beta ]
   pull_request:
-    branches: [ beta, release ]
+    branches: [ beta ]
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  check-version:
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request' && github.base_ref == 'release'
-    steps:
-    - uses: actions/checkout@v2
-      with:
-        lfs: 'true' 
-        persist-credentials: 'false'
-    - name: Check version numbers
-      run: ./build.py check_version
-
   build:
     strategy:
       matrix:
@@ -132,44 +121,3 @@ jobs:
           AudiobenchMacOSSetup.pkg
           AudiobenchLinuxSetup.sh
           Book.zip
-    
-  deploy-site:
-    needs: [build, build-book]
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/release'
-    steps:
-    - uses: actions/checkout@v2
-      with:
-        lfs: 'true' 
-        persist-credentials: 'false'
-    - name: Gather Artifacts
-      run: |
-        mkdir -p website/
-        mkdir -p website/bin/
-        mkdir -p website/book/
-        cp -r docs/website/src/* website/
-    - uses: actions/download-artifact@v2
-      with:
-        name: artifacts-bin-windows-latest
-        path: website/bin/
-    - uses: actions/download-artifact@v2
-      with:
-        name: artifacts-bin-macOS-latest
-        path: website/bin/
-    - uses: actions/download-artifact@v2
-      with:
-        name: artifacts-bin-ubuntu-latest
-        path: website/bin/
-    - uses: actions/download-artifact@v2
-      with:
-        name: book-html
-        path: website/book/
-    - name: Mark artifacts as executable
-      run: chmod +x website/bin/Audiobench_Linux_*
-    - name: Deploy
-      uses: JamesIves/github-pages-deploy-action@3.6.1
-      with:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        BRANCH: gh-pages
-        FOLDER: website/
-        CLEAN: true
