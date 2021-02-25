@@ -75,10 +75,12 @@ jobs:
         BRANCH: gh-pages
         FOLDER: website/
         CLEAN: true
-    # - name: Merge beta -> release
-    #   uses: devmasx/merge-branch@v1.3.1
-    #   with:
-    #     type: now
-    #     from_branch: beta
-    #     target_branch: release
-    #     github_token: ${{ github.token }}
+      env:
+        ACTIONS_ALLOW_UNSECURE_COMMANDS: true
+    - name: Merge beta -> release
+      uses: devmasx/merge-branch@v1.3.1
+      with:
+        type: now
+        from_branch: beta
+        target_branch: release
+        github_token: ${{ github.token }}
