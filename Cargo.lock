@@ -65,7 +65,7 @@ dependencies = [
 
 [[package]]
 name = "audiobench"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "array-macro",
  "base64 0.12.3",
