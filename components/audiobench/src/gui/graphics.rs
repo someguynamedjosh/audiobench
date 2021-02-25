@@ -1,4 +1,5 @@
 use crate::gui::constants::FONT_SIZE;
+use scui::Vec2D;
 
 #[repr(C)]
 pub struct GraphicsFunctions {
@@ -113,6 +114,20 @@ pub enum HAlign {
     Right = 2,
 }
 
+impl From<i32> for HAlign {
+    fn from(other: i32) -> Self {
+        match other {
+            -1 => Self::Left,
+            0 => Self::Center,
+            1 => Self::Right,
+            _ => panic!(
+                "Valid alignment values are -1, 0, and 1, got {} instead.",
+                other
+            ),
+        }
+    }
+}
+
 #[repr(i8)]
 pub enum VAlign {
     Top = 0,
@@ -120,15 +135,29 @@ pub enum VAlign {
     Bottom = 2,
 }
 
-pub struct GrahpicsWrapper<'a> {
-    graphics_fns: &'a GraphicsFunctions,
+impl From<i32> for VAlign {
+    fn from(other: i32) -> Self {
+        match other {
+            -1 => Self::Top,
+            0 => Self::Center,
+            1 => Self::Bottom,
+            _ => panic!(
+                "Valid alignment values are -1, 0, and 1, got {} instead.",
+                other
+            ),
+        }
+    }
+}
+
+pub struct GrahpicsWrapper {
+    graphics_fns: std::rc::Rc<GraphicsFunctions>,
     aux_data: *mut i8,
     icon_store: *mut i8,
 }
 
-impl<'a> GrahpicsWrapper<'a> {
+impl<'a> GrahpicsWrapper {
     pub fn new(
-        graphics_fns: &GraphicsFunctions,
+        graphics_fns: std::rc::Rc<GraphicsFunctions>,
         aux_data: *mut i8,
         icon_store: *mut i8,
     ) -> GrahpicsWrapper {
@@ -147,11 +176,12 @@ impl<'a> GrahpicsWrapper<'a> {
         (self.graphics_fns.pop_state)(self.aux_data);
     }
 
-    pub fn apply_offset(&mut self, x: f32, y: f32) {
-        (self.graphics_fns.apply_offset)(self.aux_data, x, y);
+    pub fn translate<T: Into<Vec2D>>(&mut self, offset: T) {
+        let offset = offset.into();
+        (self.graphics_fns.apply_offset)(self.aux_data, offset.x, offset.y);
     }
 
-    pub fn apply_scale(&mut self, s: f32) {
+    pub fn scale(&mut self, s: f32) {
         (self.graphics_fns.apply_scale)(self.aux_data, s);
     }
 
@@ -167,31 +197,49 @@ impl<'a> GrahpicsWrapper<'a> {
         (self.graphics_fns.clear)(self.aux_data);
     }
 
-    pub fn stroke_line(&mut self, x1: f32, y1: f32, x2: f32, y2: f32, weight: f32) {
-        (self.graphics_fns.stroke_line)(self.aux_data, x1, y1, x2, y2, weight);
+    pub fn draw_line<T: Into<Vec2D>, U: Into<Vec2D>>(&mut self, p1: T, p2: U, weight: f32) {
+        let p1 = p1.into();
+        let p2 = p2.into();
+        (self.graphics_fns.stroke_line)(self.aux_data, p1.x, p1.y, p2.x, p2.y, weight);
     }
 
-    pub fn fill_rect(&mut self, x: f32, y: f32, w: f32, h: f32) {
-        (self.graphics_fns.fill_rect)(self.aux_data, x, y, w, h);
+    pub fn draw_rect<T: Into<Vec2D>, U: Into<Vec2D>>(&mut self, top_right: T, size: U) {
+        let top_right = top_right.into();
+        let size = size.into();
+        (self.graphics_fns.fill_rect)(self.aux_data, top_right.x, top_right.y, size.x, size.y);
     }
 
-    pub fn fill_rounded_rect(&mut self, x: f32, y: f32, w: f32, h: f32, corner_size: f32) {
-        (self.graphics_fns.fill_rounded_rect)(self.aux_data, x, y, w, h, corner_size);
-    }
-
-    pub fn fill_pie(
+    pub fn draw_rounded_rect<T: Into<Vec2D>, U: Into<Vec2D>>(
         &mut self,
-        x: f32,
-        y: f32,
+        top_right: T,
+        size: U,
+        corner_size: f32,
+    ) {
+        let top_right = top_right.into();
+        let size = size.into();
+        (self.graphics_fns.fill_rounded_rect)(
+            self.aux_data,
+            top_right.x,
+            top_right.y,
+            size.x,
+            size.y,
+            corner_size,
+        );
+    }
+
+    pub fn draw_pie<T: Into<Vec2D>>(
+        &mut self,
+        center: T,
         diameter: f32,
         inner_diameter: f32,
         start_rad: f32,
         end_rad: f32,
     ) {
+        let center = center.into();
         (self.graphics_fns.fill_pie)(
             self.aux_data,
-            x,
-            y,
+            center.x,
+            center.y,
             diameter,
             inner_diameter,
             start_rad,
@@ -199,99 +247,122 @@ impl<'a> GrahpicsWrapper<'a> {
         );
     }
 
-    pub fn write_label(&mut self, x: f32, y: f32, w: f32, text: &str) {
-        self.write_text(
+    pub fn draw_label<T: Into<Vec2D>>(&mut self, center: T, w: f32, text: &str) {
+        self.draw_text(
             FONT_SIZE,
-            x,
-            y,
-            w,
-            30.0,
-            HAlign::Center,
-            VAlign::Top,
+            center,
+            (w, 30.0),
+            (HAlign::Center, VAlign::Top),
             2,
             text,
         )
     }
 
-    pub fn write_text(
+    pub fn draw_text<T: Into<Vec2D>, U: Into<Vec2D>, H: Into<HAlign>, V: Into<VAlign>>(
         &mut self,
         font_size: f32,
-        x: f32,
-        y: f32,
-        w: f32,
-        h: f32,
-        halign: HAlign,
-        valign: VAlign,
+        top_left: T,
+        size: U,
+        align: (H, V),
         max_lines: i32,
         text: &str,
     ) {
-        // TODO: Assert that text is ASCII.
+        let top_left = top_left.into();
+        let size = size.into();
+        assert!(text.is_ascii());
         let raw_text = text.as_bytes();
         let mut raw_text = Vec::from(raw_text);
         raw_text.push(0);
         (self.graphics_fns.write_text)(
             self.aux_data,
             font_size,
-            x,
-            y,
-            w,
-            h,
-            halign as u8,
-            valign as u8,
+            top_left.x,
+            top_left.y,
+            size.x,
+            size.y,
+            align.0.into() as u8,
+            align.1.into() as u8,
             max_lines,
             raw_text.as_ptr(),
         );
     }
 
-    pub fn write_console_text(&mut self, w: f32, h: f32, text: &str) {
-        // TODO: Assert that text is ASCII.
+    pub fn draw_console_text<T: Into<Vec2D>>(&mut self, size: T, text: &str) {
+        let size = size.into();
+        assert!(text.is_ascii());
         let raw_text = text.as_bytes();
         let mut raw_text = Vec::from(raw_text);
         raw_text.push(0);
-        (self.graphics_fns.write_console_text)(self.aux_data, w, h, raw_text.as_ptr());
+        (self.graphics_fns.write_console_text)(self.aux_data, size.x, size.y, raw_text.as_ptr());
     }
 
-    pub fn draw_white_icon(&mut self, index: usize, x: f32, y: f32, size: f32) {
+    pub fn draw_white_icon<T: Into<Vec2D>>(&mut self, index: usize, top_left: T, size: f32) {
+        let top_left = top_left.into();
         (self.graphics_fns.draw_icon)(
             self.aux_data,
             self.icon_store,
             true,
             index as i32,
-            x,
-            y,
+            top_left.x,
+            top_left.y,
             size,
         );
     }
 
-    pub fn draw_icon(&mut self, index: usize, x: f32, y: f32, size: f32) {
+    pub fn draw_icon<T: Into<Vec2D>>(&mut self, index: usize, top_left: T, size: f32) {
+        let top_left = top_left.into();
         (self.graphics_fns.draw_icon)(
             self.aux_data,
             self.icon_store,
             false,
             index as i32,
-            x,
-            y,
+            top_left.x,
+            top_left.y,
             size,
         );
     }
 
-    pub fn draw_box_shadow(&mut self, x: f32, y: f32, w: f32, h: f32, radius: f32) {
-        (self.graphics_fns.draw_box_shadow)(self.aux_data, x, y, w, h, radius);
+    pub fn draw_box_shadow<T: Into<Vec2D>, U: Into<Vec2D>>(
+        &mut self,
+        top_left: T,
+        size: U,
+        radius: f32,
+    ) {
+        let top_left = top_left.into();
+        let size = size.into();
+        (self.graphics_fns.draw_box_shadow)(
+            self.aux_data,
+            top_left.x,
+            top_left.y,
+            size.x,
+            size.y,
+            radius,
+        );
     }
 
-    pub fn draw_inset_box_shadow(
+    pub fn draw_inset_box_shadow<T: Into<Vec2D>, U: Into<Vec2D>>(
         &mut self,
-        mut x: f32,
-        mut y: f32,
-        mut w: f32,
-        mut h: f32,
+        top_left: T,
+        size: U,
         radius: f32,
         inset: f32,
     ) {
-        x += inset;
-        y += inset;
-        w -= inset * 2.0;
-        h -= inset * 2.0;
-        self.draw_box_shadow(x, y, w, h, radius);
+        let top_left = top_left.into() + inset;
+        let size = size.into() - inset * 2.0;
+        self.draw_box_shadow(top_left, size, radius);
+    }
+}
+
+impl scui::Renderer for GrahpicsWrapper {
+    fn push_state(&mut self) {
+        GrahpicsWrapper::push_state(self)
+    }
+
+    fn pop_state(&mut self) {
+        GrahpicsWrapper::pop_state(self)
+    }
+
+    fn translate(&mut self, offset: scui::Vec2D) {
+        GrahpicsWrapper::translate(self, offset)
     }
 }

@@ -1,4 +1,4 @@
+internal_name: Factory
 pretty_name: Factory
 description: Includes all the default modules and patches that come with Audiobench. You can view its source code at https://github.com/joshua-maros/audiobench/tree/beta/components/factory_library
 version: $ENGINE_VERSION
-min_engine_version: $ENGINE_VERSION

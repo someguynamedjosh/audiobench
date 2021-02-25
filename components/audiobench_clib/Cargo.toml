@@ -1,0 +1,17 @@
+[package]
+name = "audiobench_clib"
+version = "0.1.0"
+authors = ["joshua-maros <60271685+joshua-maros@users.noreply.github.com>"]
+edition = "2018"
+
+[lib]
+name = "audiobench_clib"
+crate-type = ["cdylib"]
+
+[dependencies]
+audiobench = { path = "../audiobench" }
+scui = { path = "../scui" }
+shared_util = { path = "../shared_util" }
+
+[build-dependencies]
+cdylib-link-lines = "0.1"

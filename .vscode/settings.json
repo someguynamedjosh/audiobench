@@ -1,0 +1,19 @@
+{
+    "julia.lint.disabledDirs": [
+        "docs",
+        "test",
+        "dependencies"
+    ],
+    "files.exclude": {
+        "artifacts": true,
+        "dependencies": true,
+        "target": true
+    },
+    "search.exclude": {
+        "dependencies/": true
+    },
+    "files.watcherExclude": {
+        "dependencies/**": true
+    },
+    "git.pullTags": false
+}

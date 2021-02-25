@@ -1,10 +1,12 @@
-use std::fs;
-use std::io::{Read, Write};
-use std::path::Path;
+use std::{
+    fs,
+    io::{Read, Write},
+    path::Path,
+};
 
 fn main() {
     // Can't use env! because it isn't defined when the build script is first compiled.
-    let output_path = Path::new(&std::env::var("OUT_DIR").unwrap()).join("factory.ablib");
+    let output_path = Path::new(&std::env::var("OUT_DIR").unwrap()).join("Factory.ablib");
     let output_file = fs::File::create(output_path).unwrap();
     let mut zip_writer = zip::ZipWriter::new(output_file);
     let options =
@@ -18,29 +20,25 @@ fn main() {
     for entry in walkdir::WalkDir::new(input_path.clone()).into_iter() {
         let entry = entry.unwrap();
         let path = entry.path();
-        let zip_key = path.strip_prefix(input_path.clone()).unwrap();
+        let zip_key = path
+            .strip_prefix(input_path.clone())
+            .unwrap()
+            .to_string_lossy()
+            .to_string();
         if path.is_file() {
-            zip_writer
-                .start_file_from_path(&zip_key, options.clone())
-                .unwrap();
+            zip_writer.start_file(&zip_key, options.clone()).unwrap();
             let mut f = fs::File::open(path).unwrap();
-            if zip_key == Path::new("library_info.yaml") {
-                let engine_version: i32 = std::env::var("CARGO_PKG_VERSION_MINOR")
-                    .unwrap()
-                    .parse()
-                    .unwrap();
+            if zip_key == "library_info.yaml" {
+                let engine_version = std::env::var("CARGO_PKG_VERSION").unwrap();
                 let mut file_contents = String::new();
                 f.read_to_string(&mut file_contents).unwrap();
-                file_contents =
-                    file_contents.replace("$ENGINE_VERSION", &format!("{}", engine_version));
+                file_contents = file_contents.replace("$ENGINE_VERSION", &engine_version);
                 zip_writer.write_all(file_contents.as_bytes()).unwrap();
             } else {
                 std::io::copy(&mut f, &mut zip_writer).unwrap();
             }
-        } else if zip_key.as_os_str().len() > 0 {
-            zip_writer
-                .add_directory_from_path(&zip_key, options.clone())
-                .unwrap();
+        } else if zip_key.len() > 0 {
+            zip_writer.add_directory(&zip_key, options.clone()).unwrap();
         }
     }
     zip_writer.finish().unwrap();

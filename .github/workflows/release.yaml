@@ -1,0 +1,86 @@
+name: Publish Release
+
+on: workflow_dispatch
+
+jobs:
+  main:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@master
+    - name: Validate and set release version
+      id: release_version
+      run: |
+        ./build.py check_version --github-runner
+        ./build.py set_release_version --github-runner
+    - name: Download artifacts
+      run: |
+        wget https://github.com/joshua-maros/audiobench/releases/download/latest-beta/AudiobenchWindowsSetup.exe
+        wget https://github.com/joshua-maros/audiobench/releases/download/latest-beta/AudiobenchMacOSSetup.pkg
+        wget https://github.com/joshua-maros/audiobench/releases/download/latest-beta/AudiobenchLinuxSetup.sh
+        wget https://github.com/joshua-maros/audiobench/releases/download/latest-beta/Book.zip
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
+      with:
+        tag_name: 'refs/heads/release'
+        release_name: ${{ steps.release_version.outputs.RELEASE_NAME }}
+        draft: false
+        prerelease: false
+    - name: Upload Artifact 1
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps 
+        asset_path: ./AudiobenchWindowsSetup.exe
+        asset_name: AudiobenchWindowsSetup.exe
+        asset_content_type: application/x-msdownload
+    - name: Upload Artifact 2
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps 
+        asset_path: ./AudiobenchMacOSSetup.pkg
+        asset_name: AudiobenchMacOSSetup.pkg
+        asset_content_type: application/x-newton-compatible-pkg
+    - name: Upload Artifact 3
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps 
+        asset_path: ./AudiobenchLinuxSetup.sh
+        asset_name: AudiobenchLinuxSetup.sh
+        asset_content_type: application/x-shellscript
+    - name: Build Website
+      run: |
+        cd docs/website/src/
+        echo "{" >> latest.json
+        echo "  \"version\": \"${{ steps.release_version.outputs.RELEASE_NAME }}\"," >> latest.json
+        echo "  \"changes\": []," >> latest.json
+        echo "  \"download_url\": \"https://bit.ly/adb_update\"" >> latest.json
+        echo "}" >> latest.json
+        cd ../../..
+        mkdir website/
+        cp -r docs/website/src/* website/
+        mkdir -p website/book/
+        unzip Book.zip -d website/book/
+    - name: Deploy
+      uses: JamesIves/github-pages-deploy-action@3.6.1
+      with:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        BRANCH: gh-pages
+        FOLDER: website/
+        CLEAN: true
+      env:
+        ACTIONS_ALLOW_UNSECURE_COMMANDS: true
+    - name: Merge beta -> release
+      uses: devmasx/merge-branch@v1.3.1
+      with:
+        type: now
+        from_branch: beta
+        target_branch: release
+        github_token: ${{ github.token }}

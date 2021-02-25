@@ -1,0 +1,66 @@
+save_id: 7
+outputs:
+  audio:
+    type: audio
+    label: Noise
+    tooltip: Noise output
+controls:
+  amplitude: FloatInRange
+    min: 0
+    max: 1
+    default: 1
+  delay_mul: FloatInRange
+    min: 0
+    max: 1
+    default: 1
+  timing_mode: TimingMode
+  max_delay: Duration
+  smooth_mode: OptionChoice
+    options:
+      Sharp:
+      Smooth:
+    default: 1
+gui:
+  label: Noise
+  category: Synthesis
+  tooltip: Generates a random sequence of values with control over the time between generated values
+  width: 8
+  height: 4
+  widgets:
+    Knob:
+      x: 2
+      y: 0
+      control: amplitude
+      label: Amplitude
+      tooltip: How loud/strong the output should be
+    OptionBox:
+      x: 0
+      y: 0
+      w: 2
+      h: 4
+      control: smooth_mode
+      label: Mode
+      tooltip: Whether to transition smoothly or abruptly to the next value in the sequence
+    Knob:
+      x: 2
+      y: 2
+      control: delay_mul
+      label: Delay Mul.
+      tooltip: Controls the amount of time between each value, ranging from 0 to Max Delay
+    WaveformGraph:
+      x: 4
+      y: 0
+      w: 4
+      h: 2
+      feedback_name: graph_feedback
+    TimingSelector:
+      x: 4
+      y: 2
+      control: timing_mode
+    DurationBox:
+      x: 6
+      y: 2
+      duration_control: max_delay
+      mode_control: timing_mode
+      label: Max Delay
+      tooltip: The maximum amount of time between two values in the sequence

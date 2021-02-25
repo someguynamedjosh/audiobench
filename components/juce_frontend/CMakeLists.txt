@@ -7,12 +7,6 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
     set(MACOS TRUE)
 endif()
 
-# Statically link c++ runtime because installing it is a pain
-if (WIN32)
-    cmake_policy(SET CMP0091 NEW)
-    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded")
-endif()
-
 # The top-level CMakeLists.txt file for a project must contain a literal, direct call to the
 # `project()` command. `project()` sets up some helpful variables that describe source/binary
 # directories, and the current project version. This is a standard CMake command.
@@ -24,7 +18,7 @@ project(AUDIO_PLUGIN_EXAMPLE VERSION 0.0.1)
 # included JUCE directly in your source tree (perhaps as a submodule), you'll need to tell CMake to
 # include that subdirectory as part of the build.
 
-add_subdirectory(juce_git)
+add_subdirectory("$ENV{PROJECT_ROOT}/dependencies/juce/" _build)
 
 # If you are building a VST2 or AAX plugin, CMake needs to be told where to find these SDKs on your
 # system. This setup should be done before calling `juce_add_plugin`.
@@ -43,23 +37,53 @@ juce_add_plugin(
     # VERSION ...                               # Set this if the plugin version is different to the project version
     # ICON_BIG ...                              # ICON_* arguments specify a path to an image file to use as an icon for the Standalone
     # ICON_SMALL ...
-    # COMPANY_NAME ...                          # Specify the name of the plugin's author
-    # IS_SYNTH TRUE/FALSE                       # Is this a synth or an effect?
-    # NEEDS_MIDI_INPUT TRUE/FALSE               # Does the plugin need midi input?
-    # NEEDS_MIDI_OUTPUT TRUE/FALSE              # Does the plugin need midi output?
-    # IS_MIDI_EFFECT TRUE/FALSE                 # Is this plugin a MIDI effect?
+    COMPANY_NAME JoshuaMaros                          # Specify the name of the plugin's author
+    IS_SYNTH TRUE                       # Is this a synth or an effect?
+    NEEDS_MIDI_INPUT TRUE               # Does the plugin need midi input?
+    NEEDS_MIDI_OUTPUT FALSE              # Does the plugin need midi output?
+    IS_MIDI_EFFECT FALSE                 # Is this plugin a MIDI effect?
     # EDITOR_WANTS_KEYBOARD_FOCUS TRUE/FALSE    # Does the editor need keyboard focus?
     # COPY_PLUGIN_AFTER_BUILD TRUE/FALSE        # Should the plugin be installed to a default location after building?
-    PLUGIN_MANUFACTURER_CODE Juce               # A four-character manufacturer id with at least one upper-case character
-    PLUGIN_CODE Dem0                            # A unique four-character plugin id with at least one upper-case character
+    PLUGIN_MANUFACTURER_CODE Foss               # A four-character manufacturer id with at least one upper-case character
+    PLUGIN_CODE Audb                            # A unique four-character plugin id with at least one upper-case character
     FORMATS AU VST3 Standalone                  # The formats to build. Other valid formats are: AAX Unity VST AU AUv3
     PRODUCT_NAME "Audiobench"                   # The name of the final executable, which can differ from the target name
 )
 
 target_include_directories(
     Audiobench PRIVATE
-    "$ENV{PROJECT_ROOT}/components/audiobench-clib/"
+    "$ENV{PROJECT_ROOT}/components/audiobench_clib/"
 )
+
+add_library(julia SHARED IMPORTED GLOBAL)
+add_library(audiobench_clib SHARED IMPORTED GLOBAL)
+if(WIN32)
+    set_target_properties(julia PROPERTIES
+        IMPORTED_LOCATION "$ENV{PROJECT_ROOT}/dependencies/julia/bin/libjulia.dll"
+        IMPORTED_IMPLIB "$ENV{PROJECT_ROOT}/dependencies/julia/lib/libjulia.dll.a"
+        INTERFAFCE_INCLUDE_DIRECTORIES "$ENV{PROJECT_ROOT}/dependencies/julia/include/"
+    )
+    set_target_properties(audiobench_clib PROPERTIES
+        IMPORTED_LOCATION "$ENV{RUST_OUTPUT_DIR}/audiobench_clib.dll"
+        IMPORTED_IMPLIB "$ENV{RUST_OUTPUT_DIR}/audiobench_clib.dll.lib"
+    )
+elseif(APPLE)
+    set_target_properties(julia PROPERTIES
+        IMPORTED_LOCATION "$ENV{PROJECT_ROOT}/dependencies/julia/lib/libjulia.dylib"
+        INTERFAFCE_INCLUDE_DIRECTORIES "$ENV{PROJECT_ROOT}/dependencies/julia/include/"
+    )
+    set_target_properties(audiobench_clib PROPERTIES
+        IMPORTED_LOCATION "$ENV{RUST_OUTPUT_DIR}/libaudiobench_clib.dylib"
+    )
+else()
+    set_target_properties(julia PROPERTIES
+        IMPORTED_LOCATION "$ENV{PROJECT_ROOT}/dependencies/julia/lib/libjulia.so"
+        INTERFAFCE_INCLUDE_DIRECTORIES "$ENV{PROJECT_ROOT}/dependencies/julia/include/"
+    )
+    set_target_properties(audiobench_clib PROPERTIES
+        IMPORTED_LOCATION "$ENV{RUST_OUTPUT_DIR}/libaudiobench_clib.so"
+    )
+endif()
 
 # `juce_generate_juce_header` will create a JuceHeader.h for a given target, which will be generated
 # into your build tree. This should be included with `#include <JuceHeader.h>`. The include path for
@@ -93,6 +117,8 @@ target_compile_definitions(
     JUCE_WEB_BROWSER=0  
     JUCE_USE_CURL=0     
     JUCE_VST3_CAN_REPLACE_VST2=0
+    JUCE_ALSA=1
+    JUCE_JACK=1
 )
 
 # If your target needs extra binary assets, you can add them here. The first argument is the name of
@@ -111,24 +137,12 @@ target_compile_definitions(
 # here too. This is a standard CMake command.
 
 if(WIN32)
-    # Statically link visual c++ runtime so it doesn't inexplicably crash if the user
-    # hasn't installed msvcrt on their system.
-    set_property(TARGET Audiobench PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded")
-    # And of course those changes don't propogate to the other targets because that would be too 
-    # easy. Don't worry, I've already made the necessary blood sacrifices to the daemons of 
-    # hard-coding and code duplication.
-    set_property(TARGET Audiobench_Standalone PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded")
-    set_property(TARGET Audiobench_VST3 PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded")
-    # And yet something still tries to drag in the dynamically-linked library.
-    set_property(TARGET Audiobench PROPERTY LINK_FLAGS "/NODEFAULTLIB:MSVCRT")
-    set_property(TARGET Audiobench_Standalone PROPERTY LINK_FLAGS "/NODEFAULTLIB:MSVCRT")
-    set_property(TARGET Audiobench_VST3 PROPERTY LINK_FLAGS "/NODEFAULTLIB:MSVCRT")
-
     target_link_libraries(
         Audiobench PRIVATE
         # AudioPluginData           # If we'd created a binary data target, we'd link to it here
         juce::juce_audio_utils
-        "$ENV{RUST_OUTPUT_DIR}/audiobench_clib.lib"
+        audiobench_clib
+        julia
         Crypt32
         Ncrypt
         Secur32
@@ -142,12 +156,12 @@ elseif(APPLE)
         Audiobench PRIVATE
         # AudioPluginData           # If we'd created a binary data target, we'd link to it here
         juce::juce_audio_utils
-        "$ENV{RUST_OUTPUT_DIR}/libaudiobench_clib.a"
+        audiobench_clib
+        julia
         ${CURL_LIBRARIES}
         ${SECURITY_LIBRARY}
         ffi
         z
-        curses
     )
 else()
     # The clipboard library I'm using uses a weird X11 wrapper to do its dirty work making this 
@@ -156,20 +170,17 @@ else()
     set(CMAKE_MODULE_PATH ${ECM_FIND_MODULE_DIR})
     find_package(XCB REQUIRED COMPONENTS XCB RENDER SHAPE XFIXES)
 
-    set(THREADS_PREFER_PTHREAD_FLAG ON)
-    find_package(Threads REQUIRED)
-
     target_link_libraries(
         Audiobench PRIVATE
         # AudioPluginData           # If we'd created a binary data target, we'd link to it here
         juce::juce_audio_utils
-        "$ENV{RUST_OUTPUT_DIR}/libaudiobench_clib.a"
+        audiobench_clib
+        julia
         z
-        curses
         ssl
         crypto
         ffi
         ${XCB_LIBRARIES}
-        Threads::Threads
+        pthread
     )
 endif()

@@ -1,267 +1,320 @@
-use super::codegen::{self, CodeGenResult};
-use super::data_format::OwnedIOData;
-use super::data_routing::{AutoconDynDataCollector, FeedbackDisplayer, StaticonDynDataCollector};
-use super::data_transfer::{DataFormat, HostData, HostFormat, InputPacker, OutputUnpacker};
-use super::parts::ModuleGraph;
-use super::perf_counter::{sections, PerfCounter};
-use super::program_wrapper::{AudiobenchCompiler, AudiobenchProgram, NoteTracker};
-use crate::registry::{save_data::Patch, Registry};
-use crate::util::*;
-use std::sync::Mutex;
-use std::time::{Duration, Instant};
+use crate::{
+    engine::{
+        codegen::{self, CodeGenResult},
+        data_transfer::IOData,
+        data_transfer::{
+            DynDataCollector, FeedbackData, FeedbackDisplayer, GlobalData, GlobalParameters,
+        },
+        julia_thread,
+        parts::ModuleGraph,
+    },
+    registry::{save_data::Patch, Registry},
+};
+use crossbeam_channel::{Receiver, Sender, TrySendError};
+use crossbeam_utils::atomic::AtomicCell;
+use julia_helper::GeneratedCode;
+use shared_util::prelude::*;
+use std::{
+    sync::Mutex,
+    time::{Duration, Instant},
+};
 
+const DEFAULT_CHANNELS: usize = 2;
 const DEFAULT_BUFFER_LENGTH: usize = 512;
 const DEFAULT_SAMPLE_RATE: usize = 44100;
 const FEEDBACK_UPDATE_INTERVAL: Duration = Duration::from_millis(50);
 
-type PreferredPerfCounter = crate::engine::perf_counter::SimplePerfCounter;
+type PreferredPerfCounter = shared_util::perf_counter::SimplePerfCounter;
 
 struct UiThreadData {
+    registry: Rcrc<Registry>,
     module_graph: Rcrc<ModuleGraph>,
-    autocon_dyn_data_collector: AutoconDynDataCollector,
-    staticon_dyn_data_collector: StaticonDynDataCollector,
+    dyn_data_collector: DynDataCollector,
     feedback_displayer: FeedbackDisplayer,
     current_patch_save_data: Rcrc<Patch>,
+    posted_errors: Vec<String>,
+    julia_errors: Receiver<String>,
 }
 
-struct CrossThreadData {
-    host_format: HostFormat,
-    notes: NoteTracker,
-    new_source: Option<(String, DataFormat)>,
-    new_autocon_dyn_data: Option<Vec<f32>>,
-    new_staticon_dyn_data: Option<Vec<OwnedIOData>>,
-    new_feedback_data: Option<Vec<f32>>,
-    critical_error: Option<String>,
-    perf_counter: PreferredPerfCounter,
-    currently_compiling: bool,
+pub(super) struct Communication {
+    pub julia_thread_status: AtomicCell<julia_thread::Status>,
+
+    pub new_global_params: AtomicCell<Option<()>>,
+    pub new_note_graph_code: AtomicCell<Option<(GeneratedCode, Vec<IOData>)>>,
+    pub new_dyn_data: AtomicCell<Option<Vec<IOData>>>,
+    pub new_feedback: AtomicCell<Option<FeedbackData>>,
+
+    pub global_params: AtomicCell<GlobalParameters>,
+    pub note_events: Mutex<Vec<julia_thread::NoteEvent>>,
+    pub julia_render_pipe: Sender<julia_thread::RenderRequest>,
+    pub julia_poll_pipe: Sender<()>,
 }
 
 struct AudioThreadData {
-    compiler: AudiobenchCompiler,
-    current_program: Option<AudiobenchProgram>,
-    input: InputPacker,
-    output: OutputUnpacker,
-    host_data: HostData,
     audio_buffer: Vec<f32>,
+    global_data: GlobalData,
     last_feedback_data_update: Instant,
+    audio_response_output: Receiver<julia_thread::AudioResponse>,
 }
 
-pub struct Engine {
-    utd: UiThreadData,
-    ctd_mux: Mutex<CrossThreadData>,
-    atd: AudioThreadData,
+pub struct UiThreadEngine {
+    data: UiThreadData,
+    comms: Arc<Communication>,
 }
 
-impl Engine {
-    // MISC METHODS ================================================================================
-    pub fn perf_counter_report(&self) -> String {
-        self.ctd_mux.lock().unwrap().perf_counter.report()
-    }
+pub struct AudioThreadEngine {
+    data: AudioThreadData,
+    comms: Arc<Communication>,
+}
 
-    pub fn new(registry: &mut Registry) -> Result<Self, String> {
-        let mut module_graph = ModuleGraph::new();
-        let host_format = HostFormat {
-            buffer_len: DEFAULT_BUFFER_LENGTH,
-            sample_rate: DEFAULT_SAMPLE_RATE,
-        };
-        let default_patch = Rc::clone(
-            registry
-                .get_patch_by_name("factory:patches/default.abpatch")
-                .ok_or("Could not find factory:patches/default.abpatch".to_owned())?,
-        );
-        default_patch
-            .borrow()
-            .restore_note_graph(&mut module_graph, registry)
-            .map_err(|err| {
-                format!(
-                    concat!(
-                        "Default patch failed to load!\n",
-                        "This is a critical error, please submit a bug report containing this ",
-                        "error:\n\n{}",
-                    ),
-                    err
-                )
-            })?;
-        let CodeGenResult {
-            code,
-            autocon_dyn_data_collector,
-            staticon_dyn_data_collector,
-            feedback_displayer,
-            data_format,
-        } = codegen::generate_code(&module_graph, &host_format).map_err(|_| {
+pub fn new_engine(
+    registry_ptr: Rcrc<Registry>,
+) -> Result<(Rcrc<UiThreadEngine>, Rcrc<AudioThreadEngine>), String> {
+    let registry = registry_ptr.borrow_mut();
+    let mut module_graph = ModuleGraph::new();
+    let global_params = GlobalParameters {
+        channels: DEFAULT_CHANNELS,
+        buffer_length: DEFAULT_BUFFER_LENGTH,
+        sample_rate: DEFAULT_SAMPLE_RATE,
+    };
+    let default_patch = Rc::clone(
+        registry
+            .get_patch_by_name("Factory:patches/Default.abpatch")
+            .ok_or("Could not find Factory:patches/Default.abpatch".to_owned())?,
+    );
+    default_patch
+        .borrow()
+        .restore_note_graph(&mut module_graph, &*registry)
+        .map_err(|_| {
             format!(concat!(
-                "Default patch contains feedback loops!\n",
+                "Default patch failed to load!\n",
                 "This is a critical error, please submit a bug report containing this ",
-                "error.",
-            ),)
+                "error:\n\nPatch data is corrupt.",
+            ))
         })?;
-        let utd = UiThreadData {
-            module_graph: rcrc(module_graph),
-            autocon_dyn_data_collector,
-            staticon_dyn_data_collector,
-            feedback_displayer,
-            current_patch_save_data: default_patch,
-        };
+    let CodeGenResult {
+        code,
+        dyn_data_collector,
+        feedback_displayer,
+        data_format,
+    } = codegen::generate_code(&module_graph, &global_params).map_err(|_| {
+        format!(concat!(
+            "Default patch contains feedback loops!\n",
+            "This is a critical error, please submit a bug report containing this ",
+            "error.",
+        ),)
+    })?;
+    let dyn_data = dyn_data_collector.collect();
 
-        let mut compiler = AudiobenchCompiler::new(registry);
-        let program = compiler.compile(code).map_err(|err| {
-            format!(
-                concat!(
-                    "Default patch failed to compile!\n",
-                    "This is a critical error, please submit a bug report containing this ",
-                    "error:\n\n{}"
-                ),
-                err
-            )
-        })?;
-        let atd = AudioThreadData {
-            compiler,
-            current_program: Some(program),
-            input: InputPacker::new(data_format.clone()),
-            output: OutputUnpacker::new(data_format.clone()),
-            host_data: HostData::new(),
-            audio_buffer: vec![0.0; data_format.host_format.buffer_len * 2],
-            last_feedback_data_update: Instant::now(),
-        };
+    let (renderi, rendero) = crossbeam_channel::bounded(0);
+    let (polli, pollo) = crossbeam_channel::bounded(0xFF);
+    let (audio_resi, audio_reso) = crossbeam_channel::bounded(0);
+    let (jerrori, jerroro) = crossbeam_channel::unbounded();
 
-        let ctd = CrossThreadData {
-            host_format,
-            notes: NoteTracker::new(data_format.clone()),
-            new_source: None,
-            new_autocon_dyn_data: None,
-            new_staticon_dyn_data: None,
-            new_feedback_data: None,
-            critical_error: None,
-            perf_counter: PreferredPerfCounter::new(),
-            currently_compiling: false,
-        };
+    let utd = UiThreadData {
+        registry: Rc::clone(&registry_ptr),
+        module_graph: rcrc(module_graph),
+        dyn_data_collector,
+        feedback_displayer,
+        current_patch_save_data: default_patch,
+        posted_errors: Vec::new(),
+        julia_errors: jerroro,
+    };
 
-        Ok(Self {
-            utd,
-            ctd_mux: Mutex::new(ctd),
-            atd,
-        })
+    let atd = AudioThreadData {
+        audio_buffer: vec![0.0; data_format.global_params.buffer_length * 2],
+        global_data: GlobalData::new(),
+        last_feedback_data_update: Instant::now(),
+        audio_response_output: audio_reso,
+    };
+
+    let global_params_2 = global_params.clone();
+    let comms = Communication {
+        julia_thread_status: AtomicCell::new(julia_thread::Status::Busy),
+
+        new_global_params: Default::default(),
+        new_note_graph_code: Default::default(),
+        new_dyn_data: Default::default(),
+        new_feedback: Default::default(),
+
+        global_params: AtomicCell::new(global_params),
+        note_events: Default::default(),
+        julia_render_pipe: renderi,
+        julia_poll_pipe: polli,
+    };
+    let comms = Arc::new(comms);
+
+    let registry_source = codegen::generate_registry_code(&*registry)?;
+    let comms2 = Arc::clone(&comms);
+    let julia_executor = move || {
+        julia_thread::entry(
+            comms2,
+            global_params_2,
+            registry_source,
+            code,
+            dyn_data,
+            rendero,
+            pollo,
+            audio_resi,
+            jerrori,
+        );
+    };
+    std::thread::Builder::new()
+        .name("julia_executor".to_owned())
+        .spawn(julia_executor)
+        .unwrap();
+
+    Ok((
+        rcrc(UiThreadEngine {
+            data: utd,
+            comms: Arc::clone(&comms),
+        }),
+        rcrc(AudioThreadEngine {
+            data: atd,
+            comms: Arc::clone(&comms),
+        }),
+    ))
+}
+
+impl UiThreadEngine {
+    pub fn get_julia_thread_status(&self) -> julia_thread::Status {
+        self.comms.julia_thread_status.load()
     }
 
-    pub fn clone_critical_error(&self) -> Option<String> {
-        self.ctd_mux.lock().unwrap().critical_error.clone()
-    }
-
-    pub fn is_currently_compiling(&self) -> bool {
-        self.ctd_mux.lock().unwrap().currently_compiling
-    }
-
-    // UI THREAD METHODS ===========================================================================
     pub fn rename_current_patch(&mut self, name: String) {
-        assert!(self.utd.current_patch_save_data.borrow().is_writable());
-        let mut patch_ref = self.utd.current_patch_save_data.borrow_mut();
+        assert!(self.data.current_patch_save_data.borrow().is_writable());
+        let mut patch_ref = self.data.current_patch_save_data.borrow_mut();
         patch_ref.set_name(name);
         patch_ref.write().unwrap();
     }
 
-    pub fn save_current_patch(&mut self, registry: &Registry) {
-        assert!(self.utd.current_patch_save_data.borrow().is_writable());
-        let mut patch_ref = self.utd.current_patch_save_data.borrow_mut();
-        patch_ref.save_note_graph(&*self.utd.module_graph.borrow(), registry);
+    pub fn post_error(&mut self, message: String) {
+        self.data.posted_errors.push(message);
+    }
+
+    pub fn take_posted_errors(&mut self) -> Vec<String> {
+        let mut errors = std::mem::take(&mut self.data.posted_errors);
+        while let Ok(error) = self.data.julia_errors.try_recv() {
+            errors.push(error);
+        }
+        errors
+    }
+
+    pub fn borrow_registry(&self) -> &Rcrc<Registry> {
+        &self.data.registry
+    }
+
+    pub fn save_current_patch(&mut self) {
+        assert!(self.data.current_patch_save_data.borrow().is_writable());
+        let mut patch_ref = self.data.current_patch_save_data.borrow_mut();
+        let reg = self.data.registry.borrow();
+        patch_ref.save_note_graph(&*self.data.module_graph.borrow(), &*reg);
         patch_ref.write().unwrap();
     }
 
     pub fn borrow_current_patch(&self) -> &Rcrc<Patch> {
-        &self.utd.current_patch_save_data
+        &self.data.current_patch_save_data
     }
 
-    pub fn serialize_current_patch(&self, registry: &Registry) -> String {
-        let mut patch_ref = self.utd.current_patch_save_data.borrow_mut();
-        patch_ref.save_note_graph(&*self.utd.module_graph.borrow(), registry);
+    pub fn serialize_current_patch(&self) -> String {
+        let mut patch_ref = self.data.current_patch_save_data.borrow_mut();
+        let reg = self.data.registry.borrow();
+        patch_ref.save_note_graph(&*self.data.module_graph.borrow(), &*reg);
         patch_ref.serialize()
     }
 
-    pub fn new_patch(&mut self, registry: &mut Registry) -> &Rcrc<Patch> {
-        let new_patch = Rc::clone(registry.create_new_user_patch());
+    pub fn save_current_patch_with_new_name(&mut self) -> &Rcrc<Patch> {
+        let mut reg = self.data.registry.borrow_mut();
+        let patch = self.borrow_current_patch().borrow();
+
+        let mut name = shared_util::increment_name(patch.borrow_name());
+        let mut original = false;
+        while !original {
+            original = true;
+            for patch in reg.borrow_patches() {
+                if patch.borrow().borrow_name() == &name {
+                    original = false;
+                    break;
+                }
+            }
+            if !original {
+                name = shared_util::increment_name(&name);
+            }
+        }
+
+        let new_patch = Rc::clone(reg.create_new_user_patch());
         let mut new_patch_ref = new_patch.borrow_mut();
-        new_patch_ref.set_name("New Patch".to_owned());
-        new_patch_ref.save_note_graph(&*self.utd.module_graph.borrow(), registry);
+        new_patch_ref.set_name(name);
+        new_patch_ref.save_note_graph(&*self.data.module_graph.borrow(), &*reg);
         new_patch_ref.write().unwrap();
         drop(new_patch_ref);
+        drop(patch);
+        drop(reg);
         // Don't reload anything because we are just copying the current patch data.
-        self.utd.current_patch_save_data = new_patch;
-        &self.utd.current_patch_save_data
+        self.data.current_patch_save_data = new_patch;
+        &self.data.current_patch_save_data
     }
 
     pub fn new_patch_from_clipboard(
         &mut self,
-        registry: &mut Registry,
         clipboard_data: &[u8],
     ) -> Result<&Rcrc<Patch>, String> {
-        let new_patch = Rc::clone(registry.create_new_user_patch());
+        let mut reg = self.data.registry.borrow_mut();
+        let new_patch = Rc::clone(reg.create_new_user_patch());
         let mut new_patch_ref = new_patch.borrow_mut();
-        new_patch_ref.load_from_serialized_data(clipboard_data, registry)?;
+        new_patch_ref.deserialize(clipboard_data)?;
         let name = format!("{} (pasted)", new_patch_ref.borrow_name());
         new_patch_ref.set_name(name);
         drop(new_patch_ref);
-        self.load_patch(registry, Rc::clone(&new_patch))?;
-        Ok(&self.utd.current_patch_save_data)
+        drop(reg);
+        self.load_patch(Rc::clone(&new_patch))
+            .map_err(|_| format!("ERROR: Patch data is corrupt."))?;
+        Ok(&self.data.current_patch_save_data)
     }
 
-    pub fn load_patch(&mut self, registry: &Registry, patch: Rcrc<Patch>) -> Result<(), String> {
-        self.utd.current_patch_save_data = patch;
-        self.utd
+    pub fn load_patch(&mut self, patch: Rcrc<Patch>) -> Result<(), ()> {
+        let reg = self.data.registry.borrow();
+        self.data.current_patch_save_data = patch;
+        self.data
             .current_patch_save_data
             .borrow()
-            .restore_note_graph(&mut *self.utd.module_graph.borrow_mut(), registry)?;
-        self.recompile()?;
+            .restore_note_graph(&mut *self.data.module_graph.borrow_mut(), &*reg)?;
+        drop(reg);
+        self.data.module_graph.borrow().rebuild_widget();
+        self.regenerate_code();
         Ok(())
     }
 
     pub fn borrow_module_graph_ref(&self) -> &Rcrc<ModuleGraph> {
-        &self.utd.module_graph
+        &self.data.module_graph
     }
 
-    pub fn recompile(&mut self) -> Result<(), String> {
-        let mut ctd = self.ctd_mux.lock().unwrap();
-
-        let module_graph_ref = self.utd.module_graph.borrow();
-        ctd.perf_counter.begin_section(&sections::GENERATE_CODE);
-        let new_gen = codegen::generate_code(&*module_graph_ref, &ctd.host_format)
-            .map_err(|_| format!("The note graph cannot contain feedback loops"))?;
-        ctd.perf_counter.end_section(&sections::GENERATE_CODE);
+    pub fn regenerate_code(&mut self) {
+        let module_graph_ref = self.data.module_graph.borrow();
+        let params = self.comms.global_params.load();
+        let new_gen = codegen::generate_code(&*module_graph_ref, &params);
+        let new_gen = if let Ok(value) = new_gen {
+            value
+        } else {
+            drop(module_graph_ref);
+            self.post_error("Module graph contains feedback loops.".to_owned());
+            return;
+        };
         drop(module_graph_ref);
-        ctd.new_source = Some((new_gen.code, new_gen.data_format.clone()));
-        ctd.perf_counter
-            .begin_section(&sections::COLLECT_AUTOCON_DATA);
-        ctd.new_autocon_dyn_data = Some(new_gen.autocon_dyn_data_collector.collect_data());
-        ctd.perf_counter
-            .end_section(&sections::COLLECT_AUTOCON_DATA);
-        ctd.perf_counter
-            .begin_section(&sections::COLLECT_STATICON_DATA);
-        ctd.new_staticon_dyn_data = Some(new_gen.staticon_dyn_data_collector.collect_data());
-        ctd.perf_counter
-            .end_section(&sections::COLLECT_STATICON_DATA);
-        ctd.new_feedback_data = None;
-        self.utd.autocon_dyn_data_collector = new_gen.autocon_dyn_data_collector;
-        self.utd.staticon_dyn_data_collector = new_gen.staticon_dyn_data_collector;
-        self.utd.feedback_displayer = new_gen.feedback_displayer;
-        Ok(())
+        self.comms.new_dyn_data.store(None);
+        let dyn_data = new_gen.dyn_data_collector.collect();
+        self.comms
+            .new_note_graph_code
+            .store(Some((new_gen.code, dyn_data)));
+        self.comms.julia_poll_pipe.send(()).unwrap();
+        self.data.dyn_data_collector = new_gen.dyn_data_collector;
+        self.data.feedback_displayer = new_gen.feedback_displayer;
     }
 
-    pub fn reload_autocon_dyn_data(&mut self) {
-        let mut ctd = self.ctd_mux.lock().unwrap();
-
-        ctd.perf_counter
-            .begin_section(&sections::COLLECT_AUTOCON_DATA);
-        ctd.new_autocon_dyn_data = Some(self.utd.autocon_dyn_data_collector.collect_data());
-        ctd.perf_counter
-            .end_section(&sections::COLLECT_AUTOCON_DATA);
-    }
-
-    pub fn reload_staticon_dyn_data(&mut self) {
-        let mut ctd = self.ctd_mux.lock().unwrap();
-
-        ctd.perf_counter
-            .begin_section(&sections::COLLECT_STATICON_DATA);
-        ctd.new_staticon_dyn_data = Some(self.utd.staticon_dyn_data_collector.collect_data());
-        ctd.perf_counter
-            .end_section(&sections::COLLECT_STATICON_DATA);
+    pub fn reload_dyn_data(&mut self) {
+        let data = self.data.dyn_data_collector.collect();
+        self.comms.new_dyn_data.store(Some(data));
+        self.comms.julia_poll_pipe.send(()).unwrap();
     }
 
     /// Feedback data is generated on the audio thread. This method uses a mutex to retrieve that
@@ -269,41 +322,38 @@ impl Engine {
     /// new data so this is okay to call relatively often. It also does not block on waiting for
     /// the mutex.
     pub fn display_new_feedback_data(&mut self) {
-        if let Ok(mut ctd) = self.ctd_mux.try_lock() {
-            if let Some(data) = ctd.new_feedback_data.take() {
-                self.utd.feedback_displayer.display_feedback(&data[..]);
+        if let Some(data) = self.comms.new_feedback.take() {
+            if let Some(widget) = &self.data.module_graph.borrow().current_widget {
+                let widget = Rc::clone(widget);
+                self.data.feedback_displayer.display(data, widget);
             }
         }
     }
+}
 
+impl AudioThreadEngine {
     // AUDIO THREAD METHODS ========================================================================
-    pub fn set_host_format(&mut self, buffer_len: usize, sample_rate: usize) {
-        let mut ctd = self.ctd_mux.lock().unwrap();
+    pub fn set_global_params(&mut self, buffer_length: usize, sample_rate: usize) {
+        let mut params = self.comms.global_params.load();
 
         // Avoid recompiling if there was no change.
-        if buffer_len != ctd.host_format.buffer_len || sample_rate != ctd.host_format.sample_rate {
-            ctd.host_format.buffer_len = buffer_len;
-            ctd.host_format.sample_rate = sample_rate;
-            drop(ctd);
-            // This only errs if we have a feedback loop. Changing meta params does not introduce
-            // feedback loops.
-            // TODO: This is only supposed to be called from the UI thread.
-            self.recompile().unwrap();
+        if buffer_length != params.buffer_length || sample_rate != params.sample_rate {
+            params.buffer_length = buffer_length;
+            params.sample_rate = sample_rate;
+            self.comms.new_global_params.store(Some(()));
+            self.comms.global_params.store(params);
+            self.comms.julia_poll_pipe.send(()).unwrap();
         }
     }
 
     pub fn start_note(&mut self, index: usize, velocity: f32) {
-        if let Some(program) = &mut self.atd.current_program {
-            let mut ctd = self.ctd_mux.lock().unwrap();
-            match program.create_static_data() {
-                Ok(data) => ctd.notes.start_note(data, index, velocity),
-                Err(error) => ctd.critical_error = Some(error),
-            }
-        }
+        let mut queue = self.comms.note_events.lock().unwrap();
+        queue.push(julia_thread::NoteEvent::StartNote { index, velocity });
     }
 
     pub fn release_note(&mut self, index: usize) {
-        self.ctd_mux.lock().unwrap().notes.release_note(index)
+        let mut queue = self.comms.note_events.lock().unwrap();
+        queue.push(julia_thread::NoteEvent::ReleaseNote { index });
     }
 
     pub fn set_pitch_wheel(&mut self, new_pitch_wheel: f32) {
@@ -312,7 +362,7 @@ impl Engine {
             "{} is not a valid pitch wheel value.",
             new_pitch_wheel
         );
-        self.atd.host_data.pitch_wheel_value = new_pitch_wheel;
+        self.data.global_data.pitch_wheel = new_pitch_wheel;
     }
 
     pub fn set_control(&mut self, index: usize, value: f32) {
@@ -322,97 +372,53 @@ impl Engine {
             value
         );
         assert!(index < 128, "{} is not a valid control index.", index);
-        self.atd.host_data.controller_values[index] = value;
+        self.data.global_data.controller_values[index] = value;
     }
 
     pub fn set_bpm(&mut self, bpm: f32) {
-        self.atd.host_data.bpm = bpm;
+        self.data.global_data.bpm = bpm;
     }
 
-    pub fn set_song_time(&mut self, time: f32) {
-        self.atd.host_data.song_time = time;
+    pub fn set_elapsed_time(&mut self, time: f32) {
+        self.data.global_data.elapsed_time = time;
     }
 
-    pub fn set_song_beats(&mut self, beats: f32) {
-        self.atd.host_data.song_beats = beats;
+    pub fn set_elapsed_beats(&mut self, beats: f32) {
+        self.data.global_data.elapsed_beats = beats;
     }
 
-    pub fn render_audio(&mut self) -> &[f32] {
-        let mut ctd = self.ctd_mux.lock().unwrap();
-
-        if let Some((code, data_format)) = ctd.new_source.take() {
-            self.atd.input.set_data_format(data_format.clone());
-            self.atd.output.set_data_format(data_format.clone());
-            ctd.notes.set_data_format(data_format.clone());
-            // Since we drop the mutex while compiling we can't use the performance counter because
-            // other threads might use it. TODO: Fix this.
-            // ctd.perf_counter.begin_section(&sections::COMPILE_CODE);
-            ctd.currently_compiling = true;
-            // Compilation takes a while. Drop ctd so that other threads can use it.
-            drop(ctd);
-            match self.atd.compiler.compile(code) {
-                Ok(program) => {
-                    ctd = self.ctd_mux.lock().unwrap();
-                    self.atd.current_program = Some(program);
-                }
-                Err(err) => {
-                    ctd = self.ctd_mux.lock().unwrap();
-                    self.atd.current_program = None;
-                    ctd.critical_error = Some(format!(
-                    concat!(
-                        "Note graph failed to compile!\n",
-                        "This is a critical error, please submit a bug report containing this error ",
-                        "message:\n\n{}",
-                    ),
-                    err
-                ));
-                }
-            }
-            ctd.currently_compiling = false;
-            // ctd.perf_counter.end_section(&sections::COMPILE_CODE);
-        }
-        if let Some(new_autocon_dyn_data) = ctd.new_autocon_dyn_data.take() {
-            self.atd
-                .input
-                .set_autocon_dyn_data(&new_autocon_dyn_data[..]);
-        }
-        if let Some(new_staticon_dyn_data) = ctd.new_staticon_dyn_data.take() {
-            self.atd
-                .input
-                .set_staticon_dyn_data(&new_staticon_dyn_data[..]);
-        }
-        let audio_buf_len = ctd.host_format.buffer_len * 2;
-        if self.atd.audio_buffer.len() != audio_buf_len {
-            self.atd.audio_buffer.resize(audio_buf_len, 0.0);
-        }
+    pub fn render_audio(&mut self) -> Vec<f32> {
         let update_feedback_data =
-            self.atd.last_feedback_data_update.elapsed() > FEEDBACK_UPDATE_INTERVAL;
+            self.data.last_feedback_data_update.elapsed() > FEEDBACK_UPDATE_INTERVAL;
         if update_feedback_data {
-            self.atd.last_feedback_data_update = Instant::now();
+            self.data.last_feedback_data_update = Instant::now();
         }
-        if let Some(program) = &mut self.atd.current_program {
-            let CrossThreadData {
-                notes,
-                perf_counter,
-                ..
-            } = &mut *ctd;
-            let result = program.execute(
-                update_feedback_data,
-                &mut self.atd.input,
-                &mut self.atd.output,
-                &mut self.atd.host_data,
-                notes,
-                &mut self.atd.audio_buffer[..],
-                perf_counter,
-            );
-            if let Err(err) = result {
-                ctd.critical_error = Some(err);
-                self.atd.current_program = None;
-            } else if let Ok(true) = result {
-                // Returns true if new feedback data was written.
-                ctd.new_feedback_data = Some(Vec::from(self.atd.output.borrow_feedback_data()));
+
+        let mut ready = self.comms.julia_thread_status.load().is_ready();
+        if ready {
+            let data = self.data.global_data.clone();
+            let request = julia_thread::RenderRequest {
+                data,
+                do_feedback: update_feedback_data,
+            };
+            let res = self.comms.julia_render_pipe.try_send(request);
+            match res {
+                Ok(()) => (),
+                Err(TrySendError::Full(..)) => ready = false,
+                Err(TrySendError::Disconnected(..)) => panic!("Julia thread has shut down."),
             }
         }
-        &self.atd.audio_buffer[..]
+
+        let params = self.comms.global_params.load();
+        let buf_time = params.buffer_length as f32 / params.sample_rate as f32;
+        self.data.global_data.elapsed_time += buf_time;
+        self.data.global_data.elapsed_beats += buf_time * self.data.global_data.bpm / 60.0;
+
+        if ready {
+            self.data.audio_response_output.recv().unwrap().audio
+        } else {
+            let size = params.channels * params.buffer_length;
+            vec![0.0; size]
+        }
     }
 }

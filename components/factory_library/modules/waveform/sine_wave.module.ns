@@ -1,7 +1,0 @@
-macro Waveform(buffer_pos, phase):(value) {
-    AUTO value = Sin(phase * TAU);
-}
-
-if global_update_feedback_data {
-    DisplayWaveform(SetGraphFeedback, Waveform);
-}

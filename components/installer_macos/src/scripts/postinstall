@@ -1,0 +1,34 @@
+#!/bin/bash
+
+#Custermize this for your application
+APPLICATION_FILE_PATH=Audiobench.app
+
+#Parameters
+PRODUCT_HOME=/Library/__PRODUCT__
+
+mv /Library/__PRODUCT__/__VERSION__ /tmp/Audiobench 
+rm -rf $PRODUCT_HOME
+mv /tmp/Audiobench $PRODUCT_HOME
+
+echo "Post installation process started"
+
+#Change permissions in home directory
+echo "Change permissions in product home"
+cd ${PRODUCT_HOME}
+chmod -R 755 .
+
+#Add application shortcut to /usr/local/bin
+rm -f /Applications/Audiobench.bin
+ln -s ${PRODUCT_HOME}/${APPLICATION_FILE_PATH} /Applications/Audiobench.bin
+
+VST3_PATH=/Library/Audio/Plug-ins/VST3
+[ -d $VST3_PATH ] || mkdir -p $VST3_PATH
+rm -f $VST3_PATH/Audiobench.vst3
+ln -s ${PRODUCT_HOME}/Audiobench.vst3 $VST3_PATH/Audiobench.vst3
+
+AU_PATH=/Library/Audio/Plug-ins/Components
+[ -d $AU_PATH ] || mkdir -p $AU_PATH
+rm -f $AU_PATH/Audiobench.component
+ln -s ${PRODUCT_HOME}/Audiobench.component $AU_PATH/Audiobench.component
+
+echo "Post installation process finished"

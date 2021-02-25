@@ -2,90 +2,66 @@ name: Build All Artifacts
 
 on:
   push:
-    branches: [ release ]
+    branches: [ beta ]
   pull_request:
-    branches: [ beta, release ]
+    branches: [ beta ]
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  check-version:
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request' && github.base_ref == 'release'
+  build:
+    strategy:
+      matrix:
+        os: ['ubuntu-latest', 'windows-latest', 'macOS-latest']
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v2
       with:
         lfs: 'true' 
-        submodules: 'true'
-        persist-credentials: 'false'
-    - name: Check version numbers
-      run: ./build.py check_version
-
-  build-windows:
-    runs-on: windows-latest
-    steps:
-    - uses: actions/checkout@v2
+    - uses: actions/setup-python@v2
       with:
-        lfs: 'true' 
-        submodules: 'true'
-    - name: Install Dependencies
+        python-version: '3.7'
+    - name: Cache LLVM install (Windows only)
+      if: ${{ matrix.os == 'windows-latest' }}
+      id: cache-llvm
+      uses: actions/cache@v2
+      with:
+        path: ${{ runner.temp }}/llvm
+        key: llvm
+    - name: Install LLVM/Clang (Windows only)
+      if: ${{ matrix.os == 'windows-latest' }}
+      uses: KyleMayes/install-llvm-action@v1
+      with:
+        version: 10.0
+        directory: ${{ runner.temp }}/llvm
+        cached: ${{ steps.cache-llvm.outputs.cache-hit }}
+    - name: Build on Windows
+      if: ${{ matrix.os == 'windows-latest' }}
       run: |
-        echo "Prebuilt LLVM development libraries for Windows because no one else has them apparently."
-        git clone "https://gitlab.com/Code_Cube/llvm-win.git" "C:\LLVM"
-    - name: Build
-      run: python build.py juce_frontend --release --github-runner
+        choco install nsis
+        python build.py installer --release --github-runner
       env:
-        LLVM_SYS_70_PREFIX: C:\LLVM\ 
-    - name: Upload Artifacts
-      uses: actions/upload-artifact@v2
-      with:
-        name: artifacts-bin-windows
-        path: artifacts/bin/
-    
-  build-macos:
-    runs-on: macos-latest
-    steps:
-    - uses: actions/checkout@v2
-      with:
-        lfs: 'true' 
-        submodules: 'true'
-    - name: Install Dependencies
-      run: |
-        brew install llvm@7
-    - name: Build
+        LIBCLANG_PATH: ${{ runner.temp }}/llvm/lib
+    - name: Build on MacOS
+      if: ${{ matrix.os == 'macOS-latest' }}
       run: |
         export OPENSSL_ROOT_DIR=$(brew --prefix openssl)
         export OPENSSL_LIB_DIR=$(brew --prefix openssl)"/lib"
         export OPENSSL_INCLUDE_DIR=$(brew --prefix openssl)"/include"
-        ./build.py juce_frontend --release --github-runner
-      env:
-        LLVM_SYS_70_PREFIX: /usr/local/Cellar/llvm@7/7.1.0_2
-    - name: Upload Artifacts
-      uses: actions/upload-artifact@v2
-      with:
-        name: artifacts-bin-macos
-        path: artifacts/bin/
-    
-  build-linux:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v2
-      with:
-        lfs: 'true' 
-        submodules: 'true'
-    - name: Install Dependencies
+        python build.py installer --release --github-runner
+    - name: Build on Linux
+      if: ${{ matrix.os == 'ubuntu-latest' }}
       run: |
         sudo apt update
-        sudo apt -y install llvm-7 libxrandr-dev libxinerama-dev libxcursor-dev libasound-dev extra-cmake-modules libxcb-shape0-dev libxcb-xfixes0-dev
-        export LLVM_SYS_70_PREFIX=/usr/bin/llvm-7/
-    - name: Build
-      run: ./build.py juce_frontend --release --github-runner
+        sudo apt -y install libxrandr-dev libxinerama-dev libxcursor-dev libasound-dev extra-cmake-modules libxcb-shape0-dev libxcb-xfixes0-dev libjack0 libjack-dev
+        python build.py installer --release --github-runner
     - name: Upload Artifacts
       uses: actions/upload-artifact@v2
       with:
-        name: artifacts-bin-linux
-        path: artifacts/bin/
+        name: artifacts-installer-${{ matrix.os }}
+        path: artifacts/installer/
   
   build-book:
     runs-on: ubuntu-latest
@@ -93,7 +69,6 @@ jobs:
     - uses: actions/checkout@v2
       with:
         lfs: 'true' 
-        submodules: 'true'
     - name: Install MDBook
       run: |
         cargo install mdbook --vers "^0.4.0"
@@ -105,45 +80,44 @@ jobs:
       with:
         name: book-html
         path: docs/book/book/
-    
-  deploy-site:
-    needs: [build-windows, build-macos, build-linux, build-book]
+  
+  beta-release:
+    needs: [build, build-book]
     runs-on: ubuntu-latest
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/beta'
     steps:
-    - uses: actions/checkout@v2
-      with:
-        lfs: 'true' 
-        submodules: 'true'
-        persist-credentials: 'false'
-    - name: Gather Artifacts
-      run: |
-        mkdir -p website/
-        mkdir -p website/bin/
-        mkdir -p website/book/
-        cp -r docs/website/src/* website/
     - uses: actions/download-artifact@v2
       with:
-        name: artifacts-bin-windows
-        path: website/bin/
+        name: artifacts-installer-windows-latest
+        path: windows/
     - uses: actions/download-artifact@v2
       with:
-        name: artifacts-bin-macos
-        path: website/bin/
+        name: artifacts-installer-macOS-latest
+        path: macos/
     - uses: actions/download-artifact@v2
       with:
-        name: artifacts-bin-linux
-        path: website/bin/
+        name: artifacts-installer-ubuntu-latest
+        path: linux/
     - uses: actions/download-artifact@v2
       with:
         name: book-html
-        path: website/book/
-    - name: Mark artifacts as executable
-      run: chmod +x website/bin/Audiobench_Linux_*
-    - name: Deploy
-      uses: JamesIves/github-pages-deploy-action@3.6.1
+        path: book/
+    - name: Organize files
+      run: |
+        mv windows/AudiobenchInstaller.exe ./AudiobenchWindowsSetup.exe
+        mv macos/Audiobench.pkg ./AudiobenchMacOSSetup.pkg
+        mv linux/Installer_Linux_x64.sh ./AudiobenchLinuxSetup.sh
+        cd book
+        zip ../Book.zip -r ./*
+    - name: Publish release
+      uses: "marvinpinto/action-automatic-releases@latest"
       with:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        BRANCH: gh-pages
-        FOLDER: website/
-        CLEAN: true
+        repo_token: "${{ secrets.GITHUB_TOKEN }}"
+        automatic_release_tag: "latest-beta"
+        prerelease: true
+        title: "Latest Beta Release"
+        files: |
+          AudiobenchWindowsSetup.exe
+          AudiobenchMacOSSetup.pkg
+          AudiobenchLinuxSetup.sh
+          Book.zip

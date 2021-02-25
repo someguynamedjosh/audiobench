@@ -1,23 +1,32 @@
-use super::library_preload::{self, PreloadedLibrary, ZippedLibraryContentProvider};
-use super::save_data::Patch;
-use super::update_check::{self, UpdateInfo};
-use super::yaml;
-use crate::engine::parts::Module;
-use crate::util::*;
+use crate::{
+    config::*,
+    registry::{
+        library_preload::{self, PreloadedLibrary, ZippedLibraryContentProvider},
+        module_template::ModuleTemplate,
+        save_data::Patch,
+        update_check::{self, UpdateInfo},
+        yaml,
+    },
+};
+use julia_helper::FileClip;
 use rand::RngCore;
-use std::collections::{HashMap, HashSet};
-use std::fs;
-use std::path::PathBuf;
-use std::sync::mpsc::{self, Receiver, TryRecvError};
+use shared_util::prelude::*;
+use std::{
+    collections::{HashMap, HashSet},
+    fs,
+    path::PathBuf,
+    sync::mpsc::{self, Receiver, TryRecvError},
+};
 
 pub use super::library_preload::LibraryInfo;
 
 pub struct Registry {
-    modules: Vec<Module>,
+    module_templates: Vec<Rcrc<ModuleTemplate>>,
     modules_by_resource_id: HashMap<String, usize>,
     modules_by_serialized_id: HashMap<(String, usize), usize>,
 
-    scripts: HashMap<String, String>,
+    general_scripts_by_library: HashMap<String, Vec<FileClip>>,
+    module_scripts_by_library: HashMap<String, Vec<(String, FileClip)>>,
 
     icon_indexes: HashMap<String, usize>,
     icons: Vec<Vec<u8>>,
@@ -52,7 +61,7 @@ impl Registry {
         })?;
         let yaml = yaml::parse_yaml(&buffer_as_text, name)?;
         let resource_id = format!("{}:{}", lib_name, module_id);
-        let module = super::module_template::create_module_prototype_from_yaml(
+        let template = super::module_template::create_module_template_from_yaml(
             &self.icon_indexes,
             lib_name.clone(),
             module_id.clone(),
@@ -64,11 +73,9 @@ impl Registry {
                 module_id, err
             )
         })?;
-        let index = self.modules.len();
-        let template_ref = module.template.borrow();
-        let ser_id = (template_ref.lib_name.clone(), template_ref.template_id);
-        drop(template_ref);
-        self.modules.push(module);
+        let index = self.module_templates.len();
+        let ser_id = (template.lib_name.clone(), template.save_id);
+        self.module_templates.push(rcrc(template));
         self.modules_by_resource_id.insert(resource_id, index);
         let delayed_error = if self.modules_by_serialized_id.contains_key(&ser_id) {
             Some(DelayedError::DuplicateSaveId(ser_id.1))
@@ -79,14 +86,52 @@ impl Registry {
         Ok(delayed_error)
     }
 
-    fn load_script_resource(&mut self, name: &str, buffer: Vec<u8>) -> Result<(), String> {
+    fn load_general_script_resource(
+        &mut self,
+        library_name: &str,
+        file_name: &str,
+        buffer: Vec<u8>,
+    ) -> Result<(), String> {
         let buffer_as_text = String::from_utf8(buffer).map_err(|e| {
             format!(
                 "ERROR: The file {} is not a valid UTF-8 text document, caused by:\nERROR: {}",
-                name, e
+                file_name, e
             )
         })?;
-        self.scripts.insert(name.to_owned(), buffer_as_text);
+        assert!(self.general_scripts_by_library.contains_key(library_name));
+        let clip = FileClip::new(file_name.to_owned(), buffer_as_text);
+        self.general_scripts_by_library
+            .get_mut(library_name)
+            .unwrap()
+            .push(clip);
+        Ok(())
+    }
+
+    fn load_module_script_resource(
+        &mut self,
+        library_name: &str,
+        file_name: &str,
+        buffer: Vec<u8>,
+    ) -> Result<(), String> {
+        let buffer_as_text = String::from_utf8(buffer).map_err(|e| {
+            format!(
+                "ERROR: The file {} is not a valid UTF-8 text document, caused by:\nERROR: {}",
+                file_name, e
+            )
+        })?;
+        let name_start = file_name
+            .rfind('/')
+            .or_else(|| file_name.find(':'))
+            .expect("Illegal file name")
+            + 1;
+        let name_end = file_name.rfind(".module.jl").expect("Illegal file name");
+        let module_name = String::from(&file_name[name_start..name_end]);
+        assert!(self.module_scripts_by_library.contains_key(library_name));
+        let clip = FileClip::new(file_name.to_owned(), buffer_as_text);
+        self.module_scripts_by_library
+            .get_mut(library_name)
+            .unwrap()
+            .push((module_name, clip));
         Ok(())
     }
 
@@ -139,8 +184,10 @@ impl Registry {
                 module_id.to_owned(),
                 buffer,
             );
-        } else if file_name.ends_with(".ns") {
-            self.load_script_resource(&full_name, buffer)?;
+        } else if file_name.ends_with(".lib.jl") {
+            self.load_general_script_resource(lib_name, &full_name, buffer)?;
+        } else if file_name.ends_with(".module.jl") {
+            self.load_module_script_resource(lib_name, &full_name, buffer)?;
         } else if file_name.ends_with(".abpatch") {
             self.unloaded_patches.push((full_name, full_path, buffer));
         } else if file_name.ends_with(".md") {
@@ -157,6 +204,30 @@ impl Registry {
     }
 
     fn load_library(&mut self, mut library: PreloadedLibrary) -> Result<LibraryInfo, String> {
+        for (name, requirement) in &library.info.dependencies {
+            if name == "Factory" {
+                if !ENGINE_VERSION.compatible_for(*requirement) {
+                    return Err(format!(
+                        concat!(
+                            "ERROR: This library requires the {} (or similarly compatible) ",
+                            "version of the {} library but you have version {}."
+                        ),
+                        requirement, name, ENGINE_VERSION
+                    ));
+                }
+            } else {
+                return Err(format!(concat!(
+                    "ERROR: Dependencies on libraries other than the Factory",
+                    "library is unimplemented."
+                )));
+            }
+        }
+        let internal_name = library.info.internal_name.clone();
+        // Add entries to script hash table.
+        self.general_scripts_by_library
+            .insert(internal_name.clone(), Vec::new());
+        self.module_scripts_by_library
+            .insert(internal_name.clone(), Vec::new());
         // Load icons before other data.
         for index in 0..library.content.get_num_files() {
             let file_name = library.content.get_file_name(index);
@@ -164,7 +235,7 @@ impl Registry {
                 let full_path = library.content.get_full_path(index);
                 let contents = library.content.read_file_contents(index)?;
                 let delayed_error =
-                    self.load_resource(&library.internal_name, &file_name, full_path, contents)?;
+                    self.load_resource(&internal_name, &file_name, full_path, contents)?;
                 assert!(
                     delayed_error.is_none(),
                     "Icons should not cause delayed errors."
@@ -178,7 +249,7 @@ impl Registry {
                 let full_path = library.content.get_full_path(index);
                 let contents = library.content.read_file_contents(index)?;
                 delayed_error = delayed_error.or(self.load_resource(
-                    &library.internal_name,
+                    &internal_name,
                     &file_name,
                     full_path,
                     contents,
@@ -188,7 +259,7 @@ impl Registry {
         if let Some(DelayedError::DuplicateSaveId(dupl_id)) = delayed_error {
             let mut save_ids = HashSet::new();
             for (this_lib_name, save_id) in self.modules_by_serialized_id.keys() {
-                if this_lib_name == &library.internal_name {
+                if this_lib_name == &internal_name {
                     save_ids.insert(*save_id);
                 }
             }
@@ -205,7 +276,7 @@ impl Registry {
     }
 
     fn create_and_update_user_library(&self) -> Result<(), String> {
-        let user_library_path = self.library_path.join("user");
+        let user_library_path = self.library_path.join("User");
         fs::create_dir_all(&user_library_path).map_err(|err| {
             format!(
                 "ERROR: Failed to create user library at {}, caused by:\n{}",
@@ -220,7 +291,7 @@ impl Registry {
         )
         .map_err(|err| {
             format!(
-                "ERROR: Failed to create library_info.yaml for user library, caused by:\nERROR:{}",
+                "ERROR: Failed to create library_info.yaml for User library, caused by:\nERROR:{}",
                 err
             )
         })?;
@@ -229,30 +300,28 @@ impl Registry {
 
     fn initialize(&mut self) -> Result<(), String> {
         let factory_library = {
-            let raw = std::include_bytes!(concat!(env!("OUT_DIR"), "/factory.ablib"));
+            let raw = std::include_bytes!(concat!(env!("OUT_DIR"), "/Factory.ablib"));
             let reader = std::io::Cursor::new(raw as &[u8]);
             let content = ZippedLibraryContentProvider::new(reader).map_err(|err| {
-                format!("ERROR: Failed to open factory library, caused by:\n{}", err)
+                format!("ERROR: Failed to open Factory library, caused by:\n{}", err)
             })?;
-            library_preload::preload_library("factory".to_owned(), Box::new(content)).map_err(
-                |err| {
-                    format!(
-                        "ERROR: Failed to preload factory library, caused by:\n{}",
-                        err
-                    )
-                },
-            )?
+            library_preload::preload_library(Box::new(content)).map_err(|err| {
+                format!(
+                    "ERROR: Failed to preload Factory library, caused by:\n{}",
+                    err
+                )
+            })?
         };
         let factory_lib_info = self
             .load_library(factory_library)
-            .map_err(|e| format!("ERROR: Failed to load factory library, caused by:\n{}", e))?;
+            .map_err(|e| format!("ERROR: Failed to load Factory library, caused by:\n{}", e))?;
         self.library_info
-            .insert("factory".to_owned(), factory_lib_info);
+            .insert("Factory".to_owned(), factory_lib_info);
 
         self.create_and_update_user_library()?;
 
         let mut loaded_libraries = HashSet::new();
-        loaded_libraries.insert("factory".to_owned());
+        loaded_libraries.insert("Factory".to_owned());
         for entry in fs::read_dir(&self.library_path).map_err(|err| {
             format!(
                 "ERROR: Failed to read libraries from {}, caused by:\n{}",
@@ -273,7 +342,7 @@ impl Registry {
                         err
                     )
                 })?;
-            let internal_name = library.internal_name.clone();
+            let internal_name = library.info.internal_name.clone();
             let info = self.load_library(library).map_err(|err| {
                 format!(
                     "ERROR: Failed to load library {}, caused by:\n{}",
@@ -293,7 +362,7 @@ impl Registry {
         Ok(())
     }
 
-    pub fn new() -> (Self, Result<(), String>) {
+    pub fn new() -> Result<Self, String> {
         let library_path = {
             let user_dirs = directories::UserDirs::new().unwrap();
             let document_dir = user_dirs.document_dir().unwrap();
@@ -305,37 +374,48 @@ impl Registry {
         update_check::spawn_update_checker(update_urls, sender);
 
         let mut registry = Self {
-            modules: Vec::new(),
+            module_templates: Vec::new(),
             modules_by_resource_id: HashMap::new(),
             modules_by_serialized_id: HashMap::new(),
-            scripts: HashMap::new(),
+
+            general_scripts_by_library: HashMap::new(),
+            module_scripts_by_library: HashMap::new(),
+
             icon_indexes: HashMap::new(),
             icons: Vec::new(),
+
             unloaded_patches: Vec::new(),
             patches: Vec::new(),
             patch_paths: HashMap::new(),
+
             library_path,
             library_info: HashMap::new(),
             checked_updates: HashMap::new(),
             update_check_stream: receiver,
         };
-        let result = registry.initialize();
-
-        (registry, result)
+        registry.initialize()?;
+        Ok(registry)
     }
 
-    pub fn borrow_modules(&self) -> &[Module] {
-        &self.modules
+    pub fn borrow_templates(&self) -> &[Rcrc<ModuleTemplate>] {
+        &self.module_templates
     }
 
-    pub fn borrow_module_by_serialized_id(&self, id: &(String, usize)) -> Option<&Module> {
+    pub fn borrow_template_by_serialized_id(
+        &self,
+        id: &(String, usize),
+    ) -> Option<&Rcrc<ModuleTemplate>> {
         self.modules_by_serialized_id
             .get(id)
-            .map(|idx| &self.modules[*idx])
+            .map(|idx| &self.module_templates[*idx])
     }
 
-    pub fn borrow_scripts(&self) -> &HashMap<String, String> {
-        &self.scripts
+    pub fn borrow_general_scripts_from_library(&self, lib_name: &str) -> &[FileClip] {
+        &self.general_scripts_by_library.get(lib_name).unwrap()[..]
+    }
+
+    pub fn borrow_module_scripts_from_library(&self, lib_name: &str) -> &[(String, FileClip)] {
+        &self.module_scripts_by_library.get(lib_name).unwrap()[..]
     }
 
     pub fn lookup_icon(&self, name: &str) -> Option<usize> {
@@ -353,8 +433,8 @@ impl Registry {
     pub fn create_new_user_patch(&mut self) -> &Rcrc<Patch> {
         let filename = format!("{:016X}.abpatch", rand::thread_rng().next_u64());
         self.patch_paths
-            .insert(format!("user:{}", filename), self.patches.len());
-        let patch = Patch::new(self.library_path.join("user").join(filename));
+            .insert(format!("User:{}", filename), self.patches.len());
+        let patch = Patch::new(self.library_path.join("User").join(filename));
         let prc = rcrc(patch);
         self.patches.push(prc);
         self.patches.last().unwrap()
@@ -372,8 +452,8 @@ impl Registry {
         self.library_info.get(name)
     }
 
-    pub fn borrow_library_infos(&self) -> impl Iterator<Item = &LibraryInfo> {
-        self.library_info.values()
+    pub fn borrow_library_infos(&self) -> impl Iterator<Item = (&String, &LibraryInfo)> {
+        self.library_info.iter()
     }
 
     // Returns true if the update checker is still running.

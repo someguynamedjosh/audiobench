@@ -1,4 +1,4 @@
-use std::time::Duration;
+use scui::Vec2D;
 
 /// Pixels of padding between grid squares.
 const GRID_P_INT: i32 = 6;
@@ -22,6 +22,21 @@ pub const fn fatgrid(num_spaces: i32) -> f32 {
 pub const fn coord(index: i32) -> f32 {
     (GRID_1 * index + GRID_P_INT * (index + 1)) as f32
 }
+
+/// How wide the root window is.
+pub const ROOT_WIDTH: f32 = 640.0;
+/// How tall the root window is.
+pub const ROOT_HEIGHT: f32 = 480.0;
+/// How tall the tooltip box should be.
+pub const TOOLTIP_HEIGHT: f32 = BIG_FONT_SIZE + GRID_P * 2.0;
+/// How tall the bars at the top of the screen are.
+pub const HEADER_HEIGHT: f32 = GRID_P + TOOLTIP_HEIGHT + GRID_P + grid(1);
+/// How wide tab windows are.
+pub const TAB_BODY_WIDTH: f32 = ROOT_WIDTH;
+/// How tall tab windows are.
+pub const TAB_BODY_HEIGHT: f32 = ROOT_HEIGHT - HEADER_HEIGHT;
+/// The size of tab windows
+pub const TAB_BODY_SIZE: Vec2D = Vec2D::new(TAB_BODY_WIDTH, TAB_BODY_HEIGHT);
 
 pub const KNOB_OUTSIDE_SPACE: f32 = 1.0;
 pub const KNOB_INSIDE_SPACE: f32 = 6.0;
@@ -62,14 +77,12 @@ pub const LOG_OCTAVE_PIXELS: f32 = 40.0;
 /// How many pixels the mouse must be dragged across to increase or decrease a discrete integer by
 /// one step.
 pub const DISCRETE_STEP_PIXELS: f32 = 12.0;
-/// How many pixels the mouse must move across while being held down for dragging to start.
-pub const DRAG_DEADZONE: f32 = 4.0;
-/// The maximum amount of time between two clicks for the event to be considered a double-click.
-pub const DOUBLE_CLICK_TIME: Duration = Duration::from_millis(500);
-/// When holding Shift, how many steps should be snapped to.
+/// When holding SnappingModifier, how many steps should be snapped to.
 pub const SNAP_STEPS: f32 = 12.0;
-/// When holding Shift and Alt, how many steps should be snapped to.
+/// When holding SnappingModifier and PrecisionModifier, how many steps should be snapped to.
 pub const PRECISE_SNAP_STEPS: f32 = 72.0;
+/// What to multiply input values by when holding PrecisionModifier.
+pub const PRECISION_MULTIPLIER: f32 = 0.2;
 
 const fn hex_color(hex: u32) -> (u8, u8, u8) {
     (

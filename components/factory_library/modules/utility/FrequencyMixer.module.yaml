@@ -1,0 +1,38 @@
+save_id: 20
+outputs:
+  output:
+    type: pitch
+    label: Frequency
+    tooltip: The selected frequency
+controls:
+  start: Input
+    type: pitch
+  end_: Input
+    type: pitch
+  sweep: FloatInRange
+    min: 0
+    max: 1
+    default: 0.5
+gui:
+  label: Frequency Mixer
+  category: Utility
+  tooltip: Provides a knob which mixes between two input frequencies
+  width: 2
+  height: 2
+  widgets:
+    Input:
+      y: 0
+      control: start
+      label: Start
+      tooltip: The frequency to output when the knob is all the way to the left
+    Input:
+      y: 1
+      control: end_
+      label: End
+      tooltip: The frequency to output when the knob is all the way to the right
+    Knob:
+      x: 0
+      y: 0
+      control: sweep
+      label: Mix
+      tooltip: How much of each frequency to use

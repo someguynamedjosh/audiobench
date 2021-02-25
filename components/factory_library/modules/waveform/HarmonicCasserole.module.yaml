@@ -1,0 +1,192 @@
+save_id: 15
+outputs:
+  out_wave:
+    type: waveform
+    label: Casserole
+    tooltip: The combination of all the selected harmonics
+controls:
+  base_wave: Input
+    type: waveform
+    default: sine_wave
+  amp1: FloatInRange
+    min: 0
+    max: 1
+    default: 1
+  phase1: FloatInRange
+    min: -1
+    max: 1
+    default: 0
+  amp2: FloatInRange
+    min: 0
+    max: 1
+    default: 0.5
+  phase2: FloatInRange
+    min: -1
+    max: 1
+    default: 0
+  amp3: FloatInRange
+    min: 0
+    max: 1
+    default: 0
+  phase3: FloatInRange
+    min: -1
+    max: 1
+    default: 0
+  amp4: FloatInRange
+    min: 0
+    max: 1
+    default: 0
+  phase4: FloatInRange
+    min: -1
+    max: 1
+    default: 0
+  amp5: FloatInRange
+    min: 0
+    max: 1
+    default: 0
+  phase5: FloatInRange
+    min: -1
+    max: 1
+    default: 0
+  amp6: FloatInRange
+    min: 0
+    max: 1
+    default: 0
+  phase6: FloatInRange
+    min: -1
+    max: 1
+    default: 0
+  amp7: FloatInRange
+    min: 0
+    max: 1
+    default: 0
+  phase7: FloatInRange
+    min: -1
+    max: 1
+    default: 0
+  amp8: FloatInRange
+    min: 0
+    max: 1
+    default: 0
+  phase8: FloatInRange
+    min: -1
+    max: 1
+    default: 0
+  post_amp: FloatInRange
+    min: 0
+    max: 1
+    default: 0.3
+gui:
+  label: Harmonic Casserole
+  category: Waveform
+  tooltip: Combines multiple harmonics of a single waveform to make a more interesting waveform
+  width: 10
+  height: 2
+  widgets:
+    Input:
+      y: 0
+      control: base_wave
+      label: Input
+      tooltip: The base waveform
+    MiniKnob:
+      x: 0
+      y: 0
+      control: amp1
+      label: Amplitude 1
+      tooltip: How loud harmonic 1 should be
+    MiniKnob:
+      x: 0
+      y: 1
+      control: phase1
+      label: Phase 1
+      tooltip: How much the phase of harmonic 1 should be shifted by
+    MiniKnob:
+      x: 1
+      y: 0
+      control: amp2
+      label: Amplitude 2
+      tooltip: How loud harmonic 2 should be
+    MiniKnob:
+      x: 1
+      y: 1
+      control: phase2
+      label: Phase 2
+      tooltip: How much the phase of harmonic 2 should be shifted by
+    MiniKnob:
+      x: 2
+      y: 0
+      control: amp3
+      label: Amplitude 3
+      tooltip: How loud harmonic 3 should be
+    MiniKnob:
+      x: 2
+      y: 1
+      control: phase3
+      label: Phase 3
+      tooltip: How much the phase of harmonic 3 should be shifted by
+    MiniKnob:
+      x: 3
+      y: 0
+      control: amp4
+      label: Amplitude 4
+      tooltip: How loud harmonic 4 should be
+    MiniKnob:
+      x: 3
+      y: 1
+      control: phase4
+      label: Phase 4
+      tooltip: How much the phase of harmonic 4 should be shifted by
+    MiniKnob:
+      x: 4
+      y: 0
+      control: amp5
+      label: Amplitude 5
+      tooltip: How loud harmonic 5 should be
+    MiniKnob:
+      x: 4
+      y: 1
+      control: phase5
+      label: Phase 5
+      tooltip: How much the phase of harmonic 5 should be shifted by
+    MiniKnob:
+      x: 5
+      y: 0
+      control: amp6
+      label: Amplitude 6
+      tooltip: How loud harmonic 6 should be
+    MiniKnob:
+      x: 5
+      y: 1
+      control: phase6
+      label: Phase 6
+      tooltip: How much the phase of harmonic 6 should be shifted by
+    MiniKnob:
+      x: 6
+      y: 0
+      control: amp7
+      label: Amplitude 7
+      tooltip: How loud harmonic 7 should be
+    MiniKnob:
+      x: 6
+      y: 1
+      control: phase7
+      label: Phase 7
+      tooltip: How much the phase of harmonic 7 should be shifted by
+    MiniKnob:
+      x: 7
+      y: 0
+      control: amp8
+      label: Amplitude 8
+      tooltip: How loud harmonic 8 should be
+    MiniKnob:
+      x: 7
+      y: 1
+      control: phase8
+      label: Phase 8
+      tooltip: How much the phase of harmonic 8 should be shifted by
+    Knob:
+      x: 8
+      y: 0
+      control: post_amp
+      label: Final Amp
+      tooltip: Controls the final amplitude of the waveform

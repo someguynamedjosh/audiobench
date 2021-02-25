@@ -38,8 +38,9 @@ impl YamlNode {
     pub fn parse<T: FromStr>(&self) -> Result<T, String> {
         self.value.trim().parse().map_err(|_| {
             format!(
-                "ERROR: The value of {} is not a valid {}",
+                "ERROR: The value of {} (\"{}\") is not a valid {}",
                 self.full_name,
+                self.value.trim(),
                 std::any::type_name::<T>()
             )
         })
@@ -149,6 +150,8 @@ pub fn parse_yaml(input: &str, filename: &str) -> Result<YamlNode, String> {
                     if pos.1 > current_indent_level {
                         error!("Too much indentation");
                     }
+                } else if c == '\t' {
+                    error!("Yaml files should be indented with two spaces, not tabs");
                 } else if c == '\n' {
                     error!("Unexpected newline");
                 } else {

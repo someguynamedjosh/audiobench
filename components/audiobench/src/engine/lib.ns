@@ -1,19 +1,23 @@
-DATA_TYPE TRIGGER = [BUFFER_LENGTH]BOOL;
+DATA_TYPE TRIGGER_BUFFER = [BUFFER_LENGTH]BOOL;
+DATA_TYPE MONO_BUFFER = [BUFFER_LENGTH][1]FLOAT;
+DATA_TYPE STEREO_BUFFER = [BUFFER_LENGTH][2]FLOAT;
+DATA_TYPE ANY_AUDIO_BUFFER = <[BUFFER_LENGTH]FLOAT, STEREO_BUFFER>;
+DATA_TYPE ANY_SAMPLE = <FLOAT, [2]FLOAT>;
 
-TRIGGER global_release_trigger = FALSE;
+TRIGGER_BUFFER global_release_trigger = FALSE as TRIGGER_BUFFER;
 if global_note_status == 1.0 { global_release_trigger[0] = TRUE; }
-TRIGGER global_start_trigger = FALSE;
+TRIGGER_BUFFER global_start_trigger = FALSE as TRIGGER_BUFFER;
 if global_note_status == 2.0 { global_start_trigger[0] = TRUE; }
 BOOL global_update_feedback_data = global_should_update == 1.0;
 
-macro FlatWaveform(buffer_pos, phase):(value) { AUTO value = 0.0; }
-macro RampUpWaveform(buffer_pos, phase):(value) { AUTO value = phase * 2.0 - 1.0; }
-macro RampDownWaveform(buffer_pos, phase):(value) { AUTO value = 1.0 - phase * 2.0; }
-macro SineWaveform(buffer_pos, phase):(value) { AUTO value = Sin(phase * TAU); }
+macro FlatWaveform(INT buffer_pos, <[2]FLOAT> phase):(value) { <> value = 0.0; }
+macro RampUpWaveform(INT buffer_pos, <[2]FLOAT> phase):(value) { <> value = phase * 2.0 - 1.0; }
+macro RampDownWaveform(INT buffer_pos, <[2]FLOAT> phase):(value) { <> value = 1.0 - phase * 2.0; }
+macro SineWaveform(INT buffer_pos, <[2]FLOAT> phase):(value) { <> value = Sin(phase * TAU); }
 
-macro DisplayWaveform(UpdateFn, Waveform) {
+macro DisplayWaveform(MACRO UpdateFn, MACRO Waveform) {
     [44]FLOAT feedback;
-    for i = 0 to 42 no_unroll {
+    for i = 0 to 42 {
         FLOAT fphase = Itof(i) / 42.0;
         feedback[i] = Waveform(0, fphase)[0?];
     }
@@ -22,9 +26,9 @@ macro DisplayWaveform(UpdateFn, Waveform) {
     UpdateFn(feedback);
 }
 
-macro DisplayWaveformWithCursor(UpdateFn, Waveform, cursor_phase) {
+macro DisplayWaveformWithCursor(MACRO UpdateFn, MACRO Waveform, FLOAT cursor_phase) {
     [44]FLOAT feedback;
-    for i = 0 to 42 no_unroll {
+    for i = 0 to 42 {
         FLOAT fphase = Itof(i) / 42.0;
         feedback[i] = Waveform(0, fphase)[0?];
     }
@@ -33,40 +37,34 @@ macro DisplayWaveformWithCursor(UpdateFn, Waveform, cursor_phase) {
     UpdateFn(feedback);
 }
 
-macro DisplayTriggerSequencePlayhead(UpdateFn, position) {
-    assert position:TYPE == FLOAT;
+macro DisplayTriggerSequencePlayhead(MACRO UpdateFn, FLOAT position) {
     UpdateFn([position]);
 }
 
-macro DisplayValueSequenceData(UpdateFn, playhead_position, ramping_amount) {
-    assert playhead_position:TYPE == FLOAT;
-    assert ramping_amount:TYPE == FLOAT;
+macro DisplayValueSequenceData(MACRO UpdateFn, FLOAT playhead_position, FLOAT ramping_amount) {
     UpdateFn([playhead_position, ramping_amount]);
 }
 
-macro TimingModeUsesSongTime(mode):(flag) {
-    assert mode:TYPE == INT;
+macro TimingModeUsesSongTime(INT mode):(flag) {
     BOOL flag = mode band 0b1 == 0b1;
 }
 
-macro TimingModeIsBeatSynchronized(mode):(flag) {
-    assert mode:TYPE == INT;
+macro TimingModeIsBeatSynchronized(INT mode):(flag) {
     BOOL flag = mode band 0b10 == 0b10;
 }
 
-macro GetTiming(MODE):(timing) {
-    assert MODE:TYPE == INT;
-    BOOL SOURCE = MODE band 0b1 == 0b1;
-    BOOL TYPE = MODE band 0b10 == 0b10;
-    AUTO timing;
+macro GetTiming(INT mode):(timing) {
+    BOOL SOURCE = mode band 0b1 == 0b1;
+    BOOL TYPE = mode band 0b10 == 0b10;
+    <MONO_BUFFER> timing;
     if !SOURCE and !TYPE {
         timing = global_note_time;
     } else if SOURCE and !TYPE {
-        timing = global_song_time;
+        timing = global_elapsed_time;
     } else if !SOURCE and TYPE {
         timing = global_note_beats;
     } else if SOURCE and TYPE {
-        timing = global_song_beats;
+        timing = global_elapsed_beats;
     }
 }
 
@@ -81,7 +79,7 @@ static lib_random_seed {
 macro CrapRand():(value) {
     // This line makes different notes have different "seeds" so they don't sound the same.
     // This might also break the period of the generator but I don't care.
-    lib_random_seed = lib_random_seed + Ftoi(global_pitch + 60.0 * global_song_time[0?]);
+    lib_random_seed = lib_random_seed + Ftoi(global_pitch + 60.0 * global_elapsed_time[0?]);
     lib_random_seed = lib_random_seed bxor lib_random_seed << 13;
     lib_random_seed = lib_random_seed bxor lib_random_seed >> 17;
     lib_random_seed = lib_random_seed bxor lib_random_seed << 5;
