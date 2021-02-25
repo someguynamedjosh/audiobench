@@ -307,7 +307,7 @@ def set_release_version():
     # https://docs.github.com/en/actions/reference/workflow-commands-for-github-actions#using-workflow-commands-to-access-toolkit-functions
     print('::set-output name=RELEASE_NAME::' + CRATE_VERSION)
     index = open('docs/website/src/index.js', 'r').read()
-    index.replace('RELEASE_NAME', CRATE_VERSION)
+    index = index.replace('RELEASE_NAME', CRATE_VERSION)
     open('docs/website/index.js', 'w').write(index)
 
 
