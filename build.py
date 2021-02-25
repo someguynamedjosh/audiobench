@@ -306,9 +306,6 @@ def check_version():
 def set_release_version():
     # https://docs.github.com/en/actions/reference/workflow-commands-for-github-actions#using-workflow-commands-to-access-toolkit-functions
     print('::set-output name=RELEASE_NAME::' + CRATE_VERSION)
-    index = open('docs/website/src/index.js', 'r').read()
-    index = index.replace('RELEASE_NAME', CRATE_VERSION)
-    open('docs/website/src/index.js', 'w').write(index)
 
 
 def build_juce6_win():
