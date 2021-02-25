@@ -46,7 +46,7 @@ function startDownload(from, artifactUrl) {
 
 function makeDownloadButton(name, parentMenu, artifactName) {
     document.getElementById(name).addEventListener('click', event => {
-        startDownload(parentMenu, 'https://github.com/joshua-maros/audiobench/releases/download/RELEASE_NAME/' + artifactName);
+        startDownload(parentMenu, 'https://github.com/joshua-maros/audiobench/releases/download/0.2.1/' + artifactName);
     });
 }
 
