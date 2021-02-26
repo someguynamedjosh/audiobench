@@ -1,19 +1,12 @@
 use crate::{
-    engine::{
-        controls::{AutomationSource, Control},
-        parts as ep,
-    },
+    engine::{controls::AutomationSource, parts as ep},
     registry::Registry,
 };
 use shared_util::{
     mini_serde::{MiniDes, MiniSer},
     prelude::*,
 };
-use std::{
-    error::Error,
-    io::{self, Write},
-    path::PathBuf,
-};
+use std::{error::Error, io::Write, path::PathBuf};
 
 #[derive(Debug, Clone)]
 enum PatchSource {
@@ -41,7 +34,7 @@ impl Patch {
         }
     }
 
-    fn load(source: PatchSource, data: &[u8], registry: &Registry) -> Result<Self, String> {
+    fn load(source: PatchSource, data: &[u8]) -> Result<Self, String> {
         let mut patch = Self {
             name: Default::default(),
             source,
@@ -52,16 +45,12 @@ impl Patch {
         Ok(patch)
     }
 
-    pub fn load_readable(source: String, data: &[u8], registry: &Registry) -> Result<Self, String> {
-        Self::load(PatchSource::Readable(source), data, registry)
+    pub fn load_readable(source: String, data: &[u8]) -> Result<Self, String> {
+        Self::load(PatchSource::Readable(source), data)
     }
 
-    pub fn load_writable(
-        source: PathBuf,
-        data: &[u8],
-        registry: &Registry,
-    ) -> Result<Self, String> {
-        Self::load(PatchSource::Writable(source), data, registry)
+    pub fn load_writable(source: PathBuf, data: &[u8]) -> Result<Self, String> {
+        Self::load(PatchSource::Writable(source), data)
     }
 
     pub fn is_writable(&self) -> bool {

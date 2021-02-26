@@ -48,7 +48,7 @@ pub trait Control: Debug {
     }
 
     /// Called when the user connects some automation of a type given by acceptable_automation.
-    fn connect_automation(&mut self, from: AutomationSource) {
+    fn connect_automation(&mut self, _from: AutomationSource) {
         if self.acceptable_automation().len() == 0 {
             panic!("connect_automation called on control that does not accept automation.");
         } else {
@@ -63,7 +63,7 @@ pub trait Control: Debug {
         Vec::new()
     }
 
-    fn remove_automation_by_index(&mut self, index: usize) {
+    fn remove_automation_by_index(&mut self, _index: usize) {
         if self.get_connected_automation().len() == 0 {
             panic!("There is no automation to remove.");
         } else {

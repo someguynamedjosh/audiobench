@@ -57,9 +57,6 @@ pub(super) fn generate_code(
 
 impl<'a> CodeGenerator<'a> {
     fn generate_code(mut self, global_params: &GlobalParameters) -> CodeGenResult {
-        let buffer_length = global_params.buffer_length;
-        let sample_rate = global_params.sample_rate;
-
         let mut code = "".to_owned();
         let mut ordered_modules = Vec::new();
         let mut ordered_controls = Vec::new();
@@ -207,7 +204,7 @@ impl<'a> CodeGenerator<'a> {
             }
             let mut first = true;
             for (widget_index, widget) in template.widget_outlines.iter().enumerate() {
-                if let FeedbackMode::ManualValue { name } = widget.get_feedback_mode() {
+                if let FeedbackMode::ManualValue { .. } = widget.get_feedback_mode() {
                     if first {
                         first = false;
                         exec_body.push_str("\n      ");

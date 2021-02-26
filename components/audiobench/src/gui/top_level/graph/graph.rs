@@ -7,7 +7,7 @@ use crate::{
         constants::*,
         graphics::GrahpicsWrapper,
         top_level::{graph::Module, ModuleBrowser},
-        InteractionHint, TabArchetype, Tooltip,
+        InteractionHint, Tooltip,
     },
     registry::module_template::ModuleTemplate,
     scui_config::{DropTarget, MaybeMouseBehavior, Renderer},
@@ -401,11 +401,11 @@ impl WidgetImpl<Renderer, DropTarget> for ModuleGraph {
         Some(())
     }
 
-    fn on_scroll_impl(self: &Rc<Self>, pos: Vec2D, delta: f32) -> Option<()> {
+    fn on_scroll_impl(self: &Rc<Self>, _pos: Vec2D, delta: f32) -> Option<()> {
         let center = self.get_size() * 0.5;
         let old_pos = self.translate_screen_pos(center);
         let mut state = self.state.borrow_mut();
-        state.zoom *= (1.0 + delta * 0.8);
+        state.zoom *= 1.0 + delta * 0.8;
         let z2 = state.zoom;
         // Black magic algebra voodoo
         state.offset = center / z2 - old_pos;

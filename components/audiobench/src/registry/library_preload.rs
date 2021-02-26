@@ -244,7 +244,6 @@ pub(super) fn preload_library_from_path(path: &Path) -> Result<PreloadedLibrary,
                 &lib_name[extension_index..]
             ));
         }
-        let lib_name = (&lib_name[..extension_index]).to_owned();
         let file = File::open(path)
             .map_err(|e| format!("ERROR: Failed to open file, caused by:\nERROR: {}", e))?;
         let content = ZippedLibraryContentProvider::new(file)?;

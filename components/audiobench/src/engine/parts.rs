@@ -1,10 +1,10 @@
 use crate::{
-    engine::controls::{AnyControl, Control},
+    engine::controls::AnyControl,
     gui::top_level::graph::ModuleGraph as ModuleGraphWidget,
     registry::{module_template::ModuleTemplate, yaml::YamlNode},
 };
 use shared_util::prelude::*;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum JackType {
@@ -53,7 +53,6 @@ pub struct IOJack {
 
 impl IOJack {
     pub fn create(
-        icon_indexes: &HashMap<String, usize>,
         typ: JackType,
         icon_index: usize,
         custom_icon_index: Option<usize>,

@@ -51,7 +51,6 @@ pub(super) struct Communication {
 }
 
 struct AudioThreadData {
-    audio_buffer: Vec<f32>,
     global_data: GlobalData,
     last_feedback_data_update: Instant,
     audio_response_output: Receiver<julia_thread::AudioResponse>,
@@ -96,7 +95,7 @@ pub fn new_engine(
         code,
         dyn_data_collector,
         feedback_displayer,
-        data_format,
+        ..
     } = codegen::generate_code(&module_graph, &global_params).map_err(|_| {
         format!(concat!(
             "Default patch contains feedback loops!\n",
@@ -122,7 +121,6 @@ pub fn new_engine(
     };
 
     let atd = AudioThreadData {
-        audio_buffer: vec![0.0; data_format.global_params.buffer_length * 2],
         global_data: GlobalData::new(),
         last_feedback_data_update: Instant::now(),
         audio_response_output: audio_reso,

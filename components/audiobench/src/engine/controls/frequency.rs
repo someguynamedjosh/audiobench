@@ -66,7 +66,7 @@ impl FrequencyControl {
 impl Control for FrequencyControl {
     fn get_parameter_types(&self) -> Vec<IOType> { vec![IOType::Float] }
     fn get_parameter_values(&self) -> Vec<IOData> { vec![IOData::Float(self.value)] }
-    fn generate_code(&self, params: &[&str], automation_code: &AutomationCode) -> String { 
+    fn generate_code(&self, params: &[&str], _automation_code: &AutomationCode) -> String { 
         format!("StaticControlSignal({})", params[0])
     }
     fn serialize(&self, ser: &mut MiniSer) { 

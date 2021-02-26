@@ -136,7 +136,7 @@ impl Control for InputControl {
 
     fn get_parameter_types(&self) -> Vec<IOType> { vec![] }
     fn get_parameter_values(&self) -> Vec<IOData> { vec![] }
-    fn generate_code(&self, params: &[&str], automation_code: &AutomationCode) -> String { 
+    fn generate_code(&self, _params: &[&str], automation_code: &AutomationCode) -> String { 
         if let Some(connection) = &self.connection {
             automation_code.value_of(connection)
         } else {

@@ -130,7 +130,6 @@ impl WidgetImpl<Renderer, DropTarget> for HSlider {
         let state = self.state.borrow();
         let hmode = self.parents.graph.get_highlight_mode();
         let highlight = hmode.should_highlight(&state.control);
-        let dim = hmode.should_dim(&state.control);
         let control = state.control.borrow();
         const CS: f32 = CORNER_SIZE;
 

@@ -56,7 +56,7 @@ pub(super) fn entry(
     let mut executor = match executor {
         Ok(value) => value,
         Err(err) => {
-            error_report_pipe.send(err);
+            error_report_pipe.send(err).unwrap();
             comms.julia_thread_status.store(Status::Error);
             panic!("Unrecoverable error.");
         }
@@ -70,7 +70,7 @@ pub(super) fn entry(
             )
         });
     if let Err(err) = res {
-        error_report_pipe.send(err);
+        error_report_pipe.send(err).unwrap();
         comms.julia_thread_status.store(Status::Error);
         panic!("Unrecoverable error.");
     }
@@ -134,7 +134,7 @@ impl JuliaThread {
     }
 
     fn report_julia_error(&mut self, message: String) {
-        self.error_report_pipe.send(message);
+        self.error_report_pipe.send(message).unwrap();
         self.set_status(Status::Error);
     }
 
@@ -148,7 +148,7 @@ impl JuliaThread {
                     "Failed to load new parameter code, see message log for details.\n\n{}",
                     err
                 );
-                let message = self.report_julia_error(message);
+                self.report_julia_error(message);
                 panic!("Unrecoverable error.");
             }
             self.global_params = params;

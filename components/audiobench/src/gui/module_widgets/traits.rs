@@ -14,7 +14,7 @@ pub trait ModuleWidgetImpl: WidgetImpl<Renderer, DropTarget> {
         false
     }
 
-    fn take_feedback_data(self: &Rc<Self>, data: Vec<f32>) {}
+    fn take_feedback_data(self: &Rc<Self>, _data: Vec<f32>) {}
 }
 
 pub trait ModuleWidget: Widget<Renderer, DropTarget> {

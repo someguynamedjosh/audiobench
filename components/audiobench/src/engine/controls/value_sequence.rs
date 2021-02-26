@@ -14,7 +14,7 @@ pub struct ValueSequenceControl {
 }
 
 impl ValueSequenceControl {
-    pub fn from_yaml(yaml: &YamlNode) -> Result<Self, String> {
+    pub fn from_yaml(_yaml: &YamlNode) -> Result<Self, String> {
         Ok(Self {
             sequence: vec![1.0, -1.0, -1.0, -1.0],
         })
@@ -53,7 +53,7 @@ impl Control for ValueSequenceControl {
     fn get_parameter_values(&self) -> Vec<IOData> { 
         vec![IOData::FloatArray(self.sequence.clone())] 
     }
-    fn generate_code(&self, params: &[&str], automation_code: &AutomationCode) -> String { 
+    fn generate_code(&self, params: &[&str], _automation_code: &AutomationCode) -> String { 
         params[0].to_owned()
     }
     fn serialize(&self, ser: &mut MiniSer) { 

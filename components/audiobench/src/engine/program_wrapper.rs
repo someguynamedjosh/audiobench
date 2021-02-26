@@ -1,8 +1,4 @@
-use crate::{
-    engine::data_transfer::{FeedbackData, GlobalData, GlobalParameters, IOData, NoteData},
-    gui::module_widgets::FeedbackMode,
-    registry::Registry,
-};
+use crate::engine::data_transfer::{FeedbackData, GlobalData, GlobalParameters, IOData, NoteData};
 use array_macro::array;
 use jlrs_derive::IntoJulia;
 use julia_helper::{DataType, ExecutionEngine, GeneratedCode, JuliaStruct, TypedArray, Value};
@@ -264,12 +260,6 @@ impl AudiobenchExecutor {
         Ok(())
     }
 
-    /// If this returns false, you should not call reset_static_data or execute as they are
-    /// guaranteed to return errors.
-    pub fn is_generated_code_loaded(&self) -> bool {
-        self.loaded
-    }
-
     pub fn reset_static_data(&mut self, index: usize) -> Result<(), String> {
         self.base.call_fn(
             &["Main", "Generated", "static_init"],
@@ -293,8 +283,6 @@ impl AudiobenchExecutor {
     ) -> Result<Option<FeedbackData>, String> {
         let channels = self.parameters.channels;
         let buf_len = self.parameters.buffer_length;
-        let sample_rate = self.parameters.sample_rate;
-        let buf_time = buf_len as f32 / sample_rate as f32;
         assert!(audio_output.len() == buf_len * channels);
 
         for i in 0..buf_len * channels {

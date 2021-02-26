@@ -87,7 +87,7 @@ pub unsafe extern "C" fn ABUiDeserializePatch(
     with_ok(cr, |instance| {
         let data = std::slice::from_raw_parts(data_in, size_in as usize);
         let data = Vec::from(data);
-        instance.ui_deserialize_patch(&data[..]);
+        instance.ui_deserialize_patch(&data[..]).unwrap();
     });
 }
 

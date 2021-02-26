@@ -68,7 +68,7 @@ impl WidgetImpl<Renderer, DropTarget> for IconButton {
         (&mut *state.mouse_behavior)(mods)
     }
 
-    fn on_hover_impl(self: &Rc<Self>, pos: Vec2D) -> Option<()> {
+    fn on_hover_impl(self: &Rc<Self>, _pos: Vec2D) -> Option<()> {
         let tooltip = Tooltip {
             text: self.state.borrow().tooltip.clone(),
             interaction: vec![InteractionHint::LeftClick],

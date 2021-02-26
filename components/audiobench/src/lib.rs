@@ -71,7 +71,6 @@ impl Instance {
         let patch = match registry::save_data::Patch::load_readable(
             "External Preset".to_owned(),
             serialized,
-            &*registry,
         ) {
             Ok(patch) => patch,
             Err(message) => {
@@ -89,8 +88,8 @@ impl Instance {
                 "ERROR: Failed to load the patch you were working on.",
             ));
         }
-        if let Some(gui) = &mut self.gui {
-            // gui.on_patch_change(&self.registry);
+        if let Some(..) = &mut self.gui {
+            unimplemented!()
         }
         Ok(())
     }

@@ -54,7 +54,7 @@ impl WidgetImpl<Renderer, DropTarget> for TabButton {
     fn get_mouse_behavior_impl(
         self: &Rc<Self>,
         _pos: Vec2D,
-        mods: &MouseMods,
+        _mods: &MouseMods,
     ) -> MaybeMouseBehavior {
         let state = self.state.borrow();
         let tab = state.archetype.clone().instantiate(self);
@@ -63,7 +63,7 @@ impl WidgetImpl<Renderer, DropTarget> for TabButton {
         OnClickBehavior::wrap(move || this.with_gui_state_mut(|state| state.switch_to_or_open(tab)))
     }
 
-    fn on_hover_impl(self: &Rc<Self>, pos: Vec2D) -> Option<()> {
+    fn on_hover_impl(self: &Rc<Self>, _pos: Vec2D) -> Option<()> {
         let tooltip = Tooltip {
             text: self.state.borrow().tooltip.clone(),
             interaction: vec![InteractionHint::LeftClick],

@@ -11,7 +11,6 @@ use std::collections::HashMap;
 pub(super) fn create_module_template_from_yaml(
     icon_indexes: &HashMap<String, usize>,
     lib_name: String,
-    resource_name: String,
     yaml: &YamlNode,
 ) -> Result<ModuleTemplate, String> {
     let mut controls = Vec::new();
@@ -65,7 +64,6 @@ pub(super) fn create_module_template_from_yaml(
         let label = output_description.unique_child("label")?.value.clone();
         let tooltip = output_description.unique_child("tooltip")?.value.clone();
         outputs.push(ep::IOJack::create(
-            icon_indexes,
             typ,
             icon,
             custom_icon,

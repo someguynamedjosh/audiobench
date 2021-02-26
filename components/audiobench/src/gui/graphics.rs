@@ -3,60 +3,82 @@ use scui::Vec2D;
 
 #[repr(C)]
 pub struct GraphicsFunctions {
-    push_state: fn(*mut i8),
-    pop_state: fn(*mut i8),
-    apply_offset: fn(*mut i8, f32, f32),
-    apply_scale: fn(*mut i8, f32),
+    push_state: extern "C" fn(*mut i8),
+    pop_state: extern "C" fn(*mut i8),
+    apply_offset: extern "C" fn(*mut i8, f32, f32),
+    apply_scale: extern "C" fn(*mut i8, f32),
 
-    set_color: fn(*mut i8, u8, u8, u8),
-    set_alpha: fn(*mut i8, f32),
-    clear: fn(*mut i8),
-    stroke_line: fn(*mut i8, f32, f32, f32, f32, f32),
-    fill_rect: fn(*mut i8, f32, f32, f32, f32),
-    fill_rounded_rect: fn(*mut i8, f32, f32, f32, f32, f32),
-    fill_pie: fn(*mut i8, f32, f32, f32, f32, f32, f32),
-    write_text: fn(*mut i8, f32, f32, f32, f32, f32, u8, u8, i32, *const u8),
-    write_console_text: fn(*mut i8, f32, f32, *const u8),
-    draw_icon: fn(*mut i8, *mut i8, bool, i32, f32, f32, f32),
-    draw_box_shadow: fn(*mut i8, f32, f32, f32, f32, f32),
+    set_color: extern "C" fn(*mut i8, u8, u8, u8),
+    set_alpha: extern "C" fn(*mut i8, f32),
+    clear: extern "C" fn(*mut i8),
+    stroke_line: extern "C" fn(*mut i8, f32, f32, f32, f32, f32),
+    fill_rect: extern "C" fn(*mut i8, f32, f32, f32, f32),
+    fill_rounded_rect: extern "C" fn(*mut i8, f32, f32, f32, f32, f32),
+    fill_pie: extern "C" fn(*mut i8, f32, f32, f32, f32, f32, f32),
+    write_text: extern "C" fn(*mut i8, f32, f32, f32, f32, f32, u8, u8, i32, *const u8),
+    write_console_text: extern "C" fn(*mut i8, f32, f32, *const u8),
+    draw_icon: extern "C" fn(*mut i8, *mut i8, bool, i32, f32, f32, f32),
+    draw_box_shadow: extern "C" fn(*mut i8, f32, f32, f32, f32, f32),
 }
 
 impl GraphicsFunctions {
     pub fn placeholders() -> Self {
-        fn push_state(_data: *mut i8) {
+        extern "C" fn push_state(_data: *mut i8) {
             panic!("ERROR: Graphics functions not set by frontend!");
         }
-        fn pop_state(_data: *mut i8) {
+        extern "C" fn pop_state(_data: *mut i8) {
             panic!("ERROR: Graphics functions not set by frontend!");
         }
-        fn apply_offset(_data: *mut i8, _x: f32, _y: f32) {
+        extern "C" fn apply_offset(_data: *mut i8, _x: f32, _y: f32) {
             panic!("ERROR: Graphics functions not set by frontend!");
         }
-        fn apply_scale(_data: *mut i8, _s: f32) {
+        extern "C" fn apply_scale(_data: *mut i8, _s: f32) {
             panic!("ERROR: Graphics functions not set by frontend!");
         }
-        fn set_color(_data: *mut i8, _r: u8, _g: u8, _b: u8) {
+        extern "C" fn set_color(_data: *mut i8, _r: u8, _g: u8, _b: u8) {
             panic!("ERROR: Graphics functions not set by frontend!");
         }
-        fn set_alpha(_data: *mut i8, _alpha: f32) {
+        extern "C" fn set_alpha(_data: *mut i8, _alpha: f32) {
             panic!("ERROR: Graphics functions not set by frontend!");
         }
-        fn clear(_data: *mut i8) {
+        extern "C" fn clear(_data: *mut i8) {
             panic!("ERROR: Graphics functions not set by frontend!");
         }
-        fn stroke_line(_data: *mut i8, _x1: f32, _y1: f32, _x2: f32, _y2: f32, _weight: f32) {
+        extern "C" fn stroke_line(
+            _data: *mut i8,
+            _x1: f32,
+            _y1: f32,
+            _x2: f32,
+            _y2: f32,
+            _weight: f32,
+        ) {
             panic!("ERROR: Graphics functions not set by frontend!");
         }
-        fn fill_rect(_data: *mut i8, _x: f32, _y: f32, _w: f32, _h: f32) {
+        extern "C" fn fill_rect(_data: *mut i8, _x: f32, _y: f32, _w: f32, _h: f32) {
             panic!("ERROR: Graphics functions not set by frontend!");
         }
-        fn fill_rounded_rect(_data: *mut i8, _x: f32, _y: f32, _w: f32, _h: f32, _cs: f32) {
+        extern "C" fn fill_rounded_rect(
+            _data: *mut i8,
+            _x: f32,
+            _y: f32,
+            _w: f32,
+            _h: f32,
+            _cs: f32,
+        ) {
             panic!("ERROR: Graphics functions not set by frontend!");
         }
-        fn fill_pie(_data: *mut i8, _x: f32, _y: f32, _r: f32, _ir: f32, _sr: f32, _er: f32) {
+        extern "C" fn fill_pie(
+            _data: *mut i8,
+            _x: f32,
+            _y: f32,
+            _r: f32,
+            _ir: f32,
+            _sr: f32,
+            _er: f32,
+        ) {
             panic!("ERROR: Graphics functions not set by frontend!");
         }
-        fn write_text(
+        extern "C" fn write_text(
             _data: *mut i8,
             _font_size: f32,
             _x: f32,
@@ -70,10 +92,10 @@ impl GraphicsFunctions {
         ) {
             panic!("ERROR: Graphics functions not set by frontend!");
         }
-        fn write_console_text(_data: *mut i8, _w: f32, _h: f32, _text: *const u8) {
+        extern "C" fn write_console_text(_data: *mut i8, _w: f32, _h: f32, _text: *const u8) {
             panic!("ERROR: Graphics functions not set by frontend!");
         }
-        fn draw_icon(
+        extern "C" fn draw_icon(
             _data: *mut i8,
             _icon_store: *mut i8,
             _white: bool,
@@ -84,7 +106,7 @@ impl GraphicsFunctions {
         ) {
             panic!("ERROR: Graphics functions not set by frontend!");
         }
-        fn draw_box_shadow(_data: *mut i8, _x: f32, _y: f32, _w: f32, _h: f32, _r: f32) {
+        extern "C" fn draw_box_shadow(_data: *mut i8, _x: f32, _y: f32, _w: f32, _h: f32, _r: f32) {
             panic!("ERROR: Graphics functions not set by frontend!");
         }
         Self {
