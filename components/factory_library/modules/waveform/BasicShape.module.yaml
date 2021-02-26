@@ -11,6 +11,10 @@ controls:
       Square:
       Triangle:
       Power:
+      Hex:
+      Chirp:
+      Random:
+      Steps:
   parameter: FloatInRange
     min: 0.0
     max: 1.0
@@ -24,7 +28,7 @@ gui:
   widgets:
     OptionIconGrid:
       control: choice
-      icons: Factory:sine_wave, Factory:square_wave, Factory:triangle_wave, Factory:power_wave
+      icons: Factory:sine_wave, Factory:square_wave, Factory:triangle_wave, Factory:power_wave, Factory:waveform, Factory:waveform, Factory:waveform, Factory:waveform
       label: Shape
       tooltip: Which kind of waveform the module should generate.
       x: 0

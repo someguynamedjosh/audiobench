@@ -173,7 +173,12 @@ impl WidgetImpl<Renderer, DropTarget> for OptionIconGrid {
                 y += icon_size;
             }
         }
-        g.draw_text(FONT_SIZE, 0.0, state.size, (0, 1), 1, &state.label);
+        let label = format!(
+            "{}: {}",
+            state.label,
+            state.control.borrow().get_options()[current_option]
+        );
+        g.draw_text(FONT_SIZE, 0.0, state.size, (0, 1), 1, &label[..]);
     }
 }
 
