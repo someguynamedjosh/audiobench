@@ -10,6 +10,7 @@ use std::{error::Error, io::Write, path::PathBuf};
 
 #[derive(Debug, Clone)]
 enum PatchSource {
+    Dummy,
     Writable(PathBuf),
     Readable(String),
 }
@@ -24,6 +25,15 @@ pub struct Patch {
 
 impl Patch {
     const FORMAT_VERSION: u8 = 2;
+
+    pub fn new_dummy(name: String) -> Self {
+        Self {
+            name,
+            source: PatchSource::Dummy,
+            exists_on_disk: false,
+            data: Vec::new(),
+        }
+    }
 
     pub fn new(save_path: PathBuf) -> Self {
         Self {

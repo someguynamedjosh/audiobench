@@ -1,17 +1,7 @@
-use crate::{
-    engine::{
+use crate::{engine::{
         controls::{AutomationSource, Control},
         parts as ep,
-    },
-    gui::{
-        constants::*,
-        graphics::GrahpicsWrapper,
-        top_level::{graph::Module, ModuleBrowser},
-        InteractionHint, Tooltip,
-    },
-    registry::module_template::ModuleTemplate,
-    scui_config::{DropTarget, MaybeMouseBehavior, Renderer},
-};
+    }, gui::{InteractionHint, TabArchetype, Tooltip, constants::*, graphics::GrahpicsWrapper, top_level::{graph::Module, ModuleBrowser}}, registry::module_template::ModuleTemplate, scui_config::{DropTarget, MaybeMouseBehavior, Renderer}};
 use scones::make_constructor;
 use scui::{
     GuiInterfaceProvider, MouseBehavior, MouseMods, OnClickBehavior, Vec2D, Widget, WidgetImpl,
@@ -281,10 +271,15 @@ impl MouseBehavior<DropTarget> for GraphInteract {
     }
 
     fn on_double_click(self: Box<Self>) {
-        let tab = ModuleBrowser::new(&self.graph, Rc::clone(&self.graph));
+        let graph = Rc::clone(&self.graph);
         let interface = self.graph.provide_gui_interface();
         let mut state = interface.state.borrow_mut();
-        state.switch_to_or_open(Rc::new(tab));
+        let archetype = TabArchetype::ModuleBrowser(graph);
+        if !state.switch_to(archetype.clone()) {
+            drop(state);
+            let tab = archetype.instantiate(&self.graph);
+            interface.state.borrow_mut().add_tab(tab);
+        }
     }
 }
 
@@ -441,9 +436,5 @@ impl WidgetImpl<Renderer, DropTarget> for ModuleGraph {
             g.set_color(&COLOR_FG1);
             g.draw_line(*end, mouse_pos, 2.0);
         }
-    }
-
-    fn on_removed_impl(self: &Rc<Self>) {
-        self.state.borrow_mut().graph.borrow_mut().current_widget = None;
     }
 }

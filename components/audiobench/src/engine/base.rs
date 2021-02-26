@@ -219,10 +219,13 @@ impl UiThreadEngine {
     }
 
     pub fn serialize_current_patch(&self) -> String {
-        let mut patch_ref = self.data.current_patch_save_data.borrow_mut();
+        let mut patch_ref = self.data.current_patch_save_data.borrow();
         let reg = self.data.registry.borrow();
-        patch_ref.save_note_graph(&*self.data.module_graph.borrow(), &*reg);
-        patch_ref.serialize()
+        // Use a dummy patch so we don't overwrite the actual save data of the current patch without
+        // the user explicitly clicking 'save'.
+        let mut dummy_patch = Patch::new_dummy(patch_ref.borrow_name().to_owned());
+        dummy_patch.save_note_graph(&*self.data.module_graph.borrow(), &*reg);
+        dummy_patch.serialize()
     }
 
     pub fn save_current_patch_with_new_name(&mut self) -> &Rcrc<Patch> {
@@ -406,14 +409,9 @@ impl AudioThreadEngine {
             self.data.last_feedback_data_update = Instant::now();
         }
 
+        // The thread will only be marked as busy if it is doing something that takes a long time,
+        // e.g. compiling code.
         let mut ready = self.comms.julia_thread_status.load().is_ready();
-        if !ready {
-            // Sometimes the thread may only be busy for a very short amount of time (e.g. when
-            // updating dynamic data), so we should wait a while to double check if it is really
-            // busy.
-            std::thread::sleep(Duration::from_micros(100));
-            ready = self.comms.julia_thread_status.load().is_ready();
-        }
         if ready {
             let data = self.data.global_data.clone();
             let request = julia_thread::RenderRequest {

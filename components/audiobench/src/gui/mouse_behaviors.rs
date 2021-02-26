@@ -109,22 +109,63 @@ impl MouseBehavior<DropTarget> for ManipulateFIRControl {
     }
 }
 
-#[make_constructor((widget: &impl GuiInterfaceProvider<GuiState, DropTarget>, ..))]
-#[make_constructor(pub start_only(widget: &impl GuiInterfaceProvider<GuiState, DropTarget>, ..))]
-#[make_constructor(pub end_only(widget: &impl GuiInterfaceProvider<GuiState, DropTarget>, ..))]
 pub struct ManipulateLane {
-    #[value(Rc::clone(&widget.provide_gui_interface().state.borrow().engine))]
     engine: Rcrc<UiThreadEngine>,
-    #[value(Rc::clone(&widget.provide_gui_interface()))]
     gui_interface: Rc<GuiInterface<GuiState, DropTarget>>,
     control: Rcrc<FloatInRangeControl>,
     lane: usize,
-    #[value(true)]
-    #[value(false for end_only)]
+    real_value: (f32, f32),
     start: bool,
-    #[value(true)]
-    #[value(false for start_only)]
     end: bool,
+}
+
+impl ManipulateLane {
+    fn new_impl(
+        widget: &impl GuiInterfaceProvider<GuiState, DropTarget>,
+        control: Rcrc<FloatInRangeControl>,
+        lane: usize,
+        start: bool,
+        end: bool,
+    ) -> Self {
+        let engine = Rc::clone(&widget.provide_gui_interface().state.borrow().engine);
+        let gui_interface = Rc::clone(&widget.provide_gui_interface());
+        let control_ref = control.borrow();
+        let real_value = control_ref.automation[lane].range;
+        drop(control_ref);
+        Self {
+            engine,
+            gui_interface,
+            control,
+            lane,
+            real_value,
+            start,
+            end,
+        }
+    }
+
+    pub fn new(
+        widget: &impl GuiInterfaceProvider<GuiState, DropTarget>,
+        control: Rcrc<FloatInRangeControl>,
+        lane: usize,
+    ) -> Self {
+        Self::new_impl(widget, control, lane, true, true)
+    }
+
+    pub fn start_only(
+        widget: &impl GuiInterfaceProvider<GuiState, DropTarget>,
+        control: Rcrc<FloatInRangeControl>,
+        lane: usize,
+    ) -> Self {
+        Self::new_impl(widget, control, lane, true, false)
+    }
+
+    pub fn end_only(
+        widget: &impl GuiInterfaceProvider<GuiState, DropTarget>,
+        control: Rcrc<FloatInRangeControl>,
+        lane: usize,
+    ) -> Self {
+        Self::new_impl(widget, control, lane, false, true)
+    }
 }
 
 impl MouseBehavior<DropTarget> for ManipulateLane {
@@ -135,12 +176,12 @@ impl MouseBehavior<DropTarget> for ManipulateLane {
         let delta = delta * (range.1 - range.0) as f32;
         let lane = &mut control_ref.automation[self.lane];
         if self.start {
-            lane.range.0 =
-                maybe_snap_value((lane.range.0 + delta).clam(range.0, range.1), range, mods);
+            self.real_value.0 = (self.real_value.0 + delta).clam(range.0, range.1);
+            lane.range.0 = maybe_snap_value(self.real_value.0, range, mods);
         }
         if self.end {
-            lane.range.1 =
-                maybe_snap_value((lane.range.1 + delta).clam(range.0, range.1), range, mods);
+            self.real_value.1 = (self.real_value.1 + delta).clam(range.0, range.1);
+            lane.range.1 = maybe_snap_value(self.real_value.1, range, mods);
         }
         let tttext = format!(
             "{0}{2} to {1}{2}",
