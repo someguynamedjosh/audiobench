@@ -67,7 +67,7 @@ fn range_value_tooltip(value: f32, suffix: &str) -> Tooltip {
 }
 
 #[make_constructor((widget: &impl GuiInterfaceProvider<GuiState, DropTarget>, control: Rcrc<FloatInRangeControl>))]
-pub struct ManipulateControl {
+pub struct ManipulateFIRControl {
     #[value(Rc::clone(&widget.provide_gui_interface().state.borrow().engine))]
     engine: Rcrc<UiThreadEngine>,
     #[value(Rc::clone(&widget.provide_gui_interface()))]
@@ -78,7 +78,7 @@ pub struct ManipulateControl {
     current_value: f32,
 }
 
-impl MouseBehavior<DropTarget> for ManipulateControl {
+impl MouseBehavior<DropTarget> for ManipulateFIRControl {
     fn on_drag(&mut self, delta: Vec2D, mods: &MouseMods) {
         let delta = range_drag_delta(delta, mods);
         let mut control_ref = self.control.borrow_mut();
@@ -96,11 +96,16 @@ impl MouseBehavior<DropTarget> for ManipulateControl {
         self.gui_interface.state.borrow_mut().set_tooltip(tooltip);
     }
 
+    fn on_drop(self: Box<Self>, _drop_target: Option<DropTarget>) {
+        self.engine.borrow().set_dummy_note_active(false);
+    }
+
     fn on_double_click(self: Box<Self>) {
         let mut cref = self.control.borrow_mut();
         cref.value = cref.default;
         drop(cref);
         self.engine.borrow_mut().reload_dyn_data();
+        self.engine.borrow().activate_dummy_note_once();
     }
 }
 
@@ -156,6 +161,10 @@ impl MouseBehavior<DropTarget> for ManipulateLane {
         self.engine.borrow_mut().reload_dyn_data();
     }
 
+    fn on_drop(self: Box<Self>, _drop_target: Option<DropTarget>) {
+        self.engine.borrow().set_dummy_note_active(false);
+    }
+
     fn on_double_click(self: Box<Self>) {
         let mut cref = self.control.borrow_mut();
         let range = cref.range;
@@ -168,6 +177,7 @@ impl MouseBehavior<DropTarget> for ManipulateLane {
         };
         drop(cref);
         self.engine.borrow_mut().reload_dyn_data();
+        self.engine.borrow().activate_dummy_note_once();
     }
 }
 
@@ -204,6 +214,7 @@ impl MouseBehavior<DropTarget> for ManipulateIntBox {
     }
 
     fn on_drop(mut self: Box<Self>, _target: Option<DropTarget>) {
+        self.engine.borrow().set_dummy_note_active(false);
         let request = (self.callback)(self.float_value as i32);
         if self.code_reload_requested {
             self.engine.borrow_mut().regenerate_code()
@@ -230,6 +241,7 @@ impl MouseBehavior<DropTarget> for ManipulateIntBox {
                 UpdateRequest::Nothing => (),
                 UpdateRequest::UpdateDynData => {
                     self.engine.borrow_mut().reload_dyn_data();
+                    self.engine.borrow().activate_dummy_note_once();
                 }
                 UpdateRequest::UpdateCode => self.engine.borrow_mut().regenerate_code(),
             }
@@ -262,6 +274,7 @@ impl MouseBehavior<DropTarget> for MutateControl {
             UpdateRequest::Nothing => (),
             UpdateRequest::UpdateDynData => {
                 self.engine.borrow_mut().reload_dyn_data();
+                self.engine.borrow().activate_dummy_note_once();
             }
             UpdateRequest::UpdateCode => self.engine.borrow_mut().regenerate_code(),
         }
@@ -311,6 +324,7 @@ impl MouseBehavior<DropTarget> for ContinuouslyMutateControl {
     }
 
     fn on_drop(self: Box<Self>, _target: Option<DropTarget>) {
+        self.engine.borrow().set_dummy_note_active(false);
         if self.code_reload_requested {
             self.engine.borrow_mut().regenerate_code()
         }

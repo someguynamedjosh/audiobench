@@ -3,7 +3,7 @@ use crate::{
     gui::{
         constants::*,
         module_widgets::ModuleWidgetImpl,
-        mouse_behaviors::{ManipulateControl, ManipulateLane},
+        mouse_behaviors::{ManipulateFIRControl, ManipulateLane},
         top_level::graph::{Module, ModuleGraph},
         InteractionHint, Tooltip,
     },
@@ -98,7 +98,7 @@ impl WidgetImpl<Renderer, DropTarget> for HSlider {
                 graph.open_menu(Box::new(menu));
             })
         } else {
-            Some(Box::new(ManipulateControl::new(
+            Some(Box::new(ManipulateFIRControl::new(
                 self,
                 Rc::clone(&state.control),
             )))
@@ -269,7 +269,7 @@ impl WidgetImpl<Renderer, DropTarget> for HSliderEditor {
         let control_ref = state.control.borrow();
         if row >= control_ref.automation.len() {
             // Clicked the actual control...
-            return Some(Box::new(ManipulateControl::new(
+            return Some(Box::new(ManipulateFIRControl::new(
                 self,
                 Rc::clone(&state.control),
             )));

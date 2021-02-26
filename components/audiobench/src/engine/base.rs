@@ -43,6 +43,8 @@ pub(super) struct Communication {
     pub new_note_graph_code: AtomicCell<Option<(GeneratedCode, Vec<IOData>)>>,
     pub new_dyn_data: AtomicCell<Option<Vec<IOData>>>,
     pub new_feedback: AtomicCell<Option<FeedbackData>>,
+    pub do_dummy_note: AtomicCell<bool>,
+    pub do_dummy_note_once: AtomicCell<bool>,
 
     pub global_params: AtomicCell<GlobalParameters>,
     pub note_events: Mutex<Vec<julia_thread::NoteEvent>>,
@@ -134,6 +136,8 @@ pub fn new_engine(
         new_note_graph_code: Default::default(),
         new_dyn_data: Default::default(),
         new_feedback: Default::default(),
+        do_dummy_note: AtomicCell::new(false),
+        do_dummy_note_once: AtomicCell::new(false),
 
         global_params: AtomicCell::new(global_params),
         note_events: Default::default(),
@@ -313,6 +317,7 @@ impl UiThreadEngine {
         let data = self.data.dyn_data_collector.collect();
         self.comms.new_dyn_data.store(Some(data));
         self.comms.julia_poll_pipe.send(()).unwrap();
+        self.set_dummy_note_active(true);
     }
 
     /// Feedback data is generated on the audio thread. This method uses a mutex to retrieve that
@@ -326,6 +331,15 @@ impl UiThreadEngine {
                 self.data.feedback_displayer.display(data, widget);
             }
         }
+    }
+
+    pub fn set_dummy_note_active(&self, should_be_active: bool) {
+        self.comms.do_dummy_note.store(should_be_active);
+    }
+
+    pub fn activate_dummy_note_once(&self) {
+        self.set_dummy_note_active(false);
+        self.comms.do_dummy_note_once.store(true);
     }
 }
 
