@@ -395,6 +395,13 @@ impl AudioThreadEngine {
         }
 
         let mut ready = self.comms.julia_thread_status.load().is_ready();
+        if !ready {
+            // Sometimes the thread may only be busy for a very short amount of time (e.g. when
+            // updating dynamic data), so we should wait a while to double check if it is really
+            // busy.
+            std::thread::sleep(Duration::from_micros(100));
+            ready = self.comms.julia_thread_status.load().is_ready();
+        }
         if ready {
             let data = self.data.global_data.clone();
             let request = julia_thread::RenderRequest {
