@@ -274,6 +274,10 @@ impl WidgetImpl<Renderer, DropTarget> for ModuleBrowser {
 }
 
 impl GuiTab for Rc<ModuleBrowser> {
+    fn get_name(self: &Self) -> String {
+        format!("Add A Module")
+    }
+
     fn get_archetype(&self) -> TabArchetype {
         TabArchetype::ModuleBrowser(Rc::clone(&self.state.borrow().add_to_graph))
     }

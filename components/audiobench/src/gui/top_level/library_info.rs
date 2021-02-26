@@ -307,6 +307,10 @@ impl WidgetImpl<Renderer, DropTarget> for LibraryInfo {
 }
 
 impl GuiTab for Rc<LibraryInfo> {
+    fn get_name(self: &Self) -> String {
+        format!("Library Info")
+    }
+
     fn get_archetype(&self) -> TabArchetype {
         TabArchetype::LibraryInfo
     }

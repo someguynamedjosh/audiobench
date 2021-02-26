@@ -61,6 +61,10 @@ impl WidgetImpl<Renderer, DropTarget> for NoteGraph {
 }
 
 impl GuiTab for Rc<NoteGraph> {
+    fn get_name(self: &Self) -> String {
+        format!("Module Graph")
+    }
+
     fn get_archetype(&self) -> TabArchetype {
         TabArchetype::NoteGraph
     }

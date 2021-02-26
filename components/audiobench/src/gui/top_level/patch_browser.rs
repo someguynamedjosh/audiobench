@@ -502,6 +502,10 @@ impl WidgetImpl<Renderer, DropTarget> for PatchBrowser {
 }
 
 impl GuiTab for Rc<PatchBrowser> {
+    fn get_name(self: &Self) -> String {
+        format!("Home")
+    }
+
     fn get_archetype(&self) -> TabArchetype {
         TabArchetype::PatchBrowser
     }

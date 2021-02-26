@@ -82,6 +82,10 @@ impl WidgetImpl<Renderer, DropTarget> for MessageLog {
 }
 
 impl GuiTab for Rc<MessageLog> {
+    fn get_name(self: &Self) -> String {
+        format!("Message Log")
+    }
+
     fn get_archetype(&self) -> TabArchetype {
         TabArchetype::MessageLog
     }
