@@ -140,7 +140,8 @@ impl ModuleGraph {
     pub fn add_module(self: &Rc<Self>, template: Rcrc<ModuleTemplate>) {
         let mut module = ep::Module::create(template);
         let state = self.state.borrow();
-        let pos = state.offset * -1.0;
+        let mut pos = state.offset * -1.0;
+        pos += TAB_BODY_SIZE / 3.0;
         module.pos = (pos.x, pos.y);
         let module = rcrc(module);
         state.graph.borrow_mut().add_module(Rc::clone(&module));

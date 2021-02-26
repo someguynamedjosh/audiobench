@@ -225,6 +225,19 @@ impl GuiState {
         self.current_tab_index = index;
     }
 
+    pub fn close_tab(&mut self, tab: Rc<dyn GuiTab>) {
+        let archetype = tab.get_archetype();
+        for (index, candidate) in self.tabs.iter().enumerate() {
+            if candidate.get_archetype().equivalent(&archetype) {
+                self.tabs.remove(index);
+                if index <= self.current_tab_index && self.current_tab_index > 0 {
+                    self.current_tab_index -= 1;
+                }
+                return;
+            }
+        }
+    }
+
     pub fn all_tabs(&self) -> impl Iterator<Item = &Rc<dyn GuiTab>> {
         self.tabs.iter()
     }
