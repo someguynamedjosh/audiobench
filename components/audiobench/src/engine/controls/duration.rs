@@ -156,7 +156,7 @@ impl DurationControl {
 impl Control for DurationControl {
     fn get_parameter_types(&self) -> Vec<IOType> { vec![IOType::Float] }
     fn get_parameter_values(&self) -> Vec<IOData> { vec![IOData::Float(self.get_raw_value())] }
-    fn generate_code(&self, params: &[&str], automation_code: &AutomationCode) -> String { 
+    fn generate_code(&self, params: &[&str], _automation_code: &AutomationCode) -> String { 
         assert!(params.len() == 1);
         format!("StaticControlSignal({})", params[0])
     }

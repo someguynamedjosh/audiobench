@@ -3,7 +3,7 @@ use crate::{
     gui::{
         constants::*,
         module_widgets::{KnobEditor, ModuleWidgetImpl},
-        mouse_behaviors::ManipulateControl,
+        mouse_behaviors::ManipulateFIRControl,
         top_level::graph::{Module, ModuleGraph},
         InteractionHint, Tooltip,
     },
@@ -91,7 +91,7 @@ impl WidgetImpl<Renderer, DropTarget> for MiniKnob {
                 graph.open_menu(Box::new(menu));
             })
         } else {
-            Some(Box::new(ManipulateControl::new(
+            Some(Box::new(ManipulateFIRControl::new(
                 self,
                 Rc::clone(&state.control),
             )))

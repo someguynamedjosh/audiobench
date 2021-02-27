@@ -64,7 +64,7 @@ impl TimingModeControl {
 impl Control for TimingModeControl {
     fn get_parameter_types(&self) -> Vec<IOType> { vec![IOType::Int] }
     fn get_parameter_values(&self) -> Vec<IOData> { vec![IOData::Int(self.get_raw_value() as _)] }
-    fn generate_code(&self, params: &[&str], automation_code: &AutomationCode) -> String { 
+    fn generate_code(&self, params: &[&str], _automation_code: &AutomationCode) -> String { 
         assert!(params.len() == 1);
         params[0].to_owned()
     }

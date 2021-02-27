@@ -73,7 +73,6 @@ impl Control for FloatInRangeControl {
     }
 
     fn get_parameter_types(&self) -> Vec<IOType> {
-        let length = 1 + self.automation.len() * 2;
         vec![IOType::FloatArray]
     }
 

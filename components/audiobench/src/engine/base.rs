@@ -43,6 +43,8 @@ pub(super) struct Communication {
     pub new_note_graph_code: AtomicCell<Option<(GeneratedCode, Vec<IOData>)>>,
     pub new_dyn_data: AtomicCell<Option<Vec<IOData>>>,
     pub new_feedback: AtomicCell<Option<FeedbackData>>,
+    pub do_dummy_note: AtomicCell<bool>,
+    pub do_dummy_note_once: AtomicCell<bool>,
 
     pub global_params: AtomicCell<GlobalParameters>,
     pub note_events: Mutex<Vec<julia_thread::NoteEvent>>,
@@ -51,7 +53,6 @@ pub(super) struct Communication {
 }
 
 struct AudioThreadData {
-    audio_buffer: Vec<f32>,
     global_data: GlobalData,
     last_feedback_data_update: Instant,
     audio_response_output: Receiver<julia_thread::AudioResponse>,
@@ -96,7 +97,7 @@ pub fn new_engine(
         code,
         dyn_data_collector,
         feedback_displayer,
-        data_format,
+        ..
     } = codegen::generate_code(&module_graph, &global_params).map_err(|_| {
         format!(concat!(
             "Default patch contains feedback loops!\n",
@@ -122,7 +123,6 @@ pub fn new_engine(
     };
 
     let atd = AudioThreadData {
-        audio_buffer: vec![0.0; data_format.global_params.buffer_length * 2],
         global_data: GlobalData::new(),
         last_feedback_data_update: Instant::now(),
         audio_response_output: audio_reso,
@@ -136,6 +136,8 @@ pub fn new_engine(
         new_note_graph_code: Default::default(),
         new_dyn_data: Default::default(),
         new_feedback: Default::default(),
+        do_dummy_note: AtomicCell::new(false),
+        do_dummy_note_once: AtomicCell::new(false),
 
         global_params: AtomicCell::new(global_params),
         note_events: Default::default(),
@@ -217,10 +219,13 @@ impl UiThreadEngine {
     }
 
     pub fn serialize_current_patch(&self) -> String {
-        let mut patch_ref = self.data.current_patch_save_data.borrow_mut();
+        let mut patch_ref = self.data.current_patch_save_data.borrow();
         let reg = self.data.registry.borrow();
-        patch_ref.save_note_graph(&*self.data.module_graph.borrow(), &*reg);
-        patch_ref.serialize()
+        // Use a dummy patch so we don't overwrite the actual save data of the current patch without
+        // the user explicitly clicking 'save'.
+        let mut dummy_patch = Patch::new_dummy(patch_ref.borrow_name().to_owned());
+        dummy_patch.save_note_graph(&*self.data.module_graph.borrow(), &*reg);
+        dummy_patch.serialize()
     }
 
     pub fn save_current_patch_with_new_name(&mut self) -> &Rcrc<Patch> {
@@ -315,6 +320,7 @@ impl UiThreadEngine {
         let data = self.data.dyn_data_collector.collect();
         self.comms.new_dyn_data.store(Some(data));
         self.comms.julia_poll_pipe.send(()).unwrap();
+        self.set_dummy_note_active(true);
     }
 
     /// Feedback data is generated on the audio thread. This method uses a mutex to retrieve that
@@ -328,6 +334,15 @@ impl UiThreadEngine {
                 self.data.feedback_displayer.display(data, widget);
             }
         }
+    }
+
+    pub fn set_dummy_note_active(&self, should_be_active: bool) {
+        self.comms.do_dummy_note.store(should_be_active);
+    }
+
+    pub fn activate_dummy_note_once(&self) {
+        self.set_dummy_note_active(false);
+        self.comms.do_dummy_note_once.store(true);
     }
 }
 
@@ -394,14 +409,9 @@ impl AudioThreadEngine {
             self.data.last_feedback_data_update = Instant::now();
         }
 
+        // The thread will only be marked as busy if it is doing something that takes a long time,
+        // e.g. compiling code.
         let mut ready = self.comms.julia_thread_status.load().is_ready();
-        if !ready {
-            // Sometimes the thread may only be busy for a very short amount of time (e.g. when
-            // updating dynamic data), so we should wait a while to double check if it is really
-            // busy.
-            std::thread::sleep(Duration::from_micros(100));
-            ready = self.comms.julia_thread_status.load().is_ready();
-        }
         if ready {
             let data = self.data.global_data.clone();
             let request = julia_thread::RenderRequest {

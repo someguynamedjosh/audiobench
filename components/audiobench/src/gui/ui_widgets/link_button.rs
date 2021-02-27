@@ -1,16 +1,16 @@
 use crate::{
-    gui::{constants::*, InteractionHint, TabArchetype, Tooltip},
+    gui::{constants::*, InteractionHint, Tooltip},
     scui_config::{DropTarget, MaybeMouseBehavior, Renderer},
 };
 use scui::{MouseMods, OnClickBehavior, Vec2D, WidgetImpl};
 use shared_util::prelude::*;
 
 scui::widget! {
-    pub TabButton
+    pub LinkButton
     State {
         pos: Vec2D,
         icon: usize,
-        archetype: TabArchetype,
+        url: String,
         title: String,
         tooltip: String,
     }
@@ -19,21 +19,21 @@ scui::widget! {
 const SIZE: f32 = grid(3);
 const ICON_SIZE: f32 = SIZE - GRID_P * 1.5 - FONT_SIZE;
 
-impl TabButton {
+impl LinkButton {
     pub const SIZE: f32 = SIZE;
 
     pub fn new(
-        parent: &impl TabButtonParent,
+        parent: &impl LinkButtonParent,
         pos: impl Into<Vec2D>,
         icon: usize,
-        archetype: TabArchetype,
+        url: String,
         title: String,
         tooltip: String,
     ) -> Rc<Self> {
-        let state = TabButtonState {
+        let state = LinkButtonState {
             pos: pos.into(),
             icon,
-            archetype,
+            url,
             title,
             tooltip: tooltip.to_string(),
         };
@@ -42,7 +42,7 @@ impl TabButton {
     }
 }
 
-impl WidgetImpl<Renderer, DropTarget> for TabButton {
+impl WidgetImpl<Renderer, DropTarget> for LinkButton {
     fn get_pos_impl(self: &Rc<Self>) -> Vec2D {
         self.state.borrow().pos
     }
@@ -56,16 +56,17 @@ impl WidgetImpl<Renderer, DropTarget> for TabButton {
         _pos: Vec2D,
         _mods: &MouseMods,
     ) -> MaybeMouseBehavior {
+        let this = Rc::clone(self);
         let state = self.state.borrow();
-        let archetype = state.archetype.clone();
-        drop(state);
-        let this = Rc::clone(&self);
+        let url = state.url.clone();
         OnClickBehavior::wrap(move || {
-            let mut state = this.parents.gui.state.borrow_mut();
-            if !state.switch_to(archetype.clone()) {
-                drop(state);
-                let tab = archetype.instantiate(&this);
-                this.parents.gui.state.borrow_mut().add_tab(tab);
+            if let Err(err) = webbrowser::open(&url) {
+                this.with_gui_state_mut(|state| {
+                    state.add_error_message(format!(
+                        "Failed to open web browser, see console for details."
+                    ));
+                    eprintln!("WARNING: Failed to open web browser, caused by:\n{}", err);
+                })
             }
         })
     }

@@ -15,7 +15,6 @@ scui::widget! {
 
 impl NoteGraph {
     pub fn new(parent: &impl NoteGraphParent) -> Rc<Self> {
-        let this = Rc::new(Self::create(parent, NoteGraphState {}));
         let inter = parent.provide_gui_interface();
         let state = inter.state.borrow();
         let engine = state.engine.borrow();

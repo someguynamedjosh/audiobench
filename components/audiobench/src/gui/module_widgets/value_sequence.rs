@@ -1,5 +1,5 @@
 use crate::{
-    engine::controls::{Control, FloatInRangeControl, UpdateRequest, ValueSequenceControl},
+    engine::controls::{Control, UpdateRequest, ValueSequenceControl},
     gui::{
         constants::*, module_widgets::ModuleWidgetImpl, mouse_behaviors::ContinuouslyMutateControl,
         InteractionHint, Tooltip,
@@ -16,7 +16,6 @@ yaml_widget_boilerplate::make_widget_outline! {
         pos: GridPos,
         size: GridSize,
         sequence_control: ValueSequenceControlRef,
-        ramping_control: FloatInRangeControlRef,
         tooltip: String,
     ),
     // Feedback for playhead and ramping amount.
@@ -28,7 +27,6 @@ scui::widget! {
     State {
         tooltip: String,
         sequence_control: Rcrc<ValueSequenceControl>,
-        ramping_control: Rcrc<FloatInRangeControl>,
         pos: Vec2D,
         size: Vec2D,
         cursor_pos: f32,
@@ -45,13 +43,11 @@ impl ValueSequence {
         pos: Vec2D,
         size: Vec2D,
         sequence_control: Rcrc<ValueSequenceControl>,
-        ramping_control: Rcrc<FloatInRangeControl>,
         tooltip: String,
     ) -> Rc<Self> {
         let state = ValueSequenceState {
             tooltip,
             sequence_control,
-            ramping_control,
             pos,
             size: size * (1, 0) + (0.0, HEIGHT),
             cursor_pos: 0.0,

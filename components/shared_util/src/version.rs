@@ -29,7 +29,7 @@ impl Version {
         } else if self.maj == requirement.maj {
             if self.min == requirement.min {
                 self.patch >= requirement.patch
-            } else { 
+            } else {
                 self.min > requirement.min
             }
         } else {

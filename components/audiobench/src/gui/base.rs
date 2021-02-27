@@ -207,22 +207,37 @@ impl GuiState {
         self.tooltip.add_control_automation(from_control);
     }
 
-    pub fn switch_to_or_open(&mut self, tab: Rc<dyn GuiTab>) {
-        let archetype = tab.get_archetype();
+    pub fn switch_to(&mut self, archetype: TabArchetype) -> bool {
         for (index, candidate) in self.tabs.iter().enumerate() {
             if candidate.get_archetype().equivalent(&archetype) {
                 self.current_tab_index = index;
-                tab.on_removed();
-                return;
+                return true;
             }
         }
+        return false;
+    }
+
+    pub fn add_tab(&mut self, tab: Rc<dyn GuiTab>) {
         self.current_tab_index = self.tabs.len();
-        self.tabs.push(tab)
+        self.tabs.push(tab);
     }
 
     pub fn focus_tab_by_index(&mut self, index: usize) {
         assert!(index < self.tabs.len());
         self.current_tab_index = index;
+    }
+
+    pub fn close_tab(&mut self, tab: Rc<dyn GuiTab>) {
+        let archetype = tab.get_archetype();
+        for (index, candidate) in self.tabs.iter().enumerate() {
+            if candidate.get_archetype().equivalent(&archetype) {
+                self.tabs.remove(index);
+                if index <= self.current_tab_index && self.current_tab_index > 0 {
+                    self.current_tab_index -= 1;
+                }
+                return;
+            }
+        }
     }
 
     pub fn all_tabs(&self) -> impl Iterator<Item = &Rc<dyn GuiTab>> {
@@ -274,8 +289,8 @@ impl Root {
     fn new(parent: &impl RootParent) -> Rc<Self> {
         let state = RootState {};
         let this = Rc::new(Self::create(parent, state));
-        let main = Rc::new(PatchBrowser::new(&this));
-        this.with_gui_state_mut(|state| state.switch_to_or_open(main));
+        let tab = TabArchetype::PatchBrowser.instantiate(&this);
+        this.parents.gui.state.borrow_mut().add_tab(tab);
         let header = Header::new(&this);
         this.children.borrow_mut().header = Some(header);
         this

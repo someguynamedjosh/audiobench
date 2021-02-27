@@ -1,7 +1,7 @@
 use crate::{
     gui::{
         constants::*,
-        ui_widgets::{IconButton, TabButton, TextBox},
+        ui_widgets::{IconButton, LinkButton, TabButton, TextBox},
         GuiTab, InteractionHint, TabArchetype, Tooltip,
     },
     registry::save_data::Patch,
@@ -29,6 +29,7 @@ scui::widget! {
         paste_button: ChildHolder<Rc<IconButton>>,
 
         tab_buttons: Vec<Rc<TabButton>>,
+        link_button: ChildHolder<Rc<LinkButton>>,
     }
 }
 
@@ -147,6 +148,15 @@ impl PatchBrowser {
             "Message Log".into(),
             "View a log of all info/warning/error messages from this session".into(),
         ));
+        let x = x + TabButton::SIZE + GRID_P;
+        let link_button = LinkButton::new(
+            &this,
+            (x, 0.0),
+            registry.lookup_icon("Factory:github").unwrap(),
+            format!("https://github.com/joshua-maros/audiobench/issues/new"),
+            "Report A Bug".into(),
+            "Submit a bug report or feature request on GitHub through your web browser.".into(),
+        );
 
         let this2 = Rc::clone(&this);
         let name_box = TextBox::new(
@@ -172,6 +182,7 @@ impl PatchBrowser {
         children.copy_button = copy_button.into();
         children.paste_button = paste_button.into();
         children.tab_buttons = tab_buttons;
+        children.link_button = link_button.into();
         drop(children);
 
         this

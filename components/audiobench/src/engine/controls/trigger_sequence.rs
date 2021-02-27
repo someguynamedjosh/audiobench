@@ -14,7 +14,7 @@ pub struct TriggerSequenceControl {
 }
 
 impl TriggerSequenceControl {
-    pub fn from_yaml(yaml: &YamlNode) -> Result<Self, String> {
+    pub fn from_yaml(_yaml: &YamlNode) -> Result<Self, String> {
         Ok(Self {
             sequence: vec![true, false, false, false],
         })
@@ -48,7 +48,7 @@ impl TriggerSequenceControl {
 impl Control for TriggerSequenceControl {
     fn get_parameter_types(&self) -> Vec<IOType> { vec![IOType::BoolArray] }
     fn get_parameter_values(&self) -> Vec<IOData> { vec![IOData::BoolArray(self.sequence.clone())] }
-    fn generate_code(&self, params: &[&str], automation_code: &AutomationCode) -> String { 
+    fn generate_code(&self, params: &[&str], _automation_code: &AutomationCode) -> String { 
         params[0].to_owned()
     }
     fn serialize(&self, ser: &mut MiniSer) { 
