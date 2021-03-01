@@ -66,7 +66,7 @@ impl Instance {
         })
     }
 
-    pub fn ui_deserialize_patch(&mut self, serialized: &[u8]) -> Result<(), String> {
+    pub fn ui_deserialize_patch(&mut self, serialized: &[u8]) -> Result<(), ()> {
         let registry = self.registry.borrow();
         let patch = match registry::save_data::Patch::load_readable(
             "External Preset".to_owned(),
@@ -75,22 +75,16 @@ impl Instance {
             Ok(patch) => patch,
             Err(message) => {
                 drop(registry);
-                return Err(format!(
+                self.ui_engine.borrow_mut().post_error(format!(
                     "ERROR: Failed to load the patch you were working on, caused by:\n{}",
                     message
                 ));
+                return Err(());
             }
         };
         drop(registry);
         let patch = rcrc(patch);
-        if let Err(..) = self.ui_engine.borrow_mut().load_patch(patch) {
-            return Err(format!(
-                "ERROR: Failed to load the patch you were working on.",
-            ));
-        }
-        if let Some(..) = &mut self.gui {
-            unimplemented!()
-        }
+        self.ui_engine.borrow_mut().load_patch(patch)?;
         Ok(())
     }
 

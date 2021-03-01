@@ -277,10 +277,6 @@ impl PatchBrowser {
                         .to_owned(),
                     );
                 });
-            } else if let Err(err) = res {
-                this.with_gui_state_mut(|state| {
-                    state.add_error_message(err);
-                });
             }
         })
     }
@@ -293,11 +289,7 @@ impl PatchBrowser {
             state.current_entry_index = Some(index);
             drop(state);
             this.update_on_patch_change(&patch);
-            if let Err(..) = engine.borrow_mut().load_patch(patch) {
-                this.with_gui_state_mut(|state| {
-                    state.add_error_message(format!("ERROR: Patch data is corrupt."))
-                });
-            } else {
+            if engine.borrow_mut().load_patch(patch).is_ok() {
                 this.with_gui_state_mut(|state| {
                     state.add_success_message(format!("Patch loaded."))
                 });

@@ -260,31 +260,42 @@ impl UiThreadEngine {
         &self.data.current_patch_save_data
     }
 
-    pub fn new_patch_from_clipboard(
-        &mut self,
-        clipboard_data: &[u8],
-    ) -> Result<&Rcrc<Patch>, String> {
+    pub fn new_patch_from_clipboard(&mut self, clipboard_data: &[u8]) -> Result<&Rcrc<Patch>, ()> {
         let mut reg = self.data.registry.borrow_mut();
         let new_patch = Rc::clone(reg.create_new_user_patch());
         let mut new_patch_ref = new_patch.borrow_mut();
-        new_patch_ref.deserialize(clipboard_data)?;
+        let res = new_patch_ref.deserialize(clipboard_data);
+        if let Err(err) = res {
+            drop(new_patch_ref);
+            drop(reg);
+            self.post_error(err);
+            return Err(());
+        }
         let name = format!("{} (pasted)", new_patch_ref.borrow_name());
         new_patch_ref.set_name(name);
         drop(new_patch_ref);
         drop(reg);
-        self.load_patch(Rc::clone(&new_patch))
-            .map_err(|_| format!("ERROR: Patch data is corrupt."))?;
+        let res = self.load_patch(Rc::clone(&new_patch));
+        if let Err(..) = res {
+            self.post_error(format!("ERROR: Patch data is corrupt."));
+            return Err(());
+        }
         Ok(&self.data.current_patch_save_data)
     }
 
     pub fn load_patch(&mut self, patch: Rcrc<Patch>) -> Result<(), ()> {
         let reg = self.data.registry.borrow();
         self.data.current_patch_save_data = patch;
-        self.data
+        let res = self
+            .data
             .current_patch_save_data
             .borrow()
-            .restore_note_graph(&mut *self.data.module_graph.borrow_mut(), &*reg)?;
+            .restore_note_graph(&mut *self.data.module_graph.borrow_mut(), &*reg);
         drop(reg);
+        if let Err(..) = res {
+            self.post_error(format!("ERROR: Patch data is corrupt."));
+            return Err(());
+        }
         self.data.module_graph.borrow().rebuild_widget();
         self.regenerate_code();
         Ok(())
