@@ -54,16 +54,14 @@ pub unsafe extern "C" fn ABAudioSetGlobalParameters(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ABUiSerializePatch(
+pub unsafe extern "C" fn ABAudioSerializePatch(
     cr: *mut CreateResult,
     data_out: *mut *mut u8,
     size_out: *mut u32,
 ) {
     with_ok(cr, |instance| {
         let data = instance
-            .ui_engine
-            .borrow()
-            .serialize_current_patch()
+            .audio_serialize_patch()
             .into_bytes()
             .into_boxed_slice();
         *size_out = data.len() as u32;
@@ -72,10 +70,39 @@ pub unsafe extern "C" fn ABUiSerializePatch(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ABUiCleanupSerializedData(data: *mut u8, size: u32) {
+pub unsafe extern "C" fn ABUiSerializePatch(
+    cr: *mut CreateResult,
+    data_out: *mut *mut u8,
+    size_out: *mut u32,
+) {
+    with_ok(cr, |instance| {
+        let data = instance
+            .ui_serialize_patch()
+            .into_bytes()
+            .into_boxed_slice();
+        *size_out = data.len() as u32;
+        *data_out = Box::leak(data).as_mut_ptr();
+    });
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ABCleanupSerializedData(data: *mut u8, size: u32) {
     let slice = std::slice::from_raw_parts_mut(data, size as usize);
     let boxed = Box::from_raw(slice);
     drop(boxed);
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ABAudioDeserializePatch(
+    cr: *mut CreateResult,
+    data_in: *mut u8,
+    size_in: u32,
+) {
+    with_ok(cr, |instance| {
+        let data = std::slice::from_raw_parts(data_in, size_in as usize);
+        let data = Vec::from(data);
+        instance.audio_deserialize_patch(&data[..]).unwrap();
+    });
 }
 
 #[no_mangle]
@@ -89,6 +116,11 @@ pub unsafe extern "C" fn ABUiDeserializePatch(
         let data = Vec::from(data);
         instance.ui_deserialize_patch(&data[..]).unwrap();
     });
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ABUiHandleCrossThreadHelp(cr: *mut CreateResult) {
+    with_ok(cr, |instance| instance.ui_handle_cross_thread_help());
 }
 
 #[no_mangle]

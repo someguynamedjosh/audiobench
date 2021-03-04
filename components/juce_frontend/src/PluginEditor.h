@@ -31,13 +31,7 @@ public:
     void mouseUp(const MouseEvent &event) override;
     virtual void mouseWheelMove(const MouseEvent &event, const MouseWheelDetails &wheel) override;
     virtual bool keyPressed(const KeyPress &key, Component *originatingComponent) override;
-    void timerCallback() override { 
-      repaint(); 
-      if (!focusGrabbed && isShowing()) {
-        grabKeyboardFocus();
-        focusGrabbed = true;
-      }
-    }
+    void timerCallback() override; 
 
 private:
     // This reference is provided as a quick way for your editor to

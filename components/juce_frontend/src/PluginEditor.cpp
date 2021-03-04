@@ -288,8 +288,20 @@ AudiobenchAudioProcessorEditor::AudiobenchAudioProcessorEditor(AudiobenchAudioPr
 
 AudiobenchAudioProcessorEditor::~AudiobenchAudioProcessorEditor()
 {
+    ABUiHandleCrossThreadHelp(processor.ab);
     ABUiDestroyUI(processor.ab);
     delete this->constrainer;
+}
+
+void AudiobenchAudioProcessorEditor::timerCallback() 
+{ 
+    ABUiHandleCrossThreadHelp(processor.ab);
+    repaint(); 
+    if (!focusGrabbed && isShowing()) 
+    {
+        grabKeyboardFocus();
+        focusGrabbed = true;
+    }
 }
 
 //==============================================================================

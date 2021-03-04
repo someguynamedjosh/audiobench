@@ -101,8 +101,6 @@ struct JuliaThread {
     error_report_pipe: Sender<String>,
 }
 
-// TODO: Preheat JIT unimplemented!()
-
 impl JuliaThread {
     fn set_status(&self, status: Status) {
         self.comms.julia_thread_status.store(status);
@@ -123,8 +121,6 @@ impl JuliaThread {
                     if msg.is_err() {
                         break;
                     }
-                    // Drain the channel of extra requests before polling comms.
-                    while let Ok(_) = self.poll_pipe.try_recv() { }
                     self.poll_comms();
                 }
             }
