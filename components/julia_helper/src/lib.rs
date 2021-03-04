@@ -147,7 +147,8 @@ pub struct ExecutionEngine {
     global_code_segments: Vec<GeneratedCode>,
 }
 
-const STACK_SIZE: usize = 128;
+// If you get random segfaults this might need to be bigger.
+const STACK_SIZE: usize = 8192;
 /// Code to run a function and return any produced exceptions as a string including a backtrace
 /// instead of just the raw exception argument.
 const EE_ENV: &'static str = r#"
