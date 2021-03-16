@@ -9,7 +9,7 @@ use shared_util::{
 use std::{error::Error, io::Write, path::PathBuf};
 
 #[derive(Debug, Clone)]
-enum PatchSource {
+pub(crate) enum PatchSource {
     Dummy,
     Writable(PathBuf),
     Readable(String),
@@ -17,7 +17,7 @@ enum PatchSource {
 
 #[derive(Debug, Clone)]
 pub struct Patch {
-    source: PatchSource,
+    pub(crate) source: PatchSource,
     name: String,
     exists_on_disk: bool,
     data: Vec<u8>,

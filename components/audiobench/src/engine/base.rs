@@ -13,6 +13,7 @@ use crate::{
 use crossbeam_channel::{Receiver, Sender, TrySendError};
 use crossbeam_utils::atomic::AtomicCell;
 use julia_helper::GeneratedCode;
+use observatory::{observable, ObservablePtr};
 use shared_util::prelude::*;
 use std::{
     sync::Mutex,
@@ -31,7 +32,7 @@ struct UiThreadData {
     module_graph: Rcrc<ModuleGraph>,
     dyn_data_collector: DynDataCollector,
     feedback_displayer: FeedbackDisplayer,
-    current_patch_save_data: Rcrc<Patch>,
+    current_patch_save_data: ObservablePtr<Rcrc<Patch>>,
     posted_errors: Vec<String>,
     julia_errors: Receiver<String>,
 }
@@ -117,7 +118,7 @@ pub fn new_engine(
         module_graph: rcrc(module_graph),
         dyn_data_collector,
         feedback_displayer,
-        current_patch_save_data: default_patch,
+        current_patch_save_data: observable(default_patch),
         posted_errors: Vec::new(),
         julia_errors: jerroro,
     };
@@ -184,10 +185,15 @@ impl UiThreadEngine {
     }
 
     pub fn rename_current_patch(&mut self, name: String) {
-        assert!(self.data.current_patch_save_data.borrow().is_writable());
-        let mut patch_ref = self.data.current_patch_save_data.borrow_mut();
+        assert!(self
+            .data
+            .current_patch_save_data
+            .borrow_untracked()
+            .borrow()
+            .is_writable());
+        let patch_ref_ref = self.data.current_patch_save_data.borrow_untracked();
+        let mut patch_ref = patch_ref_ref.borrow_mut();
         patch_ref.set_name(name);
-        patch_ref.write().unwrap();
     }
 
     pub fn post_error(&mut self, message: String) {
@@ -207,19 +213,26 @@ impl UiThreadEngine {
     }
 
     pub fn save_current_patch(&mut self) {
-        assert!(self.data.current_patch_save_data.borrow().is_writable());
-        let mut patch_ref = self.data.current_patch_save_data.borrow_mut();
+        assert!(self
+            .data
+            .current_patch_save_data
+            .borrow_untracked()
+            .borrow()
+            .is_writable());
+        let patch_ref_ref = self.data.current_patch_save_data.borrow_untracked();
+        let mut patch_ref = patch_ref_ref.borrow_mut();
         let reg = self.data.registry.borrow();
         patch_ref.save_note_graph(&*self.data.module_graph.borrow(), &*reg);
         patch_ref.write().unwrap();
     }
 
-    pub fn borrow_current_patch(&self) -> &Rcrc<Patch> {
+    pub fn borrow_current_patch(&self) -> &ObservablePtr<Rcrc<Patch>> {
         &self.data.current_patch_save_data
     }
 
     pub fn serialize_current_patch(&self) -> String {
-        let mut patch_ref = self.data.current_patch_save_data.borrow();
+        let patch_ref_ref = self.data.current_patch_save_data.borrow_untracked();
+        let patch_ref = patch_ref_ref.borrow();
         let reg = self.data.registry.borrow();
         // Use a dummy patch so we don't overwrite the actual save data of the current patch without
         // the user explicitly clicking 'save'.
@@ -228,11 +241,12 @@ impl UiThreadEngine {
         dummy_patch.serialize()
     }
 
-    pub fn save_current_patch_with_new_name(&mut self) -> &Rcrc<Patch> {
+    pub fn save_current_patch_with_new_name(&mut self) {
         let mut reg = self.data.registry.borrow_mut();
-        let patch = self.borrow_current_patch().borrow();
+        let patch_ref_ref = self.data.current_patch_save_data.borrow_untracked();
+        let patch_ref = patch_ref_ref.borrow();
 
-        let mut name = shared_util::increment_name(patch.borrow_name());
+        let mut name = shared_util::increment_name(patch_ref.borrow_name());
         let mut original = false;
         while !original {
             original = true;
@@ -253,14 +267,14 @@ impl UiThreadEngine {
         new_patch_ref.save_note_graph(&*self.data.module_graph.borrow(), &*reg);
         new_patch_ref.write().unwrap();
         drop(new_patch_ref);
-        drop(patch);
+        drop(patch_ref);
+        drop(patch_ref_ref);
         drop(reg);
         // Don't reload anything because we are just copying the current patch data.
-        self.data.current_patch_save_data = new_patch;
-        &self.data.current_patch_save_data
+        self.data.current_patch_save_data.set(new_patch);
     }
 
-    pub fn new_patch_from_clipboard(&mut self, clipboard_data: &[u8]) -> Result<&Rcrc<Patch>, ()> {
+    pub fn new_patch_from_clipboard(&mut self, clipboard_data: &[u8]) -> Result<(), ()> {
         let mut reg = self.data.registry.borrow_mut();
         let new_patch = Rc::clone(reg.create_new_user_patch());
         let mut new_patch_ref = new_patch.borrow_mut();
@@ -280,15 +294,16 @@ impl UiThreadEngine {
             self.post_error(format!("ERROR: Patch data is corrupt."));
             return Err(());
         }
-        Ok(&self.data.current_patch_save_data)
+        Ok(())
     }
 
     pub fn load_patch(&mut self, patch: Rcrc<Patch>) -> Result<(), ()> {
         let reg = self.data.registry.borrow();
-        self.data.current_patch_save_data = patch;
+        self.data.current_patch_save_data.set(patch);
         let res = self
             .data
             .current_patch_save_data
+            .borrow_untracked()
             .borrow()
             .restore_note_graph(&mut *self.data.module_graph.borrow_mut(), &*reg);
         drop(reg);

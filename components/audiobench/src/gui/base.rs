@@ -3,9 +3,10 @@ use std::cmp::Ordering;
 use crate::{
     engine::{controls::Control, parts::JackType, Status, UiThreadEngine},
     gui::{constants::*, top_level::*},
-    registry::Registry,
+    registry::{save_data::Patch, Registry},
     scui_config::{DropTarget, MaybeMouseBehavior, Renderer},
 };
+use observatory::{observable, ObservablePtr};
 use scui::{MouseMods, Vec2D, Widget, WidgetImpl};
 use shared_util::prelude::*;
 
@@ -174,6 +175,8 @@ impl TabArchetype {
 pub struct GuiState {
     pub registry: Rcrc<Registry>,
     pub engine: Rcrc<UiThreadEngine>,
+    pub current_patch_index: Option<usize>,
+    pub patch_list: ObservablePtr<Vec<Rcrc<Patch>>>,
     messages: Vec<StatusMessage>,
     last_message: bool,
     tooltip: Tooltip,
@@ -184,14 +187,52 @@ pub struct GuiState {
 
 impl GuiState {
     pub fn new(registry: Rcrc<Registry>, engine: Rcrc<UiThreadEngine>) -> Self {
+        let patch_list = registry.borrow().borrow_patches().clone();
+        let patch_list: Vec<_> = patch_list
+            .into_iter()
+            .filter(|patch| {
+                println!(
+                    "{:?} {} {}",
+                    patch.borrow().borrow_name(),
+                    patch.borrow().exists_on_disk(),
+                    patch.borrow().is_writable()
+                );
+                patch.borrow().exists_on_disk() || !patch.borrow().is_writable()
+            })
+            .collect();
+        let current_patch = Rc::clone(&engine.borrow().borrow_current_patch().borrow_untracked());
+        let mut current_patch_index = None;
+        let patch = current_patch.borrow();
+        for (index, other) in patch_list.iter().enumerate() {
+            let other = other.borrow();
+            if other.borrow_name() == patch.borrow_name() {
+                if other.serialize() == patch.serialize() {
+                    current_patch_index = Some(index);
+                    break;
+                }
+            }
+        }
+        drop(patch);
         Self {
             registry,
             engine,
+            current_patch_index,
+            patch_list: observable(patch_list),
             messages: Vec::new(),
             last_message: false,
             tooltip: Default::default(),
             tabs: Vec::new(),
             current_tab_index: 0,
+        }
+    }
+
+    pub fn after_new_patch(&mut self, new_patch: &Rcrc<Patch>) {
+        let next_entry_index = self.patch_list.borrow_untracked().len();
+        if new_patch.borrow().exists_on_disk() {
+            self.patch_list.borrow_mut().push(Rc::clone(new_patch));
+            self.current_patch_index = Some(next_entry_index);
+        } else {
+            self.current_patch_index = None;
         }
     }
 
@@ -242,6 +283,10 @@ impl GuiState {
 
     pub fn all_tabs(&self) -> impl Iterator<Item = &Rc<dyn GuiTab>> {
         self.tabs.iter()
+    }
+
+    pub fn num_tabs(&self) -> usize {
+        self.tabs.len()
     }
 
     pub fn get_current_tab_index(&self) -> usize {

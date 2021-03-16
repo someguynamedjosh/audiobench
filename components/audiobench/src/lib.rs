@@ -9,7 +9,7 @@ use engine::{AudioThreadEngine, UiThreadEngine};
 use gui::graphics::GrahpicsWrapper;
 pub use gui::graphics::GraphicsFunctions;
 use gui::Gui;
-use registry::Registry;
+use registry::{save_data::Patch, Registry};
 use shared_util::prelude::*;
 
 pub struct ErrorDrawer {
@@ -74,6 +74,7 @@ enum CrossThreadHelpResponse {
 
 impl Instance {
     pub fn new() -> Result<Self, String> {
+        observatory::init();
         let registry = rcrc(Registry::new()?);
         let (ui_engine, audio_engine) = engine::new_engine(Rc::clone(&registry))?;
         let graphics_fns = Rc::new(GraphicsFunctions::placeholders());
@@ -100,10 +101,7 @@ impl Instance {
 
     fn deserialize_patch(&mut self, serialized: &[u8]) -> Result<(), ()> {
         let registry = self.registry.borrow();
-        let patch = match registry::save_data::Patch::load_readable(
-            "External Preset".to_owned(),
-            serialized,
-        ) {
+        let deserialized = match Patch::load_readable("dummy".into(), serialized) {
             Ok(patch) => patch,
             Err(message) => {
                 drop(registry);
@@ -114,9 +112,23 @@ impl Instance {
                 return Err(());
             }
         };
+        let mut patch = None;
+        for other_ptr in registry.borrow_patches() {
+            let other = other_ptr.borrow();
+            if deserialized.borrow_name() == other.borrow_name()
+                && deserialized.serialize() == other.serialize()
+            {
+                patch = Some(Rc::clone(other_ptr));
+                break;
+            }
+        }
         drop(registry);
-        let patch = rcrc(patch);
-        self.ui_engine.borrow_mut().load_patch(patch)?;
+        if patch.is_none() {
+            let new_patch = Rc::clone(self.registry.borrow_mut().create_new_user_patch());
+            new_patch.borrow_mut().deserialize(serialized).unwrap();
+            patch = Some(new_patch);
+        }
+        self.ui_engine.borrow_mut().load_patch(patch.unwrap())?;
         Ok(())
     }
 
