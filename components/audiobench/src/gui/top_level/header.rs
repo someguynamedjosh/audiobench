@@ -258,8 +258,9 @@ impl WidgetImpl<Renderer, DropTarget> for Header {
 
         let show_buttons = self.with_gui_state(|state| {
             let tooltip = &state.borrow_tooltip();
-            let show_buttons =
-                tooltip.text.len() == 0 || mouse_in_header || state.borrow_last_message().is_some();
+            let show_buttons = tooltip.text.len() == 0 && tooltip.interaction.len() > 0
+                || mouse_in_header
+                || state.borrow_last_message().is_some();
             let button_size = if show_buttons {
                 r.set_color(&COLOR_BG0);
                 r.draw_rounded_rect(

@@ -249,7 +249,7 @@ impl ExecutionEngine {
             let line = (&error[line_start..line_end])
                 .trim()
                 .parse::<usize>()
-                .unwrap();
+                .unwrap_or_default();
             let source_segment = &segments[file];
             assert!(source_segment.code_map.len() > 0);
             let mut candidate = source_segment.code_map[0].clone();

@@ -6,7 +6,7 @@ use crate::{
             DynDataCollector, FeedbackData, FeedbackDisplayer, GlobalData, GlobalParameters,
         },
         julia_thread,
-        parts::ModuleGraph,
+        parts::{Module, ModuleGraph},
     },
     registry::{save_data::Patch, Registry},
 };
@@ -46,6 +46,7 @@ pub(super) struct Communication {
     pub new_feedback: AtomicCell<Option<FeedbackData>>,
     pub do_dummy_note: AtomicCell<bool>,
     pub do_dummy_note_once: AtomicCell<bool>,
+    pub module_view_index: AtomicCell<usize>,
 
     pub global_params: AtomicCell<GlobalParameters>,
     pub note_events: Mutex<Vec<julia_thread::NoteEvent>>,
@@ -139,6 +140,7 @@ pub fn new_engine(
         new_feedback: Default::default(),
         do_dummy_note: AtomicCell::new(false),
         do_dummy_note_once: AtomicCell::new(false),
+        module_view_index: AtomicCell::new(0),
 
         global_params: AtomicCell::new(global_params),
         note_events: Default::default(),
@@ -369,6 +371,19 @@ impl UiThreadEngine {
     pub fn activate_dummy_note_once(&self) {
         self.set_dummy_note_active(false);
         self.comms.do_dummy_note_once.store(true);
+    }
+
+    pub fn set_module_view(&self, module: &Rcrc<Module>) {
+        let index = self
+            .data
+            .module_graph
+            .borrow()
+            .borrow_modules()
+            .iter()
+            .position(|other| Rc::ptr_eq(module, other));
+        if let Some(index) = index {
+            self.comms.module_view_index.store(index);
+        }
     }
 }
 

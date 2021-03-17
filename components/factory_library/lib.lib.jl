@@ -192,28 +192,28 @@ a2cs(audio::maybe_mutable(MonoAudio))::ControlSignal = ControlSignal(audio)
 a2cs(audio::maybe_mutable(StaticStereoAudio))::StaticControlSignal = StaticControlSignal((audio[1] + audio[2]) / 2)
 a2cs(audio::maybe_mutable(StaticMonoAudio))::StaticControlSignal = StaticControlSignal(audio)
 
-function assert_is_sample_type(_type::Type{MonoSample}) end
-function assert_is_sample_type(_type::Type{StereoSample}) end
+function assert_is_sample_type(_type::maybe_mutable_type(MonoSample)) end
+function assert_is_sample_type(_type::maybe_mutable_type(StereoSample)) end
 function assert_is_sample_type(type) 
     throw(AssertionError("$type is not a valid sample type."))
 end
 
-function assert_is_control_signal_type(_type::Type{StaticControlSignal}) end
-function assert_is_control_signal_type(_type::Type{ControlSignal}) end
+function assert_is_control_signal_type(_type::maybe_mutable_type(StaticControlSignal)) end
+function assert_is_control_signal_type(_type::maybe_mutable_type(ControlSignal)) end
 function assert_is_control_signal_type(type) 
     throw(AssertionError("$type is not a valid control signal type."))
 end
 
-function assert_is_audio_type(_type::Type{StaticMonoAudio}) end
-function assert_is_audio_type(_type::Type{StaticStereoAudio}) end
-function assert_is_audio_type(_type::Type{MonoAudio}) end
-function assert_is_audio_type(_type::Type{StereoAudio}) end
+function assert_is_audio_type(_type::maybe_mutable_type(StaticMonoAudio)) end
+function assert_is_audio_type(_type::maybe_mutable_type(StaticStereoAudio)) end
+function assert_is_audio_type(_type::maybe_mutable_type(MonoAudio)) end
+function assert_is_audio_type(_type::maybe_mutable_type(StereoAudio)) end
 function assert_is_audio_type(type) 
     throw(AssertionError("$type is not a valid audio type."))
 end
 
-function assert_is_trigger_type(_type::Type{StaticTrigger}) end
-function assert_is_trigger_type(_type::Type{Trigger}) end
+function assert_is_trigger_type(_type::maybe_mutable_type(StaticTrigger)) end
+function assert_is_trigger_type(_type::maybe_mutable_type(Trigger)) end
 function assert_is_trigger_type(type) 
     throw(AssertionError("$type is not a valid trigger type."))
 end
@@ -221,7 +221,11 @@ end
 # Asserts that the specified function has a signature that makes it usable
 # as a waveform (I.E. it can accept a Float32 and Int32 and return a Float32
 function assert_is_waveform(func::Function)
-    @assert Base.promote_op(func, Float32, Int32) == Float32
+    result = func(0f0, Int32(1))
+    typ = typeof(result)
+    if typ != Float32
+        @assert false "Waveform produces incorrect result type $typ"
+    end
 end
 
 # Allows indexing smaller buffers as if they were their full-sized counterparts.
@@ -280,6 +284,45 @@ sample_indices(_buf::SizedArray{Tuple{1, S}, Bool, 2, N}) where {S, N} = Base.On
 sample_indices(_buf::Type{SArray{Tuple{1, S}, Bool, 2, N}}) where {S, N} = Base.OneTo(S)
 sample_indices(_buf::Type{MArray{Tuple{1, S}, Bool, 2, N}}) where {S, N} = Base.OneTo(S)
 sample_indices(_buf::Type{SizedArray{Tuple{1, S}, Bool, 2, N}}) where {S, N} = Base.OneTo(S)
+
+# View outputs, for sending data going across wires back to the GUI so that it can be displayed
+# to the user.
+function make_pitch_view_data(pitch)::Vector{Float32}
+    assert_is_control_signal_type(typeof(pitch))
+    [pitch[%, 1, 1]]
+end
+function make_audio_view_data(audio)::Vector{Float32}
+    assert_is_audio_type(typeof(audio))
+    result = Vector{Float32}(undef, 0)
+    for sample in a2cs(audio)
+        push!(result, sample)
+        if length(result) == 64
+            break
+        end
+    end
+    result
+end
+function make_waveform_view_data(waveform::Function)::Vector{Float32}
+    assert_is_waveform(waveform)
+    result = Vector{Float32}(undef, 64)
+    for index in 0:63
+        phase = Float32(index) / 63f0
+        value = waveform(phase, Int32(1))
+        result[index + 1] = value
+    end
+    result
+end
+function make_trigger_view_data(trigger)::Vector{Float32}
+    assert_is_trigger_type(typeof(trigger))
+    result = [0f0]
+    for sample in trigger
+        if sample
+            result[1] = 1f0
+            break
+        end
+    end
+    result
+end
 
 # Other stuff
 lerp(from, to, amount) = to * amount + from * (1 - amount)

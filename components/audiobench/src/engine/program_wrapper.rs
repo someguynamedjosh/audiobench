@@ -336,6 +336,7 @@ impl AudiobenchExecutor {
                 inputs.push(Value::new(frame, false)?); // do_feedback
                 inputs.push(Value::new(frame, note_input)?);
                 inputs.push(Value::new(frame, static_index)?);
+                inputs.push(Value::new(frame, 0)?);
                 for item in dyn_data {
                     inputs.push(item.as_julia_value(frame)?);
                 }
@@ -348,10 +349,12 @@ impl AudiobenchExecutor {
     }
 
     /// This handles everything from global setup, note iteration, program execution, note teardown,
-    /// and finally global teardown. Returns true if feedback data was updated.
+    /// and finally global teardown. Returns true if feedback data was updated. View index is which
+    /// module's outputs should be retrieved.
     pub fn execute(
         &mut self,
         do_feedback: bool,
+        view_index: usize,
         global_data: &GlobalData,
         notes: &mut NoteTracker,
         dyn_data: &[IOData],
@@ -389,6 +392,7 @@ impl AudiobenchExecutor {
                     inputs.push(Value::new(frame, do_feedback)?);
                     inputs.push(Value::new(frame, note_input)?);
                     inputs.push(Value::new(frame, static_index)?);
+                    inputs.push(Value::new(frame, view_index)?);
                     for item in dyn_data {
                         inputs.push(item.as_julia_value(frame)?);
                     }
@@ -410,8 +414,24 @@ impl AudiobenchExecutor {
                             let field = julia_feedback.get_nth_field(frame, index)?;
                             let field = field.cast::<TypedArray<'_, '_, f32>>()?;
                             let field = field.inline_data(frame)?.into_slice();
-                            native_feedback.0.push(Vec::from(field));
+                            native_feedback.widget_feeback.push(Vec::from(field));
                         }
+                        let julia_view_data= match output.get_nth_field(frame, 2) {
+                            Ok(v) => v,
+                            Err(err) => {
+                                return Ok(Err(format!(
+                                    "ERROR: Failed to retrieve output view data, caused by:\n{:?}",
+                                    err
+                                )))
+                            }
+                        };
+                        for index in 0..julia_view_data.n_fields() {
+                            let field = julia_view_data.get_nth_field(frame, index)?;
+                            let field = field.cast::<TypedArray<'_, '_, f32>>()?;
+                            let field = field.inline_data(frame)?.into_slice();
+                            native_feedback.output_view.push(Vec::from(field));
+                        }
+                        native_feedback.output_view_module_index = view_index;
                         feedback_data = Some(native_feedback);
                     }
 

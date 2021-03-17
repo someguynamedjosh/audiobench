@@ -1,7 +1,17 @@
-use crate::{engine::{
+use crate::{
+    engine::{
         controls::{AutomationSource, Control},
         parts as ep,
-    }, gui::{InteractionHint, TabArchetype, Tooltip, constants::*, graphics::GrahpicsWrapper, top_level::{graph::Module, ModuleBrowser}}, registry::module_template::ModuleTemplate, scui_config::{DropTarget, MaybeMouseBehavior, Renderer}};
+    },
+    gui::{
+        constants::*,
+        graphics::GrahpicsWrapper,
+        top_level::{graph::Module, ModuleBrowser},
+        InteractionHint, TabArchetype, Tooltip,
+    },
+    registry::module_template::ModuleTemplate,
+    scui_config::{DropTarget, MaybeMouseBehavior, Renderer},
+};
 use scones::make_constructor;
 use scui::{
     GuiInterfaceProvider, MouseBehavior, MouseMods, OnClickBehavior, Vec2D, Widget, WidgetImpl,
@@ -197,6 +207,10 @@ impl ModuleGraph {
     }
 
     pub fn set_hovered_module(self: &Rc<Self>, module: Rc<Module>) {
+        self.with_gui_state(|state| {
+            let engine = state.engine.borrow();
+            engine.set_module_view(&module.get_real_module());
+        });
         self.state.borrow_mut().hovered_module = Some(module);
     }
 
@@ -257,6 +271,10 @@ impl ModuleGraph {
         state.highlight_mode = GraphHighlightMode::ProducesType(acceptable[0]);
         let graph = Rc::clone(self);
         Box::new(ConnectToControl { graph, control })
+    }
+
+    pub fn get_real_graph(self: &Rc<Self>) -> Rcrc<ep::ModuleGraph> {
+        Rc::clone(&self.state.borrow().graph)
     }
 }
 
@@ -420,7 +438,7 @@ impl WidgetImpl<Renderer, DropTarget> for ModuleGraph {
         g.scale(state.zoom);
         g.translate(state.offset);
         drop(state);
-        for layer in 0..4 {
+        for layer in 0..5 {
             let mut state = self.state.borrow_mut();
             state.current_draw_layer = layer;
             drop(state);

@@ -190,15 +190,7 @@ impl GuiState {
         let patch_list = registry.borrow().borrow_patches().clone();
         let patch_list: Vec<_> = patch_list
             .into_iter()
-            .filter(|patch| {
-                println!(
-                    "{:?} {} {}",
-                    patch.borrow().borrow_name(),
-                    patch.borrow().exists_on_disk(),
-                    patch.borrow().is_writable()
-                );
-                patch.borrow().exists_on_disk() || !patch.borrow().is_writable()
-            })
+            .filter(|patch| patch.borrow().exists_on_disk() || !patch.borrow().is_writable())
             .collect();
         let current_patch = Rc::clone(&engine.borrow().borrow_current_patch().borrow_untracked());
         let mut current_patch_index = None;

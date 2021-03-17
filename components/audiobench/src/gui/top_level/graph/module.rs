@@ -3,7 +3,7 @@ use crate::{
     gui::{
         constants::*,
         module_widgets::ModuleWidget,
-        top_level::graph::{GraphHighlightMode, ModuleGraph, WireTracker},
+        top_level::graph::{GraphHighlightMode, ModuleGraph, OutputViewRenderer, WireTracker},
         {InteractionHint, Tooltip},
     },
     scui_config::{DropTarget, MaybeMouseBehavior, Renderer},
@@ -99,6 +99,7 @@ scui::widget! {
         size: Vec2D,
         label: String,
         outputs: Vec<OutputJack>,
+        output_view_data: Vec<Vec<f32>>,
         widgets: Vec<Box<dyn ModuleWidget>>
     }
     Parents {
@@ -151,6 +152,7 @@ impl Module {
             size,
             label,
             outputs,
+            output_view_data: Vec::new(),
             widgets: Vec::new(),
         };
 
@@ -172,6 +174,21 @@ impl Module {
         self.state.borrow().widgets[widget_index].take_feedback_data(data);
     }
 
+    pub fn take_output_view_data(self: &Rc<Self>, data: Vec<Vec<f32>>) {
+        assert_eq!(
+            data.len(),
+            self.state
+                .borrow()
+                .module
+                .borrow()
+                .template
+                .borrow()
+                .outputs
+                .len()
+        );
+        self.state.borrow_mut().output_view_data = data;
+    }
+
     fn draw_wires(self: &Rc<Self>, g: &mut Renderer, pos: Vec2D) {
         let mut wire_tracker = WireTracker::new(self.get_size());
         let state = self.state.borrow();
@@ -187,6 +204,10 @@ impl Module {
             }
         }
         wire_tracker.draw_wires(g, pos);
+    }
+
+    pub fn get_real_module(self: &Rc<Self>) -> Rcrc<ep::Module> {
+        Rc::clone(&self.state.borrow().module)
     }
 
     pub fn represents_module(self: &Rc<Self>, module: &Rcrc<ep::Module>) -> bool {
@@ -389,6 +410,27 @@ impl WidgetImpl<Renderer, DropTarget> for Module {
             g.set_alpha(0.2);
             g.translate(pos * -1.0);
             self.draw_wires(g, pos);
+        } else if layer_index == 4 && self.is_hovered() {
+            let module = state.module.borrow();
+            let template = module.template.borrow();
+            let x = size.x;
+            let mut y = GRID_P + JACK_SIZE / 2.0;
+            let mut index = 0;
+            for output in &template.outputs {
+                let data = if state.output_view_data.len() > index {
+                    &state.output_view_data[index][..]
+                } else {
+                    &[][..]
+                };
+                g.draw_output_view(
+                    data,
+                    output.get_type(),
+                    Vec2D::new(x, y),
+                    Vec2D::new(x + grid(1), y),
+                );
+                y += GRID_P + JACK_SIZE;
+                index += 1;
+            }
         }
     }
 }
