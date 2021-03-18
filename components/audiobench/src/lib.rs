@@ -4,11 +4,12 @@ mod gui;
 mod registry;
 mod scui_config;
 
+use crossbeam_channel::{Receiver, Sender, TryRecvError};
 use engine::{AudioThreadEngine, UiThreadEngine};
 use gui::graphics::GrahpicsWrapper;
 pub use gui::graphics::GraphicsFunctions;
 use gui::Gui;
-use registry::Registry;
+use registry::{save_data::Patch, Registry};
 use shared_util::prelude::*;
 
 pub struct ErrorDrawer {
@@ -49,13 +50,36 @@ pub struct Instance {
     pub graphics_fns: Rc<GraphicsFunctions>,
     pub gui: Option<Gui>,
     audio: Vec<f32>,
+
+    ui_request_pipe: Receiver<CrossThreadHelpRequest>,
+    ui_response_pipe: Sender<CrossThreadHelpResponse>,
+    audio_request_pipe: Sender<CrossThreadHelpRequest>,
+    audio_response_pipe: Receiver<CrossThreadHelpResponse>,
+}
+
+/// This is ugly and disgusting but AFAIK it is sound. Basically we need to be able to save and
+/// load patches from the audio thread but that logic is handled by the UI thread but that's not
+/// always running so when it's running we need to have it handle that logic through channels and
+/// when it's not running the audio thread handles it immediately.
+
+enum CrossThreadHelpRequest {
+    SerializePatch,
+    DeserializePatch(Vec<u8>),
+}
+
+enum CrossThreadHelpResponse {
+    SerializePatch(String),
+    DeserializePatch(Result<(), ()>),
 }
 
 impl Instance {
     pub fn new() -> Result<Self, String> {
+        observatory::init();
         let registry = rcrc(Registry::new()?);
         let (ui_engine, audio_engine) = engine::new_engine(Rc::clone(&registry))?;
         let graphics_fns = Rc::new(GraphicsFunctions::placeholders());
+        let (audio_request_pipe, ui_request_pipe) = crossbeam_channel::bounded(1);
+        let (ui_response_pipe, audio_response_pipe) = crossbeam_channel::bounded(1);
         Ok(Self {
             registry,
             ui_engine,
@@ -63,35 +87,116 @@ impl Instance {
             graphics_fns,
             gui: None,
             audio: Vec::new(),
+
+            ui_request_pipe,
+            ui_response_pipe,
+            audio_request_pipe,
+            audio_response_pipe,
         })
     }
 
-    pub fn ui_deserialize_patch(&mut self, serialized: &[u8]) -> Result<(), String> {
+    fn serialize_patch(&mut self) -> String {
+        self.ui_engine.borrow_mut().serialize_current_patch()
+    }
+
+    fn deserialize_patch(&mut self, serialized: &[u8]) -> Result<(), ()> {
         let registry = self.registry.borrow();
-        let patch = match registry::save_data::Patch::load_readable(
-            "External Preset".to_owned(),
-            serialized,
-        ) {
+        let deserialized = match Patch::load_readable("dummy".into(), serialized) {
             Ok(patch) => patch,
             Err(message) => {
                 drop(registry);
-                return Err(format!(
+                self.ui_engine.borrow_mut().post_error(format!(
                     "ERROR: Failed to load the patch you were working on, caused by:\n{}",
                     message
                 ));
+                return Err(());
             }
         };
+        let mut patch = None;
+        for other_ptr in registry.borrow_patches() {
+            let other = other_ptr.borrow();
+            if deserialized.borrow_name() == other.borrow_name()
+                && deserialized.serialize() == other.serialize()
+            {
+                patch = Some(Rc::clone(other_ptr));
+                break;
+            }
+        }
         drop(registry);
-        let patch = rcrc(patch);
-        if let Err(..) = self.ui_engine.borrow_mut().load_patch(patch) {
-            return Err(format!(
-                "ERROR: Failed to load the patch you were working on.",
-            ));
+        if patch.is_none() {
+            let new_patch = Rc::clone(self.registry.borrow_mut().create_new_user_patch());
+            new_patch.borrow_mut().deserialize(serialized).unwrap();
+            patch = Some(new_patch);
         }
-        if let Some(..) = &mut self.gui {
-            unimplemented!()
-        }
+        self.ui_engine.borrow_mut().load_patch(patch.unwrap())?;
         Ok(())
+    }
+
+    // This should be regularly called as long as the UI is open.
+    pub fn ui_handle_cross_thread_help(&mut self) {
+        match self.ui_request_pipe.try_recv() {
+            Ok(CrossThreadHelpRequest::DeserializePatch(data)) => {
+                let res = self.ui_deserialize_patch(&data[..]);
+                self.ui_response_pipe
+                    .send(CrossThreadHelpResponse::DeserializePatch(res))
+                    .unwrap();
+            }
+            Ok(CrossThreadHelpRequest::SerializePatch) => {
+                println!("received from gui");
+                let res = self.ui_serialize_patch();
+                self.ui_response_pipe
+                    .send(CrossThreadHelpResponse::SerializePatch(res))
+                    .unwrap();
+            }
+            Err(TryRecvError::Empty) => (),
+            Err(err) => panic!("Unexpected error {}", err),
+        }
+    }
+
+    pub fn ui_serialize_patch(&mut self) -> String {
+        self.serialize_patch()
+    }
+
+    pub fn audio_serialize_patch(&mut self) -> String {
+        if self.gui.is_some() {
+            println!("send to gui");
+            self.audio_request_pipe
+                .send(CrossThreadHelpRequest::SerializePatch)
+                .unwrap();
+            if let CrossThreadHelpResponse::SerializePatch(res) =
+                self.audio_response_pipe.recv().unwrap()
+            {
+                res
+            } else {
+                panic!("Unexpected response");
+            }
+        } else {
+            println!("do instantly");
+            self.serialize_patch()
+        }
+    }
+
+    pub fn ui_deserialize_patch(&mut self, serialized: &[u8]) -> Result<(), ()> {
+        self.deserialize_patch(serialized)
+    }
+
+    pub fn audio_deserialize_patch(&mut self, serialized: &[u8]) -> Result<(), ()> {
+        if self.gui.is_some() {
+            self.audio_request_pipe
+                .send(CrossThreadHelpRequest::DeserializePatch(Vec::from(
+                    serialized,
+                )))
+                .unwrap();
+            if let CrossThreadHelpResponse::DeserializePatch(res) =
+                self.audio_response_pipe.recv().unwrap()
+            {
+                res
+            } else {
+                panic!("Unexpected response");
+            }
+        } else {
+            self.deserialize_patch(serialized)
+        }
     }
 
     pub fn audio_render_audio(&mut self) -> &[f32] {
@@ -150,6 +255,30 @@ impl Instance {
             eprintln!("WARNING: destroy_gui called when GUI was already destroyed!");
         } else {
             self.gui = None;
+        }
+    }
+
+    fn ui_vk_index(key: char) -> Option<usize> {
+        // q == 45 == A3
+        "q2we4r5ty7u8i9op"
+            .chars()
+            .position(|candidate| candidate == key)
+            .map(|idx| idx + 45)
+    }
+
+    pub fn ui_vk_down(&mut self, key: char) {
+        if let Some(index) = Self::ui_vk_index(key) {
+            self.ui_engine
+                .borrow_mut()
+                .virtual_keyboard_note(index, true);
+        }
+    }
+
+    pub fn ui_vk_up(&mut self, key: char) {
+        if let Some(index) = Self::ui_vk_index(key) {
+            self.ui_engine
+                .borrow_mut()
+                .virtual_keyboard_note(index, false);
         }
     }
 }

@@ -23,6 +23,8 @@ jobs:
     - uses: actions/setup-python@v2
       with:
         python-version: '3.7'
+    - name: Switch to nightly toolchain
+      run: rustup default nightly
     - name: Cache LLVM install (Windows only)
       if: ${{ matrix.os == 'windows-latest' }}
       id: cache-llvm

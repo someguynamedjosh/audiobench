@@ -213,16 +213,18 @@ AudioProcessorEditor* AudiobenchAudioProcessor::createEditor() {
 void AudiobenchAudioProcessor::getStateInformation(MemoryBlock& destData) {
     char* dataPtr;
     uint32_t dataLen;
-    // TODO: This should not be called from audio thread. unimplemented!();
-    // ABUiSerializePatch(ab, &dataPtr, &dataLen);
-    // destData.append((void*)dataPtr, dataLen);
-    // ABUiCleanupSerializedData(dataPtr, dataLen);
+    // When I try to use the Audio version (where it sends a message to the UI thread), it hangs
+    // the UI thread which in turn hangs the audio thread.
+    ABUiSerializePatch(ab, &dataPtr, &dataLen);
+    destData.append((void*)dataPtr, dataLen);
+    ABCleanupSerializedData(dataPtr, dataLen);
 }
 
 void AudiobenchAudioProcessor::setStateInformation(const void* data,
                                                    int sizeInBytes) {
-    // TODO: This should not be called from audio thread. unimplemented!();
-    // ABUiDeserializePatch(ab, (char*)data, sizeInBytes);
+    // When I try to use the Audio version (where it sends a message to the UI thread), it hangs
+    // the UI thread which in turn hangs the audio thread.
+    ABUiDeserializePatch(ab, (char*)data, sizeInBytes);
 }
 
 //==============================================================================

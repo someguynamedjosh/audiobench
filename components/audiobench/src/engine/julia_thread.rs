@@ -101,8 +101,6 @@ struct JuliaThread {
     error_report_pipe: Sender<String>,
 }
 
-// TODO: Preheat JIT unimplemented!()
-
 impl JuliaThread {
     fn set_status(&self, status: Status) {
         self.comms.julia_thread_status.store(status);
@@ -123,8 +121,6 @@ impl JuliaThread {
                     if msg.is_err() {
                         break;
                     }
-                    // Drain the channel of extra requests before polling comms.
-                    while let Ok(_) = self.poll_pipe.try_recv() { }
                     self.poll_comms();
                 }
             }
@@ -186,6 +182,7 @@ impl JuliaThread {
 
     fn render(&mut self, global_data: GlobalData, do_feedback: bool) {
         self.set_status(Status::Rendering);
+        let view_index = self.comms.module_view_index.load();
         let mut nel = self.comms.note_events.lock().unwrap();
         let note_events = std::mem::take(&mut *nel);
         drop(nel);
@@ -202,6 +199,7 @@ impl JuliaThread {
         let mut output = vec![0.0; self.global_params.channels * self.global_params.buffer_length];
         let result = self.executor.execute(
             do_feedback,
+            view_index,
             &global_data,
             &mut self.notes,
             &self.dyn_data[..],

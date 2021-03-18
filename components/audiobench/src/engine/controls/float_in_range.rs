@@ -97,6 +97,8 @@ impl Control for FloatInRangeControl {
             let mut code = String::new();
             let mut index = 2; // Julia indexing starts at 1.
             let mut first = Some(());
+            let num_lanes = self.automation.len() as f32;
+            code.push_str("(");
             for lane in &self.automation {
                 if !first.take().is_some() {
                     code.push_str(" .+ ");
@@ -111,6 +113,7 @@ impl Control for FloatInRangeControl {
                 ));
                 index += 2;
             }
+            code.push_str(&format!(") / Float32({})", self.automation.len()));
             code
         }
     }
