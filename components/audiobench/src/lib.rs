@@ -257,4 +257,28 @@ impl Instance {
             self.gui = None;
         }
     }
+
+    fn ui_vk_index(key: char) -> Option<usize> {
+        // q == 45 == A3
+        "q2we4r5ty7u8i9op"
+            .chars()
+            .position(|candidate| candidate == key)
+            .map(|idx| idx + 45)
+    }
+
+    pub fn ui_vk_down(&mut self, key: char) {
+        if let Some(index) = Self::ui_vk_index(key) {
+            self.ui_engine
+                .borrow_mut()
+                .virtual_keyboard_note(index, true);
+        }
+    }
+
+    pub fn ui_vk_up(&mut self, key: char) {
+        if let Some(index) = Self::ui_vk_index(key) {
+            self.ui_engine
+                .borrow_mut()
+                .virtual_keyboard_note(index, false);
+        }
+    }
 }

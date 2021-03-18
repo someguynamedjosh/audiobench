@@ -52,4 +52,6 @@ extern "C" {
     void ABUiMouseUp(ABInstanceRef);
     void ABUiScroll(ABInstanceRef, float);
     void ABUiKeyPress(ABInstanceRef, char);
+    void ABUiKeyDown(ABInstanceRef, char);
+    void ABUiKeyUp(ABInstanceRef, char);
 }

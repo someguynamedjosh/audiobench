@@ -289,3 +289,13 @@ pub unsafe extern "C" fn ABUiKeyPress(cr: *mut CreateResult, key: u8) {
         })
     });
 }
+
+#[no_mangle]
+pub unsafe extern "C" fn ABUiKeyDown(cr: *mut CreateResult, key: u8) {
+    with_ok(cr, |instance| instance.ui_vk_down(key as char));
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ABUiKeyUp(cr: *mut CreateResult, key: u8) {
+    with_ok(cr, |instance| instance.ui_vk_up(key as char));
+}

@@ -31,6 +31,7 @@ public:
     void mouseUp(const MouseEvent &event) override;
     virtual void mouseWheelMove(const MouseEvent &event, const MouseWheelDetails &wheel) override;
     virtual bool keyPressed(const KeyPress &key, Component *originatingComponent) override;
+    virtual bool keyStateChanged(bool isKeyDown, Component *originatingComponent) override;
     void timerCallback() override; 
 
 private:
@@ -41,6 +42,7 @@ private:
     double windowScale = 1.0;
     bool focusGrabbed = false;
     std::vector<std::unique_ptr<Drawable>> iconStore;
+    bool keyStates[128];
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudiobenchAudioProcessorEditor)
 };

@@ -284,6 +284,10 @@ AudiobenchAudioProcessorEditor::AudiobenchAudioProcessorEditor(AudiobenchAudioPr
     // that our GUI will run at. Ideally, this should be related to the interval that feedback data
     // is copied from the audio thread to the GUI thread, which can be found in src/engine/base.rs
     startTimerHz(40);
+
+    for (int i = 0; i < 128; i++) {
+        this->keyStates[i] = KeyPress::isKeyCurrentlyDown(i);
+    }
 }
 
 AudiobenchAudioProcessorEditor::~AudiobenchAudioProcessorEditor()
@@ -341,6 +345,22 @@ void AudiobenchAudioProcessorEditor::mouseWheelMove(const MouseEvent &event, con
 bool AudiobenchAudioProcessorEditor::keyPressed(const KeyPress &key, Component *originatingComponent)
 {
     ABUiKeyPress(processor.ab, (char)key.getTextCharacter());
+    return true;
+}
+
+bool AudiobenchAudioProcessorEditor::keyStateChanged(bool isKeyDown, Component *originatingComponent)
+{
+    for (int i = 0; i < 128; i++) {
+        bool now = KeyPress::isKeyCurrentlyDown(i);
+        if (now != this->keyStates[i]) {
+            this->keyStates[i] = now;
+            if (now) {
+                ABUiKeyDown(processor.ab, i);
+            } else {
+                ABUiKeyUp(processor.ab, i);
+            }
+        }
+    }
     return true;
 }
 

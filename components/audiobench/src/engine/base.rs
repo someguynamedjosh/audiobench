@@ -385,6 +385,19 @@ impl UiThreadEngine {
             self.comms.module_view_index.store(index);
         }
     }
+
+    pub fn virtual_keyboard_note(&self, index: usize, down: bool) {
+        let mut events = self.comms.note_events.lock().unwrap();
+        let event = if down {
+            julia_thread::NoteEvent::StartNote {
+                index,
+                velocity: 1.0,
+            }
+        } else {
+            julia_thread::NoteEvent::ReleaseNote { index }
+        };
+        events.push(event);
+    }
 }
 
 impl AudioThreadEngine {
