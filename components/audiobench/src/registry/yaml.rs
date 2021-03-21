@@ -73,6 +73,28 @@ impl YamlNode {
         }
     }
 
+    pub fn list_entries(&mut self) -> Result<impl Iterator<Item = YamlNode>, String> {
+        if let Yaml::Null = &self.data {
+            Ok(Vec::new().into_iter())
+        } else if let Yaml::Array(array) = &mut self.data {
+            let mut items = Vec::new();
+            for (index, entry) in array.iter().enumerate() {
+                let full_name = format!("{}[{}]", self.full_name, index);
+                items.push(YamlNode::new(
+                    format!("{}", index),
+                    full_name,
+                    entry.clone(),
+                ));
+            }
+            Ok(items.into_iter())
+        } else {
+            Err(format!(
+                "ERROR: {} is not a valid list.",
+                self.full_name,
+            ))
+        }
+    }
+
     pub fn value(&self) -> Result<&str, String> {
         if let Yaml::String(value) = &self.data {
             Ok(&(*value)[..])

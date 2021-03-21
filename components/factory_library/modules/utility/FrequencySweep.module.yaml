@@ -1,15 +1,18 @@
 save_id: 19
 outputs:
   output:
-    type: pitch
+    datatype: pitch
     label: Frequency
     tooltip: The selected frequency
 controls:
-  start: Frequency
+  start: 
+    type: Frequency
     default: 110.0
-  end_: Frequency
+  end_:
+    type: Frequency
     default: 440.0
-  sweep: FloatInRange
+  sweep:
+    type: FloatInRange
     min: 0
     max: 1
     default: 0.5
@@ -20,19 +23,19 @@ gui:
   width: 4
   height: 3
   widgets:
-    FrequencyBox:
+    - type: FrequencyBox
       x: 0
       y: 0
       control: start
       label: Start
       tooltip: The frequency to output when the slider is all the way to the left
-    FrequencyBox:
+    - type: FrequencyBox
       x: 2
       y: 0
       control: end_
       label: End
       tooltip: The frequency to output when the slider is all the way to the right
-    HSlider:
+    - type: HSlider
       x: 0
       y: 2
       w: 4

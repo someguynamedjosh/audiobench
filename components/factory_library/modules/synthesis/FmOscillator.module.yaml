@@ -1,22 +1,27 @@
 save_id: 8
 outputs:
   audio:
-    type: audio
+    datatype: audio
     label: Audio
     tooltip: Audio output
 controls:
-  pitch: Input
-    type: pitch 
-  waveform: Input
-    type: waveform
+  pitch:
+    type: Input
+    datatype: pitch 
+  waveform:
+    type: Input
+    datatype: waveform
     default: sine_wave
-  fm_signal: Input
-    type: audio
-  amplitude: FloatInRange
+  fm_signal:
+    type: Input
+    datatype: audio
+  amplitude:
+    type: FloatInRange
     min: 0
     max: 1
     default: 1
-  fm_strength: FloatInRange
+  fm_strength:
+    type: FloatInRange
     min: 0
     max: 2
     default: 0.5
@@ -27,28 +32,28 @@ gui:
   width: 2
   height: 4
   widgets:
-    Input:
+    - type: Input
       y: 0
       control: pitch
       label: Pitch
       tooltip: The frequency to repeat the waveform at
-    Input:
+    - type: Input
       y: 1
       control: waveform
       label: Waveform
       tooltip: The waveform to repeatedly play
-    Input:
+    - type: Input
       y: 2
       control: fm_signal
       label: Modulation
       tooltip: The signal which modulates the frequency
-    Knob:
+    - type: Knob
       x: 0
       y: 0
       control: amplitude
       label: Amplitude
       tooltip: How loud the output should be
-    Knob:
+    - type: Knob
       x: 0
       y: 2
       control: fm_strength

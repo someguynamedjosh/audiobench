@@ -17,8 +17,8 @@ pub struct OptionChoiceControl {
 impl OptionChoiceControl {
     pub fn from_yaml(mut yaml: YamlNode) -> Result<Self, String> {
         let mut options = Vec::new();
-        for (name, child) in yaml.map_entry("options")?.map_entries()? {
-            options.push(name);
+        for child in yaml.map_entry("options")?.list_entries()? {
+            options.push(child.value()?.to_owned());
         }
         if options.len() < 2 {
             return Err(format!(

@@ -37,7 +37,7 @@ pub(super) fn create_module_template_from_yaml(
         .map_entry("height")?
         .parse_ranged(Some(0), None)?;
     let mut widgets = Vec::new();
-    for (key, description) in widgets_description.map_entries()? {
+    for description in widgets_description.list_entries()? {
         widgets.push(WidgetOutline::from_yaml(
             description,
             icon_indexes,
@@ -47,7 +47,7 @@ pub(super) fn create_module_template_from_yaml(
 
     let mut outputs = Vec::new();
     for (key, mut output_description) in yaml.map_entry("outputs")?.map_entries()? {
-        let type_name_entry = output_description.map_entry("type")?;
+        let type_name_entry = output_description.map_entry("datatype")?;
         let type_name = type_name_entry.value()?;
         let typ = ep::JackType::from_str(type_name)
             .map_err(|_| format!("ERROR: {} is not a valid output type.", type_name))?;

@@ -78,7 +78,7 @@ pub struct InputControl {
 
 impl InputControl {
     pub fn from_yaml(mut yaml: YamlNode) -> Result<Self, String> {
-        let typ = JackType::from_yaml(&yaml.map_entry("type")?)?;
+        let typ = JackType::from_yaml(&yaml.map_entry("datatype")?)?;
         let default = if let Ok(child) = yaml.map_entry("default") {
             let mut names = Vec::new();
             for option in default_option_descriptions_for(typ) {

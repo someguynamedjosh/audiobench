@@ -1,29 +1,35 @@
 save_id: 4
 outputs:
   audio:
-    type: audio
+    datatype: audio
     label: Signal 
     tooltip: Signal output
 controls:
-  waveform: Input
-    type: waveform
+  waveform:
+    type: Input
+    datatype: waveform
     default: sine_wave
-  strength: FloatInRange
+  strength:
+    type: FloatInRange
     min: 0
     max: 1
     default: 1
-  offset: FloatInRange
+  offset:
+    type: FloatInRange
     min: -1
     max: 1
     default: 0
-  timing_mode: TimingMode
-  cycle_time: Duration
+  timing_mode:
+    type: TimingMode
+  cycle_time:
+    type: Duration
     default: 1.0
-  strength_mode: OptionChoice
+  strength_mode:
+    type: OptionChoice
     options:
-      Max:
-      Mid:
-      Min:
+      - Max
+      - Mid
+      - Min
     default: 2
 gui: 
   label: LFO
@@ -32,41 +38,41 @@ gui:
   width: 8
   height: 4
   widgets:
-    Input:
+    - type: Input
       y: 0
       control: waveform
       label: Waveform
       tooltip: The waveform to repeatedly play
-    TimingSelector:
+    - type: TimingSelector
       x: 4
       y: 2
       control: timing_mode
-    DurationBox:
+    - type: DurationBox
       x: 6
       y: 2
       duration_control: cycle_time
       mode_control: timing_mode
       label: Cycle Time
       tooltip: How long the LFO takes to cycle through the waveform once
-    WaveformGraph:
+    - type: WaveformGraph
       x: 4
       y: 0
       w: 4
       h: 2
       feedback_name: graph_feedback
-    Knob:
+    - type: Knob
       x: 2
       y: 2
       control: offset
       label: Offset
       tooltip: Where in the waveform the LFO should start playing
-    Knob:
+    - type: Knob
       x: 2
       y: 0
       control: strength
       label: Strength
       tooltip: How strong the output should be
-    OptionBox:
+    - type: OptionBox
       x: 0
       y: 0
       w: 2

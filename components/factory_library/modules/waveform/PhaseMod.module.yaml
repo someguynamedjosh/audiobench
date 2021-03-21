@@ -1,17 +1,20 @@
 save_id: 13
 outputs:
   waveform:
-    type: waveform
+    datatype: waveform
     label: Waveform
     tooltip: The modulated waveform
 controls:
-  carrier: Input
-    type: waveform
+  carrier:
+    type: Input
+    datatype: waveform
     default: sine_wave
-  modulator: Input
-    type: waveform
+  modulator:
+    type: Input
+    datatype: waveform
     default: sine_wave
-  intensity: FloatInRange
+  intensity:
+    type: FloatInRange
     min: 0
     max: 1
     default: 0.5
@@ -22,17 +25,17 @@ gui:
   width: 2
   height: 2
   widgets:
-    Input:
+    - type: Input
       y: 0
       control: carrier
       label: Carrier
       tooltip: The base waveform which will be modulated
-    Input:
+    - type: Input
       y: 1
       control: modulator
       label: Modulator
       tooltip: The waveform that will control the phase of the carrier
-    Knob:
+    - type: Knob
       x: 0
       y: 0
       control: intensity

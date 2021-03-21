@@ -1,24 +1,29 @@
 save_id: 7
 outputs:
   audio:
-    type: audio
+    datatype: audio
     label: Noise
     tooltip: Noise output
 controls:
-  amplitude: FloatInRange
+  amplitude:
+    type: FloatInRange
     min: 0
     max: 1
     default: 1
-  delay_mul: FloatInRange
+  delay_mul:
+    type: FloatInRange
     min: 0
     max: 1
     default: 1
-  timing_mode: TimingMode
-  max_delay: Duration
-  smooth_mode: OptionChoice
+  timing_mode:
+    type: TimingMode
+  max_delay:
+    type: Duration
+  smooth_mode: 
+    type: OptionChoice
     options:
-      Sharp:
-      Smooth:
+      - Sharp
+      - Smooth
     default: 1
 gui:
   label: Noise
@@ -27,13 +32,13 @@ gui:
   width: 8
   height: 4
   widgets:
-    Knob:
+    - type: Knob
       x: 2
       y: 0
       control: amplitude
       label: Amplitude
       tooltip: How loud/strong the output should be
-    OptionBox:
+    - type: OptionBox
       x: 0
       y: 0
       w: 2
@@ -41,23 +46,23 @@ gui:
       control: smooth_mode
       label: Mode
       tooltip: Whether to transition smoothly or abruptly to the next value in the sequence
-    Knob:
+    - type: Knob
       x: 2
       y: 2
       control: delay_mul
       label: Delay Mul.
       tooltip: Controls the amount of time between each value, ranging from 0 to Max Delay
-    WaveformGraph:
+    - type: WaveformGraph
       x: 4
       y: 0
       w: 4
       h: 2
       feedback_name: graph_feedback
-    TimingSelector:
+    - type: TimingSelector
       x: 4
       y: 2
       control: timing_mode
-    DurationBox:
+    - type: DurationBox
       x: 6
       y: 2
       duration_control: max_delay

@@ -1,21 +1,23 @@
 save_id: 3
 outputs:
   waveform:
-    type: waveform
+    datatype: waveform
     label: Waveform
     tooltip: The generated waveform
 controls:
-  choice: OptionChoice
+  choice: 
+    type: OptionChoice
     options:
-      Sine:
-      Square:
-      Triangle:
-      Power:
-      Hex:
-      Chirp:
-      Random:
-      Steps:
-  parameter: FloatInRange
+      - Sine
+      - Square
+      - Triangle
+      - Power
+      - Hex
+      - Chirp
+      - Random
+      - Steps
+  parameter:
+    type: FloatInRange
     min: 0.0
     max: 1.0
     default: 0.5
@@ -26,7 +28,7 @@ gui:
   width: 5
   height: 3
   widgets:
-    OptionIconGrid:
+    - type: OptionIconGrid
       control: choice
       icons: Factory:sine_wave, Factory:square_wave, Factory:triangle_wave, Factory:power_wave, Factory:waveform, Factory:waveform, Factory:waveform, Factory:waveform
       label: Shape
@@ -35,7 +37,7 @@ gui:
       y: 0
       w: 3
       h: 3
-    Knob:
+    - type: Knob
       control: parameter
       label: Parameter
       tooltip: Has different effects depending on the selected shape.
