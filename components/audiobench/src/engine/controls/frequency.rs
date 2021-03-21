@@ -17,8 +17,8 @@ impl FrequencyControl {
     pub const MIN_FREQUENCY: f32 = 0.0003;
     pub const MAX_FREQUENCY: f32 = 99_999.999;
 
-    pub fn from_yaml(yaml: &YamlNode) -> Result<Self, String> {
-        let value = if let Ok(child) = yaml.unique_child("default") {
+    pub fn from_yaml(mut yaml: YamlNode) -> Result<Self, String> {
+        let value = if let Ok(child) = yaml.map_entry("default") {
             child.parse_ranged(Some(Self::MIN_FREQUENCY), None)?
         } else {
             1.0

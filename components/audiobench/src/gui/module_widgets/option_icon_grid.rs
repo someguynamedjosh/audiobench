@@ -30,7 +30,7 @@ pub struct IconList(Vec<usize>);
 
 impl IconList {
     pub fn from_yaml(
-        node: Option<&YamlNode>,
+        node: Option<YamlNode>,
         icon_indexes: &HashMap<String, usize>,
     ) -> Result<IconList, String> {
         let node = node.ok_or_else(|| format!("Missing child 'icons'"))?;

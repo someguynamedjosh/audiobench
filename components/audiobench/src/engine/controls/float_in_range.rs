@@ -25,19 +25,20 @@ pub struct FloatInRangeControl {
 }
 
 impl FloatInRangeControl {
-    pub fn from_yaml(yaml: &YamlNode) -> Result<Self, String> {
-        let min = yaml.unique_child("min")?.parse()?;
-        let max = yaml.unique_child("max")?.parse_ranged(Some(min), None)?;
-        let default = if let Ok(child) = yaml.unique_child("default") {
+    pub fn from_yaml(mut yaml: YamlNode) -> Result<Self, String> {
+        let min = yaml.map_entry("min")?.parse()?;
+        let max = yaml.map_entry("max")?.parse_ranged(Some(min), None)?;
+        let default = if let Ok(child) = yaml.map_entry("default") {
             let default = child.parse_ranged(Some(min), Some(max))?;
             default
         } else {
             min
         };
-        let suffix = yaml
-            .unique_child("suffix")
-            .map(|child| child.value.clone())
-            .unwrap_or("".to_owned());
+        let suffix = if let Ok(child) = yaml.map_entry("suffix") {
+            child.value()?.to_owned()
+        } else {
+            "".to_owned()
+        };
         Ok(Self {
             range: (min, max),
             value: default,

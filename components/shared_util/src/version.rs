@@ -49,18 +49,20 @@ impl Display for Version {
 }
 
 impl FromStr for Version {
-    type Err = ();
+    type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let parts: Vec<_> = s.split('.').collect();
         if parts.len() != 3 {
-            return Err(());
+            return Err(format!("Expected 3 numbers, got {} instead.", parts.len()));
         }
-        let maj = parts[0].parse().map_err(|_| ())?;
-        let min = parts[1].parse().map_err(|_| ())?;
-        let patch = parts[2].parse().map_err(|_| ())?;
+        let maj = *parts[0].parse().as_ref().map_err(ToString::to_string)?;
+        let min = *parts[1].parse().as_ref().map_err(ToString::to_string)?;
+        let patch = *parts[2].parse().as_ref().map_err(ToString::to_string)?;
         if maj >= 16 || min >= 32 || patch >= 128 {
-            return Err(());
+            return Err(format!(
+                "Version is too big. Major must be below 16, minor below 32, and patch below 128."
+            ));
         }
         Ok(Self { maj, min, patch })
     }

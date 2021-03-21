@@ -14,7 +14,7 @@ pub struct ValueSequenceControl {
 }
 
 impl ValueSequenceControl {
-    pub fn from_yaml(_yaml: &YamlNode) -> Result<Self, String> {
+    pub fn from_yaml(mut _yaml: YamlNode) -> Result<Self, String> {
         Ok(Self {
             sequence: vec![1.0, -1.0, -1.0, -1.0],
         })
