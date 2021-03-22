@@ -97,7 +97,7 @@ create a mutable buffer that is later written to:
 ```julia
 output = similar(MonoAudio)
 for s in sample_indices(MonoAudio)
-    output = Float32(s)
+    output[1, s] = Float32(s)
 end
 ```
 If your data is dependent on a number of controls on your module, it is a good
