@@ -12,7 +12,6 @@ yaml_widget_boilerplate::make_widget_outline! {
         pos: GridPos,
         size: GridSize,
     ),
-    // 42 pixels wide on normal zoom, +2 for cursor.
     feedback: ManualValue,
 }
 

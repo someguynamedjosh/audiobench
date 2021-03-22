@@ -33,26 +33,17 @@ impl IconList {
         node: Option<YamlNode>,
         icon_indexes: &HashMap<String, usize>,
     ) -> Result<IconList, String> {
-        let node = node.ok_or_else(|| format!("Missing child 'icons'"))?;
+        let mut node = node.ok_or_else(|| format!("Missing child 'icons'"))?;
         let mut icon_names: Vec<&str> = icon_indexes.keys().map(|k| &k[..]).collect();
         icon_names.sort_unstable(); // This is purely for the sake of a nicer error message.
-        let icon_indexes = node.parse_custom(|content| {
-            let pieces = content.split(',');
-            pieces
-                .map(|piece| {
-                    if let Some(index) = icon_indexes.get(piece.trim()) {
-                        Ok(*index)
-                    } else {
-                        Err(format!(
-                            "{} is not a valid icon name, expected one of: {}",
-                            piece,
-                            icon_names.join(", ")
-                        ))
-                    }
-                })
-                .collect()
-        })?;
-        Ok(Self(icon_indexes))
+        let mut result = Vec::new();
+        for child in node.list_entries()? {
+            let name_index = child.parse_enumerated(&icon_names[..])?;
+            let name = icon_names[name_index];
+            let &real_index = icon_indexes.get(name).unwrap();
+            result.push(real_index);
+        }
+        Ok(Self(result))
     }
 }
 

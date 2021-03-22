@@ -239,6 +239,32 @@ end
 The value of the phase argument *must* be between `0f0` and `1f0` or you may
 get nonsensical results.
 
+## Feedback Data
+Some widgets have a property called `feedback_name` which indicates that it can
+receive values back from Julia to display in a friendly way to the user. For
+example, the `TriggerSequence` widget accepts a floating point value to display
+as a playhead along the sequence so the user can see what part of the sequence
+is currrently being used by the module. At the moment all feedback data comes
+in the form of `Vector{Float32}`s, so code to send feedback will look like this:
+```julia
+push!(chosen_feedback_name, playhead_progress)
+```
+It would be inefficient to compute this data during every call to `exec()` since
+it is called much faster than the display's framerate, and additionally only one
+note's feedback data could ever be viewed at a time. For this reason, there
+is a variable available called `do_feedback` which is only occasionally true.
+Code to provide feedback data should follow this pattern:
+```julia
+if do_feedback
+    value_to_display = some_complicated_computation()
+    push!(chosen_feedback_name, value_to_display)
+end
+```
+This behavior is deliberately a part of the `exec()` function rather than being
+contained in a seperate function so that you can display actual data that is
+being computed without having to manually store it for when a seperate feedback
+function was called.
+
 ## Helper Methods
 ```julia
 # Audio type to sample type
