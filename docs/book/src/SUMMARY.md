@@ -10,3 +10,4 @@
         - [Audiobench-Specific Julia Patterns](./making_libraries/audiobench_and_julia.md)
         - [The .module.jl File](./making_libraries/custom_modules_julia.md)
         - [The .module.yaml File](./making_libraries/custom_modules_yaml.md)
+        - [List Of Controls](./making_libraries/module_controls.md)
