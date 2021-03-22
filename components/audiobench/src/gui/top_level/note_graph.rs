@@ -15,7 +15,6 @@ scui::widget! {
 
 impl NoteGraph {
     pub fn new(parent: &impl NoteGraphParent) -> Rc<Self> {
-        let this = Rc::new(Self::create(parent, NoteGraphState {}));
         let inter = parent.provide_gui_interface();
         let state = inter.state.borrow();
         let engine = state.engine.borrow();
@@ -61,6 +60,10 @@ impl WidgetImpl<Renderer, DropTarget> for NoteGraph {
 }
 
 impl GuiTab for Rc<NoteGraph> {
+    fn get_name(self: &Self) -> String {
+        format!("Module Graph")
+    }
+
     fn get_archetype(&self) -> TabArchetype {
         TabArchetype::NoteGraph
     }

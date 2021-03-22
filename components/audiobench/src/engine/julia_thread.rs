@@ -56,7 +56,7 @@ pub(super) fn entry(
     let mut executor = match executor {
         Ok(value) => value,
         Err(err) => {
-            error_report_pipe.send(err);
+            error_report_pipe.send(err).unwrap();
             comms.julia_thread_status.store(Status::Error);
             panic!("Unrecoverable error.");
         }
@@ -70,7 +70,7 @@ pub(super) fn entry(
             )
         });
     if let Err(err) = res {
-        error_report_pipe.send(err);
+        error_report_pipe.send(err).unwrap();
         comms.julia_thread_status.store(Status::Error);
         panic!("Unrecoverable error.");
     }
@@ -101,8 +101,6 @@ struct JuliaThread {
     error_report_pipe: Sender<String>,
 }
 
-// TODO: Preheat JIT unimplemented!()
-
 impl JuliaThread {
     fn set_status(&self, status: Status) {
         self.comms.julia_thread_status.store(status);
@@ -123,8 +121,6 @@ impl JuliaThread {
                     if msg.is_err() {
                         break;
                     }
-                    // Drain the channel of extra requests before polling comms.
-                    while let Ok(_) = self.poll_pipe.try_recv() { }
                     self.poll_comms();
                 }
             }
@@ -134,13 +130,13 @@ impl JuliaThread {
     }
 
     fn report_julia_error(&mut self, message: String) {
-        self.error_report_pipe.send(message);
+        self.error_report_pipe.send(message).unwrap();
         self.set_status(Status::Error);
     }
 
     fn poll_comms(&mut self) {
-        self.set_status(Status::Busy);
         if let Some(_) = self.comms.new_global_params.take() {
+            self.set_status(Status::Busy);
             let params = self.comms.global_params.load();
             let result = self.executor.change_parameters(&params);
             if let Err(err) = result {
@@ -148,11 +144,13 @@ impl JuliaThread {
                     "Failed to load new parameter code, see message log for details.\n\n{}",
                     err
                 );
-                let message = self.report_julia_error(message);
+                self.report_julia_error(message);
                 panic!("Unrecoverable error.");
             }
             self.global_params = params;
+            self.preheat();
         } else if let Some((code, dyn_data)) = self.comms.new_note_graph_code.take() {
+            self.set_status(Status::Busy);
             self.notes.silence_all();
             self.dyn_data = dyn_data;
             let res = self.executor.change_generated_code(code);
@@ -164,39 +162,44 @@ impl JuliaThread {
                 self.report_julia_error(message);
                 panic!("Unrecoverable error.");
             }
+            self.preheat();
         } else if let Some(data) = self.comms.new_dyn_data.take() {
             self.dyn_data = data;
         }
     }
 
+    fn preheat(&mut self) {
+        let result = self.executor.preheat(&mut self.notes, &self.dyn_data[..]);
+        if let Err(err) = result {
+            let message = format!(
+                "Encountered Julia error while executing, see message log for details.\n\n{}",
+                err
+            );
+            // This error is "recoverable"
+            self.report_julia_error(message);
+        }
+    }
+
     fn render(&mut self, global_data: GlobalData, do_feedback: bool) {
         self.set_status(Status::Rendering);
+        let view_index = self.comms.module_view_index.load();
         let mut nel = self.comms.note_events.lock().unwrap();
-        let note_events = std::mem::replace(&mut *nel, Default::default());
+        let note_events = std::mem::take(&mut *nel);
         drop(nel);
+        self.notes.set_dummy_note_active(
+            self.comms.do_dummy_note.load() || self.comms.do_dummy_note_once.load(),
+        );
         for event in note_events {
             match event {
-                NoteEvent::StartNote { index, velocity } => {
-                    let static_index = self.notes.start_note(index, velocity);
-                    let result = self.executor.reset_static_data(static_index);
-                    if let Err(err) = result {
-                        let message = format!(
-                            "Encountered Julia error, see message log for details.\n\n{}",
-                            err
-                        );
-                        self.report_julia_error(message);
-                        // This error is "recoverable"
-                    }
-                }
-                NoteEvent::ReleaseNote { index } => {
-                    self.notes.release_note(index);
-                }
+                NoteEvent::StartNote { index, velocity } => self.notes.start_note(index, velocity),
+                NoteEvent::ReleaseNote { index } => self.notes.release_note(index),
             }
         }
 
         let mut output = vec![0.0; self.global_params.channels * self.global_params.buffer_length];
         let result = self.executor.execute(
             do_feedback,
+            view_index,
             &global_data,
             &mut self.notes,
             &self.dyn_data[..],
@@ -215,6 +218,7 @@ impl JuliaThread {
             }
         };
         if new_feedback_data.is_some() {
+            self.comms.do_dummy_note_once.store(false);
             self.comms.new_feedback.store(new_feedback_data);
         }
         self.audio_response_pipe

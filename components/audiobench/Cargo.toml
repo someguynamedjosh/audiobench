@@ -1,6 +1,6 @@
 [package]
 name = "audiobench"
-version = "0.2.1"
+version = "0.2.2"
 authors = ["joshua-maros <60271685+joshua-maros@users.noreply.github.com>"]
 edition = "2018"
 
@@ -19,6 +19,7 @@ enumflags2 = "0.6"
 jlrs = { git="https://github.com/joshua-maros/jlrs" }
 jlrs-derive = "0.2"
 julia_helper = { path = "../julia_helper" }
+observatory = "0.1.7"
 owning_ref = "^0.4.1"
 paste = "^1.0.4"
 rand = "0.7"
@@ -31,6 +32,7 @@ shared_util = { path = "../shared_util" }
 single_value_channel = "1.2"
 tempfile = "^3.1.0"
 webbrowser = "0.5"
+yaml-rust = { git = "https://github.com/joshua-maros/yaml-rust", features=["strict"] }
 yaml_widget_boilerplate = { path = "../yaml_widget_boilerplate" }
 zip = "0.5"
 

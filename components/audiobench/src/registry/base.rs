@@ -64,8 +64,7 @@ impl Registry {
         let template = super::module_template::create_module_template_from_yaml(
             &self.icon_indexes,
             lib_name.clone(),
-            module_id.clone(),
-            &yaml,
+            yaml,
         )
         .map_err(|err| {
             format!(
@@ -142,9 +141,9 @@ impl Registry {
         buffer: Vec<u8>,
     ) -> Result<(), String> {
         let patch = if let Some(full_path) = full_path {
-            Patch::load_writable(full_path, &buffer[..], &self)
+            Patch::load_writable(full_path, &buffer[..])
         } else {
-            Patch::load_readable(name.to_owned(), &buffer[..], &self)
+            Patch::load_readable(name.to_owned(), &buffer[..])
         }
         .map_err(|err| {
             format!(

@@ -6,13 +6,14 @@ use crate::{
             DynDataCollector, FeedbackData, FeedbackDisplayer, GlobalData, GlobalParameters,
         },
         julia_thread,
-        parts::ModuleGraph,
+        parts::{Module, ModuleGraph},
     },
     registry::{save_data::Patch, Registry},
 };
 use crossbeam_channel::{Receiver, Sender, TrySendError};
 use crossbeam_utils::atomic::AtomicCell;
 use julia_helper::GeneratedCode;
+use observatory::{observable, ObservablePtr};
 use shared_util::prelude::*;
 use std::{
     sync::Mutex,
@@ -31,7 +32,7 @@ struct UiThreadData {
     module_graph: Rcrc<ModuleGraph>,
     dyn_data_collector: DynDataCollector,
     feedback_displayer: FeedbackDisplayer,
-    current_patch_save_data: Rcrc<Patch>,
+    current_patch_save_data: ObservablePtr<Rcrc<Patch>>,
     posted_errors: Vec<String>,
     julia_errors: Receiver<String>,
 }
@@ -43,6 +44,9 @@ pub(super) struct Communication {
     pub new_note_graph_code: AtomicCell<Option<(GeneratedCode, Vec<IOData>)>>,
     pub new_dyn_data: AtomicCell<Option<Vec<IOData>>>,
     pub new_feedback: AtomicCell<Option<FeedbackData>>,
+    pub do_dummy_note: AtomicCell<bool>,
+    pub do_dummy_note_once: AtomicCell<bool>,
+    pub module_view_index: AtomicCell<usize>,
 
     pub global_params: AtomicCell<GlobalParameters>,
     pub note_events: Mutex<Vec<julia_thread::NoteEvent>>,
@@ -51,7 +55,6 @@ pub(super) struct Communication {
 }
 
 struct AudioThreadData {
-    audio_buffer: Vec<f32>,
     global_data: GlobalData,
     last_feedback_data_update: Instant,
     audio_response_output: Receiver<julia_thread::AudioResponse>,
@@ -96,7 +99,7 @@ pub fn new_engine(
         code,
         dyn_data_collector,
         feedback_displayer,
-        data_format,
+        ..
     } = codegen::generate_code(&module_graph, &global_params).map_err(|_| {
         format!(concat!(
             "Default patch contains feedback loops!\n",
@@ -116,13 +119,12 @@ pub fn new_engine(
         module_graph: rcrc(module_graph),
         dyn_data_collector,
         feedback_displayer,
-        current_patch_save_data: default_patch,
+        current_patch_save_data: observable(default_patch),
         posted_errors: Vec::new(),
         julia_errors: jerroro,
     };
 
     let atd = AudioThreadData {
-        audio_buffer: vec![0.0; data_format.global_params.buffer_length * 2],
         global_data: GlobalData::new(),
         last_feedback_data_update: Instant::now(),
         audio_response_output: audio_reso,
@@ -136,6 +138,9 @@ pub fn new_engine(
         new_note_graph_code: Default::default(),
         new_dyn_data: Default::default(),
         new_feedback: Default::default(),
+        do_dummy_note: AtomicCell::new(false),
+        do_dummy_note_once: AtomicCell::new(false),
+        module_view_index: AtomicCell::new(0),
 
         global_params: AtomicCell::new(global_params),
         note_events: Default::default(),
@@ -182,10 +187,15 @@ impl UiThreadEngine {
     }
 
     pub fn rename_current_patch(&mut self, name: String) {
-        assert!(self.data.current_patch_save_data.borrow().is_writable());
-        let mut patch_ref = self.data.current_patch_save_data.borrow_mut();
+        assert!(self
+            .data
+            .current_patch_save_data
+            .borrow_untracked()
+            .borrow()
+            .is_writable());
+        let patch_ref_ref = self.data.current_patch_save_data.borrow_untracked();
+        let mut patch_ref = patch_ref_ref.borrow_mut();
         patch_ref.set_name(name);
-        patch_ref.write().unwrap();
     }
 
     pub fn post_error(&mut self, message: String) {
@@ -205,29 +215,40 @@ impl UiThreadEngine {
     }
 
     pub fn save_current_patch(&mut self) {
-        assert!(self.data.current_patch_save_data.borrow().is_writable());
-        let mut patch_ref = self.data.current_patch_save_data.borrow_mut();
+        assert!(self
+            .data
+            .current_patch_save_data
+            .borrow_untracked()
+            .borrow()
+            .is_writable());
+        let patch_ref_ref = self.data.current_patch_save_data.borrow_untracked();
+        let mut patch_ref = patch_ref_ref.borrow_mut();
         let reg = self.data.registry.borrow();
         patch_ref.save_note_graph(&*self.data.module_graph.borrow(), &*reg);
         patch_ref.write().unwrap();
     }
 
-    pub fn borrow_current_patch(&self) -> &Rcrc<Patch> {
+    pub fn borrow_current_patch(&self) -> &ObservablePtr<Rcrc<Patch>> {
         &self.data.current_patch_save_data
     }
 
     pub fn serialize_current_patch(&self) -> String {
-        let mut patch_ref = self.data.current_patch_save_data.borrow_mut();
+        let patch_ref_ref = self.data.current_patch_save_data.borrow_untracked();
+        let patch_ref = patch_ref_ref.borrow();
         let reg = self.data.registry.borrow();
-        patch_ref.save_note_graph(&*self.data.module_graph.borrow(), &*reg);
-        patch_ref.serialize()
+        // Use a dummy patch so we don't overwrite the actual save data of the current patch without
+        // the user explicitly clicking 'save'.
+        let mut dummy_patch = Patch::new_dummy(patch_ref.borrow_name().to_owned());
+        dummy_patch.save_note_graph(&*self.data.module_graph.borrow(), &*reg);
+        dummy_patch.serialize()
     }
 
-    pub fn save_current_patch_with_new_name(&mut self) -> &Rcrc<Patch> {
+    pub fn save_current_patch_with_new_name(&mut self) {
         let mut reg = self.data.registry.borrow_mut();
-        let patch = self.borrow_current_patch().borrow();
+        let patch_ref_ref = self.data.current_patch_save_data.borrow_untracked();
+        let patch_ref = patch_ref_ref.borrow();
 
-        let mut name = shared_util::increment_name(patch.borrow_name());
+        let mut name = shared_util::increment_name(patch_ref.borrow_name());
         let mut original = false;
         while !original {
             original = true;
@@ -248,38 +269,50 @@ impl UiThreadEngine {
         new_patch_ref.save_note_graph(&*self.data.module_graph.borrow(), &*reg);
         new_patch_ref.write().unwrap();
         drop(new_patch_ref);
-        drop(patch);
+        drop(patch_ref);
+        drop(patch_ref_ref);
         drop(reg);
         // Don't reload anything because we are just copying the current patch data.
-        self.data.current_patch_save_data = new_patch;
-        &self.data.current_patch_save_data
+        self.data.current_patch_save_data.set(new_patch);
     }
 
-    pub fn new_patch_from_clipboard(
-        &mut self,
-        clipboard_data: &[u8],
-    ) -> Result<&Rcrc<Patch>, String> {
+    pub fn new_patch_from_clipboard(&mut self, clipboard_data: &[u8]) -> Result<(), ()> {
         let mut reg = self.data.registry.borrow_mut();
         let new_patch = Rc::clone(reg.create_new_user_patch());
         let mut new_patch_ref = new_patch.borrow_mut();
-        new_patch_ref.deserialize(clipboard_data)?;
+        let res = new_patch_ref.deserialize(clipboard_data);
+        if let Err(err) = res {
+            drop(new_patch_ref);
+            drop(reg);
+            self.post_error(err);
+            return Err(());
+        }
         let name = format!("{} (pasted)", new_patch_ref.borrow_name());
         new_patch_ref.set_name(name);
         drop(new_patch_ref);
         drop(reg);
-        self.load_patch(Rc::clone(&new_patch))
-            .map_err(|_| format!("ERROR: Patch data is corrupt."))?;
-        Ok(&self.data.current_patch_save_data)
+        let res = self.load_patch(Rc::clone(&new_patch));
+        if let Err(..) = res {
+            self.post_error(format!("ERROR: Patch data is corrupt."));
+            return Err(());
+        }
+        Ok(())
     }
 
     pub fn load_patch(&mut self, patch: Rcrc<Patch>) -> Result<(), ()> {
         let reg = self.data.registry.borrow();
-        self.data.current_patch_save_data = patch;
-        self.data
+        self.data.current_patch_save_data.set(patch);
+        let res = self
+            .data
             .current_patch_save_data
+            .borrow_untracked()
             .borrow()
-            .restore_note_graph(&mut *self.data.module_graph.borrow_mut(), &*reg)?;
+            .restore_note_graph(&mut *self.data.module_graph.borrow_mut(), &*reg);
         drop(reg);
+        if let Err(..) = res {
+            self.post_error(format!("ERROR: Patch data is corrupt."));
+            return Err(());
+        }
         self.data.module_graph.borrow().rebuild_widget();
         self.regenerate_code();
         Ok(())
@@ -315,6 +348,7 @@ impl UiThreadEngine {
         let data = self.data.dyn_data_collector.collect();
         self.comms.new_dyn_data.store(Some(data));
         self.comms.julia_poll_pipe.send(()).unwrap();
+        self.set_dummy_note_active(true);
     }
 
     /// Feedback data is generated on the audio thread. This method uses a mutex to retrieve that
@@ -328,6 +362,41 @@ impl UiThreadEngine {
                 self.data.feedback_displayer.display(data, widget);
             }
         }
+    }
+
+    pub fn set_dummy_note_active(&self, should_be_active: bool) {
+        self.comms.do_dummy_note.store(should_be_active);
+    }
+
+    pub fn activate_dummy_note_once(&self) {
+        self.set_dummy_note_active(false);
+        self.comms.do_dummy_note_once.store(true);
+    }
+
+    pub fn set_module_view(&self, module: &Rcrc<Module>) {
+        let index = self
+            .data
+            .module_graph
+            .borrow()
+            .borrow_modules()
+            .iter()
+            .position(|other| Rc::ptr_eq(module, other));
+        if let Some(index) = index {
+            self.comms.module_view_index.store(index);
+        }
+    }
+
+    pub fn virtual_keyboard_note(&self, index: usize, down: bool) {
+        let mut events = self.comms.note_events.lock().unwrap();
+        let event = if down {
+            julia_thread::NoteEvent::StartNote {
+                index,
+                velocity: 1.0,
+            }
+        } else {
+            julia_thread::NoteEvent::ReleaseNote { index }
+        };
+        events.push(event);
     }
 }
 
@@ -394,6 +463,8 @@ impl AudioThreadEngine {
             self.data.last_feedback_data_update = Instant::now();
         }
 
+        // The thread will only be marked as busy if it is doing something that takes a long time,
+        // e.g. compiling code.
         let mut ready = self.comms.julia_thread_status.load().is_ready();
         if ready {
             let data = self.data.global_data.clone();

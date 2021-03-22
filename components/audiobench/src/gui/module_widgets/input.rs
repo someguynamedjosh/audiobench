@@ -8,7 +8,7 @@ use crate::{
         controls::{Control, InputControl},
         UiThreadEngine,
     },
-    registry::{yaml::YamlNode, Registry},
+    registry::yaml::YamlNode,
 };
 use scui::{MouseBehavior, MouseMods, Vec2D, Widget, WidgetImpl};
 use shared_util::prelude::*;
@@ -31,7 +31,7 @@ pub struct OptionalIcon(Option<usize>);
 
 impl OptionalIcon {
     pub fn from_yaml(
-        node: Option<&YamlNode>,
+        node: Option<YamlNode>,
         icon_indexes: &HashMap<String, usize>,
     ) -> Result<OptionalIcon, String> {
         if let Some(node) = node {
@@ -137,8 +137,8 @@ impl WidgetImpl<Renderer, DropTarget> for Input {
 
     fn get_mouse_behavior_impl(
         self: &Rc<Self>,
-        pos: Vec2D,
-        mods: &MouseMods,
+        _pos: Vec2D,
+        _mods: &MouseMods,
     ) -> MaybeMouseBehavior {
         let engine = self.with_gui_state(|state| Rc::clone(&state.engine));
         let control = Rc::clone(&self.state.borrow().control);

@@ -26,9 +26,13 @@ extern "C" {
     int ABUiGetNumIcons(ABInstanceRef);
     void ABUiGetIconData(ABInstanceRef, int iconIndex, void **dataBufferPtr, int *sizePtr);
     float *ABAudioSetGlobalParameters(ABInstanceRef, int, int);
+
+    void ABAudioSerializePatch(ABInstanceRef, char**, uint32_t*);
     void ABUiSerializePatch(ABInstanceRef, char**, uint32_t*);
-    void ABUiCleanupSerializedData(char*, uint32_t);
+    void ABCleanupSerializedData(char*, uint32_t);
+    void ABAudioDeserializePatch(ABInstanceRef, char*, uint32_t);
     void ABUiDeserializePatch(ABInstanceRef, char*, uint32_t);
+    void ABUiHandleCrossThreadHelp(ABInstanceRef);
 
     void ABAudioStartNote(ABInstanceRef, int, float);
     void ABAudioReleaseNote(ABInstanceRef, int);
@@ -48,4 +52,6 @@ extern "C" {
     void ABUiMouseUp(ABInstanceRef);
     void ABUiScroll(ABInstanceRef, float);
     void ABUiKeyPress(ABInstanceRef, char);
+    void ABUiKeyDown(ABInstanceRef, char);
+    void ABUiKeyUp(ABInstanceRef, char);
 }

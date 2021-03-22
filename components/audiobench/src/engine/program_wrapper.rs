@@ -1,8 +1,4 @@
-use crate::{
-    engine::data_transfer::{FeedbackData, GlobalData, GlobalParameters, IOData, NoteData},
-    gui::module_widgets::FeedbackMode,
-    registry::Registry,
-};
+use crate::engine::data_transfer::{FeedbackData, GlobalData, GlobalParameters, IOData, NoteData};
 use array_macro::array;
 use jlrs_derive::IntoJulia;
 use julia_helper::{DataType, ExecutionEngine, GeneratedCode, JuliaStruct, TypedArray, Value};
@@ -48,21 +44,69 @@ struct CompleteNoteData {
 }
 
 pub struct NoteTracker {
+    dummy_note: Option<CompleteNoteData>,
     held_notes: [Option<CompleteNoteData>; NUM_MIDI_NOTES],
     decaying_notes: Vec<CompleteNoteData>,
     reserved_static_indexes: HashSet<usize>,
+    static_indexes_to_reset: Vec<usize>,
 }
 
 impl NoteTracker {
     pub fn new() -> Self {
         Self {
+            dummy_note: None,
             held_notes: array![None; NUM_MIDI_NOTES],
             decaying_notes: Vec::new(),
             reserved_static_indexes: HashSet::new(),
+            static_indexes_to_reset: Vec::new(),
+        }
+    }
+
+    fn reserve_static_index(&mut self) -> usize {
+        let mut static_index = 0;
+        while self.reserved_static_indexes.contains(&static_index) {
+            static_index += 1;
+        }
+        self.reserved_static_indexes.insert(static_index);
+        self.static_indexes_to_reset.push(static_index);
+        static_index
+    }
+
+    pub fn start_dummy_note(&mut self) {
+        if self.dummy_note.is_none() {
+            let static_index = self.reserve_static_index();
+            self.dummy_note = Some(CompleteNoteData {
+                data: NoteData {
+                    pitch: 440.0,
+                    velocity: 1.0,
+                    elapsed_samples: 0,
+                    elapsed_beats: 0.0,
+                    start_trigger: true,
+                    release_trigger: false,
+                },
+                silent_samples: 0,
+                static_index,
+            });
+        }
+    }
+
+    pub fn stop_dummy_note(&mut self) {
+        if let Some(note) = self.dummy_note.take() {
+            self.reserved_static_indexes.remove(&note.static_index);
+        }
+    }
+
+    pub fn set_dummy_note_active(&mut self, should_be_active: bool) {
+        if should_be_active {
+            // Only sets up the dummy note if it was previouisly None.
+            self.start_dummy_note()
+        } else {
+            self.stop_dummy_note()
         }
     }
 
     pub fn silence_all(&mut self) {
+        self.stop_dummy_note();
         self.held_notes = array![None; NUM_MIDI_NOTES];
         self.decaying_notes.clear();
         self.reserved_static_indexes.clear();
@@ -73,16 +117,11 @@ impl NoteTracker {
         440.0 * (2.0f32).powf((index as i32 - 69) as f32 / 12.0)
     }
 
-    pub fn start_note(&mut self, index: usize, velocity: f32) -> usize {
-        if let Some(note) = &self.held_notes[index] {
-            return note.static_index;
+    pub fn start_note(&mut self, index: usize, velocity: f32) {
+        if self.held_notes[index].is_some() {
+            return;
         }
-        let mut static_index = 0;
-        while self.reserved_static_indexes.contains(&static_index) {
-            static_index += 1;
-        }
-        self.reserved_static_indexes.insert(static_index);
-        let static_index = static_index;
+        let static_index = self.reserve_static_index();
         self.held_notes[index] = Some(CompleteNoteData {
             data: NoteData {
                 pitch: Self::equal_tempered_tuning(index),
@@ -95,7 +134,6 @@ impl NoteTracker {
             silent_samples: 0,
             static_index,
         });
-        static_index
     }
 
     pub fn release_note(&mut self, index: usize) {
@@ -128,6 +166,11 @@ impl NoteTracker {
             note.data.elapsed_beats += buffer_beats;
             note.data.start_trigger = false;
         }
+        if let Some(note) = &mut self.dummy_note {
+            note.data.elapsed_samples += buffer_len;
+            note.data.elapsed_beats += buffer_beats;
+            note.data.start_trigger = false;
+        }
     }
 
     fn recommend_note_for_feedback(&self) -> Option<usize> {
@@ -151,18 +194,18 @@ impl NoteTracker {
                 return Some(note.static_index);
             }
         }
-        None
+        if let Some(note) = &self.dummy_note {
+            Some(note.static_index)
+        } else {
+            None
+        }
     }
 
     fn active_notes_mut(&mut self) -> impl Iterator<Item = &mut CompleteNoteData> {
-        // println!(
-        //     "{} held notes, {} decaying notes.",
-        //     self.held_notes.iter().filter(|i| i.is_some()).count(),
-        //     self.decaying_notes.len(),
-        // );
+        let dummy_iter = self.dummy_note.iter_mut();
         let held_iter = self.held_notes.iter_mut().filter_map(|o| o.as_mut());
         let decaying_iter = self.decaying_notes.iter_mut();
-        held_iter.chain(decaying_iter)
+        dummy_iter.chain(held_iter.chain(decaying_iter))
     }
 }
 
@@ -198,7 +241,7 @@ impl AudiobenchExecutor {
         let mut this = AudiobenchExecutor {
             base,
             // This is a quick and dirty way of getting the executor to rebuild when we use
-            // change_parameters later.
+            // change_parameters for the first time.
             parameters: GlobalParameters {
                 channels: 999,
                 buffer_length: 999,
@@ -264,13 +307,7 @@ impl AudiobenchExecutor {
         Ok(())
     }
 
-    /// If this returns false, you should not call reset_static_data or execute as they are
-    /// guaranteed to return errors.
-    pub fn is_generated_code_loaded(&self) -> bool {
-        self.loaded
-    }
-
-    pub fn reset_static_data(&mut self, index: usize) -> Result<(), String> {
+    fn reset_static_data(&mut self, index: usize) -> Result<(), String> {
         self.base.call_fn(
             &["Main", "Generated", "static_init"],
             |frame, inputs| {
@@ -281,20 +318,54 @@ impl AudiobenchExecutor {
         )
     }
 
+    // Runs the main function once to make sure everything is compiled.
+    pub fn preheat(&mut self, notes: &mut NoteTracker, dyn_data: &[IOData]) -> Result<(), String> {
+        let was_dummy_note_active = notes.dummy_note.is_some();
+        notes.start_dummy_note();
+        for index in std::mem::take(&mut notes.static_indexes_to_reset) {
+            self.reset_static_data(index)?;
+        }
+        let note = notes.dummy_note.as_ref().unwrap();
+        let note_input = NoteInput::from(&note.data, &self.parameters, 1.0);
+        let static_index = note.static_index;
+        let global_data = GlobalData::new();
+        self.base.call_fn(
+            &["Main", "Generated", "exec"],
+            |frame, inputs| {
+                inputs.append(&mut global_data.as_julia_values(frame)?);
+                inputs.push(Value::new(frame, false)?); // do_feedback
+                inputs.push(Value::new(frame, note_input)?);
+                inputs.push(Value::new(frame, static_index)?);
+                inputs.push(Value::new(frame, 0)?);
+                for item in dyn_data {
+                    inputs.push(item.as_julia_value(frame)?);
+                }
+                Ok(())
+            },
+            |frame, output| Ok(()),
+        )?;
+        notes.set_dummy_note_active(was_dummy_note_active);
+        Ok(())
+    }
+
     /// This handles everything from global setup, note iteration, program execution, note teardown,
-    /// and finally global teardown. Returns true if feedback data was updated.
+    /// and finally global teardown. Returns true if feedback data was updated. View index is which
+    /// module's outputs should be retrieved.
     pub fn execute(
         &mut self,
         do_feedback: bool,
+        view_index: usize,
         global_data: &GlobalData,
         notes: &mut NoteTracker,
         dyn_data: &[IOData],
         audio_output: &mut [f32],
     ) -> Result<Option<FeedbackData>, String> {
+        for index in std::mem::take(&mut notes.static_indexes_to_reset) {
+            self.reset_static_data(index)?;
+        }
+
         let channels = self.parameters.channels;
         let buf_len = self.parameters.buffer_length;
-        let sample_rate = self.parameters.sample_rate;
-        let buf_time = buf_len as f32 / sample_rate as f32;
         assert!(audio_output.len() == buf_len * channels);
 
         for i in 0..buf_len * channels {
@@ -308,6 +379,7 @@ impl AudiobenchExecutor {
         let mut feedback_data = None;
 
         let pitch_mul = (2.0f32).powf(global_data.pitch_wheel * 7.0 / 12.0);
+        let mut is_dummy = notes.dummy_note.is_some();
         for note in notes.active_notes_mut() {
             let note_input = NoteInput::from(&note.data, &self.parameters, pitch_mul);
             let static_index = note.static_index;
@@ -320,12 +392,54 @@ impl AudiobenchExecutor {
                     inputs.push(Value::new(frame, do_feedback)?);
                     inputs.push(Value::new(frame, note_input)?);
                     inputs.push(Value::new(frame, static_index)?);
+                    inputs.push(Value::new(frame, view_index)?);
                     for item in dyn_data {
                         inputs.push(item.as_julia_value(frame)?);
                     }
                     Ok(())
                 },
                 |frame, output| {
+                    if do_feedback {
+                        let julia_feedback = match output.get_nth_field(frame, 1) {
+                            Ok(v) => v,
+                            Err(err) => {
+                                return Ok(Err(format!(
+                                    "ERROR: Failed to retrieve feedback data, caused by:\n{:?}",
+                                    err
+                                )))
+                            }
+                        };
+                        let mut native_feedback = FeedbackData::default();
+                        for index in 0..julia_feedback.n_fields() {
+                            let field = julia_feedback.get_nth_field(frame, index)?;
+                            let field = field.cast::<TypedArray<'_, '_, f32>>()?;
+                            let field = field.inline_data(frame)?.into_slice();
+                            native_feedback.widget_feeback.push(Vec::from(field));
+                        }
+                        let julia_view_data= match output.get_nth_field(frame, 2) {
+                            Ok(v) => v,
+                            Err(err) => {
+                                return Ok(Err(format!(
+                                    "ERROR: Failed to retrieve output view data, caused by:\n{:?}",
+                                    err
+                                )))
+                            }
+                        };
+                        for index in 0..julia_view_data.n_fields() {
+                            let field = julia_view_data.get_nth_field(frame, index)?;
+                            let field = field.cast::<TypedArray<'_, '_, f32>>()?;
+                            let field = field.inline_data(frame)?.into_slice();
+                            native_feedback.output_view.push(Vec::from(field));
+                        }
+                        native_feedback.output_view_module_index = view_index;
+                        feedback_data = Some(native_feedback);
+                    }
+
+                    if is_dummy {
+                        // Don't process the audio of the dummy note.
+                        is_dummy = false;
+                        return Ok(Ok(()));
+                    }
                     // 0-based index, not Julia index.
                     let audio = match output.get_nth_field(frame, 0) {
                         Ok(v) => v,
@@ -355,26 +469,6 @@ impl AudiobenchExecutor {
                         note.silent_samples += buf_len;
                     } else {
                         note.silent_samples = 0;
-                    }
-
-                    if do_feedback {
-                        let julia_feedback = match output.get_nth_field(frame, 1) {
-                            Ok(v) => v,
-                            Err(err) => {
-                                return Ok(Err(format!(
-                                    "ERROR: Failed to retrieve feedback data, caused by:\n{:?}",
-                                    err
-                                )))
-                            }
-                        };
-                        let mut native_feedback = FeedbackData::default();
-                        for index in 0..julia_feedback.n_fields() {
-                            let field = julia_feedback.get_nth_field(frame, index)?;
-                            let field = field.cast::<TypedArray<'_, '_, f32>>()?;
-                            let field = field.inline_data(frame)?.into_slice();
-                            native_feedback.0.push(Vec::from(field));
-                        }
-                        feedback_data = Some(native_feedback);
                     }
 
                     Ok(Ok(()))

@@ -1,38 +1,53 @@
 save_id: 3
 outputs:
   waveform:
-    type: waveform
+    datatype: waveform
     label: Waveform
     tooltip: The generated waveform
 controls:
-  choice: OptionChoice
+  choice: 
+    type: OptionChoice
     options:
-      Sine:
-      Square:
-      Triangle:
-      Power:
-  parameter: FloatInRange
+      - Sine
+      - Square
+      - Triangle
+      - Power
+      - Hex
+      - Chirp
+      - Random
+      - Steps
+  parameter:
+    type: FloatInRange
     min: 0.0
     max: 1.0
     default: 0.5
 gui: 
-  label: Basic Shape
+  label: Starter Shapes
   category: Waveform
   tooltip: Select between basic waveforms like sine, square, and triangle
-  width: 4
+  width: 5
   height: 3
   widgets:
-    Knob:
-      control: parameter
-      label: Parameter
-      tooltip: Has different effects depending on the selected shape.
-      x: 2
-      y: 0
-    OptionBox:
+    - type: OptionIconGrid
       control: choice
+      icons: 
+      - Factory:sine_wave
+      - Factory:square_wave
+      - Factory:triangle_wave
+      - Factory:power_wave
+      - Factory:waveform
+      - Factory:waveform
+      - Factory:waveform
+      - Factory:waveform
       label: Shape
       tooltip: Which kind of waveform the module should generate.
       x: 0
       y: 0
-      w: 2
+      w: 3
       h: 3
+    - type: Knob
+      control: parameter
+      label: Parameter
+      tooltip: Has different effects depending on the selected shape.
+      x: 3
+      y: 0

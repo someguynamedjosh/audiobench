@@ -11,61 +11,61 @@ use std::collections::HashMap;
 pub(super) fn create_module_template_from_yaml(
     icon_indexes: &HashMap<String, usize>,
     lib_name: String,
-    resource_name: String,
-    yaml: &YamlNode,
+    mut yaml: YamlNode,
 ) -> Result<ModuleTemplate, String> {
     let mut controls = Vec::new();
-    if let Ok(child) = &yaml.unique_child("controls") {
-        for description in &child.children {
+    if let Ok(mut child) = yaml.map_entry("controls") {
+        for (key, description) in child.map_entries()? {
             // TODO: Error for duplicate control
-            controls.push(controls::from_yaml(description)?);
+            controls.push(controls::from_yaml(key, description)?);
         }
     }
 
     let save_id = yaml
-        .unique_child("save_id")?
+        .map_entry("save_id")?
         .parse_ranged(Some(0), Some(0xFFFF))?;
 
-    let gui_description = yaml.unique_child("gui")?;
-    let widgets_description = gui_description.unique_child("widgets")?;
-    let label = gui_description.unique_child("label")?.value.clone();
-    let category = gui_description.unique_child("category")?.value.clone();
-    let tooltip = gui_description.unique_child("tooltip")?.value.clone();
+    let mut gui_description = yaml.map_entry("gui")?;
+    let mut widgets_description = gui_description.map_entry("widgets")?;
+    let label = gui_description.map_entry("label")?.value()?.to_owned();
+    let category = gui_description.map_entry("category")?.value()?.to_owned();
+    let tooltip = gui_description.map_entry("tooltip")?.value()?.to_owned();
     let width = gui_description
-        .unique_child("width")?
+        .map_entry("width")?
         .parse_ranged(Some(0), None)?;
     let height = gui_description
-        .unique_child("height")?
+        .map_entry("height")?
         .parse_ranged(Some(0), None)?;
     let mut widgets = Vec::new();
-    for widget_description in &widgets_description.children {
+    for description in widgets_description.list_entries()? {
         widgets.push(WidgetOutline::from_yaml(
-            widget_description,
+            description,
             icon_indexes,
             &mut controls,
         )?);
     }
 
     let mut outputs = Vec::new();
-    for output_description in &yaml.unique_child("outputs")?.children {
-        let type_name = &output_description.unique_child("type")?.value;
+    for (key, mut output_description) in yaml.map_entry("outputs")?.map_entries()? {
+        let type_name_entry = output_description.map_entry("datatype")?;
+        let type_name = type_name_entry.value()?;
         let typ = ep::JackType::from_str(type_name)
             .map_err(|_| format!("ERROR: {} is not a valid output type.", type_name))?;
         // The factory library should always come with these icons.
         let icon = *icon_indexes.get(typ.icon_name()).unwrap();
-        let custom_icon = if let Ok(node) = output_description.unique_child("icon") {
+        let custom_icon = if let Ok(node) = output_description.map_entry("icon") {
+            let value = node.value()?;
             Some(
                 *icon_indexes
-                    .get(&node.value)
-                    .ok_or_else(|| format!("ERROR: {} is not a valid icon name.", &node.value))?,
+                    .get(value)
+                    .ok_or_else(|| format!("ERROR: {} is not a valid icon name.", value))?,
             )
         } else {
             None
         };
-        let label = output_description.unique_child("label")?.value.clone();
-        let tooltip = output_description.unique_child("tooltip")?.value.clone();
+        let label = output_description.map_entry("label")?.value()?.to_owned();
+        let tooltip = output_description.map_entry("tooltip")?.value()?.to_owned();
         outputs.push(ep::IOJack::create(
-            icon_indexes,
             typ,
             icon,
             custom_icon,

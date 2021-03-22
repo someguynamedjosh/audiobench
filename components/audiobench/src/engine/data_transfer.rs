@@ -68,7 +68,11 @@ pub struct NoteData {
 }
 
 #[derive(Clone, Debug, Default)]
-pub struct FeedbackData(pub Vec<Vec<f32>>);
+pub struct FeedbackData {
+    pub widget_feeback: Vec<Vec<f32>>,
+    pub output_view: Vec<Vec<f32>>,
+    pub output_view_module_index: usize,
+}
 
 /// Represents the data type of a variable which is either an input or output in the generated
 /// program. E.G. `IOType::FloatArray(20)` would be the type of `input [20]FLOAT some_data;`.
@@ -143,12 +147,19 @@ pub struct FeedbackDisplayer {
 
 impl FeedbackDisplayer {
     pub fn display(&self, data: FeedbackData, on: Rc<ModuleGraph>) {
-        if data.0.len() != self.widget_selectors.len() {
+        if data.widget_feeback.len() != self.widget_selectors.len() {
             return;
         }
         for (index, (module, widget_index)) in self.widget_selectors.iter().enumerate() {
             let module_widget = on.get_widget_for_module(module).unwrap();
-            module_widget.take_feedback_data(data.0[index].clone(), *widget_index);
+            module_widget.take_feedback_data(data.widget_feeback[index].clone(), *widget_index);
+        }
+        let real_graph_ptr: Rcrc<crate::engine::parts::ModuleGraph> = on.get_real_graph();
+        let real_graph = real_graph_ptr.borrow();
+        if data.output_view_module_index < real_graph.borrow_modules().len() {
+            let module = &real_graph.borrow_modules()[data.output_view_module_index];
+            let module_widget = on.get_widget_for_module(module).unwrap();
+            module_widget.take_output_view_data(data.output_view);
         }
     }
 }

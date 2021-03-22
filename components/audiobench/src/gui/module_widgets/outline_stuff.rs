@@ -17,6 +17,7 @@ yaml_widget_boilerplate::make_widget_outline_enum![
     Knob,
     MiniKnob,
     OptionBox,
+    OptionIconGrid,
     TimingSelector,
     TriggerSequence,
     TriggerSequenceLength,

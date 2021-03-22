@@ -57,9 +57,6 @@ pub(super) fn generate_code(
 
 impl<'a> CodeGenerator<'a> {
     fn generate_code(mut self, global_params: &GlobalParameters) -> CodeGenResult {
-        let buffer_length = global_params.buffer_length;
-        let sample_rate = global_params.sample_rate;
-
         let mut code = "".to_owned();
         let mut ordered_modules = Vec::new();
         let mut ordered_controls = Vec::new();
@@ -128,7 +125,8 @@ impl<'a> CodeGenerator<'a> {
         code.push_str(concat!(
             "  function exec(midi_controls::Vector{Float32}, pitch_wheel::Float32,\n",
             "    bpm::Float32, elapsed_time::Float32, elapsed_beats::Float32,\n",
-            "    do_feedback::Bool, note_input::NoteInput, static_index::Integer,",
+            "    do_feedback::Bool, note_input::NoteInput, static_index::Integer, \n",
+            "    view_index::Integer, "
         ));
         exec_body.push_str(concat!(
             "    set_zero_subnormals(true)\n",
@@ -139,6 +137,7 @@ impl<'a> CodeGenerator<'a> {
             "    release_trigger = Trigger(note_input.release_trigger, repeat([false], buffer_length - 1)...)\n",
             "    note_output = NoteOutput()\n",
             "    context = NoteContext(global_input, note_input, note_output)\n",
+            "    view = ()\n",
             "    feedback = FeedbackData(",
         ));
         for _ in 0..feedback_widget_selectors.len() {
@@ -148,7 +147,7 @@ impl<'a> CodeGenerator<'a> {
         let automation_code = AutomationCode {
             ordered_modules: ordered_modules.clone(),
         };
-        for index in std::mem::replace(&mut self.execution_order, Vec::new()) {
+        for index in self.execution_order.clone() {
             let module_ref = self.graph.borrow_modules()[index].borrow();
             let template_ref = module_ref.template.borrow();
             exec_body.push_str("    \n");
@@ -207,7 +206,7 @@ impl<'a> CodeGenerator<'a> {
             }
             let mut first = true;
             for (widget_index, widget) in template.widget_outlines.iter().enumerate() {
-                if let FeedbackMode::ManualValue { name } = widget.get_feedback_mode() {
+                if let FeedbackMode::ManualValue { .. } = widget.get_feedback_mode() {
                     if first {
                         first = false;
                         exec_body.push_str("\n      ");
@@ -219,17 +218,32 @@ impl<'a> CodeGenerator<'a> {
                 "\n      static_container[static_index].m{},\n    )\n",
                 index
             ));
+            exec_body.push_str(&format!("    if do_feedback && view_index == {}\n", index));
+            exec_body.push_str("      view = (\n");
+            for (out_index, output) in template.outputs.iter().enumerate() {
+                let fn_name = match output.get_type() {
+                    JackType::Audio => "make_audio_view_data",
+                    JackType::Pitch => "make_pitch_view_data",
+                    JackType::Trigger => "make_trigger_view_data",
+                    JackType::Waveform => "make_waveform_view_data",
+                };
+                exec_body.push_str(&format!("        {}(m{}o{}),\n", fn_name, index, out_index));
+            }
+            exec_body.push_str("      )\n");
+            exec_body.push_str("    end\n");
         }
         code.push_str("\n  )\n");
         code.push_str(&exec_body);
-        code.push_str("\n\n    (Array(context.note_out.audio), feedback)\n");
+        code.push_str("\n\n    (Array(context.note_out.audio), feedback, view)\n");
         code.push_str("  end # function exec\n\n");
         code.push_str("end # module Generated\n");
         let code = GeneratedCode::from_unique_source("Generated/note_graph.jl", &code);
 
         let Self {
+            graph,
             dyn_data_types,
             feedback_data_len,
+            execution_order,
             ..
         } = self;
         let data_format = DataFormat {

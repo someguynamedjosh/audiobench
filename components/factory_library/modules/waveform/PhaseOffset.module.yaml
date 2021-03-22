@@ -1,0 +1,34 @@
+save_id: 21
+outputs:
+  waveform:
+    datatype: waveform
+    label: Waveform
+    tooltip: The modulated waveform
+controls:
+  carrier:
+    type: Input
+    datatype: waveform
+    default: sine_wave
+  offset:
+    type: FloatInRange
+    min: -1 
+    max: 1
+    default: 0.0
+gui:
+  label: Phase Offset
+  category: Waveform
+  tooltip: Manually shifts the phase of a waveform using a knob
+  width: 2
+  height: 2
+  widgets:
+    - type: Input
+      y: 0
+      control: carrier
+      label: Carrier
+      tooltip: The base waveform which will be modulated
+    - type: Knob
+      x: 0
+      y: 0
+      control: offset
+      label: Offset
+      tooltip: How much to offset the phase of the waveform by

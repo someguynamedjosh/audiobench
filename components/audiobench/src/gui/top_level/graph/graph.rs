@@ -140,7 +140,8 @@ impl ModuleGraph {
     pub fn add_module(self: &Rc<Self>, template: Rcrc<ModuleTemplate>) {
         let mut module = ep::Module::create(template);
         let state = self.state.borrow();
-        let pos = state.offset * -1.0;
+        let mut pos = state.offset * -1.0;
+        pos += TAB_BODY_SIZE / 3.0;
         module.pos = (pos.x, pos.y);
         let module = rcrc(module);
         state.graph.borrow_mut().add_module(Rc::clone(&module));
@@ -206,6 +207,10 @@ impl ModuleGraph {
     }
 
     pub fn set_hovered_module(self: &Rc<Self>, module: Rc<Module>) {
+        self.with_gui_state(|state| {
+            let engine = state.engine.borrow();
+            engine.set_module_view(&module.get_real_module());
+        });
         self.state.borrow_mut().hovered_module = Some(module);
     }
 
@@ -267,6 +272,10 @@ impl ModuleGraph {
         let graph = Rc::clone(self);
         Box::new(ConnectToControl { graph, control })
     }
+
+    pub fn get_real_graph(self: &Rc<Self>) -> Rcrc<ep::ModuleGraph> {
+        Rc::clone(&self.state.borrow().graph)
+    }
 }
 
 #[make_constructor]
@@ -280,10 +289,15 @@ impl MouseBehavior<DropTarget> for GraphInteract {
     }
 
     fn on_double_click(self: Box<Self>) {
-        let tab = ModuleBrowser::new(&self.graph, Rc::clone(&self.graph));
+        let graph = Rc::clone(&self.graph);
         let interface = self.graph.provide_gui_interface();
         let mut state = interface.state.borrow_mut();
-        state.switch_to_or_open(Rc::new(tab));
+        let archetype = TabArchetype::ModuleBrowser(graph);
+        if !state.switch_to(archetype.clone()) {
+            drop(state);
+            let tab = archetype.instantiate(&self.graph);
+            interface.state.borrow_mut().add_tab(tab);
+        }
     }
 }
 
@@ -400,11 +414,11 @@ impl WidgetImpl<Renderer, DropTarget> for ModuleGraph {
         Some(())
     }
 
-    fn on_scroll_impl(self: &Rc<Self>, pos: Vec2D, delta: f32) -> Option<()> {
+    fn on_scroll_impl(self: &Rc<Self>, _pos: Vec2D, delta: f32) -> Option<()> {
         let center = self.get_size() * 0.5;
         let old_pos = self.translate_screen_pos(center);
         let mut state = self.state.borrow_mut();
-        state.zoom *= (1.0 + delta * 0.8);
+        state.zoom *= 1.0 + delta * 0.8;
         let z2 = state.zoom;
         // Black magic algebra voodoo
         state.offset = center / z2 - old_pos;
@@ -424,7 +438,7 @@ impl WidgetImpl<Renderer, DropTarget> for ModuleGraph {
         g.scale(state.zoom);
         g.translate(state.offset);
         drop(state);
-        for layer in 0..4 {
+        for layer in 0..5 {
             let mut state = self.state.borrow_mut();
             state.current_draw_layer = layer;
             drop(state);
@@ -440,9 +454,5 @@ impl WidgetImpl<Renderer, DropTarget> for ModuleGraph {
             g.set_color(&COLOR_FG1);
             g.draw_line(*end, mouse_pos, 2.0);
         }
-    }
-
-    fn on_removed_impl(self: &Rc<Self>) {
-        self.state.borrow_mut().graph.borrow_mut().current_widget = None;
     }
 }

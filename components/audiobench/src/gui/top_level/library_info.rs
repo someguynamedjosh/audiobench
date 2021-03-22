@@ -1,10 +1,8 @@
 use crate::{
     config::{ENGINE_INFO, ENGINE_UPDATE_URL, ENGINE_VERSION},
-    engine::controls::AnyControl,
     gui::{
         constants::*, graphics::GrahpicsWrapper, GuiTab, InteractionHint, TabArchetype, Tooltip,
     },
-    registry::{module_template::ModuleTemplate, Registry},
     scui_config::{DropTarget, MaybeMouseBehavior, Renderer},
 };
 use scui::{MouseMods, OnClickBehavior, Vec2D, WidgetImpl};
@@ -53,7 +51,7 @@ impl LibraryInfo {
 
         let mut libraries: Vec<_> = registry
             .borrow_library_infos()
-            .map(|(name, info)| LibraryEntry {
+            .map(|(_, info)| LibraryEntry {
                 name: info.pretty_name.clone(),
                 description: info.description.clone(),
                 version: info.version,
@@ -307,6 +305,10 @@ impl WidgetImpl<Renderer, DropTarget> for LibraryInfo {
 }
 
 impl GuiTab for Rc<LibraryInfo> {
+    fn get_name(self: &Self) -> String {
+        format!("Library Info")
+    }
+
     fn get_archetype(&self) -> TabArchetype {
         TabArchetype::LibraryInfo
     }

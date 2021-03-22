@@ -1,13 +1,8 @@
 use crate::{
-    config::{ENGINE_INFO, ENGINE_UPDATE_URL, ENGINE_VERSION},
-    engine::controls::AnyControl,
-    gui::{
-        constants::*, graphics::GrahpicsWrapper, GuiTab, InteractionHint, TabArchetype, Tooltip,
-    },
-    registry::{module_template::ModuleTemplate, Registry},
-    scui_config::{DropTarget, MaybeMouseBehavior, Renderer},
+    gui::{constants::*, GuiTab, TabArchetype},
+    scui_config::{DropTarget, Renderer},
 };
-use scui::{MouseMods, OnClickBehavior, Vec2D, WidgetImpl};
+use scui::{Vec2D, WidgetImpl};
 use shared_util::prelude::*;
 
 scui::widget! {
@@ -82,6 +77,10 @@ impl WidgetImpl<Renderer, DropTarget> for MessageLog {
 }
 
 impl GuiTab for Rc<MessageLog> {
+    fn get_name(self: &Self) -> String {
+        format!("Message Log")
+    }
+
     fn get_archetype(&self) -> TabArchetype {
         TabArchetype::MessageLog
     }

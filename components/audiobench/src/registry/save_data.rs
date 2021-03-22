@@ -1,29 +1,23 @@
 use crate::{
-    engine::{
-        controls::{AutomationSource, Control},
-        parts as ep,
-    },
+    engine::{controls::AutomationSource, parts as ep},
     registry::Registry,
 };
 use shared_util::{
     mini_serde::{MiniDes, MiniSer},
     prelude::*,
 };
-use std::{
-    error::Error,
-    io::{self, Write},
-    path::PathBuf,
-};
+use std::{error::Error, io::Write, path::PathBuf};
 
 #[derive(Debug, Clone)]
-enum PatchSource {
+pub(crate) enum PatchSource {
+    Dummy,
     Writable(PathBuf),
     Readable(String),
 }
 
 #[derive(Debug, Clone)]
 pub struct Patch {
-    source: PatchSource,
+    pub(crate) source: PatchSource,
     name: String,
     exists_on_disk: bool,
     data: Vec<u8>,
@@ -31,6 +25,15 @@ pub struct Patch {
 
 impl Patch {
     const FORMAT_VERSION: u8 = 2;
+
+    pub fn new_dummy(name: String) -> Self {
+        Self {
+            name,
+            source: PatchSource::Dummy,
+            exists_on_disk: false,
+            data: Vec::new(),
+        }
+    }
 
     pub fn new(save_path: PathBuf) -> Self {
         Self {
@@ -41,7 +44,7 @@ impl Patch {
         }
     }
 
-    fn load(source: PatchSource, data: &[u8], registry: &Registry) -> Result<Self, String> {
+    fn load(source: PatchSource, data: &[u8]) -> Result<Self, String> {
         let mut patch = Self {
             name: Default::default(),
             source,
@@ -52,16 +55,12 @@ impl Patch {
         Ok(patch)
     }
 
-    pub fn load_readable(source: String, data: &[u8], registry: &Registry) -> Result<Self, String> {
-        Self::load(PatchSource::Readable(source), data, registry)
+    pub fn load_readable(source: String, data: &[u8]) -> Result<Self, String> {
+        Self::load(PatchSource::Readable(source), data)
     }
 
-    pub fn load_writable(
-        source: PathBuf,
-        data: &[u8],
-        registry: &Registry,
-    ) -> Result<Self, String> {
-        Self::load(PatchSource::Writable(source), data, registry)
+    pub fn load_writable(source: PathBuf, data: &[u8]) -> Result<Self, String> {
+        Self::load(PatchSource::Writable(source), data)
     }
 
     pub fn is_writable(&self) -> bool {
