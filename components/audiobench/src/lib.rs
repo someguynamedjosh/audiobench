@@ -55,6 +55,7 @@ pub struct Instance {
     ui_response_pipe: Sender<CrossThreadHelpResponse>,
     audio_request_pipe: Sender<CrossThreadHelpRequest>,
     audio_response_pipe: Receiver<CrossThreadHelpResponse>,
+    vk_offset: i32,
 }
 
 /// This is ugly and disgusting but AFAIK it is sound. Basically we need to be able to save and
@@ -92,6 +93,7 @@ impl Instance {
             ui_response_pipe,
             audio_request_pipe,
             audio_response_pipe,
+            vk_offset: 0,
         })
     }
 
@@ -258,24 +260,36 @@ impl Instance {
         }
     }
 
-    fn ui_vk_index(key: char) -> Option<usize> {
+    fn ui_vk_index(&self, key: char) -> Option<usize> {
         // q == 45 == A3
         "q2we4r5ty7u8i9op"
             .chars()
             .position(|candidate| candidate == key)
-            .map(|idx| idx + 45)
+            .map(|idx| idx as i32 + self.vk_offset + 45)
+            .map(|idx| {
+                if idx >= 0 && idx < 128 {
+                    Some(idx as usize)
+                } else {
+                    None
+                }
+            })
+            .flatten()
     }
 
     pub fn ui_vk_down(&mut self, key: char) {
-        if let Some(index) = Self::ui_vk_index(key) {
+        if let Some(index) = self.ui_vk_index(key) {
             self.ui_engine
                 .borrow_mut()
                 .virtual_keyboard_note(index, true);
+        } else if key == 'z' {
+            self.vk_offset -= 12;
+        } else if key == 'x' {
+            self.vk_offset += 12;
         }
     }
 
     pub fn ui_vk_up(&mut self, key: char) {
-        if let Some(index) = Self::ui_vk_index(key) {
+        if let Some(index) = self.ui_vk_index(key) {
             self.ui_engine
                 .borrow_mut()
                 .virtual_keyboard_note(index, false);

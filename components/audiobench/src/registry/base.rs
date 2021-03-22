@@ -64,7 +64,7 @@ impl Registry {
         let template = super::module_template::create_module_template_from_yaml(
             &self.icon_indexes,
             lib_name.clone(),
-            &yaml,
+            yaml,
         )
         .map_err(|err| {
             format!(

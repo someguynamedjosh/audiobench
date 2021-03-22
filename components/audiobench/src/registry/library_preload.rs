@@ -166,15 +166,15 @@ fn parse_library_info(name: &str, buffer: Vec<u8>) -> Result<LibraryInfo, String
             e
         )
     })?;
-    let yaml = yaml::parse_yaml(&buffer_as_text, name)?;
-    let internal_name = yaml.unique_child("internal_name")?.value.clone();
-    let pretty_name = yaml.unique_child("pretty_name")?.value.clone();
-    let description = yaml.unique_child("description")?.value.clone();
-    let version = yaml.unique_child("version")?.parse()?;
+    let mut yaml = yaml::parse_yaml(&buffer_as_text, name)?;
+    let internal_name = yaml.map_entry("internal_name")?.value()?.to_owned();
+    let pretty_name = yaml.map_entry("pretty_name")?.value()?.to_owned();
+    let description = yaml.map_entry("description")?.value()?.to_owned();
+    let version = yaml.map_entry("version")?.parse()?;
     let mut dependencies = Vec::new();
-    if let Ok(child) = yaml.unique_child("dependencies") {
-        for child in &child.children {
-            dependencies.push((child.name.clone(), child.parse()?));
+    if let Ok(mut child) = yaml.map_entry("dependencies") {
+        for (key, child) in child.map_entries()? {
+            dependencies.push((key, child.parse()?));
         }
     }
     if !dependencies.iter().any(|(name, _)| name == "Factory")

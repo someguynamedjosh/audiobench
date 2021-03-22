@@ -18,13 +18,13 @@ pub struct TimingModeControl {
 }
 
 impl TimingModeControl {
-    pub fn from_yaml(yaml: &YamlNode) -> Result<Self, String> {
-        let use_elapsed_time = if let Ok(child) = yaml.unique_child("default_source") {
+    pub fn from_yaml(mut yaml: YamlNode) -> Result<Self, String> {
+        let use_elapsed_time = if let Ok(child) = yaml.map_entry("default_source") {
             child.parse_enumerated(&["note", "song"])? == 1
         } else {
             false
         };
-        let beat_synchronized = if let Ok(child) = yaml.unique_child("default_units") {
+        let beat_synchronized = if let Ok(child) = yaml.map_entry("default_units") {
             child.parse_enumerated(&["seconds", "beats"])? == 1
         } else {
             false

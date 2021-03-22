@@ -31,7 +31,7 @@ pub struct OptionalIcon(Option<usize>);
 
 impl OptionalIcon {
     pub fn from_yaml(
-        node: Option<&YamlNode>,
+        node: Option<YamlNode>,
         icon_indexes: &HashMap<String, usize>,
     ) -> Result<OptionalIcon, String> {
         if let Some(node) = node {

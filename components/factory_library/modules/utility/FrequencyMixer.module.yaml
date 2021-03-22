@@ -1,15 +1,18 @@
 save_id: 20
 outputs:
   output:
-    type: pitch
+    datatype: pitch
     label: Frequency
     tooltip: The selected frequency
 controls:
-  start: Input
-    type: pitch
-  end_: Input
-    type: pitch
-  sweep: FloatInRange
+  start:
+    type: Input
+    datatype: pitch
+  end_:
+    type: Input
+    datatype: pitch
+  sweep:
+    type: FloatInRange
     min: 0
     max: 1
     default: 0.5
@@ -20,17 +23,17 @@ gui:
   width: 2
   height: 2
   widgets:
-    Input:
+    - type: Input
       y: 0
       control: start
       label: Start
       tooltip: The frequency to output when the knob is all the way to the left
-    Input:
+    - type: Input
       y: 1
       control: end_
       label: End
       tooltip: The frequency to output when the knob is all the way to the right
-    Knob:
+    - type: Knob
       x: 0
       y: 0
       control: sweep

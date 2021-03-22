@@ -1,19 +1,23 @@
 save_id: 9
 outputs:
   out:
-    type: audio
+    datatype: audio
     label: Output
     tooltip: The mixed audio
 controls:
-  in1: Input
-    type: audio
-  amp1: FloatInRange
+  in1:
+    type: Input
+    datatype: audio
+  amp1:
+    type: FloatInRange
     min: 0
     max: 1
     default: 1
-  in2: Input
-    type: audio
-  amp2: FloatInRange
+  in2:
+    type: Input
+    datatype: audio
+  amp2:
+    type: FloatInRange
     min: 0
     max: 1
     default: 0.5
@@ -24,12 +28,12 @@ gui:
   width: 4
   height: 2
   widgets:
-    Input:
+    - type: Input
       y: 0
       control: in1
       label: Channel 1
       tooltip: Channel 1
-    HSlider:
+    - type: HSlider
       x: 0
       y: 0
       w: 4
@@ -37,12 +41,12 @@ gui:
       control: amp1
       label: Amp 1
       tooltip: How loud channel 1 should be
-    Input:
+    - type: Input
       y: 1
       control: in2
       label: Channel 2
       tooltip: Channel 2
-    HSlider:
+    - type: HSlider
       x: 0
       y: 1
       w: 4

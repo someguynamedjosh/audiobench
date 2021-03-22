@@ -26,25 +26,31 @@ affected by the wire coming from the envelope module. We say that the
 *amplitude* control is **automated** by the output from the envelope. If you
 change some of the controls on the envelope by clicking and dragging them, you
 change how the *amplitude* of the oscillator changes over time. The only
-controls that can be automated are **knobs** and **sliders**. You can automate
-them by dragging a wire from an output onto a knob or slider. One way to make
-this patch more interesting is by making the envelope automate the *peak phase*
-control on the triangle wave module:
+controls that can be automated at the moment are **knobs** and **sliders**. You
+can automate them by dragging a wire from an output onto one of these controls.
+One way to make this patch more interesting is by making the envelope automate
+the *parameter* control on the basic shape module:
 
 ![Triangle wave automated by envelope](images/default_c.png)
 
-You may have noticed while setting that up that the audio cut out and a
-notification saying "compiling" appeared. Because of how Audiobench works
-internally, some changes necessitate doing a slow, one-time process called
-"compilation" before you can start playing notes again. This process will not
-occur whenever you modify a control. Right now compilation is fairly slow, this
-will be improved as development continues.
-
 You can change the range of the automation by right-clicking on the knob and
 clicking and dragging on the **automation lane**. You can also right-click on
-the lane itself to remove its automation from the control.
+the lane itself to remove its automation from the control. 
 
 ![Automation being adjusted](images/default_d.png)
+
+While hovering over the basic shape module a box will appear to show you the
+shape the module is outputting. Hovering over some other modules will show you
+the audio they are outputting.
+
+![Hovering over the starter shape module to view its output](images/shape_preview.png)
+
+You may have noticed while setting that up that the audio cut out and a
+notification saying "working" appeared. Because of how Audiobench works
+internally, some changes necessitate doing a slow, one-time process called
+"compilation" before you can start playing notes again. This process will not
+occur whenever you modify a control. 
+
 
 The last thing to talk about is **inputs** and **outputs**. These are the white
 boxes that appear on the sides of each module. Inputs are on the left and
@@ -63,8 +69,8 @@ through a handful of default waveforms. Inputs and outputs can be connected by
 clicking and dragging.
 
 # Beyond The Default Patch
-To really start making some noise, you'll want to add in more modules, The plus
-button at the top left of the screen takes you to the **module browser**, which
+To really start making some noise, you'll want to add in more modules.
+Double-clicking the module graph takes you to the **module browser**, which
 lists all available modules:
 
 ![List of available modules](images/module_browser.png)
@@ -76,18 +82,18 @@ patches.
 
 ![The default patch with an LFO added](images/default_e.png)
 
-Once you have something you like, go to the patch browser by clicking its icon
-in the top-left corner. This is where all the factory-provided and user-made
-patches live. To save your patch, first click the '+' button to make a new file.
-Give it a name, then click the save button to save your changes. If you want to
-easily share your patch with other people, click the copy button to get a piece
-of text that represents your patch. Others can then copy that text and click the
-paste button to load your patch. You can try it out with this code for the
-patch in the picture above:
+Once you have something you like, you can save your patch by clicking the '+'
+button to save it in a new file. (You may need to hover over the top bar to
+reveal the button.) You can then change the name in the home tab. You can save
+additional changes to the same patch by clicking the save button, or to a new
+patch by clicking the '+' button again. If you want to easily share your patch
+with other people, click the copy button to get a piece of text that represents
+your patch. Others can then copy that text and click the paste button to load
+your patch. You can try it out with this code for the patch in the picture
+above:
 
 ```
-AQAXR2V0dGluZyBTdGFydGVkIEV4YW1wbGUAAAEABf8DAeAAqAUBUACoBgB4AMAKADAAAA7_cAB4CyIA
-AQJoAGqqAAA7o9cKAD5MzM0APpmZmgAAP4AAAAIzAwQ
+AgcARGVmYXVsdAEHAEZhY3RvcnkgAgUAAsj-__9w____AABgAAAAGAAAAAAB0P___xgAAAAAA_j-__8wAAAAAATw_f__6P___0D4_weAwvXoDs3MTD5oZmb6FAAAAAgcABMAAAD8_xNIAAAA_v-N_38AgAAAAAD8IQA
 ```
 
 # Miscellaneous Tips
@@ -96,7 +102,5 @@ AQJoAGqqAAA7o9cKAD5MzM0APpmZmgAAP4AAAAIzAwQ
 - The timing control lets you set if durations should be in terms of beats or
   seconds and also lets you sync up certain modules with the current time in
   your song.
-- Using a MIDI Control module with the control set to 1 will let you automate
-  things using the mod wheel.
-- The library browser panel (the first icon in the top-left) will tell you what
-  new features are available if a new version of Audiobench has been released.
+- The library browser will tell you what new features are available if a new
+  version of Audiobench has been released.

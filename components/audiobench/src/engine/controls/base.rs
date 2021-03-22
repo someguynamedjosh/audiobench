@@ -111,14 +111,13 @@ macro_rules! any_control_enum {
                 }
             }
 
-            pub fn from_yaml(yaml: &YamlNode) -> Result<(String, AnyControl), String> {
-                let name = yaml.name.clone();
-                let typ = yaml.value.trim();
-                let control = match typ {
+            pub fn from_yaml(name: String, mut yaml: YamlNode) -> Result<(String, AnyControl), String> {
+                let typ = yaml.map_entry("type")?;
+                let control = match typ.value()? {
                     $(stringify!($control_types) => AnyControl::$control_types(rcrc(
                         [<$control_types Control>]::from_yaml(yaml)?
                     ))),*,
-                    _ => {
+                    typ => {
                         return Err(format!(
                             "ERROR: '{}' is an invalid control type (found at {}).",
                             typ, &yaml.full_name

@@ -1,6 +1,6 @@
 [package]
 name = "audiobench"
-version = "0.2.1"
+version = "0.2.2"
 authors = ["joshua-maros <60271685+joshua-maros@users.noreply.github.com>"]
 edition = "2018"
 
@@ -32,6 +32,7 @@ shared_util = { path = "../shared_util" }
 single_value_channel = "1.2"
 tempfile = "^3.1.0"
 webbrowser = "0.5"
+yaml-rust = { git = "https://github.com/joshua-maros/yaml-rust", features=["strict"] }
 yaml_widget_boilerplate = { path = "../yaml_widget_boilerplate" }
 zip = "0.5"
 

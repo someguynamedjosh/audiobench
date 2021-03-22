@@ -15,10 +15,10 @@ pub struct OptionChoiceControl {
 }
 
 impl OptionChoiceControl {
-    pub fn from_yaml(yaml: &YamlNode) -> Result<Self, String> {
+    pub fn from_yaml(mut yaml: YamlNode) -> Result<Self, String> {
         let mut options = Vec::new();
-        for child in &yaml.unique_child("options")?.children {
-            options.push(child.name.clone());
+        for child in yaml.map_entry("options")?.list_entries()? {
+            options.push(child.value()?.to_owned());
         }
         if options.len() < 2 {
             return Err(format!(
@@ -26,7 +26,7 @@ impl OptionChoiceControl {
                 options.len()
             ));
         }
-        let default = if let Ok(child) = yaml.unique_child("default") {
+        let default = if let Ok(child) = yaml.map_entry("default") {
             child.parse_ranged(Some(0), Some(options.len() - 1))?
         } else {
             0

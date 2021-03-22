@@ -1,14 +1,16 @@
 save_id: 21
 outputs:
   waveform:
-    type: waveform
+    datatype: waveform
     label: Waveform
     tooltip: The modulated waveform
 controls:
-  carrier: Input
-    type: waveform
+  carrier:
+    type: Input
+    datatype: waveform
     default: sine_wave
-  offset: FloatInRange
+  offset:
+    type: FloatInRange
     min: -1 
     max: 1
     default: 0.0
@@ -19,12 +21,12 @@ gui:
   width: 2
   height: 2
   widgets:
-    Input:
+    - type: Input
       y: 0
       control: carrier
       label: Carrier
       tooltip: The base waveform which will be modulated
-    Knob:
+    - type: Knob
       x: 0
       y: 0
       control: offset
