@@ -1,31 +1,39 @@
 save_id: 10
 outputs:
   out:
-    type: audio
+    datatype: audio
     label: Output
     tooltip: The mixed audio
 controls:
-  in1: Input
-    type: audio
-  amp1: FloatInRange
+  in1:
+    type: Input
+    datatype: audio
+  amp1:
+    type: FloatInRange
     min: 0
     max: 1
     default: 1
-  in2: Input
-    type: audio
-  amp2: FloatInRange
+  in2:
+    type: Input
+    datatype: audio
+  amp2:
+    type: FloatInRange
     min: 0
     max: 1
     default: 0.5
-  in3: Input
-    type: audio
-  amp3: FloatInRange
+  in3:
+    type: Input
+    datatype: audio
+  amp3:
+    type: FloatInRange
     min: 0
     max: 1
     default: 0.5
-  in4: Input
-    type: audio
-  amp4: FloatInRange
+  in4:
+    type: Input
+    datatype: audio
+  amp4:
+    type: FloatInRange
     min: 0
     max: 1
     default: 0.5
@@ -36,12 +44,12 @@ gui:
   width: 4
   height: 4
   widgets:
-    Input:
+    - type: Input
       y: 0
       control: in1
       label: Channel 1
       tooltip: Channel 1
-    HSlider:
+    - type: HSlider
       x: 0
       y: 0
       w: 4
@@ -49,12 +57,12 @@ gui:
       control: amp1
       label: Amp 1
       tooltip: How loud channel 1 should be
-    Input:
+    - type: Input
       y: 1
       control: in2
       label: Channel 2
       tooltip: Channel 2
-    HSlider:
+    - type: HSlider
       x: 0
       y: 1
       w: 4
@@ -62,12 +70,12 @@ gui:
       control: amp2
       label: Amp 2
       tooltip: How loud channel 2 should be
-    Input:
+    - type: Input
       y: 2
       control: in3
       label: Channel 3
       tooltip: Channel 3
-    HSlider:
+    - type: HSlider
       x: 0
       y: 2
       w: 4
@@ -75,12 +83,12 @@ gui:
       control: amp3
       label: Amp 3
       tooltip: How loud channel 3 should be
-    Input:
+    - type: Input
       y: 3
       control: in4
       label: Channel 4
       tooltip: Channel 4
-    HSlider:
+    - type: HSlider
       x: 0
       y: 3
       w: 4

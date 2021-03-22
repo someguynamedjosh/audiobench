@@ -1,25 +1,32 @@
 save_id: 2
 outputs:
   signal:
-    type: audio
+    datatype: audio
     label: Signal
     tooltip: The current value of the envelope
 controls:
-  reset_trigger: Input
-    type: trigger 
-  release_trigger: Input
-    type: trigger 
+  reset_trigger: 
+    type: Input
+    datatype: trigger 
+  release_trigger: 
+    type: Input
+    datatype: trigger 
     default: note_release
-  sustain: FloatInRange
+  sustain: 
+    type: FloatInRange
     min: 0
     max: 1
     default: 1.0
-  timing_mode: TimingMode
-  attack_time: Duration
+  timing_mode: 
+    type: TimingMode
+  attack_time: 
+    type: Duration
     default: 0.005
-  decay_time: Duration
+  decay_time: 
+    type: Duration
     default: 0.2
-  release_time: Duration
+  release_time: 
+    type: Duration
     default: 0.3
 gui: 
   label: Envelope
@@ -28,50 +35,50 @@ gui:
   width: 8
   height: 4
   widgets:
-    Input:
+    - type: Input
       y: 0
       control: reset_trigger
       icon: Factory:reset
       label: Reset Trigger
       tooltip: Trigger to reset the envelope to the beginning
-    Input:
+    - type: Input
       y: 1
       control: release_trigger
       icon: Factory:note_up
       label: Release Trigger
       tooltip: Trigger to switch to the release section of the envelope
-    Knob:
+    - type: Knob
       x: 0
       y: 0
       control: sustain
       label: Sustain
       tooltip: What value the envelope should hold while waiting for the release trigger
-    TimingSelector:
+    - type: TimingSelector
       x: 0
       y: 2
       control: timing_mode
-    DurationBox:
+    - type: DurationBox
       x: 2
       y: 2
       duration_control: attack_time
       mode_control: timing_mode
       label: Attack
       tooltip: How long the envelope takes to rise to full volume
-    DurationBox:
+    - type: DurationBox
       x: 4
       y: 2
       duration_control: decay_time
       mode_control: timing_mode
       label: Decay
       tooltip: How long the envelope takes to fall back down to the sustain value after the attack ends
-    DurationBox:
+    - type: DurationBox
       x: 6
       y: 2
       duration_control: release_time
       mode_control: timing_mode
       label: Release
       tooltip: How long the envelope takes to fade out after receiving the release trigger
-    EnvelopeGraph:
+    - type: EnvelopeGraph
       x: 2
       y: 0
       w: 6

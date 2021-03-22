@@ -17,15 +17,15 @@ pub struct DurationControl {
 }
 
 impl DurationControl {
-    pub fn from_yaml(yaml: &YamlNode) -> Result<Self, String> {
-        let fraction_mode = if let Ok(child) = yaml.unique_child("default_format") {
+    pub fn from_yaml(mut yaml: YamlNode) -> Result<Self, String> {
+        let fraction_mode = if let Ok(child) = yaml.map_entry("default_format") {
             child.parse_enumerated(&["decimal", "fractional"])? == 1
         } else {
             false
         };
         // Oof ouch owie my indentation
         let (decimal_value, fraction_numerator, fraction_denominator) =
-            if let Ok(child) = yaml.unique_child("default") {
+            if let Ok(child) = yaml.map_entry("default") {
                 if fraction_mode {
                     let (num, den) = child.parse_custom(|value| {
                         let slash_index = value.find("/").ok_or_else(|| {
@@ -156,7 +156,7 @@ impl DurationControl {
 impl Control for DurationControl {
     fn get_parameter_types(&self) -> Vec<IOType> { vec![IOType::Float] }
     fn get_parameter_values(&self) -> Vec<IOData> { vec![IOData::Float(self.get_raw_value())] }
-    fn generate_code(&self, params: &[&str], automation_code: &AutomationCode) -> String { 
+    fn generate_code(&self, params: &[&str], _automation_code: &AutomationCode) -> String { 
         assert!(params.len() == 1);
         format!("StaticControlSignal({})", params[0])
     }

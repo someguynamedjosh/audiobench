@@ -15,10 +15,10 @@ pub struct IntControl {
 }
 
 impl IntControl {
-    pub fn from_yaml(yaml: &YamlNode) -> Result<Self, String> {
-        let min = yaml.unique_child("min")?.parse()?;
-        let max = yaml.unique_child("max")?.parse_ranged(Some(min), None)?;
-        let default = if let Ok(child) = yaml.unique_child("default") {
+    pub fn from_yaml(mut yaml: YamlNode) -> Result<Self, String> {
+        let min = yaml.map_entry("min")?.parse()?;
+        let max = yaml.map_entry("max")?.parse_ranged(Some(min), None)?;
+        let default = if let Ok(child) = yaml.map_entry("default") {
             let default = child.parse_ranged(Some(min), Some(max))?;
             default
         } else {
@@ -53,7 +53,7 @@ impl IntControl {
 impl Control for IntControl {
     fn get_parameter_types(&self) -> Vec<IOType> { vec![IOType::Int] }
     fn get_parameter_values(&self) -> Vec<IOData> { vec![IOData::Int(self.value as _)] }
-    fn generate_code(&self, params: &[&str], automation_code: &AutomationCode) -> String { 
+    fn generate_code(&self, params: &[&str], _automation_code: &AutomationCode) -> String { 
         params[0].to_owned()
     }
     fn serialize(&self, ser: &mut MiniSer) { ser.i16(self.value); }

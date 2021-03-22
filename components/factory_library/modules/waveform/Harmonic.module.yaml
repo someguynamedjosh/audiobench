@@ -1,14 +1,16 @@
 save_id: 14
 outputs:
   out_wave:
-    type: waveform
+    datatype: waveform
     label: Output
     tooltip: A harmonic of the input waveform
 controls:
-  base_wave: Input
-    type: waveform
+  base_wave:
+    type: Input
+    datatype: waveform
     default: sine_wave
-  harmonic: Int
+  harmonic: 
+    type: Int
     min: 1
     max: 99
 gui:
@@ -18,12 +20,12 @@ gui:
   width: 2
   height: 2
   widgets:
-    Input:
+    - type: Input
       y: 0
       control: base_wave
       label: Input
       tooltip: The base waveform
-    IntBox:
+    - type: IntBox
       x: 0
       y: 0
       control: harmonic

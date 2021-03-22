@@ -76,7 +76,7 @@ impl WidgetImpl<Renderer, DropTarget> for TextBox {
         })
     }
 
-    fn on_hover_impl(self: &Rc<Self>, pos: Vec2D) -> Option<()> {
+    fn on_hover_impl(self: &Rc<Self>, _pos: Vec2D) -> Option<()> {
         self.with_gui_state_mut(|state| {
             state.set_tooltip(Tooltip {
                 text: "Click to edit".to_owned(),

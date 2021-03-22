@@ -77,9 +77,9 @@ pub struct InputControl {
 }
 
 impl InputControl {
-    pub fn from_yaml(yaml: &YamlNode) -> Result<Self, String> {
-        let typ = JackType::from_yaml(yaml.unique_child("type")?)?;
-        let default = if let Ok(child) = yaml.unique_child("default") {
+    pub fn from_yaml(mut yaml: YamlNode) -> Result<Self, String> {
+        let typ = JackType::from_yaml(&yaml.map_entry("datatype")?)?;
+        let default = if let Ok(child) = yaml.map_entry("default") {
             let mut names = Vec::new();
             for option in default_option_descriptions_for(typ) {
                 names.push(option.name.to_lowercase().replace(' ', "_"));
@@ -136,7 +136,7 @@ impl Control for InputControl {
 
     fn get_parameter_types(&self) -> Vec<IOType> { vec![] }
     fn get_parameter_values(&self) -> Vec<IOData> { vec![] }
-    fn generate_code(&self, params: &[&str], automation_code: &AutomationCode) -> String { 
+    fn generate_code(&self, _params: &[&str], automation_code: &AutomationCode) -> String { 
         if let Some(connection) = &self.connection {
             automation_code.value_of(connection)
         } else {

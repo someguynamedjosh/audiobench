@@ -25,19 +25,20 @@ pub struct FloatInRangeControl {
 }
 
 impl FloatInRangeControl {
-    pub fn from_yaml(yaml: &YamlNode) -> Result<Self, String> {
-        let min = yaml.unique_child("min")?.parse()?;
-        let max = yaml.unique_child("max")?.parse_ranged(Some(min), None)?;
-        let default = if let Ok(child) = yaml.unique_child("default") {
+    pub fn from_yaml(mut yaml: YamlNode) -> Result<Self, String> {
+        let min = yaml.map_entry("min")?.parse()?;
+        let max = yaml.map_entry("max")?.parse_ranged(Some(min), None)?;
+        let default = if let Ok(child) = yaml.map_entry("default") {
             let default = child.parse_ranged(Some(min), Some(max))?;
             default
         } else {
             min
         };
-        let suffix = yaml
-            .unique_child("suffix")
-            .map(|child| child.value.clone())
-            .unwrap_or("".to_owned());
+        let suffix = if let Ok(child) = yaml.map_entry("suffix") {
+            child.value()?.to_owned()
+        } else {
+            "".to_owned()
+        };
         Ok(Self {
             range: (min, max),
             value: default,
@@ -73,7 +74,6 @@ impl Control for FloatInRangeControl {
     }
 
     fn get_parameter_types(&self) -> Vec<IOType> {
-        let length = 1 + self.automation.len() * 2;
         vec![IOType::FloatArray]
     }
 
@@ -98,6 +98,8 @@ impl Control for FloatInRangeControl {
             let mut code = String::new();
             let mut index = 2; // Julia indexing starts at 1.
             let mut first = Some(());
+            let num_lanes = self.automation.len() as f32;
+            code.push_str("(");
             for lane in &self.automation {
                 if !first.take().is_some() {
                     code.push_str(" .+ ");
@@ -112,6 +114,7 @@ impl Control for FloatInRangeControl {
                 ));
                 index += 2;
             }
+            code.push_str(&format!(") / Float32({})", self.automation.len()));
             code
         }
     }

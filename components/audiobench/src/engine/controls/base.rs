@@ -48,7 +48,7 @@ pub trait Control: Debug {
     }
 
     /// Called when the user connects some automation of a type given by acceptable_automation.
-    fn connect_automation(&mut self, from: AutomationSource) {
+    fn connect_automation(&mut self, _from: AutomationSource) {
         if self.acceptable_automation().len() == 0 {
             panic!("connect_automation called on control that does not accept automation.");
         } else {
@@ -63,7 +63,7 @@ pub trait Control: Debug {
         Vec::new()
     }
 
-    fn remove_automation_by_index(&mut self, index: usize) {
+    fn remove_automation_by_index(&mut self, _index: usize) {
         if self.get_connected_automation().len() == 0 {
             panic!("There is no automation to remove.");
         } else {
@@ -111,14 +111,13 @@ macro_rules! any_control_enum {
                 }
             }
 
-            pub fn from_yaml(yaml: &YamlNode) -> Result<(String, AnyControl), String> {
-                let name = yaml.name.clone();
-                let typ = yaml.value.trim();
-                let control = match typ {
+            pub fn from_yaml(name: String, mut yaml: YamlNode) -> Result<(String, AnyControl), String> {
+                let typ = yaml.map_entry("type")?;
+                let control = match typ.value()? {
                     $(stringify!($control_types) => AnyControl::$control_types(rcrc(
                         [<$control_types Control>]::from_yaml(yaml)?
                     ))),*,
-                    _ => {
+                    typ => {
                         return Err(format!(
                             "ERROR: '{}' is an invalid control type (found at {}).",
                             typ, &yaml.full_name

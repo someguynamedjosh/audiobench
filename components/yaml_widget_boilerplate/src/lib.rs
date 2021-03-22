@@ -58,10 +58,10 @@ impl ConstructorItem {
                 let name = self.name.clone();
                 quote! {
                     let #name = Vec2D::new(
-                        crate::gui::constants::coord(yaml.unique_child("x")?.parse()?)
+                        crate::gui::constants::coord(yaml.map_entry("x")?.parse()?)
                             + crate::gui::constants::JACK_SIZE
                             + crate::gui::constants::MODULE_IO_WIDTH,
-                        crate::gui::constants::coord(yaml.unique_child("y")?.parse()?),
+                        crate::gui::constants::coord(yaml.map_entry("y")?.parse()?),
                     );
                 }
             }
@@ -69,8 +69,8 @@ impl ConstructorItem {
                 let name = self.name.clone();
                 quote! {
                     let #name = Vec2D::new(
-                        crate::gui::constants::grid(yaml.unique_child("w")?.parse()?),
-                        crate::gui::constants::grid(yaml.unique_child("h")?.parse()?),
+                        crate::gui::constants::grid(yaml.map_entry("w")?.parse()?),
+                        crate::gui::constants::grid(yaml.map_entry("h")?.parse()?),
                     );
                 }
             }
@@ -80,8 +80,8 @@ impl ConstructorItem {
                 let index_name = format_ident!("{}_index", self.name);
                 let type_name = Ident::new(type_name, Span::call_site());
                 quote! {
-                    let #name_name = yaml.unique_child(stringify!(#name))?.value.trim();
-                    let #index_name = find_control_index(#name_name)?;
+                    let #name_name = yaml.map_entry(stringify!(#name))?;
+                    let #index_name = find_control_index(#name_name.value()?)?;
                     if let crate::engine::controls::AnyControl::#type_name(..) = &controls[#index_name].1 {
                     } else {
                         return Err(format!(
@@ -99,15 +99,15 @@ impl ConstructorItem {
             ConstructorItemType::I32 => {
                 let name = self.name.clone();
                 quote! {
-                    let #name = yaml.unique_child(stringify!(#name))?.parse()?;
+                    let #name = yaml.map_entry(stringify!(#name))?.parse()?;
                 }
             }
             ConstructorItemType::IntRange => {
                 let name = self.name.clone();
                 quote! {
                     let #name = (
-                        yaml.unique_child("min")?.parse()?,
-                        yaml.unique_child("max")?.parse()?,
+                        yaml.map_entry("min")?.parse()?,
+                        yaml.map_entry("max")?.parse()?,
                     );
                 }
             }
@@ -115,22 +115,22 @@ impl ConstructorItem {
                 let name = self.name.clone();
                 quote! {
                     let #name = (
-                        yaml.unique_child("min")?.parse()?,
-                        yaml.unique_child("max")?.parse()?,
+                        yaml.map_entry("min")?.parse()?,
+                        yaml.map_entry("max")?.parse()?,
                     );
                 }
             }
             ConstructorItemType::String => {
                 let name = self.name.clone();
                 quote! {
-                    let #name = yaml.unique_child(stringify!(#name))?.value.trim().to_owned();
+                    let #name = yaml.map_entry(stringify!(#name))?.value()?.to_owned();
                 }
             }
             ConstructorItemType::StringList => {
                 let name = self.name.clone();
                 quote! {
                     let mut #name = Vec::new();
-                    for child in &yaml.unique_child(stringify!(#name))?.children {
+                    for child in &yaml.map_entry(stringify!(#name))?.children {
                         #name.push(child.name.clone());
                     }
                     if #name.len() < 2 {
@@ -150,7 +150,7 @@ impl ConstructorItem {
                 let name = self.name.clone();
                 let child_name = format_ident!("{}_raw", name);
                 quote! {
-                    let #child_name = if let Ok(child) = yaml.unique_child(stringify!(#name)) {
+                    let #child_name = if let Ok(child) = yaml.map_entry(stringify!(#name)) {
                         Some(child.clone())
                     } else {
                         None
@@ -334,7 +334,7 @@ pub fn make_widget_outline(args: TokenStream) -> TokenStream {
         .collect();
     if let Some(FeedbackMode::ManualValue) = &feedback_mode {
         field_from_yaml_code.push(quote! {
-            let feedback_name = yaml.unique_child("feedback_name")?.value.trim().to_owned();
+            let feedback_name = yaml.map_entry("feedback_name")?.value()?.to_owned();
         });
     }
     let outline_fields: Vec<_> = outline_fields
@@ -366,10 +366,11 @@ pub fn make_widget_outline(args: TokenStream) -> TokenStream {
             }
 
             pub fn from_yaml(
-                yaml: &crate::registry::yaml::YamlNode,
+                mut yaml: crate::registry::yaml::YamlNode,
                 icon_indexes: &std::collections::HashMap<std::string::String, usize>,
                 controls: &::std::vec::Vec<(String, crate::engine::controls::AnyControl)>,
             ) -> ::std::result::Result<#outline_name, ::std::string::String> {
+                let full_name = yaml.full_name.clone();
                 let find_control_index = |name: &str| {
                     controls
                         .iter()
@@ -377,7 +378,7 @@ pub fn make_widget_outline(args: TokenStream) -> TokenStream {
                         .ok_or_else(|| {
                             format!(
                                 "ERROR: Invalid widget {}, caused by:\nERROR: No control named {}.",
-                                &yaml.full_name, name
+                                &full_name, name
                             )
                         })
                 };
@@ -474,11 +475,12 @@ pub fn make_widget_outline_enum(args: TokenStream) -> TokenStream {
             }
 
             pub fn from_yaml(
-                yaml: &crate::registry::yaml::YamlNode,
+                mut yaml: crate::registry::yaml::YamlNode,
                 icon_indexes: &std::collections::HashMap<std::string::String, usize>,
                 controls: &::std::vec::Vec<(String, crate::engine::controls::AnyControl)>,
             ) -> ::std::result::Result<Self, ::std::string::String> {
-                Ok(match &yaml.name[..] {
+                let typ = yaml.map_entry("type")?;
+                Ok(match typ.value()? {
                     #(#from_yaml_body),*,
                     _ => {
                         return Err(format!(

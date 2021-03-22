@@ -1,13 +1,14 @@
 use crate::{
     gui::{
         constants::*,
-        ui_widgets::{IconButton, TabButton, TextBox},
+        ui_widgets::{IconButton, LinkButton, TabButton, TextBox},
         GuiTab, InteractionHint, TabArchetype, Tooltip,
     },
     registry::save_data::Patch,
     scui_config::{DropTarget, MaybeMouseBehavior, Renderer},
 };
 use clipboard::ClipboardProvider;
+use observatory::{derivation_with_ptrs_dyn, DerivationDynPtr};
 use scui::{ChildHolder, MouseMods, OnClickBehavior, Vec2D, Widget, WidgetImpl};
 use shared_util::prelude::*;
 
@@ -15,20 +16,15 @@ scui::widget! {
     pub PatchBrowser
     State {
         delete_icon: usize,
-        entries: Vec<Rcrc<Patch>>,
-        alphabetical_order: Vec<usize>,
-        current_entry_index: Option<usize>,
+        alphabetical_order: DerivationDynPtr<Vec<usize>>,
+        patch_change_effect: Option<DerivationDynPtr<()>>,
         num_visible_entries: usize,
         scroll_offset: usize,
     }
     Children {
         name_box: ChildHolder<Rc<TextBox>>,
-        save_button: ChildHolder<Rc<IconButton>>,
-        new_button: ChildHolder<Rc<IconButton>>,
-        copy_button: ChildHolder<Rc<IconButton>>,
-        paste_button: ChildHolder<Rc<IconButton>>,
-
         tab_buttons: Vec<Rc<TabButton>>,
+        link_button: ChildHolder<Rc<LinkButton>>,
     }
 }
 
@@ -45,79 +41,31 @@ impl PatchBrowser {
         let state = inter.state.borrow();
         let engine = state.engine.borrow();
         let registry = engine.borrow_registry().borrow_mut();
-        let current_patch = engine.borrow_current_patch();
-        // How many icon buttons to the right of the name box.
-        const NUM_ICONS: f32 = 4.0;
-        // Width of the name box.
-        let namew = HW - (CG + GRID_P) * NUM_ICONS;
+        let current_patch = engine.borrow_current_patch().borrow_untracked();
 
-        let entries = registry.borrow_patches().clone();
-        let current_entry_index = registry
-            .borrow_patches()
-            .iter()
-            .position(|patch| std::ptr::eq(patch.as_ref(), current_patch.as_ref()));
-        let mut save_enabled = true;
-        if let Some(index) = &current_entry_index {
-            if !entries[*index].borrow().is_writable() {
-                save_enabled = false;
+        let alphabetical_order = derivation_with_ptrs_dyn! {
+            state.patch_list; {
+                let patch_list = patch_list.borrow();
+                let mut indexes: Vec<_> = (0..patch_list.len()).collect();
+                indexes.sort_by(|a, b| {
+                    patch_list[*a]
+                        .borrow()
+                        .borrow_name()
+                        .cmp(&patch_list[*b].borrow().borrow_name())
+                });
+                indexes
             }
-        } else {
-            save_enabled = false;
-        }
-
-        let alphabetical_order = (0..entries.len()).collect();
-        let entries = entries;
+        };
 
         let state = PatchBrowserState {
             delete_icon: registry.lookup_icon("Factory:delete").unwrap(),
-            entries,
             alphabetical_order,
-            current_entry_index,
+            patch_change_effect: None,
             num_visible_entries: 0,
             scroll_offset: 0,
         };
 
         let this = Rc::new(Self::create(parent, state));
-        this.sort();
-
-        let patch_name = current_patch.borrow().borrow_name().to_owned();
-        let this2 = Rc::clone(&this);
-        let save_button = IconButton::new(
-            &this,
-            (GRID_P, 0.0),
-            CG,
-            registry.lookup_icon("Factory:save").unwrap(),
-            move |_| this2.on_save_patch(),
-            "Save the current patch",
-        );
-        save_button.set_enabled(save_enabled);
-        let this2 = Rc::clone(&this);
-        let new_button = IconButton::new(
-            &this,
-            (GRID_P + HW - CG * 3.0 - GRID_P * 2.0, 0.0),
-            CG,
-            registry.lookup_icon("Factory:add").unwrap(),
-            move |_| this2.on_save_patch_copy(),
-            "Create a new patch based on the current patch (including unsaved changes)",
-        );
-        let this2 = Rc::clone(&this);
-        let copy_button = IconButton::new(
-            &this,
-            (GRID_P + HW - CG * 2.0 - GRID_P, 0.0),
-            CG,
-            registry.lookup_icon("Factory:copy").unwrap(),
-            move |_| this2.on_copy_patch_to_clipboard(),
-            "Copy the current patch to the clipboard (including unsaved changes)",
-        );
-        let this2 = Rc::clone(&this);
-        let paste_button = IconButton::new(
-            &this,
-            (GRID_P + HW - CG, 0.0),
-            CG,
-            registry.lookup_icon("Factory:paste").unwrap(),
-            move |_| this2.on_paste_patch_from_clipboard(),
-            "Paste and load a patch from your clipboard",
-        );
 
         let mut tab_buttons = Vec::new();
         let x = GRID_P + HW + GRID_P;
@@ -147,12 +95,22 @@ impl PatchBrowser {
             "Message Log".into(),
             "View a log of all info/warning/error messages from this session".into(),
         ));
+        let x = x + TabButton::SIZE + GRID_P;
+        let link_button = LinkButton::new(
+            &this,
+            (x, 0.0),
+            registry.lookup_icon("Factory:github").unwrap(),
+            format!("https://github.com/joshua-maros/audiobench/issues/new"),
+            "Report A Bug".into(),
+            "Submit a bug report or feature request on GitHub through your web browser.".into(),
+        );
 
+        let patch_name = current_patch.borrow().borrow_name().to_owned();
         let this2 = Rc::clone(&this);
         let name_box = TextBox::new(
             &this,
-            (GRID_P + CG + GRID_P, 0.0),
-            (namew, NAME_BOX_HEIGHT),
+            (GRID_P, 0.0),
+            (HW, NAME_BOX_HEIGHT),
             patch_name,
             Box::new(move |text| this2.on_rename_patch(text)),
         );
@@ -167,126 +125,26 @@ impl PatchBrowser {
 
         let mut children = this.children.borrow_mut();
         children.name_box = name_box.into();
-        children.save_button = save_button.into();
-        children.new_button = new_button.into();
-        children.copy_button = copy_button.into();
-        children.paste_button = paste_button.into();
         children.tab_buttons = tab_buttons;
+        children.link_button = link_button.into();
         drop(children);
 
+        let patch_change_effect = derivation_with_ptrs_dyn! {
+            this, current_patch: *engine.borrow_current_patch(); {
+                this.update_on_patch_change(&current_patch.borrow());
+            }
+        };
+        this.state.borrow_mut().patch_change_effect = Some(patch_change_effect);
+
         this
-    }
-
-    fn after_new_patch(self: &Rc<Self>, new_patch: &Rcrc<Patch>) {
-        let mut state = self.state.borrow_mut();
-        let next_entry_index = state.entries.len();
-        if new_patch.borrow().exists_on_disk() {
-            state.alphabetical_order.push(next_entry_index);
-            state.entries.push(Rc::clone(new_patch));
-            state.current_entry_index = Some(next_entry_index);
-            drop(state);
-            self.sort();
-        } else {
-            state.current_entry_index = None;
-            drop(state);
-        }
-        self.update_on_patch_change(new_patch);
-    }
-
-    fn on_save_patch(self: &Rc<Self>) -> MaybeMouseBehavior {
-        let mut patch_already_existed_on_disk = false;
-        let state = self.state.borrow();
-        if let Some(index) = state.current_entry_index {
-            patch_already_existed_on_disk = state.entries[index].borrow().exists_on_disk();
-        }
-        let this = Rc::clone(self);
-        let engine = self.with_gui_state(|state| Rc::clone(&state.engine));
-        OnClickBehavior::wrap(move || {
-            let mut engine = engine.borrow_mut();
-            engine.save_current_patch();
-            if !patch_already_existed_on_disk {
-                this.after_new_patch(engine.borrow_current_patch());
-            }
-            drop(engine);
-            this.with_gui_state_mut(|state| {
-                state.add_success_message("Patch saved successfully.".to_owned())
-            });
-        })
-    }
-
-    fn on_save_patch_copy(self: &Rc<Self>) -> MaybeMouseBehavior {
-        let this = Rc::clone(self);
-        let engine = self.with_gui_state(|state| Rc::clone(&state.engine));
-        OnClickBehavior::wrap(move || {
-            let mut engine = engine.borrow_mut();
-            engine.save_current_patch_with_new_name();
-            this.after_new_patch(engine.borrow_current_patch());
-        })
-    }
-
-    fn on_copy_patch_to_clipboard(self: &Rc<Self>) -> MaybeMouseBehavior {
-        let this = Rc::clone(self);
-        let engine = self.with_gui_state(|state| Rc::clone(&state.engine));
-        OnClickBehavior::wrap(move || {
-            let patch_data = engine.borrow().serialize_current_patch();
-            let mut clipboard: clipboard::ClipboardContext =
-                clipboard::ClipboardProvider::new().unwrap();
-            clipboard.set_contents(patch_data).unwrap();
-            this.with_gui_state_mut(|state| {
-                state.add_success_message("Patch data copied to clipboard.".to_owned())
-            })
-        })
-    }
-
-    fn on_paste_patch_from_clipboard(self: &Rc<Self>) -> MaybeMouseBehavior {
-        let this = Rc::clone(self);
-        let engine = self.with_gui_state(|state| Rc::clone(&state.engine));
-        OnClickBehavior::wrap(move || {
-            let mut clipboard: clipboard::ClipboardContext =
-                clipboard::ClipboardProvider::new().unwrap();
-            let data = clipboard.get_contents().unwrap();
-            // We use the URL-safe dataset, so letters, numbers, - and _.
-            // is_digit(36) checks for numbers and a-z case insensitive.
-            let data: String = data
-                .chars()
-                .filter(|character| {
-                    character.is_digit(36) || *character == '-' || *character == '_'
-                })
-                .collect();
-            let mut engine = engine.borrow_mut();
-            let res = engine.new_patch_from_clipboard(data.as_bytes());
-            if let Ok(patch) = res {
-                this.after_new_patch(patch);
-                this.with_gui_state_mut(|state| {
-                    state.add_success_message(
-                        concat!(
-                            "Patch data loaded from clipboard. (Click the save button if you want",
-                            "to keep it.)"
-                        )
-                        .to_owned(),
-                    );
-                });
-            } else if let Err(err) = res {
-                this.with_gui_state_mut(|state| {
-                    state.add_error_message(err);
-                });
-            }
-        })
     }
 
     fn on_load_patch(self: &Rc<Self>, patch: Rcrc<Patch>, index: usize) -> MaybeMouseBehavior {
         let this = Rc::clone(self);
         let engine = self.with_gui_state(|state| Rc::clone(&state.engine));
         OnClickBehavior::wrap(move || {
-            let mut state = this.state.borrow_mut();
-            state.current_entry_index = Some(index);
-            drop(state);
-            this.update_on_patch_change(&patch);
-            if let Err(..) = engine.borrow_mut().load_patch(patch) {
-                this.with_gui_state_mut(|state| {
-                    state.add_error_message(format!("ERROR: Patch data is corrupt."))
-                });
-            } else {
+            this.with_gui_state_mut(|state| state.current_patch_index = Some(index));
+            if engine.borrow_mut().load_patch(patch).is_ok() {
                 this.with_gui_state_mut(|state| {
                     state.add_success_message(format!("Patch loaded."))
                 });
@@ -301,22 +159,6 @@ impl PatchBrowser {
                 .borrow_mut()
                 .rename_current_patch(new_name.to_owned());
         });
-        self.sort();
-    }
-
-    fn sort(&self) {
-        let mut state = self.state.borrow_mut();
-        let PatchBrowserState {
-            alphabetical_order,
-            entries,
-            ..
-        } = &mut *state;
-        alphabetical_order.sort_by(|a, b| {
-            entries[*a]
-                .borrow()
-                .borrow_name()
-                .cmp(&entries[*b].borrow().borrow_name())
-        });
     }
 
     fn update_on_patch_change(&self, new_patch: &Rcrc<Patch>) {
@@ -327,34 +169,32 @@ impl PatchBrowser {
             .set_text(new_patch_ref.borrow_name().to_owned());
         let enable = new_patch_ref.is_writable();
         children.name_box.set_enabled(enable);
-        children.save_button.set_enabled(enable);
     }
 
     fn on_delete_patch(self: &Rc<Self>, order_index: usize, index: usize) -> MaybeMouseBehavior {
         let this = Rc::clone(self);
         OnClickBehavior::wrap(move || {
             let mut state = this.state.borrow_mut();
-            let res = state.entries[index].borrow_mut().delete_from_disk();
+            let gui_state = this.parents.gui.state.borrow();
+            let res = gui_state.patch_list.borrow_mut()[index]
+                .borrow_mut()
+                .delete_from_disk();
+            drop(gui_state);
             if let Err(err) = res {
                 this.with_gui_state_mut(|state| {
                     state.add_error_message(format!("{}", err));
                 });
                 return;
             }
-            state.entries.remove(index);
-            state.alphabetical_order.remove(order_index);
-            for other_index in &mut state.alphabetical_order {
-                if *other_index > index {
-                    *other_index -= 1;
-                }
-            }
-            if let Some(current_entry_index) = state.current_entry_index {
-                if current_entry_index == index {
-                    state.current_entry_index = None;
-                } else if current_entry_index > index {
+            let mut gui_state = this.parents.gui.state.borrow_mut();
+            gui_state.patch_list.borrow_mut().remove(index);
+            if let Some(current_patch_index) = gui_state.current_patch_index {
+                if current_patch_index == index {
+                    gui_state.current_patch_index = None;
+                } else if current_patch_index > index {
                     // index cannot be smaller than zero.
-                    debug_assert!(current_entry_index > 0);
-                    state.current_entry_index = Some(current_entry_index - 1);
+                    debug_assert!(current_patch_index > 0);
+                    gui_state.current_patch_index = Some(current_patch_index - 1);
                 }
             }
         })
@@ -377,13 +217,16 @@ impl WidgetImpl<Renderer, DropTarget> for PatchBrowser {
     ) -> MaybeMouseBehavior {
         ris!(self.get_mouse_behavior_children(mouse_pos, mods));
         let state = self.state.borrow();
+        let gui_state = self.parents.gui.state.borrow();
 
         if mouse_pos.x <= HW && mouse_pos.y > NAME_BOX_HEIGHT + GRID_P {
             let entry_index = (mouse_pos.y - NAME_BOX_HEIGHT - GRID_P) / ENTRY_HEIGHT;
-            if entry_index >= 0.0 && entry_index < state.entries.len() as f32 {
+            if entry_index >= 0.0
+                && entry_index < gui_state.patch_list.borrow_untracked().len() as f32
+            {
                 let order_index = entry_index as usize + state.scroll_offset;
-                let entry_index = state.alphabetical_order[order_index];
-                let patch = Rc::clone(&state.entries[entry_index]);
+                let entry_index = state.alphabetical_order.borrow_untracked()[order_index];
+                let patch = Rc::clone(&gui_state.patch_list.borrow_untracked()[entry_index]);
                 // Delete the patch. The threshold is deliberately shorter than the actual area the
                 // icon technically occupies to hopefully make misclicks less likely.
                 if mouse_pos.x > HW - grid(1) && patch.borrow().is_writable() {
@@ -404,7 +247,8 @@ impl WidgetImpl<Renderer, DropTarget> for PatchBrowser {
                     state.scroll_offset -= 1;
                 }
             } else {
-                if state.scroll_offset + state.num_visible_entries < state.alphabetical_order.len()
+                if state.scroll_offset + state.num_visible_entries
+                    < state.alphabetical_order.borrow_untracked().len()
                 {
                     state.scroll_offset += 1;
                 }
@@ -432,6 +276,7 @@ impl WidgetImpl<Renderer, DropTarget> for PatchBrowser {
     fn draw_impl(self: &Rc<Self>, g: &mut Renderer) {
         const GP: f32 = GRID_P;
         let state = self.state.borrow();
+        let gui_state = self.parents.gui.state.borrow();
 
         g.set_color(&COLOR_BG2);
         g.draw_rect(0, TAB_BODY_SIZE);
@@ -443,15 +288,17 @@ impl WidgetImpl<Renderer, DropTarget> for PatchBrowser {
         g.draw_rounded_rect((GP, y), (HW, panel_height), CORNER_SIZE);
         g.set_color(&COLOR_FG1);
         let offset = state.scroll_offset;
-        let num_entries = state.alphabetical_order.len();
+        let order = state.alphabetical_order.borrow_untracked();
+        let entries = gui_state.patch_list.borrow_untracked();
+        let num_entries = order.len();
         let range = offset..(offset + state.num_visible_entries).min(num_entries);
         for index in range {
-            let entry_index = state.alphabetical_order[index];
-            let entry = &state.entries[entry_index];
+            let entry_index = order[index];
+            let entry = &entries[entry_index];
             let x = GP;
             let y = y + ENTRY_HEIGHT * (index - offset) as f32;
-            let item_index = state.alphabetical_order[index];
-            if Some(item_index) == state.current_entry_index {
+            let item_index = order[index];
+            if Some(item_index) == gui_state.current_patch_index {
                 g.set_color(&COLOR_BG1);
                 g.draw_rounded_rect((x, y), (HW, ENTRY_HEIGHT), CORNER_SIZE);
                 g.set_color(&COLOR_FG1);

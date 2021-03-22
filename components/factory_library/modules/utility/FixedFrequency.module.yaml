@@ -1,11 +1,12 @@
 save_id: 18
 outputs:
   output:
-    type: pitch
+    datatype: pitch
     label: Frequency
     tooltip: The selected frequency
 controls:
-  frequency: Frequency
+  frequency: 
+    type: Frequency
     default: 440.0
 gui:
   label: Fixed Frequency
@@ -14,7 +15,7 @@ gui:
   width: 2
   height: 2
   widgets:
-    FrequencyBox:
+    - type: FrequencyBox
       x: 0
       y: 0
       control: frequency

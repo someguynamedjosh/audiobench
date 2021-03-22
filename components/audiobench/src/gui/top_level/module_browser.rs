@@ -221,8 +221,15 @@ impl WidgetImpl<Renderer, DropTarget> for ModuleBrowser {
         if let Some(entry) = self.get_entry_at(pos) {
             let add_to_graph = Rc::clone(&self.state.borrow().add_to_graph);
             let template = Rc::clone(&entry.template);
+            let this = Rc::clone(self);
             OnClickBehavior::wrap(move || {
                 add_to_graph.add_module(template);
+                let this = this;
+                // ew, ew, ew.
+                let tab = Rc::new(Rc::clone(&this));
+                this.with_gui_state_mut(|state| {
+                    state.close_tab(tab);
+                });
             })
         } else {
             None

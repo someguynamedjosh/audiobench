@@ -1,17 +1,21 @@
 save_id: 5
 outputs:
   out_trigger:
-    type: trigger
+    datatype: trigger
     label: Output
     tooltip: Triggered at times specified in the sequence
 controls:
-  reset: Input
-    type: trigger
+  reset: 
+    type: Input
+    datatype: trigger
     default: never
-  sequence: TriggerSequence
-  timing_mode: TimingMode
+  sequence: 
+    type: TriggerSequence
+  timing_mode: 
+    type: TimingMode
     default_units: beats
-  step_time: Duration
+  step_time:
+    type: Duration
     default_format: fractional
     default: 1/4
 gui: 
@@ -21,13 +25,13 @@ gui:
   width: 8
   height: 3
   widgets:
-    Input:
+    - type: Input
       y: 0
       control: reset
       label: Reset
       tooltip: When triggered, moves back to the start of the sequence
       icon: Factory:reset
-    TriggerSequence:
+    - type: TriggerSequence
       x: 0
       y: 0
       w: 8
@@ -35,18 +39,18 @@ gui:
       control: sequence
       tooltip: Click a segment to toggle whether or not a trigger is fired at that time
       feedback_name: playhead_feedback
-    TimingSelector:
+    - type: TimingSelector
       x: 0
       y: 1
       control: timing_mode
-    DurationBox:
+    - type: DurationBox
       x: 2
       y: 1
       duration_control: step_time
       mode_control: timing_mode
       label: Step Time
       tooltip: How long one step of the sequence takes
-    TriggerSequenceLength:
+    - type: TriggerSequenceLength
       x: 6
       y: 1
       control: sequence
