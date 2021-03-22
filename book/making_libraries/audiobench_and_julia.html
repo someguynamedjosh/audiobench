@@ -1,0 +1,498 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Audiobench-Specific Julia Patterns - Audiobench</title>
+        
+        
+
+
+        <!-- Custom HTML head -->
+        
+
+
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        
+        <link rel="icon" href="../favicon.svg">
+        
+        
+        <link rel="shortcut icon" href="../favicon.png">
+        
+        <link rel="stylesheet" href="../css/variables.css">
+        <link rel="stylesheet" href="../css/general.css">
+        <link rel="stylesheet" href="../css/chrome.css">
+        
+        <link rel="stylesheet" href="../css/print.css" media="print">
+        
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
+        
+        <link rel="stylesheet" href="../fonts/fonts.css">
+        
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="../highlight.css">
+        <link rel="stylesheet" href="../tomorrow-night.css">
+        <link rel="stylesheet" href="../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        
+
+        
+    </head>
+    <body>
+        <!-- Provide site root to javascript -->
+        <script type="text/javascript">
+            var path_to_root = "../";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script type="text/javascript">
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add('js');
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var html = document.querySelector('html');
+            var sidebar = 'hidden';
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded "><a href="../getting_started.html"><strong aria-hidden="true">1.</strong> Getting Started</a></li><li class="chapter-item expanded "><a href="../additional_libraries.html"><strong aria-hidden="true">2.</strong> Additional Libraries</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../making_libraries/start.html"><strong aria-hidden="true">2.1.</strong> Making Your Own Libraries</a></li><li class="chapter-item expanded "><a href="../making_libraries/adding_patches.html"><strong aria-hidden="true">2.2.</strong> Adding Patches</a></li><li class="chapter-item expanded "><a href="../making_libraries/publishing.html"><strong aria-hidden="true">2.3.</strong> Publishing Your Library</a></li><li class="chapter-item expanded "><a href="../making_libraries/custom_modules.html"><strong aria-hidden="true">2.4.</strong> Custom Modules</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../making_libraries/introduction_to_julia.html"><strong aria-hidden="true">2.4.1.</strong> Introduction To Julia</a></li><li class="chapter-item expanded "><a href="../making_libraries/custom_modules_julia.html"><strong aria-hidden="true">2.4.2.</strong> The .module.jl File</a></li><li class="chapter-item expanded "><a href="../making_libraries/audiobench_and_julia.html" class="active"><strong aria-hidden="true">2.4.3.</strong> Audiobench-Specific Julia Patterns</a></li><li class="chapter-item expanded "><a href="../making_libraries/custom_modules_yaml.html"><strong aria-hidden="true">2.4.4.</strong> The .module.yaml File</a></li><li class="chapter-item expanded "><a href="../making_libraries/module_controls.html"><strong aria-hidden="true">2.4.5.</strong> List Of Controls</a></li><li class="chapter-item expanded "><a href="../making_libraries/module_widgets.html"><strong aria-hidden="true">2.4.6.</strong> List Of Widgets</a></li></ol></li><li class="chapter-item expanded "><a href="../making_libraries/factory_library_source.html"><strong aria-hidden="true">2.5.</strong> Factory Library Source Code</a></li></ol></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky bordered">
+                    <div class="left-buttons">
+                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light (default)</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                        
+                    </div>
+
+                    <h1 class="menu-title">Audiobench</h1>
+
+                    <div class="right-buttons">
+                        
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        
+                        
+                    </div>
+                </div>
+
+                
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" name="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+                
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script type="text/javascript">
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="audiobench-specific-julia-patterns"><a class="header" href="#audiobench-specific-julia-patterns">Audiobench-Specific Julia Patterns</a></h1>
+<p>This section will go over some coding patterns that are helpful specifically
+when developing Audiobench modules as well as helpful functions and types added
+by the factory library. If you would like to see the actual Julia file defining
+most of what's discussed in this page, you can check it out
+<a href="https://github.com/joshua-maros/audiobench/blob/latest-beta/components/factory_library/lib.lib.jl">on the GitHub repository</a></p>
+<h2 id="types"><a class="header" href="#types">Types</a></h2>
+<p>In Audiobench, the main data types are <em>audio signals</em>, <em>control signals</em>, 
+<em>triggers</em>, and <em>waveforms</em>. Creating a module will involve consuming or producing
+at least one of these types of data. The way these are defined and used in Julia
+is as follows:</p>
+<h3 id="audio"><a class="header" href="#audio">Audio</a></h3>
+<pre><code class="language-julia"># StereoAudio contains audio data that changes over time and has different
+# content between its two channels. It is a type alias for a static array of
+# Float32s.
+audio = similar(StereoAudio)
+audio[channel, sample] = 0f0
+# MonoAudio is like StereoAudio but only has one channel
+mono_audio = similar(MonoAudio)
+audio[1, sample] = 0f0 # Good.
+audio[2, sample] = 0f0 # RUNTIME ERROR!
+# There are also 'static' variants that hold audio data which does not change.
+StaticMonoAudio
+StaticStereoAudio
+</code></pre>
+<h3 id="control-signals"><a class="header" href="#control-signals">Control Signals</a></h3>
+<pre><code class="language-julia"># Control signals are values that change over time but do not have multiple 
+# channels. They are just aliased to Audio types for simplicity. This is the
+# datatype that a knob widget would control. Here the presence of a static
+# version makes more sense, as controls can be set by the user to an unchanging
+# value and left alone, so the static version has a lot of potential for 
+# optimization since it is only carrying one copy of that value instead of 512
+# copies.
+@assert ControlSignal == MonoAudio
+@assert StaticControlSignal == StaticMonoAudio
+</code></pre>
+<h3 id="triggers"><a class="header" href="#triggers">Triggers</a></h3>
+<pre><code class="language-julia"># Triggers are boolean arrays. Any place where the array is true is a place
+# where a trigger was sent. Like other data types, there is a static version.
+trigger = similar(Trigger)
+# Only 1 channel
+trigger[1, sample] = true
+static = similar(StaticTrigger)
+# This is usually the only use for a static trigger. One which was true would
+# be considered to be firing on every single sample.
+static[1, 1] = false
+</code></pre>
+<h3 id="waveforms"><a class="header" href="#waveforms">Waveforms</a></h3>
+<pre><code class="language-julia"># Waveforms are actually just functions, which are not strongly typed by their
+# argument and return types in Julia. Currently there is no robust check in
+# place to make sure that places where Audiobench expects a valid waveform are
+# actually being given a valid waveform.
+waveform = function(phase::Float32, buffer_pos::Integer)
+    sin(phase + some_control[%, 1, buffer_pos])
+end
+# This is not a valid waveform. It's going through a rebellious phase.
+not_waveform = function(something::String, irrelevant::Float64)
+    [1, 2, 3, 4, 5]
+end
+</code></pre>
+<h2 id="constants"><a class="header" href="#constants">Constants</a></h2>
+<p>These constants are available anywhere without having to explicitly import
+anything.</p>
+<pre><code class="language-julia">channels::Integer      # How many channels the output has. At the moment 2 is the
+                       # supported value.
+buffer_length::Integer # How many samples are held in a buffer and consequently,
+                       # how many samples are processed by a call to exec().
+sample_rate::Float32   # How many samples occur per second.
+</code></pre>
+<p>For example, you can get the amount of time that should pass in the audio 
+during a call of exec() by doing:</p>
+<pre><code class="language-julia">buffer_lenght #= samples per buffer =# / sample_rate #= samples per second =#
+</code></pre>
+<p>If you want to iterate over a buffer, you should use <code>sample_indices(buffer)</code>
+and <code>channel_indices(buffer)</code> rather than manually looping over the range
+<code>1:buffer_length</code> and <code>1:channels</code>. Read the section <strong>Consuming Data</strong> for more
+information.</p>
+<h2 id="producing-data"><a class="header" href="#producing-data">Producing Data</a></h2>
+<p>One way to produce audio, control, or trigger data is to use <code>similar()</code> to
+create a mutable buffer that is later written to:</p>
+<pre><code class="language-julia">output = similar(MonoAudio)
+for s in sample_indices(MonoAudio)
+    output[1, s] = Float32(s)
+end
+</code></pre>
+<p>If your data is dependent on a number of controls on your module, it is a good
+idea to let Julia figure out the data type it needs:</p>
+<pre><code class="language-julia"># By programming it this way instead of by manually creating a buffer, it opens
+# it up to heavy optimization. The best case is if both `control1` and 
+# `control2` are of a type like `StaticMonoAudio`, then `intermediate_value`
+# will also be of type `StaticMonoAudio`. As soon as even one of the controls
+# becomes something bigger like `MonoAudio`, the output type is also correctly
+# changed to `MonoAudio`. Julia's vectorization system is even smart enough to
+# handle the case where one control is of type `StaticStereoAudio` and the other
+# is of type `MonoAudio`, correctly producing a result of type `StaticAudio`.
+# Note that we do NOT use .= here because intermediate_value does not yet
+# contain an array that can be written to.
+intermediate_value = control1 .+ sin.(control2)
+</code></pre>
+<p>Both audio and control signals should contain floating point values in the range
+of <code>-1f0</code> to <code>1f0</code>. Note that this limit is not currently enforced, for example
+a user could take a signal that reaches these limits and then route it through
+an amplifier, making it peak at <code>2f0</code>. Because of this, if your algorithm 
+absolutely requires values to be in range, make sure to clip them before
+using them.</p>
+<p>Triggers are arrays of boolean values. Anywhere that the array contains <code>true</code>
+is a place where a trigger should be considered to have fired.</p>
+<p>Waveforms are the odd data type out. Unlike the other three data types, they
+are functions instead of arrays. They accept two parameters, the first is a
+phase and the second is a buffer position. An example definition of a sine wave:</p>
+<pre><code class="language-julia"># Julia handles the unicode symbol π just fine which I think is super neat.
+waveform = function(phase::Float32, buffer_pos::Integer)
+    sin(phase * 2π)
+end
+</code></pre>
+<p>The <code>buffer_pos</code> argument is there if you want to include some controls which
+can be automated by the user in the definition of your waveform:</p>
+<pre><code class="language-julia">square_wave = function(phase::Float32, buffer_pos::Integer)
+    if phase &lt; duty_cycle[%, 1, buffer_pos] 1f0 else -1f0 end
+end
+</code></pre>
+<p>Unlike with control signals and audio, the <code>phase</code> argument <em>must</em> be between
+<code>0f0</code> and <code>1f0</code>, so you can safely write equations that depend on this to be
+true.</p>
+<h2 id="consuming-data"><a class="header" href="#consuming-data">Consuming Data</a></h2>
+<p>For data types like audio, control signals, and triggers, your module code may
+be given any of the possible data types for that kind of information. It is then
+important to account for this possibility. For example, consider this code:</p>
+<pre><code class="language-julia">second_sample = some_control[1, 2]
+</code></pre>
+<p>This could fail if <code>some_control</code> is one of the <code>Static</code> variants which only
+contains a single value, indicating that it did not change during the span of 
+time it represents. The factory library extends indexing in a custom way to make
+situations like this easier. By adding a percent sign <code>%</code> as the first index,
+any Audiobench-related data can be accessed as if it were the biggest possible
+type for that kind of data. For example:</p>
+<pre><code class="language-julia">full_audio_data = similar(StereoAudio)
+# Note that the % trick won't work on the left hand side of an equal sign, as
+# its behavior would be misleading.
+full_audio_data[2, 3] = 1f0
+@assert full_audio_data[%, 2, 3] == 1f0
+# This represents audio data which is the same on all channels and during the
+# entire 'length' of the buffer, only storing a single value.
+static_audio_data = similar(StaticMonoAudio)
+static_audio_data[1, 1] = 1f0
+# Access it as if it were stereo and changed over time. Any access will return
+# the same value.
+@assert static_audio_data[%, 2, 3] == 1f0
+@assert static_audio_data[%, 2, 19] == 1f0
+@assert static_audio_data[%, 1, 1] == 1f0
+</code></pre>
+<p>If you want to manually iterate over data, the <code>channel_indices</code> and 
+<code>sample_indices</code> functions are quite useful:</p>
+<pre><code class="language-julia">output = similar(input)
+# In memory, stereo audio data is stored so that the channel index changes the
+# fastest. In other words, in memory it would look like LRLRLRLRLRLRLRLR and not
+# LLLLLLLLLRRRRRRRRR. So it is more cache-friendly (and thus faster) to put the
+# channel loop on the inside.
+for s in sample_indices(input)
+    # If input is mono audio then the loop will only execute once with `c == 1`.
+    # If it is stereo, it will repeat twice with `1` and `2`.
+    for c in channel_indices(input)
+        # Using the percent trick is optional here since we already know for
+        # sure that `s` and `c` are valid for this array.
+        output[c, s] = 2f0 * input[%, c, s]
+    end
+end
+</code></pre>
+<p>It is often the case where you need to manually iterate over samples but can
+still leverage Julia's slicing feature to avoid manually iterating over
+channels:</p>
+<pre><code class="language-julia">output = similar(input)
+for s in sample_indices(input)
+    # The ':' indicates you want a slice from the beginning to the end. In this
+    # case, we want a slice of all the channels for the particular sample `s`.
+    # Also note the use of the .= since a slice is not a scalar, we want to
+    # assign into it instead of over it.
+    output[:, s] .= input[%, :, s] .* sin(static.phase)
+    # 1.0 / sample_rate is the amount of time represented by a single audio
+    # sample.
+    static.phase += 1.0 / sample_rate
+end
+</code></pre>
+<p>Triggers and control signals are accessed in the same way, although trying to
+access any channel other than <code>1</code> will cause an error as neither of these types
+support having multiple channels.</p>
+<pre><code class="language-julia">data = similar(Trigger)
+data[1, 2] = true
+@assert data[%, 1, 2] == true
+static_data = similar(StaticTrigger)
+static_data[1, 1] = true
+@assert static_data[%, 1, 81] == true
+</code></pre>
+<p>Waveforms are functions, so using them only involves passing the correct
+arguments. The first argument is the phase you want to look up in the waveform,
+in a range between <code>0f0</code> and <code>1f0</code>. The second parameter is an integer
+indicating which sample index this lookup is being performed for. This is
+necessary to allow waveforms that change over time. For example, a user could
+automate the parameter knob on the Starter Shapes module to produce a waveform
+which is constantly changing. This second parameter then informs the waveform of
+what time during that automation it should look up its parameters from. The
+waveform will return a value of type <code>Float32</code>. To demonstrate, here is code for
+a simple oscillator:</p>
+<pre><code class="language-julia">output = similar(MonoAudio)
+for s in sample_indices(MonoAudio)
+    output[1, s] = waveform(static.phase % 1f0, s)
+    static.phase += pitch[%, 1, s] / sample_rate
+end
+</code></pre>
+<p>The value of the phase argument <em>must</em> be between <code>0f0</code> and <code>1f0</code> or you may
+get nonsensical results.</p>
+<h2 id="feedback-data"><a class="header" href="#feedback-data">Feedback Data</a></h2>
+<p>Some widgets have a property called <code>feedback_name</code> which indicates that it can
+receive values back from Julia to display in a friendly way to the user. For
+example, the <code>TriggerSequence</code> widget accepts a floating point value to display
+as a playhead along the sequence so the user can see what part of the sequence
+is currrently being used by the module. At the moment all feedback data comes
+in the form of <code>Vector{Float32}</code>s, so code to send feedback will look like this:</p>
+<pre><code class="language-julia">push!(chosen_feedback_name, playhead_progress)
+</code></pre>
+<p>It would be inefficient to compute this data during every call to <code>exec()</code> since
+it is called much faster than the display's framerate, and additionally only one
+note's feedback data could ever be viewed at a time. For this reason, there
+is a variable available called <code>do_feedback</code> which is only occasionally true.
+Code to provide feedback data should follow this pattern:</p>
+<pre><code class="language-julia">if do_feedback
+    value_to_display = some_complicated_computation()
+    push!(chosen_feedback_name, value_to_display)
+end
+</code></pre>
+<p>This behavior is deliberately a part of the <code>exec()</code> function rather than being
+contained in a seperate function so that you can display actual data that is
+being computed without having to manually store it for when a seperate feedback
+function was called.</p>
+<h2 id="helper-methods"><a class="header" href="#helper-methods">Helper Methods</a></h2>
+<pre><code class="language-julia"># Audio type to sample type
+@assert at2st(MonoAudio) == MonoSample
+# Sample type to audio type
+@assert st2at(StereoSample) == StereoAudio
+# Sample type to static audio type
+@assert st2sat(StereoSample) == StaticStereoAudio
+# Audio to control signal, flattens a (potentially stereo) audio signal to a
+# (guaranteed mono) control signal.
+@assert typeof(a2cs(stereo_audio)) == ControlSignal
+@assert ControlSignal == MonoAudio
+# Linear interpolation.
+@assert lerp(from, to, 1f0) == to
+@assert lerp(0f0, 5f0, 0.2f0) == 1f0
+# mutable() returns the mutable version of a data type.
+mutable struct StaticData
+    echo_memory: mutable(StereoAudio)
+end
+# viewas() lets you treat bigger data like it was smaller data.
+echo_memory = viewas(static.echo_memory, typeof(mono_audio))
+echo_memory .+= mono_audio
+echo_memory .*= 0.5f0
+# typeof2() is useful for explicitly getting the Audiobench-defined datatype of
+# something since Julia considers the immutable and mutable data types to be 
+# different.
+@assert typeof(incoming_audio) == mutable(StereoAudio)
+@assert typeof(incoming_audio) != StereoAudio
+@assert typeof2(incoming_audio) == StereoAudio
+@assert at2st(typeof2(incoming_audio)) == StereoSample
+</code></pre>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                        
+                            <a rel="prev" href="../making_libraries/custom_modules_julia.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+                        
+
+                        
+                            <a rel="next" href="../making_libraries/custom_modules_yaml.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+                        
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                
+                    <a rel="prev" href="../making_libraries/custom_modules_julia.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                
+
+                
+                    <a rel="next" href="../making_libraries/custom_modules_yaml.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+                
+            </nav>
+
+        </div>
+
+        
+
+        
+
+        
+
+        
+        <script type="text/javascript">
+            window.playground_copyable = true;
+        </script>
+        
+
+        
+
+        
+        <script src="../elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../searcher.js" type="text/javascript" charset="utf-8"></script>
+        
+
+        <script src="../clipboard.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../highlight.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../book.js" type="text/javascript" charset="utf-8"></script>
+
+        <!-- Custom JS scripts -->
+        
+
+        
+
+    </body>
+</html>

@@ -97,7 +97,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded "><a href="getting_started.html"><strong aria-hidden="true">1.</strong> Getting Started</a></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded "><a href="getting_started.html"><strong aria-hidden="true">1.</strong> Getting Started</a></li><li class="chapter-item expanded "><a href="additional_libraries.html"><strong aria-hidden="true">2.</strong> Additional Libraries</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="making_libraries/start.html"><strong aria-hidden="true">2.1.</strong> Making Your Own Libraries</a></li><li class="chapter-item expanded "><a href="making_libraries/adding_patches.html"><strong aria-hidden="true">2.2.</strong> Adding Patches</a></li><li class="chapter-item expanded "><a href="making_libraries/publishing.html"><strong aria-hidden="true">2.3.</strong> Publishing Your Library</a></li><li class="chapter-item expanded "><a href="making_libraries/custom_modules.html"><strong aria-hidden="true">2.4.</strong> Custom Modules</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="making_libraries/introduction_to_julia.html"><strong aria-hidden="true">2.4.1.</strong> Introduction To Julia</a></li><li class="chapter-item expanded "><a href="making_libraries/custom_modules_julia.html"><strong aria-hidden="true">2.4.2.</strong> The .module.jl File</a></li><li class="chapter-item expanded "><a href="making_libraries/audiobench_and_julia.html"><strong aria-hidden="true">2.4.3.</strong> Audiobench-Specific Julia Patterns</a></li><li class="chapter-item expanded "><a href="making_libraries/custom_modules_yaml.html"><strong aria-hidden="true">2.4.4.</strong> The .module.yaml File</a></li><li class="chapter-item expanded "><a href="making_libraries/module_controls.html"><strong aria-hidden="true">2.4.5.</strong> List Of Controls</a></li><li class="chapter-item expanded "><a href="making_libraries/module_widgets.html"><strong aria-hidden="true">2.4.6.</strong> List Of Widgets</a></li></ol></li><li class="chapter-item expanded "><a href="making_libraries/factory_library_source.html"><strong aria-hidden="true">2.5.</strong> Factory Library Source Code</a></li></ol></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -187,21 +187,24 @@ affected by the wire coming from the envelope module. We say that the
 <em>amplitude</em> control is <strong>automated</strong> by the output from the envelope. If you
 change some of the controls on the envelope by clicking and dragging them, you
 change how the <em>amplitude</em> of the oscillator changes over time. The only
-controls that can be automated are <strong>knobs</strong> and <strong>sliders</strong>. You can automate
-them by dragging a wire from an output onto a knob or slider. One way to make
-this patch more interesting is by making the envelope automate the <em>peak phase</em>
-control on the triangle wave module:</p>
+controls that can be automated at the moment are <strong>knobs</strong> and <strong>sliders</strong>. You
+can automate them by dragging a wire from an output onto one of these controls.
+One way to make this patch more interesting is by making the envelope automate
+the <em>parameter</em> control on the basic shape module:</p>
 <p><img src="images/default_c.png" alt="Triangle wave automated by envelope" /></p>
-<p>You may have noticed while setting that up that the audio cut out and a
-notification saying &quot;compiling&quot; appeared. Because of how Audiobench works
-internally, some changes necessitate doing a slow, one-time process called
-&quot;compilation&quot; before you can start playing notes again. This process will not
-occur whenever you modify a control. Right now compilation is fairly slow, this
-will be improved as development continues.</p>
 <p>You can change the range of the automation by right-clicking on the knob and
 clicking and dragging on the <strong>automation lane</strong>. You can also right-click on
-the lane itself to remove its automation from the control.</p>
+the lane itself to remove its automation from the control. </p>
 <p><img src="images/default_d.png" alt="Automation being adjusted" /></p>
+<p>While hovering over the basic shape module a box will appear to show you the
+shape the module is outputting. Hovering over some other modules will show you
+the audio they are outputting.</p>
+<p><img src="images/shape_preview.png" alt="Hovering over the starter shape module to view its output" /></p>
+<p>You may have noticed while setting that up that the audio cut out and a
+notification saying &quot;working&quot; appeared. Because of how Audiobench works
+internally, some changes necessitate doing a slow, one-time process called
+&quot;compilation&quot; before you can start playing notes again. This process will not
+occur whenever you modify a control. </p>
 <p>The last thing to talk about is <strong>inputs</strong> and <strong>outputs</strong>. These are the white
 boxes that appear on the sides of each module. Inputs are on the left and
 outputs are on the right. Each of them has a specific type, so that pitch inputs
@@ -218,8 +221,8 @@ example, disconnecting the triangle wave from the oscillator would let you cycle
 through a handful of default waveforms. Inputs and outputs can be connected by
 clicking and dragging.</p>
 <h1 id="beyond-the-default-patch"><a class="header" href="#beyond-the-default-patch">Beyond The Default Patch</a></h1>
-<p>To really start making some noise, you'll want to add in more modules, The plus
-button at the top left of the screen takes you to the <strong>module browser</strong>, which
+<p>To really start making some noise, you'll want to add in more modules.
+Double-clicking the module graph takes you to the <strong>module browser</strong>, which
 lists all available modules:</p>
 <p><img src="images/module_browser.png" alt="List of available modules" /></p>
 <p>Clicking on one will add it to the note graph. You can click and drag the module
@@ -227,16 +230,16 @@ to move it around, or click and drag on the background to pan your view.
 Scrolling on the background will zoom in and out to help with building larger
 patches.</p>
 <p><img src="images/default_e.png" alt="The default patch with an LFO added" /></p>
-<p>Once you have something you like, go to the patch browser by clicking its icon
-in the top-left corner. This is where all the factory-provided and user-made
-patches live. To save your patch, first click the '+' button to make a new file.
-Give it a name, then click the save button to save your changes. If you want to
-easily share your patch with other people, click the copy button to get a piece
-of text that represents your patch. Others can then copy that text and click the
-paste button to load your patch. You can try it out with this code for the
-patch in the picture above:</p>
-<pre><code>AQAXR2V0dGluZyBTdGFydGVkIEV4YW1wbGUAAAEABf8DAeAAqAUBUACoBgB4AMAKADAAAA7_cAB4CyIA
-AQJoAGqqAAA7o9cKAD5MzM0APpmZmgAAP4AAAAIzAwQ
+<p>Once you have something you like, you can save your patch by clicking the '+'
+button to save it in a new file. (You may need to hover over the top bar to
+reveal the button.) You can then change the name in the home tab. You can save
+additional changes to the same patch by clicking the save button, or to a new
+patch by clicking the '+' button again. If you want to easily share your patch
+with other people, click the copy button to get a piece of text that represents
+your patch. Others can then copy that text and click the paste button to load
+your patch. You can try it out with this code for the patch in the picture
+above:</p>
+<pre><code>AgcARGVmYXVsdAEHAEZhY3RvcnkgAgUAAsj-__9w____AABgAAAAGAAAAAAB0P___xgAAAAAA_j-__8wAAAAAATw_f__6P___0D4_weAwvXoDs3MTD5oZmb6FAAAAAgcABMAAAD8_xNIAAAA_v-N_38AgAAAAAD8IQA
 </code></pre>
 <h1 id="miscellaneous-tips"><a class="header" href="#miscellaneous-tips">Miscellaneous Tips</a></h1>
 <ul>
@@ -245,11 +248,1139 @@ a number.</li>
 <li>The timing control lets you set if durations should be in terms of beats or
 seconds and also lets you sync up certain modules with the current time in
 your song.</li>
-<li>Using a MIDI Control module with the control set to 1 will let you automate
-things using the mod wheel.</li>
-<li>The library browser panel (the first icon in the top-left) will tell you what
-new features are available if a new version of Audiobench has been released.</li>
+<li>The library browser will tell you what new features are available if a new
+version of Audiobench has been released.</li>
 </ul>
+<h1 id="additional-libraries"><a class="header" href="#additional-libraries">Additional Libraries</a></h1>
+<p>Libraries are files that contain new modules and patches to be added to
+Audiobench. To install one, simply place it in <code>Documents/Audiobench/</code>. You'll
+notice that there is already a library called <code>User</code> in this folder which
+contains all the custom patches you make. Check out the next chapter if you want
+to experiment with making your own library.</p>
+<h1 id="making-your-own-libraries"><a class="header" href="#making-your-own-libraries">Making Your Own Libraries</a></h1>
+<p>Libraries are a way to add extra modules and patches to Audiobench. They also
+serve as a great way to share a large number of patches in a single file. To get
+started making your own library, create a new folder in <code>Documents/Audiobench/</code>
+and name it whatever you want. Create a file in that folder named
+<code>library_info.yaml</code>. The contents of this file should follow this format:</p>
+<pre><code class="language-yaml">internal_name: (A name with no spaces or special characters)
+pretty_name: (The name of your library that will be shown to the user)
+description: (Some text to describe the contents of your library)
+version: 0.1.0
+</code></pre>
+<p>The <code>version</code> field must follow <a href="https://semver.org/">semantic versioning</a>
+rules.</p>
+<p>Once you have this file, opening the <strong>Library Info</strong> tab in Audiobench will
+display your library alongside the factory and user libraries. You are now ready
+to start adding items to your library!</p>
+<h1 id="adding-patches"><a class="header" href="#adding-patches">Adding Patches</a></h1>
+<p>Adding patches is pretty simple. First, open the patch you would like to add in
+Audiobench. Click the 'copy' button in the header to copy the patch as text.
+Then, create a new text file called <code>[patch name].abpatch</code> anywhere in your
+library's folder and paste in the copied text. Make sure it is not called
+<code>[patch name].abpatch.txt</code>! Once the file is saved, closing and opening
+Audiobench again will now display that patch in the patch list in the home tab.</p>
+<h1 id="publishing-your-library"><a class="header" href="#publishing-your-library">Publishing Your Library</a></h1>
+<p>Audiobench lets you pack up your library as a single file to make it easier to
+share with people. Simply zip up the contents of your library and rename the
+created zip file to <code>whatever_name.ablib</code>. Make sure that you do not zip up the
+library folder itself! If you immediately see the <code>library_info.yaml</code> file when
+opening up the created zip file, you are good. If you see your library folder
+instead, you need to try again.</p>
+<h1 id="custom-modules"><a class="header" href="#custom-modules">Custom Modules</a></h1>
+<p>Modules are defined by two files that look something like this:</p>
+<pre><code class="language-julia"># MODULE_NAME.module.jl
+function exec()
+    output = input .* gain
+end
+</code></pre>
+<pre><code class="language-yaml"># MODULE_NAME.module.yaml
+save_id: 16
+outputs:
+  output:
+    datatype: audio
+    label: Output
+    tooltip: The amplified audio
+controls:
+  input:
+    type: Input
+    datatype: audio
+  gain:
+    type: FloatInRange
+    min: 0
+    max: 4
+    default: 1
+gui:
+  label: Amplifier
+  category: Utility
+  tooltip: Changes the volume of an audio signal (optionally decreasing it)
+  width: 2
+  height: 2
+  widgets:
+    - type: Input
+      y: 0
+      control: input
+      label: Input
+      tooltip: The audio to be amplified
+    - type: Knob
+      x: 0
+      y: 0
+      control: gain 
+      label: Gain
+      tooltip: How much gain to apply
+</code></pre>
+<p>The <code>.module.jl</code> file is written in a language called <a href="https://julialang.org/">Julia</a>
+which is designed for fast mathematical processing. It has a variety of features
+that come in handy when doing digital signal processing. The file itself 
+describes the actual algorithm your module should perform.</p>
+<p>The <code>.module.yaml</code> file describes metadata about the module such as what its
+name is and what its outputs are. Note how the output named <code>output</code> and the
+controls named <code>input</code> and <code>gain</code> are referenced by name in the <code>.jl</code> file.</p>
+<h1 id="introduction-to-julia"><a class="header" href="#introduction-to-julia">Introduction To Julia</a></h1>
+<p>This is a quick introduction to Julia for anyone who is familiar with another 
+programming language like C++ or Python. If you are just starting out, it is
+highly recommended to download Julia from its home page. The download includes
+a REPL which allows you to type in Julia code and immediately see its output,
+like how Python works.</p>
+<pre><code class="language-julia"># DATA TYPES
+@assert typeof(1) == Int64
+@assert typeof(Int32(1)) == Int32
+@assert typeof(Int32(1) + 1) == Int64
+@assert typeof(0.0) == Float64
+@assert typeof(0f0) == Float32
+@assert 1f3 == 1e3
+@assert typeof(1f3) == Float32
+@assert typeof(1e3) == Float64
+
+# EXPRESSIONS
+123 + 456 * 789
+500 == -5_00 * -1
+sin(1f0)
+exp(log(01f0))
+@assert 3^2 == 9
+
+# VARIABLES
+variable = 123
+use_snake_case = &quot;always&quot;
+
+# ARRAYS
+# Regular Julia dynamically sized array
+vanilla = [1, 2, 3]
+# Because of its heratige of being used for mathematical processing, Julia array
+# indices unfortunately start at 1.
+@assert vanilla[1] == 1
+push!(vanilla, 15)
+@assert vanilla[4] == 15
+# Fixed-size array used in many parts of Audiobench, added by the Static Arrays 
+# library available at https://github.com/JuliaArrays/StaticArrays.jl
+# It is automatically imported into Audiobench so it can be used anywhere without
+# manually importing it.
+using StaticArrays; # Only required if running code outside Audiobench.
+fixed = SA_F32[1, 2, 3]
+@assert fixed[1] == 1f0
+push!(fixed, 4) # This causes a compile error.
+
+# FUNCTIONS
+function add_one(input)
+    return input + 1
+end
+# You can also end a function with an expression 
+# and it will be automatically returned.
+function add_one(input)
+    input + 1
+end
+# You can also require inputs and return values to be a specific type.
+function add_one(input::Int32)::Int32
+    # The default integer type is Int64, doing this converts it to an Int32.
+    input + Int32(1)
+end
+# This function will work on any integer type
+function add_one(input::Integer)::Integer
+    # Int8 is automatically casted up to the appropriate size.
+    input + Int8(1)
+end
+
+# CONTROL FLOW
+if condition1
+    println(&quot;Condition1 is true&quot;)
+elseif condition2
+    println(&quot;Condition2 is true&quot;)
+else
+    println(&quot;All conditions are false&quot;)
+end
+total = 0
+for step in 1:3
+    total += step
+end
+@assert total == 1 + 2 + 3
+while condition
+    println(&quot;The condition is still true&quot;)
+end
+# If statements can also be expressions if each of their clauses ends with
+# an expression.
+choice = if prefers_big_numbers 100_000 else 2 end
+
+# STRUCTS
+struct NumberHolder
+    value::Int32
+end
+number_holder = NumberHolder(123)
+@assert number_holder.value == 123
+mutable struct MutableNumberHolder
+    value::Int32
+end
+mutable_number_holder = MutableNumberHolder(123)
+@assert mutable_number_holder.value == 123
+# Replacing mutable_number_holder with number_holder would cause a compliation error. 
+# This is the difference between a mutable struct and a regular struct.
+mutable_number_holder.value = 456
+
+# VECTORIZED OPERATORS
+# Prefixing an operator with a . means it is 'vectorized' such that it will
+# operate on individual elements of each operand. This also serves as a 
+# compilation hint to use vectorized instructions like those in SIMD and AVX.
+@assert SA_F32[10, 10, 10] .+ SA_F32[11, 12, 13] == SA_F32[21, 22, 23]
+# This also works for functions, so that functions do not have to worry about
+# implementing the details of iterating over different array types.
+@assert abs.(SA_F32[1, -2, -3]) == SA_F32[1, 2, 3]
+# Vectorized operators can also automatically increase the size of a piece of
+# data so that it maches another operand.
+@assert 10 .+ SA_F32[11, 12, 13] == SA_F32[21, 22, 23]
+# Vectorized assignment will write data directly to a variable instead of
+# collecting it in an intermediate value and then assigning that value to the
+# variable.
+container = data1 .+ data2 # Intermediate value is created.
+container = similar(container) # Create a mutable version of whatever data type
+                               # container is.
+container .= data1 .+ data2 # Results of individual sums are written directly to 
+                            # individual elements of container
+# The @. macro will replace all operators on a line or in an expression with
+# their vectorized versions.
+value = @. abs(SA_F32[1, -2, -3]) + 10
+@assert value == SA_F32[11, 12, 13]
+value = similar(value)
+@. value = 42
+@assert value == SA_F32[42, 42, 42]
+# Frequent use of these features allow Julia to more thorougly optimize the code,
+# yielding better performance.
+
+# OTHER IMPORTANT FEATURES
+# The similar() function makes a new mutable instance of some data type which 
+# itself may not be mutable. For example:
+not_mutable = SA_F32[1, 2, 3]
+not_mutable[1] = 10 # This will cause an error!
+mutable = similar(not_mutable)
+mutable[1] = 10 # This works fine.
+# Note that the data is not copied by the similar() function:
+@assert mutable[3] != not_mutable[3]
+# This function can also be used with the type aliases defined by Audiobench:
+data = similar(StereoAudioBuffer)
+data[1, 1] = 0.2f0 
+</code></pre>
+<h1 id="the-modulejl-file"><a class="header" href="#the-modulejl-file">The .module.jl File</a></h1>
+<p>The <code>.module.jl</code> file is written in a language called <a href="https://julialang.org/">Julia</a>
+which is designed for fast mathematical processing. It has a variety of features
+that come in handy when doing digital signal processing. The file itself 
+describes the actual algorithm your module should perform.</p>
+<h2 id="file-contents"><a class="header" href="#file-contents">File contents</a></h2>
+<p>Audiobench will look for three items defined in this file:</p>
+<pre><code class="language-julia"># Optional
+mutable struct StaticData
+    echo_buffer::mutable(StereoAudio)
+end
+
+# Optional
+function static_init()
+    echo_buffer = similar(StereoAudio)
+    StaticData(echo_buffer)
+end
+
+# Required
+function exec()
+    output .= input .+ static.echo_buffer
+    static.echo_buffer .= input
+end
+</code></pre>
+<p>You can also define any additional items you want to help write your module such
+as constants or helper functions.</p>
+<p>The <code>exec()</code> function is required and is called many times per second whenever
+your module needs to process audio. Audiobench will automatically pass several
+variables to this function based on the contents of your <code>.module.yaml</code> file.
+The necessary arguments are automatically inserted for you so you do not have
+to worry about manually writing them in the correct order.</p>
+<blockquote>
+<p>WARNING: At the moment, manually returning from the exec() function will cause
+an error, so make sure your control flow always reaches the end of the
+function!</p>
+</blockquote>
+<p>The <code>StaticData</code> struct is optional and defines a data structure that can hold
+on to data between multiple calls of <code>exec()</code>. For example, the Oscillator
+module has a StaticData struct that remembers the last phase that was outputted
+so that when <code>exec()</code> is called again, it can pick up where it left off.</p>
+<h1 id="audiobench-specific-julia-patterns"><a class="header" href="#audiobench-specific-julia-patterns">Audiobench-Specific Julia Patterns</a></h1>
+<p>This section will go over some coding patterns that are helpful specifically
+when developing Audiobench modules as well as helpful functions and types added
+by the factory library. If you would like to see the actual Julia file defining
+most of what's discussed in this page, you can check it out
+<a href="https://github.com/joshua-maros/audiobench/blob/latest-beta/components/factory_library/lib.lib.jl">on the GitHub repository</a></p>
+<h2 id="types"><a class="header" href="#types">Types</a></h2>
+<p>In Audiobench, the main data types are <em>audio signals</em>, <em>control signals</em>, 
+<em>triggers</em>, and <em>waveforms</em>. Creating a module will involve consuming or producing
+at least one of these types of data. The way these are defined and used in Julia
+is as follows:</p>
+<h3 id="audio"><a class="header" href="#audio">Audio</a></h3>
+<pre><code class="language-julia"># StereoAudio contains audio data that changes over time and has different
+# content between its two channels. It is a type alias for a static array of
+# Float32s.
+audio = similar(StereoAudio)
+audio[channel, sample] = 0f0
+# MonoAudio is like StereoAudio but only has one channel
+mono_audio = similar(MonoAudio)
+audio[1, sample] = 0f0 # Good.
+audio[2, sample] = 0f0 # RUNTIME ERROR!
+# There are also 'static' variants that hold audio data which does not change.
+StaticMonoAudio
+StaticStereoAudio
+</code></pre>
+<h3 id="control-signals"><a class="header" href="#control-signals">Control Signals</a></h3>
+<pre><code class="language-julia"># Control signals are values that change over time but do not have multiple 
+# channels. They are just aliased to Audio types for simplicity. This is the
+# datatype that a knob widget would control. Here the presence of a static
+# version makes more sense, as controls can be set by the user to an unchanging
+# value and left alone, so the static version has a lot of potential for 
+# optimization since it is only carrying one copy of that value instead of 512
+# copies.
+@assert ControlSignal == MonoAudio
+@assert StaticControlSignal == StaticMonoAudio
+</code></pre>
+<h3 id="triggers"><a class="header" href="#triggers">Triggers</a></h3>
+<pre><code class="language-julia"># Triggers are boolean arrays. Any place where the array is true is a place
+# where a trigger was sent. Like other data types, there is a static version.
+trigger = similar(Trigger)
+# Only 1 channel
+trigger[1, sample] = true
+static = similar(StaticTrigger)
+# This is usually the only use for a static trigger. One which was true would
+# be considered to be firing on every single sample.
+static[1, 1] = false
+</code></pre>
+<h3 id="waveforms"><a class="header" href="#waveforms">Waveforms</a></h3>
+<pre><code class="language-julia"># Waveforms are actually just functions, which are not strongly typed by their
+# argument and return types in Julia. Currently there is no robust check in
+# place to make sure that places where Audiobench expects a valid waveform are
+# actually being given a valid waveform.
+waveform = function(phase::Float32, buffer_pos::Integer)
+    sin(phase + some_control[%, 1, buffer_pos])
+end
+# This is not a valid waveform. It's going through a rebellious phase.
+not_waveform = function(something::String, irrelevant::Float64)
+    [1, 2, 3, 4, 5]
+end
+</code></pre>
+<h2 id="constants"><a class="header" href="#constants">Constants</a></h2>
+<p>These constants are available anywhere without having to explicitly import
+anything.</p>
+<pre><code class="language-julia">channels::Integer      # How many channels the output has. At the moment 2 is the
+                       # supported value.
+buffer_length::Integer # How many samples are held in a buffer and consequently,
+                       # how many samples are processed by a call to exec().
+sample_rate::Float32   # How many samples occur per second.
+</code></pre>
+<p>For example, you can get the amount of time that should pass in the audio 
+during a call of exec() by doing:</p>
+<pre><code class="language-julia">buffer_lenght #= samples per buffer =# / sample_rate #= samples per second =#
+</code></pre>
+<p>If you want to iterate over a buffer, you should use <code>sample_indices(buffer)</code>
+and <code>channel_indices(buffer)</code> rather than manually looping over the range
+<code>1:buffer_length</code> and <code>1:channels</code>. Read the section <strong>Consuming Data</strong> for more
+information.</p>
+<h2 id="producing-data"><a class="header" href="#producing-data">Producing Data</a></h2>
+<p>One way to produce audio, control, or trigger data is to use <code>similar()</code> to
+create a mutable buffer that is later written to:</p>
+<pre><code class="language-julia">output = similar(MonoAudio)
+for s in sample_indices(MonoAudio)
+    output[1, s] = Float32(s)
+end
+</code></pre>
+<p>If your data is dependent on a number of controls on your module, it is a good
+idea to let Julia figure out the data type it needs:</p>
+<pre><code class="language-julia"># By programming it this way instead of by manually creating a buffer, it opens
+# it up to heavy optimization. The best case is if both `control1` and 
+# `control2` are of a type like `StaticMonoAudio`, then `intermediate_value`
+# will also be of type `StaticMonoAudio`. As soon as even one of the controls
+# becomes something bigger like `MonoAudio`, the output type is also correctly
+# changed to `MonoAudio`. Julia's vectorization system is even smart enough to
+# handle the case where one control is of type `StaticStereoAudio` and the other
+# is of type `MonoAudio`, correctly producing a result of type `StaticAudio`.
+# Note that we do NOT use .= here because intermediate_value does not yet
+# contain an array that can be written to.
+intermediate_value = control1 .+ sin.(control2)
+</code></pre>
+<p>Both audio and control signals should contain floating point values in the range
+of <code>-1f0</code> to <code>1f0</code>. Note that this limit is not currently enforced, for example
+a user could take a signal that reaches these limits and then route it through
+an amplifier, making it peak at <code>2f0</code>. Because of this, if your algorithm 
+absolutely requires values to be in range, make sure to clip them before
+using them.</p>
+<p>Triggers are arrays of boolean values. Anywhere that the array contains <code>true</code>
+is a place where a trigger should be considered to have fired.</p>
+<p>Waveforms are the odd data type out. Unlike the other three data types, they
+are functions instead of arrays. They accept two parameters, the first is a
+phase and the second is a buffer position. An example definition of a sine wave:</p>
+<pre><code class="language-julia"># Julia handles the unicode symbol π just fine which I think is super neat.
+waveform = function(phase::Float32, buffer_pos::Integer)
+    sin(phase * 2π)
+end
+</code></pre>
+<p>The <code>buffer_pos</code> argument is there if you want to include some controls which
+can be automated by the user in the definition of your waveform:</p>
+<pre><code class="language-julia">square_wave = function(phase::Float32, buffer_pos::Integer)
+    if phase &lt; duty_cycle[%, 1, buffer_pos] 1f0 else -1f0 end
+end
+</code></pre>
+<p>Unlike with control signals and audio, the <code>phase</code> argument <em>must</em> be between
+<code>0f0</code> and <code>1f0</code>, so you can safely write equations that depend on this to be
+true.</p>
+<h2 id="consuming-data"><a class="header" href="#consuming-data">Consuming Data</a></h2>
+<p>For data types like audio, control signals, and triggers, your module code may
+be given any of the possible data types for that kind of information. It is then
+important to account for this possibility. For example, consider this code:</p>
+<pre><code class="language-julia">second_sample = some_control[1, 2]
+</code></pre>
+<p>This could fail if <code>some_control</code> is one of the <code>Static</code> variants which only
+contains a single value, indicating that it did not change during the span of 
+time it represents. The factory library extends indexing in a custom way to make
+situations like this easier. By adding a percent sign <code>%</code> as the first index,
+any Audiobench-related data can be accessed as if it were the biggest possible
+type for that kind of data. For example:</p>
+<pre><code class="language-julia">full_audio_data = similar(StereoAudio)
+# Note that the % trick won't work on the left hand side of an equal sign, as
+# its behavior would be misleading.
+full_audio_data[2, 3] = 1f0
+@assert full_audio_data[%, 2, 3] == 1f0
+# This represents audio data which is the same on all channels and during the
+# entire 'length' of the buffer, only storing a single value.
+static_audio_data = similar(StaticMonoAudio)
+static_audio_data[1, 1] = 1f0
+# Access it as if it were stereo and changed over time. Any access will return
+# the same value.
+@assert static_audio_data[%, 2, 3] == 1f0
+@assert static_audio_data[%, 2, 19] == 1f0
+@assert static_audio_data[%, 1, 1] == 1f0
+</code></pre>
+<p>If you want to manually iterate over data, the <code>channel_indices</code> and 
+<code>sample_indices</code> functions are quite useful:</p>
+<pre><code class="language-julia">output = similar(input)
+# In memory, stereo audio data is stored so that the channel index changes the
+# fastest. In other words, in memory it would look like LRLRLRLRLRLRLRLR and not
+# LLLLLLLLLRRRRRRRRR. So it is more cache-friendly (and thus faster) to put the
+# channel loop on the inside.
+for s in sample_indices(input)
+    # If input is mono audio then the loop will only execute once with `c == 1`.
+    # If it is stereo, it will repeat twice with `1` and `2`.
+    for c in channel_indices(input)
+        # Using the percent trick is optional here since we already know for
+        # sure that `s` and `c` are valid for this array.
+        output[c, s] = 2f0 * input[%, c, s]
+    end
+end
+</code></pre>
+<p>It is often the case where you need to manually iterate over samples but can
+still leverage Julia's slicing feature to avoid manually iterating over
+channels:</p>
+<pre><code class="language-julia">output = similar(input)
+for s in sample_indices(input)
+    # The ':' indicates you want a slice from the beginning to the end. In this
+    # case, we want a slice of all the channels for the particular sample `s`.
+    # Also note the use of the .= since a slice is not a scalar, we want to
+    # assign into it instead of over it.
+    output[:, s] .= input[%, :, s] .* sin(static.phase)
+    # 1.0 / sample_rate is the amount of time represented by a single audio
+    # sample.
+    static.phase += 1.0 / sample_rate
+end
+</code></pre>
+<p>Triggers and control signals are accessed in the same way, although trying to
+access any channel other than <code>1</code> will cause an error as neither of these types
+support having multiple channels.</p>
+<pre><code class="language-julia">data = similar(Trigger)
+data[1, 2] = true
+@assert data[%, 1, 2] == true
+static_data = similar(StaticTrigger)
+static_data[1, 1] = true
+@assert static_data[%, 1, 81] == true
+</code></pre>
+<p>Waveforms are functions, so using them only involves passing the correct
+arguments. The first argument is the phase you want to look up in the waveform,
+in a range between <code>0f0</code> and <code>1f0</code>. The second parameter is an integer
+indicating which sample index this lookup is being performed for. This is
+necessary to allow waveforms that change over time. For example, a user could
+automate the parameter knob on the Starter Shapes module to produce a waveform
+which is constantly changing. This second parameter then informs the waveform of
+what time during that automation it should look up its parameters from. The
+waveform will return a value of type <code>Float32</code>. To demonstrate, here is code for
+a simple oscillator:</p>
+<pre><code class="language-julia">output = similar(MonoAudio)
+for s in sample_indices(MonoAudio)
+    output[1, s] = waveform(static.phase % 1f0, s)
+    static.phase += pitch[%, 1, s] / sample_rate
+end
+</code></pre>
+<p>The value of the phase argument <em>must</em> be between <code>0f0</code> and <code>1f0</code> or you may
+get nonsensical results.</p>
+<h2 id="feedback-data"><a class="header" href="#feedback-data">Feedback Data</a></h2>
+<p>Some widgets have a property called <code>feedback_name</code> which indicates that it can
+receive values back from Julia to display in a friendly way to the user. For
+example, the <code>TriggerSequence</code> widget accepts a floating point value to display
+as a playhead along the sequence so the user can see what part of the sequence
+is currrently being used by the module. At the moment all feedback data comes
+in the form of <code>Vector{Float32}</code>s, so code to send feedback will look like this:</p>
+<pre><code class="language-julia">push!(chosen_feedback_name, playhead_progress)
+</code></pre>
+<p>It would be inefficient to compute this data during every call to <code>exec()</code> since
+it is called much faster than the display's framerate, and additionally only one
+note's feedback data could ever be viewed at a time. For this reason, there
+is a variable available called <code>do_feedback</code> which is only occasionally true.
+Code to provide feedback data should follow this pattern:</p>
+<pre><code class="language-julia">if do_feedback
+    value_to_display = some_complicated_computation()
+    push!(chosen_feedback_name, value_to_display)
+end
+</code></pre>
+<p>This behavior is deliberately a part of the <code>exec()</code> function rather than being
+contained in a seperate function so that you can display actual data that is
+being computed without having to manually store it for when a seperate feedback
+function was called.</p>
+<h2 id="helper-methods"><a class="header" href="#helper-methods">Helper Methods</a></h2>
+<pre><code class="language-julia"># Audio type to sample type
+@assert at2st(MonoAudio) == MonoSample
+# Sample type to audio type
+@assert st2at(StereoSample) == StereoAudio
+# Sample type to static audio type
+@assert st2sat(StereoSample) == StaticStereoAudio
+# Audio to control signal, flattens a (potentially stereo) audio signal to a
+# (guaranteed mono) control signal.
+@assert typeof(a2cs(stereo_audio)) == ControlSignal
+@assert ControlSignal == MonoAudio
+# Linear interpolation.
+@assert lerp(from, to, 1f0) == to
+@assert lerp(0f0, 5f0, 0.2f0) == 1f0
+# mutable() returns the mutable version of a data type.
+mutable struct StaticData
+    echo_memory: mutable(StereoAudio)
+end
+# viewas() lets you treat bigger data like it was smaller data.
+echo_memory = viewas(static.echo_memory, typeof(mono_audio))
+echo_memory .+= mono_audio
+echo_memory .*= 0.5f0
+# typeof2() is useful for explicitly getting the Audiobench-defined datatype of
+# something since Julia considers the immutable and mutable data types to be 
+# different.
+@assert typeof(incoming_audio) == mutable(StereoAudio)
+@assert typeof(incoming_audio) != StereoAudio
+@assert typeof2(incoming_audio) == StereoAudio
+@assert at2st(typeof2(incoming_audio)) == StereoSample
+</code></pre>
+<h1 id="the-moduleyaml-file"><a class="header" href="#the-moduleyaml-file">The .module.yaml File</a></h1>
+<p>The <code>.module.yaml</code> file describes metadata about the module. Among other things,
+it allows Audiobench to create a graphical representation of the model and route
+the appropriate data in to and out of the <code>exec()</code> function defined in the
+corresponding <code>.module.jl</code> file. The file should follow this format:</p>
+<pre><code class="language-yaml">save_id: 0
+outputs:
+    [List of outputs]
+controls:
+    [List of controls]
+gui:
+  label: Thing Doer
+  category: Utility
+  tooltip: Does things
+  width: 10
+  height: 10
+  widgets:
+    [List of widgets]
+</code></pre>
+<h2 id="save_id"><a class="header" href="#save_id"><code>save_id</code></a></h2>
+<p>The <code>save_id</code> must be unique among all the modules in a particular library. If
+it is not, opening Audiobench will produce an error recommending the next
+available unused ID. Because of this it is recommended to set the ID to 0 when
+making a new module, then change it to the value that Audiobench recommends
+on startup.</p>
+<h2 id="outputs"><a class="header" href="#outputs"><code>outputs</code></a></h2>
+<p>The outputs list is formatted like this:</p>
+<pre><code class="language-yaml">outputs:
+    output_name:
+        datatype: [audio, pitch, trigger, or waveform]
+        label: Output
+        tooltip: Where the output comes out of.
+</code></pre>
+<p>The datatype specifies what kind of data the output will carry. Note that the
+actual Julia datatype of pitch data is just <code>ControlSignal</code> (or possibly
+<code>StaticControlSignal</code>.) <code>label</code> specifies a piece of text to show next to the
+output when it is being hovered over. <code>tooltip</code> specifies tooltip text to
+display in the top bar when the output is being hovered over. To use this
+output in your Julia code, you operate on a variable named <code>output_name</code>. For
+example:</p>
+<pre><code class="language-julia">output_name = Similar(StereoAudio)
+</code></pre>
+<p>Note that you <em>must</em> create a value and assign it to this variable. If your
+<code>exec()</code> function completes without defining a variable named <code>output_name</code>, you
+will get a compiler error.</p>
+<h2 id="controls"><a class="header" href="#controls"><code>controls</code></a></h2>
+<p>These are the things the user can modify to control how your module works. Note
+that this section does not contain the visual representation of the controls,
+that part is done in the <code>widgets</code> section. The <code>controls</code> section is formatted
+like this:</p>
+<pre><code class="language-yaml">controls:
+    control_name:
+        type: ControlType
+        other_data: specific to this ControlType
+</code></pre>
+<p>You can access the values of these controls inside the corresponding Julia code
+with the variable name you provide in place of <code>control_name</code>. A list of the
+different control types and the parameters they each require is available in the
+next section.</p>
+<h2 id="gui"><a class="header" href="#gui"><code>gui</code></a></h2>
+<p>This section tells Audiobench how to construct a visual representation of the
+module. The <code>label</code> is the name of the module that is displayed in the module
+browser and above the module in the module graph when hovering over it. The
+<code>category</code> is a name under which the module should be placed in the module
+browser. There is no limit on what this can be, so be aware that if you misspell
+the name of an existing category then your module will show up as the only
+module in the new misspelled category. The <code>tooltip</code> is text which shows in the
+top bar when the module is being hovered over. The <code>width</code> and <code>height</code> specify
+the size of the light gray area of the module where widgets can be placed. You
+do not need to take into account the extra space needed for the dark blue bars
+on either side of the module.</p>
+<h2 id="widgets"><a class="header" href="#widgets"><code>widgets</code></a></h2>
+<p>This section specifies what widgets should be shown on the module. These are
+usually used either to show a visual representation of a control or to display
+some feedback data sent from the <code>exec()</code> function to the user in a readable
+format. The section is formatted like this:</p>
+<pre><code class="language-yaml">gui:
+  widgets:
+  - type: WidgetType
+    x: 0
+    y: 0
+</code></pre>
+<p>A list of all current widgets is provided in a following chapter. There are some
+properties that many widgets have that serve the same function. First, almost
+every widget has an <code>x</code> and <code>y</code> property, which specifies the position of the
+top-left corner of the widget inside the module in grid units. Note that this is
+not pixels! For example, a knob is 2 grid units wide which, when rendered on the
+screen, takes up about 60 pixels. Many widgets also have <code>label</code> and <code>tooltip</code>
+properties. The former is a piece of text which should be displayed over or
+under the widget describing its function. The latter is a piece of text to 
+display in the top bar when the widget is hovered over. Any widget which serves
+as a visual representation of a control will have a <code>control</code> property where you
+must type the name of the control that the widget should represent. An error 
+will be generated if the control is not of the correct type. For example, a
+<code>DurationBox</code> widget cannot be used to represent a <code>FloatInRange</code> control.</p>
+<h1 id="list-of-controls"><a class="header" href="#list-of-controls">List Of Controls</a></h1>
+<p><strong>FloatInRange</strong> and <strong>Input</strong> are particularly common and good starting points.</p>
+<h2 id="duration"><a class="header" href="#duration">Duration</a></h2>
+<pre><code class="language-yaml">type: Duration
+# Optional. Values are &quot;decimal&quot; or &quot;fractional&quot;. Default is &quot;decimal&quot;.
+default_format: fractional 
+# Optional. Write a floating point number if using &quot;decimal&quot; format.
+default: 3/8
+</code></pre>
+<p>Represents an amount of time. Its Julia type is <code>ControlSignal</code>. It works best
+with the <code>DurationBox</code> widget.</p>
+<h2 id="floatinrange"><a class="header" href="#floatinrange">FloatInRange</a></h2>
+<pre><code class="language-yaml">type: FloatInRange
+# Required. The lowest value this control can be set to.
+min: -3.5
+# Required. The highest value this control can be set to.
+max: 4.1
+# Optional. Default is whatever value you put for min.
+default: 0.0
+# Optional. Appended after the value of this control in all visual representations.
+suffix: kg
+</code></pre>
+<p>Probably the most common type of control. Its Julia type is <code>ControlSignal</code>. It
+can be automated by other audio signals. It is commonly represented by the
+<code>Knob</code> widget, which the user can drag around to select a value between <code>min</code>
+and <code>max</code>. There are several other widgets that work with this control, all
+providing the same functionality just in different form factors.</p>
+<blockquote>
+<p>NOTE: Due to the fact that these controls can be automated by audio signals
+and that audio signals can have values with magnitude greater than <code>1.0</code>, the
+value of the control can end up being outside the range specified by <code>min</code> and
+<code>max</code>.</p>
+</blockquote>
+<h2 id="frequency"><a class="header" href="#frequency">Frequency</a></h2>
+<pre><code class="language-yaml">type: Frequency
+# Optional. Default is 1Hz.
+default: 440.0
+</code></pre>
+<p>Represents a user-selectable frequency. Its Julia type is <code>ControlSignal</code>. Works
+with the <code>FrequencyBox</code> widget.</p>
+<h2 id="input"><a class="header" href="#input">Input</a></h2>
+<pre><code class="language-yaml">type: Input
+# Required. Values are &quot;audio&quot;, &quot;pitch&quot;, &quot;trigger&quot;, &quot;waveform&quot;.
+datatype: audio
+# Optional. Values vary depending on the selected datatype. Using an invalid
+# option will generate an error containing a list of available options.
+default: silence
+</code></pre>
+<p>An input connection that wires can be connected to. The resulting Julia type is
+dependent on the <code>datatype</code> selected. For <code>audio</code>, it is <code>StereoAudio</code>. For
+<code>pitch</code>, it is <code>ControlSignal</code>. For <code>trigger</code>, it is <code>Trigger</code>. For <code>waveform</code>,
+it is <code>Waveform</code>. The default options available also change based on the
+datatype. For <code>audio</code>, the only option is <code>Silence</code>. For <code>pitch</code>, the only
+option is <code>Note Pitch</code>. For <code>trigger</code>, the options are <code>Note Start</code>,
+<code>Note Release</code>, and <code>Never</code>. For <code>Waveform</code>, the options are <code>Silence</code>,
+<code>Ramp Up</code>, <code>Ramp Down</code>, and <code>Sine Wave</code>.</p>
+<h2 id="int"><a class="header" href="#int">Int</a></h2>
+<pre><code class="language-yaml">type: Int
+# Required. The lowest value this control can be set to.
+min: -3
+# Required. The highest value this control can be set to.
+max: 4
+# Optional. Default is whatever value you put for min.
+default: 2
+</code></pre>
+<p>Provides an integer. Its Julia type is <code>Int32</code>.</p>
+<h2 id="optionchoice"><a class="header" href="#optionchoice">OptionChoice</a></h2>
+<pre><code class="language-yaml">type: OptionChoice
+# Required. A list of options the user can pick from. The names of these options
+# are used by the OptionBox widget. You must have at least two options.
+options:
+- Option 1
+- Option 2
+- Option 3
+# Optional. An index of an option to be selected by default. Default is 0.
+default: 2 # Option 3.
+</code></pre>
+<p>Provides a selection for the user to pick from. Its Julia type is <code>Int32</code>,
+indicating the index of the selected item. Note that unlike Julia's arrays, this
+index will be zero-based. (Audiobench's core engine is written in Rust which 
+uses zero-based indexing.)</p>
+<h2 id="timingmode"><a class="header" href="#timingmode">TimingMode</a></h2>
+<pre><code class="language-yaml">type: TimingMode
+# Optional. Values are &quot;note&quot; or &quot;song&quot;. &quot;note&quot; means the timing is relative to
+# the start of the note instead of the start of the song. Default is note.
+default_source: song
+# Optional. Values are &quot;seconds&quot; and &quot;beats&quot;. Default is seconds.
+default_units: beats
+</code></pre>
+<p>Allows a user to pick how timing should work for a module, whether it should
+be relative to the start of a note or the start of a song, and whether time
+should be measured in seconds or beats (which will change the timing based
+on bpm.) It can be used in code like this:</p>
+<pre><code class="language-julia"># timing is a ControlSignal
+timing = get_timing(context, name_of_timing_mode_control)
+for s in sample_indices(MonoAudio)
+    time_now = timing[%, 1, s]
+    lfo_value = sin(time_now)
+end
+</code></pre>
+<h2 id="triggersequence"><a class="header" href="#triggersequence">TriggerSequence</a></h2>
+<pre><code class="language-yaml">type: TriggerSequence
+</code></pre>
+<p>Allows picking a length and a pattern of boolean values of that length. Its
+Julia type is <code>Vector{Bool}</code>.</p>
+<h2 id="valuesequence"><a class="header" href="#valuesequence">ValueSequence</a></h2>
+<pre><code class="language-yaml">type: ValueSequence
+</code></pre>
+<p>Allows picking a length and a pattern of numeric values of that length. Its
+Julia type is <code>Vector{Float32}</code>. Each value is between <code>-1f0</code> and <code>1f0</code>.</p>
+<h1 id="list-of-widgets"><a class="header" href="#list-of-widgets">List Of Widgets</a></h1>
+<p>There are some properties that many widgets have that serve the same function.
+First, almost every widget has an <code>x</code> and <code>y</code> property, which specifies the
+position of the top-left corner of the widget inside the module in grid units.
+Note that this is not pixels! For example, a knob is 2 grid units wide which,
+when rendered on the screen, takes up about 60 pixels. Many widgets also have
+<code>label</code> and <code>tooltip</code> properties. The former is a piece of text which should be
+displayed over or under the widget describing its function. The latter is a
+piece of text to display in the top bar when the widget is hovered over. Any
+widget which serves as a visual representation of a control will have a
+<code>control</code> property where you must type the name of the control that the widget
+should represent. An error will be generated if the control is not of the
+correct type. For example, a <code>DurationBox</code> widget cannot be used to represent a
+<code>FloatInRange</code> control.</p>
+<h2 id="durationbox"><a class="header" href="#durationbox">DurationBox</a></h2>
+<pre><code class="language-yaml">type: DurationBox
+x: 0
+y: 0
+duration_control: control_name # Must be a Duration control
+mode_control: control_name # Must be a TimingMode control
+label: The Duration
+tooltip: Controls the duration
+</code></pre>
+<p>Represents a <code>Duration</code> control. The provided <code>TimingMode</code> control is used to
+pick whether the suffix 's' or 'b' is displayed to indicate the duration is 
+measured in seconds or beats.</p>
+<h2 id="envelopegraph"><a class="header" href="#envelopegraph">EnvelopeGraph</a></h2>
+<pre><code class="language-yaml">type: EnvelopeGraph
+x: 0
+y: 0
+w: 5
+h: 2
+feedback_name: graph_feedback_name
+</code></pre>
+<p>Displays the shape of an envelope to the user. Feedback can be sent from Julia
+code like this:</p>
+<pre><code class="language-julia">push!(graph_feedback_name, attack_time)
+push!(graph_feedback_name, decay_time)
+push!(graph_feedback_name, sustain)
+push!(graph_feedback_name, release_time)
+push!(graph_feedback_name, now_time)
+push!(graph_feedback_name, now_value)
+</code></pre>
+<h2 id="frequencybox"><a class="header" href="#frequencybox">FrequencyBox</a></h2>
+<pre><code class="language-yaml">type: FrequencyBox
+x: 0
+y: 0
+control: control_name # Must be a Frequency control
+label: The Frequency
+tooltip: Controls the frequency
+</code></pre>
+<p>Represents a <code>Frequency</code> control, allowing the user to modify it 
+logarithmically, I.E. the same mouse movement is required to go from 1.0Hz to
+1.1Hz as going from 1.0kHz to 1.1kHz.</p>
+<h2 id="hslider"><a class="header" href="#hslider">HSlider</a></h2>
+<pre><code class="language-yaml">type: HSlider
+x: 0
+y: 0
+w: 5 # Width
+h: 1 # This should always be 1
+control: control_name # Must be a FloatInRange control
+label: The Value
+tooltip: Controls the value
+</code></pre>
+<p>A horizontal slider, allowing a user to edit the value of or connect automation
+to a <code>FloatInRange</code> control.</p>
+<h2 id="input-1"><a class="header" href="#input-1">Input</a></h2>
+<pre><code class="language-yaml">type: Input
+# You do not need to specify X.
+y: 0
+control: control_name # Must be an Input control
+label: The Input
+tooltip: Data that comes into the module for processing
+# Optional. The name of an icon to display to identify this input. If this is
+# not provided, a default icon is selected based on the datatype of the input
+# control, E.G. Factory:waveform is used for waveform inputs.
+icon: Factory:save
+</code></pre>
+<p>Represents an input by displaying a box on the left-hand side of the module.
+Note that you do not need to specify an x coordinate, this is selected
+automatically. This widget allows connecting wires to inputs as well as
+selecting the default value of the input if no wire is connected.</p>
+<h2 id="intbox"><a class="header" href="#intbox">IntBox</a></h2>
+<pre><code class="language-yaml">type: IntBox
+x: 0
+y: 0
+control: control_name # Must be an Int control
+label: The Integer
+tooltip: Controls the integer
+</code></pre>
+<p>Visual representation of an <code>Int</code> control that allows clicking or dragging to
+change its value.</p>
+<h2 id="knob"><a class="header" href="#knob">Knob</a></h2>
+<pre><code class="language-yaml">type: Knob
+x: 0
+y: 0
+control: control_name # Must be a FloatInRange control
+label: The Control
+tooltip: Controls the control
+</code></pre>
+<p>Represents a <code>FloatInRange</code> control, allowing changing the un-automated value
+as well as connecting and editing automation.</p>
+<h2 id="miniknob"><a class="header" href="#miniknob">MiniKnob</a></h2>
+<pre><code class="language-yaml">type: MiniKnob
+x: 0
+y: 0
+control: control_name # Must be a FloatInRange control
+label: The Control
+tooltip: Controls the control
+</code></pre>
+<p>A smaller version of <code>Knob</code>, 1x1 instead of 2x2.</p>
+<h2 id="optionbox"><a class="header" href="#optionbox">OptionBox</a></h2>
+<pre><code class="language-yaml">type: OptionBox
+x: 0
+y: 0
+w: 3 # Width
+h: 4 # Height
+control: control_name # Must be an OptionChoice control
+label: The Option
+tooltip: Controls the option
+</code></pre>
+<p>Represents an <code>OptionChoice</code> control by displaying all option names in a
+vertical list, changing the selected option whenever an entry is clicked.</p>
+<h2 id="optionicongrid"><a class="header" href="#optionicongrid">OptionIconGrid</a></h2>
+<pre><code class="language-yaml">type: OptionIconGrid
+x: 0
+y: 0
+w: 3 # Width
+h: 4 # Height
+control: control_name # Must be an OptionChoice control
+# Required. A list of icons to display instead of the names of each option.
+icons:
+- Factory:sine_wave
+- Factory:square_wave
+label: The Option
+tooltip: Controls the option
+</code></pre>
+<p>Fulfills the same function as <code>OptionBox</code> but displays options as icons instead
+of a grid instead of text entries in a vertical list. The <code>icons</code> property must
+contain an icon for every option the <code>OptionChoice</code> control contains.</p>
+<h2 id="timingselector"><a class="header" href="#timingselector">TimingSelector</a></h2>
+<pre><code class="language-yaml">type: TimingSelector
+x: 0
+y: 0
+control: control_name # Must be a TimingMode control
+</code></pre>
+<p>Represents a <code>TimingMode</code> control, allowing the user to toggle between
+note-relative and song-relative timing as well as between measuring time in
+beats or seconds.</p>
+<h2 id="triggersequence-1"><a class="header" href="#triggersequence-1">TriggerSequence</a></h2>
+<pre><code class="language-yaml">type: TriggerSequence
+x: 0
+y: 0
+w: 4 # Width
+h: 1 # Height, should always be 1.
+control: control_name # Must be a TriggerSequence control
+tooltip: Controls the trigger sequence
+# Required.
+feedback_name: playhead_feedback
+</code></pre>
+<p>Allows a user to input a boolean sequence into a <code>TriggerSequence</code> control. The
+feedback should contain a single floating point value indicating a position to
+place a playhead marker. The units are steps, so providing a value of <code>1.5f0</code> 
+will place the marker above the middle of the second step of the sequence. In
+code, that would look like this:</p>
+<pre><code class="language-julia">push!(playhead_feedback, 1.5f0);
+</code></pre>
+<h2 id="triggersequencelength"><a class="header" href="#triggersequencelength">TriggerSequenceLength</a></h2>
+<pre><code class="language-yaml">type: TriggerSequenceLength
+x: 0
+y: 0
+control: control_name # Must be a TriggerSequence control
+label: The Length
+tooltip: Controls the length
+</code></pre>
+<p>Controls the length of a <code>TriggerSequence</code>'s sequence.</p>
+<h2 id="valuesequence-1"><a class="header" href="#valuesequence-1">ValueSequence</a></h2>
+<pre><code class="language-yaml">type: ValueSequence
+x: 0
+y: 0
+w: 4 # Width
+h: 1 # Height, should always be 1.
+sequence_control: control_name # Must be a ValueSequence control
+tooltip: Controls the trigger sequence
+# Required.
+feedback_name: playhead_feedback
+</code></pre>
+<p>Allows a user to input a boolean sequence into a <code>ValueSequence</code> control. The
+feedback should contain two floating point values, the indicating a position to
+place a playhead marker. The units are steps, so providing a value of <code>1.5f0</code> 
+will place the marker above the middle of the second step of the sequence. The
+second value is how much ramping to display. In code, that would look like this:</p>
+<pre><code class="language-julia">push!(playhead_feedback, 1.5f0);
+push!(playhead_feedback, ramping); # ramping is between 0f0 and 1f0
+</code></pre>
+<h2 id="valuesequencelength"><a class="header" href="#valuesequencelength">ValueSequenceLength</a></h2>
+<pre><code class="language-yaml">type: ValueSequenceLength
+x: 0
+y: 0
+sequence_control: control_name # Must be a ValueSequence control
+label: The Length
+tooltip: Controls the length
+</code></pre>
+<p>Controls the length of a <code>ValueSequence</code>'s sequence.</p>
+<h2 id="waveformgraph"><a class="header" href="#waveformgraph">WaveformGraph</a></h2>
+<pre><code class="language-yaml">type: WaveformGraph
+x: 0
+y: 0
+w: 4 # Width
+h: 4 # Height
+feedback_name: graph_feedback
+</code></pre>
+<p>Renders a list of floating point values as a waveform. Additionally renders a 
+crosshair using the first two values. In code, it would look like this:</p>
+<pre><code class="language-julia">push!(graph_feedback, phase_now)
+push!(graph_feedback, waveform(phase_now, 1))
+for s in 1:40
+    push!(graph_feedback, waveform(s / 40f0, 1))
+end
+</code></pre>
+<h1 id="factory-library-source-code"><a class="header" href="#factory-library-source-code">Factory Library Source Code</a></h1>
+<p>For people like me who learn best with examples, the source code for the entire
+factory library can be viewed
+<a href="https://github.com/joshua-maros/audiobench/tree/latest-beta/components/factory_library">here on GitHub</a>.
+Here are also a couple examples taken out of that library:</p>
+<h2 id="the-diesel-bass-patch"><a class="header" href="#the-diesel-bass-patch">The Diesel Bass Patch</a></h2>
+<pre><code>AgsARGllc2VsIEJhc3MBBwBGYWN0b3J5IAINAAIQ____QP___wAAyAEAADAAAAAAAWAAAAAYAAAAAA-A_v__MAAAAAAE0Pz__5AAAAAAA6j9__8wAAAAAA3Q____MAAAAAANEP___8AAAAAAAvD9__-oAAAAAAFw____6P___wALgP7__7j___8ACQgBAAAwAAAAAAFgAAAAYAAAAEAQrgaAkvXoDoF_WzzoLof4XAAAAAg0ABMAAAD8_y8A4f8_AQAA-P9XuGhm2v9_AgAA8P9PuI7rqXAdAIAeRQAAcj0CACgKBwAgZiYjMx8AoAACtt2ABCBwFHIAzAMwE0C4jh61MRGAHlWPKiCOwgCgcD26QyrQOg_rhTM-FQAQMzPA_7__fwAAAAAKAPD_nwEAAEBgAgAAgP9_
+</code></pre>
+<h2 id="the-harmonic-module"><a class="header" href="#the-harmonic-module">The Harmonic Module</a></h2>
+<pre><code class="language-yaml"># modules/waveform/Harmonic.module.yaml
+
+save_id: 14
+outputs:
+  out_wave:
+    datatype: waveform
+    label: Output
+    tooltip: A harmonic of the input waveform
+controls:
+  base_wave:
+    type: Input
+    datatype: waveform
+    default: sine_wave
+  harmonic: 
+    type: Int
+    min: 1
+    max: 99
+gui:
+  label: Harmonic
+  category: Waveform
+  tooltip: Creates a waveform which is a harmonic of the input waveform
+  width: 2
+  height: 2
+  widgets:
+    - type: Input
+      y: 0
+      control: base_wave
+      label: Input
+      tooltip: The base waveform
+    - type: IntBox
+      x: 0
+      y: 0
+      control: harmonic
+      label: Harmonic
+      tooltip: How many times to repeat the input waveform
+</code></pre>
+<pre><code class="language-julia"># modules/waveform/Harmonic.module.jl
+
+function exec()
+    out_wave = function (phase::Float32, buffer_pos::Integer)
+        base_wave((phase * harmonic) % 1f0, buffer_pos)
+    end
+end
+</code></pre>
+<h2 id="the-lfo-module"><a class="header" href="#the-lfo-module">The LFO Module</a></h2>
+<pre><code class="language-yaml"># modules/control/LFO.module.yaml
+
+save_id: 4
+outputs:
+  audio:
+    datatype: audio
+    label: Signal 
+    tooltip: Signal output
+controls:
+  waveform:
+    type: Input
+    datatype: waveform
+    default: sine_wave
+  strength:
+    type: FloatInRange
+    min: 0
+    max: 1
+    default: 1
+  offset:
+    type: FloatInRange
+    min: -1
+    max: 1
+    default: 0
+  timing_mode:
+    type: TimingMode
+  cycle_time:
+    type: Duration
+    default: 1.0
+  strength_mode:
+    type: OptionChoice
+    options:
+      - Max
+      - Mid
+      - Min
+    default: 2
+gui: 
+  label: LFO
+  category: Control
+  tooltip: Low Frequency Oscillator, used for controlling values that should cycle over time
+  width: 8
+  height: 4
+  widgets:
+    - type: Input
+      y: 0
+      control: waveform
+      label: Waveform
+      tooltip: The waveform to repeatedly play
+    - type: TimingSelector
+      x: 4
+      y: 2
+      control: timing_mode
+    - type: DurationBox
+      x: 6
+      y: 2
+      duration_control: cycle_time
+      mode_control: timing_mode
+      label: Cycle Time
+      tooltip: How long the LFO takes to cycle through the waveform once
+    - type: WaveformGraph
+      x: 4
+      y: 0
+      w: 4
+      h: 2
+      feedback_name: graph_feedback
+    - type: Knob
+      x: 2
+      y: 2
+      control: offset
+      label: Offset
+      tooltip: Where in the waveform the LFO should start playing
+    - type: Knob
+      x: 2
+      y: 0
+      control: strength
+      label: Strength
+      tooltip: How strong the output should be
+    - type: OptionBox
+      x: 0
+      y: 0
+      w: 2
+      h: 3
+      control: strength_mode
+      label: Mode
+      tooltip: How the strength knob should affect the waveform
+</code></pre>
+<pre><code class="language-julia"># modules/control/LFO.module.jl
+
+function apply_strength(value::Float32, strength::Float32, mode::Integer)
+    if mode == 0
+        value * strength + (1f0 - strength)
+    elseif mode == 1
+        value * strength
+    else
+        @assert mode == 2
+        value * strength - (1f0 - strength)
+    end
+end
+
+function exec()
+    audio = similar(MonoAudio)
+    timing = get_timing(context, timing_mode)
+
+    for s in sample_indices(MonoAudio)
+        phase = (timing[%, 1, s] / cycle_time[%, 1, s] + offset[%, 1, s] + 1f0) % 1f0
+        sample = apply_strength(waveform(phase, s), strength[%, 1, s], strength_mode)
+        audio[1, s] = sample
+    end
+
+    if do_feedback
+        offset = last(offset)
+        phase = last(timing) / last(cycle_time)
+        push!(graph_feedback, (phase + 2f0) % 1f0)
+        push!(graph_feedback, last(audio))
+        for s in 1:default_graph_resolution
+            phase = ((s - 1) / Float32(default_graph_resolution - 1) + offset) % 1f0
+            sample = apply_strength(waveform(phase, s), strength[%, 1, s], strength_mode)
+            push!(graph_feedback, sample)
+        end
+    end
+end
+</code></pre>
 
                     </main>
 

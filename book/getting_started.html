@@ -95,7 +95,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded "><a href="getting_started.html" class="active"><strong aria-hidden="true">1.</strong> Getting Started</a></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded "><a href="getting_started.html" class="active"><strong aria-hidden="true">1.</strong> Getting Started</a></li><li class="chapter-item expanded "><a href="additional_libraries.html"><strong aria-hidden="true">2.</strong> Additional Libraries</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="making_libraries/start.html"><strong aria-hidden="true">2.1.</strong> Making Your Own Libraries</a></li><li class="chapter-item expanded "><a href="making_libraries/adding_patches.html"><strong aria-hidden="true">2.2.</strong> Adding Patches</a></li><li class="chapter-item expanded "><a href="making_libraries/publishing.html"><strong aria-hidden="true">2.3.</strong> Publishing Your Library</a></li><li class="chapter-item expanded "><a href="making_libraries/custom_modules.html"><strong aria-hidden="true">2.4.</strong> Custom Modules</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="making_libraries/introduction_to_julia.html"><strong aria-hidden="true">2.4.1.</strong> Introduction To Julia</a></li><li class="chapter-item expanded "><a href="making_libraries/custom_modules_julia.html"><strong aria-hidden="true">2.4.2.</strong> The .module.jl File</a></li><li class="chapter-item expanded "><a href="making_libraries/audiobench_and_julia.html"><strong aria-hidden="true">2.4.3.</strong> Audiobench-Specific Julia Patterns</a></li><li class="chapter-item expanded "><a href="making_libraries/custom_modules_yaml.html"><strong aria-hidden="true">2.4.4.</strong> The .module.yaml File</a></li><li class="chapter-item expanded "><a href="making_libraries/module_controls.html"><strong aria-hidden="true">2.4.5.</strong> List Of Controls</a></li><li class="chapter-item expanded "><a href="making_libraries/module_widgets.html"><strong aria-hidden="true">2.4.6.</strong> List Of Widgets</a></li></ol></li><li class="chapter-item expanded "><a href="making_libraries/factory_library_source.html"><strong aria-hidden="true">2.5.</strong> Factory Library Source Code</a></li></ol></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -185,21 +185,24 @@ affected by the wire coming from the envelope module. We say that the
 <em>amplitude</em> control is <strong>automated</strong> by the output from the envelope. If you
 change some of the controls on the envelope by clicking and dragging them, you
 change how the <em>amplitude</em> of the oscillator changes over time. The only
-controls that can be automated are <strong>knobs</strong> and <strong>sliders</strong>. You can automate
-them by dragging a wire from an output onto a knob or slider. One way to make
-this patch more interesting is by making the envelope automate the <em>peak phase</em>
-control on the triangle wave module:</p>
+controls that can be automated at the moment are <strong>knobs</strong> and <strong>sliders</strong>. You
+can automate them by dragging a wire from an output onto one of these controls.
+One way to make this patch more interesting is by making the envelope automate
+the <em>parameter</em> control on the basic shape module:</p>
 <p><img src="images/default_c.png" alt="Triangle wave automated by envelope" /></p>
-<p>You may have noticed while setting that up that the audio cut out and a
-notification saying &quot;compiling&quot; appeared. Because of how Audiobench works
-internally, some changes necessitate doing a slow, one-time process called
-&quot;compilation&quot; before you can start playing notes again. This process will not
-occur whenever you modify a control. Right now compilation is fairly slow, this
-will be improved as development continues.</p>
 <p>You can change the range of the automation by right-clicking on the knob and
 clicking and dragging on the <strong>automation lane</strong>. You can also right-click on
-the lane itself to remove its automation from the control.</p>
+the lane itself to remove its automation from the control. </p>
 <p><img src="images/default_d.png" alt="Automation being adjusted" /></p>
+<p>While hovering over the basic shape module a box will appear to show you the
+shape the module is outputting. Hovering over some other modules will show you
+the audio they are outputting.</p>
+<p><img src="images/shape_preview.png" alt="Hovering over the starter shape module to view its output" /></p>
+<p>You may have noticed while setting that up that the audio cut out and a
+notification saying &quot;working&quot; appeared. Because of how Audiobench works
+internally, some changes necessitate doing a slow, one-time process called
+&quot;compilation&quot; before you can start playing notes again. This process will not
+occur whenever you modify a control. </p>
 <p>The last thing to talk about is <strong>inputs</strong> and <strong>outputs</strong>. These are the white
 boxes that appear on the sides of each module. Inputs are on the left and
 outputs are on the right. Each of them has a specific type, so that pitch inputs
@@ -216,8 +219,8 @@ example, disconnecting the triangle wave from the oscillator would let you cycle
 through a handful of default waveforms. Inputs and outputs can be connected by
 clicking and dragging.</p>
 <h1 id="beyond-the-default-patch"><a class="header" href="#beyond-the-default-patch">Beyond The Default Patch</a></h1>
-<p>To really start making some noise, you'll want to add in more modules, The plus
-button at the top left of the screen takes you to the <strong>module browser</strong>, which
+<p>To really start making some noise, you'll want to add in more modules.
+Double-clicking the module graph takes you to the <strong>module browser</strong>, which
 lists all available modules:</p>
 <p><img src="images/module_browser.png" alt="List of available modules" /></p>
 <p>Clicking on one will add it to the note graph. You can click and drag the module
@@ -225,16 +228,16 @@ to move it around, or click and drag on the background to pan your view.
 Scrolling on the background will zoom in and out to help with building larger
 patches.</p>
 <p><img src="images/default_e.png" alt="The default patch with an LFO added" /></p>
-<p>Once you have something you like, go to the patch browser by clicking its icon
-in the top-left corner. This is where all the factory-provided and user-made
-patches live. To save your patch, first click the '+' button to make a new file.
-Give it a name, then click the save button to save your changes. If you want to
-easily share your patch with other people, click the copy button to get a piece
-of text that represents your patch. Others can then copy that text and click the
-paste button to load your patch. You can try it out with this code for the
-patch in the picture above:</p>
-<pre><code>AQAXR2V0dGluZyBTdGFydGVkIEV4YW1wbGUAAAEABf8DAeAAqAUBUACoBgB4AMAKADAAAA7_cAB4CyIA
-AQJoAGqqAAA7o9cKAD5MzM0APpmZmgAAP4AAAAIzAwQ
+<p>Once you have something you like, you can save your patch by clicking the '+'
+button to save it in a new file. (You may need to hover over the top bar to
+reveal the button.) You can then change the name in the home tab. You can save
+additional changes to the same patch by clicking the save button, or to a new
+patch by clicking the '+' button again. If you want to easily share your patch
+with other people, click the copy button to get a piece of text that represents
+your patch. Others can then copy that text and click the paste button to load
+your patch. You can try it out with this code for the patch in the picture
+above:</p>
+<pre><code>AgcARGVmYXVsdAEHAEZhY3RvcnkgAgUAAsj-__9w____AABgAAAAGAAAAAAB0P___xgAAAAAA_j-__8wAAAAAATw_f__6P___0D4_weAwvXoDs3MTD5oZmb6FAAAAAgcABMAAAD8_xNIAAAA_v-N_38AgAAAAAD8IQA
 </code></pre>
 <h1 id="miscellaneous-tips"><a class="header" href="#miscellaneous-tips">Miscellaneous Tips</a></h1>
 <ul>
@@ -243,10 +246,8 @@ a number.</li>
 <li>The timing control lets you set if durations should be in terms of beats or
 seconds and also lets you sync up certain modules with the current time in
 your song.</li>
-<li>Using a MIDI Control module with the control set to 1 will let you automate
-things using the mod wheel.</li>
-<li>The library browser panel (the first icon in the top-left) will tell you what
-new features are available if a new version of Audiobench has been released.</li>
+<li>The library browser will tell you what new features are available if a new
+version of Audiobench has been released.</li>
 </ul>
 
                     </main>
@@ -255,6 +256,10 @@ new features are available if a new version of Audiobench has been released.</li
                         <!-- Mobile navigation buttons -->
                         
 
+                        
+                            <a rel="next" href="additional_libraries.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
                         
 
                         <div style="clear: both"></div>
@@ -265,6 +270,10 @@ new features are available if a new version of Audiobench has been released.</li
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
                 
 
+                
+                    <a rel="next" href="additional_libraries.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
                 
             </nav>
 
