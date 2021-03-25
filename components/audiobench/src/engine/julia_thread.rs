@@ -175,6 +175,7 @@ impl JuliaThread {
                 "Encountered Julia error while executing, see message log for details.\n\n{}",
                 err
             );
+            eprintln!("{}", err);
             // This error is "recoverable"
             self.report_julia_error(message);
         }
@@ -212,6 +213,7 @@ impl JuliaThread {
                     "Encountered Julia error while executing, see message log for details.\n\n{}",
                     err
                 );
+                eprintln!("{}", err);
                 self.report_julia_error(message);
                 // This error is "recoverable"
                 None

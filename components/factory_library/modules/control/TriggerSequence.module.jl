@@ -18,11 +18,11 @@ function exec()
     end
 
     for s in sample_indices(Trigger)
-        if reset[%, 1, s]
-            static.base_time = timing[%, 1, s]
+        if reset[1, s]
+            static.base_time = timing[1, s]
         end
         current_step = 
-            floor(Int32, (timing[%, 1, s] - static.base_time) / first(step_time)) % num_steps
+            floor(Int32, (timing[1, s] - static.base_time) / first(step_time)) % num_steps
         if static.last_step != current_step
             static.last_step = current_step
             out_trigger[1, s] = sequence[current_step + 1] # grumble grumble

@@ -444,9 +444,9 @@ Scope End"#
             "using Main.UnpackedDependencies.StaticArrays",
         );
         ee.add_global_code(code).unwrap();
-        let code = GeneratedCode::from_unique_source("asdf", "SA_F32[1, 2, 3]");
+        let code = GeneratedCode::from_unique_source("asdf", "[1, 2, 3]");
         ee.add_global_code(code).unwrap();
-        let code = GeneratedCode::from_unique_source("asdf", "SA_F32[1, 2, 3][4]");
+        let code = GeneratedCode::from_unique_source("asdf", "[1, 2, 3][4]");
         let error = ee.add_global_code(code).unwrap_err();
         assert!(error.contains("packed/StaticArrays/SVector.jl:40"));
         assert!(error.contains("__global_code_0__.jl:15"));
