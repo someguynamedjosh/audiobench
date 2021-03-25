@@ -371,14 +371,6 @@ vanilla = [1, 2, 3]
 @assert vanilla[1] == 1
 push!(vanilla, 15)
 @assert vanilla[4] == 15
-# Fixed-size array used in many parts of Audiobench, added by the Static Arrays 
-# library available at https://github.com/JuliaArrays/StaticArrays.jl
-# It is automatically imported into Audiobench so it can be used anywhere without
-# manually importing it.
-using StaticArrays; # Only required if running code outside Audiobench.
-fixed = SA_F32[1, 2, 3]
-@assert fixed[1] == 1f0
-push!(fixed, 4) # This causes a compile error.
 
 # FUNCTIONS
 function add_one(input)
@@ -439,13 +431,13 @@ mutable_number_holder.value = 456
 # Prefixing an operator with a . means it is 'vectorized' such that it will
 # operate on individual elements of each operand. This also serves as a 
 # compilation hint to use vectorized instructions like those in SIMD and AVX.
-@assert SA_F32[10, 10, 10] .+ SA_F32[11, 12, 13] == SA_F32[21, 22, 23]
+@assert [10, 10, 10] .+ [11, 12, 13] == [21, 22, 23]
 # This also works for functions, so that functions do not have to worry about
 # implementing the details of iterating over different array types.
-@assert abs.(SA_F32[1, -2, -3]) == SA_F32[1, 2, 3]
+@assert abs.([1, -2, -3]) == [1, 2, 3]
 # Vectorized operators can also automatically increase the size of a piece of
 # data so that it maches another operand.
-@assert 10 .+ SA_F32[11, 12, 13] == SA_F32[21, 22, 23]
+@assert 10 .+ [11, 12, 13] == [21, 22, 23]
 # Vectorized assignment will write data directly to a variable instead of
 # collecting it in an intermediate value and then assigning that value to the
 # variable.
@@ -456,26 +448,13 @@ container .= data1 .+ data2 # Results of individual sums are written directly to
                             # individual elements of container
 # The @. macro will replace all operators on a line or in an expression with
 # their vectorized versions.
-value = @. abs(SA_F32[1, -2, -3]) + 10
-@assert value == SA_F32[11, 12, 13]
+value = @. abs([1, -2, -3]) + 10
+@assert value == [11, 12, 13]
 value = similar(value)
 @. value = 42
-@assert value == SA_F32[42, 42, 42]
+@assert value == [42, 42, 42]
 # Frequent use of these features allow Julia to more thorougly optimize the code,
 # yielding better performance.
-
-# OTHER IMPORTANT FEATURES
-# The similar() function makes a new mutable instance of some data type which 
-# itself may not be mutable. For example:
-not_mutable = SA_F32[1, 2, 3]
-not_mutable[1] = 10 # This will cause an error!
-mutable = similar(not_mutable)
-mutable[1] = 10 # This works fine.
-# Note that the data is not copied by the similar() function:
-@assert mutable[3] != not_mutable[3]
-# This function can also be used with the type aliases defined by Audiobench:
-data = similar(StereoAudioBuffer)
-data[1, 1] = 0.2f0 
 </code></pre>
 <h1 id="the-modulejl-file"><a class="header" href="#the-modulejl-file">The .module.jl File</a></h1>
 <p>The <code>.module.jl</code> file is written in a language called <a href="https://julialang.org/">Julia</a>
@@ -486,7 +465,7 @@ describes the actual algorithm your module should perform.</p>
 <p>Audiobench will look for three items defined in this file:</p>
 <pre><code class="language-julia"># Optional
 mutable struct StaticData
-    echo_buffer::mutable(StereoAudio)
+    echo_buffer::StereoAudio
 end
 
 # Optional
@@ -570,7 +549,7 @@ static[1, 1] = false
 # place to make sure that places where Audiobench expects a valid waveform are
 # actually being given a valid waveform.
 waveform = function(phase::Float32, buffer_pos::Integer)
-    sin(phase + some_control[%, 1, buffer_pos])
+    sin(phase + some_control[1, buffer_pos])
 end
 # This is not a valid waveform. It's going through a rebellious phase.
 not_waveform = function(something::String, irrelevant::Float64)
@@ -635,7 +614,7 @@ end
 <p>The <code>buffer_pos</code> argument is there if you want to include some controls which
 can be automated by the user in the definition of your waveform:</p>
 <pre><code class="language-julia">square_wave = function(phase::Float32, buffer_pos::Integer)
-    if phase &lt; duty_cycle[%, 1, buffer_pos] 1f0 else -1f0 end
+    if phase &lt; duty_cycle[1, buffer_pos] 1f0 else -1f0 end
 end
 </code></pre>
 <p>Unlike with control signals and audio, the <code>phase</code> argument <em>must</em> be between
@@ -648,25 +627,25 @@ important to account for this possibility. For example, consider this code:</p>
 <pre><code class="language-julia">second_sample = some_control[1, 2]
 </code></pre>
 <p>This could fail if <code>some_control</code> is one of the <code>Static</code> variants which only
-contains a single value, indicating that it did not change during the span of 
+contains a single value, indicating that it did not change during the span of
 time it represents. The factory library extends indexing in a custom way to make
-situations like this easier. By adding a percent sign <code>%</code> as the first index,
-any Audiobench-related data can be accessed as if it were the biggest possible
-type for that kind of data. For example:</p>
-<pre><code class="language-julia">full_audio_data = similar(StereoAudio)
-# Note that the % trick won't work on the left hand side of an equal sign, as
-# its behavior would be misleading.
-full_audio_data[2, 3] = 1f0
-@assert full_audio_data[%, 2, 3] == 1f0
-# This represents audio data which is the same on all channels and during the
+situations like this easier. Any Audiobench-related data can be accessed as if
+it were the biggest possible type for that kind of data. For example:</p>
+<pre><code class="language-julia"># This represents audio data which is the same on all channels and during the
 # entire 'length' of the buffer, only storing a single value.
 static_audio_data = similar(StaticMonoAudio)
 static_audio_data[1, 1] = 1f0
 # Access it as if it were stereo and changed over time. Any access will return
 # the same value.
-@assert static_audio_data[%, 2, 3] == 1f0
-@assert static_audio_data[%, 2, 19] == 1f0
-@assert static_audio_data[%, 1, 1] == 1f0
+@assert static_audio_data[2, 3] == 1f0
+@assert static_audio_data[2, 19] == 1f0
+@assert static_audio_data[1, 1] == 1f0
+# Note that this won't work on the left hand side of an equal sign, as
+# its behavior would be misleading.
+full_audio_data = similar(StereoAudio)
+# This would be an error if we used some type other than StereoAudio.
+full_audio_data[2, 3] = 1f0
+@assert full_audio_data[2, 3] == 1f0
 </code></pre>
 <p>If you want to manually iterate over data, the <code>channel_indices</code> and 
 <code>sample_indices</code> functions are quite useful:</p>
@@ -681,7 +660,7 @@ for s in sample_indices(input)
     for c in channel_indices(input)
         # Using the percent trick is optional here since we already know for
         # sure that `s` and `c` are valid for this array.
-        output[c, s] = 2f0 * input[%, c, s]
+        output[c, s] = 2f0 * input[c, s]
     end
 end
 </code></pre>
@@ -694,7 +673,7 @@ for s in sample_indices(input)
     # case, we want a slice of all the channels for the particular sample `s`.
     # Also note the use of the .= since a slice is not a scalar, we want to
     # assign into it instead of over it.
-    output[:, s] .= input[%, :, s] .* sin(static.phase)
+    output[:, s] .= input[:, s] .* sin(static.phase)
     # 1.0 / sample_rate is the amount of time represented by a single audio
     # sample.
     static.phase += 1.0 / sample_rate
@@ -705,10 +684,10 @@ access any channel other than <code>1</code> will cause an error as neither of t
 support having multiple channels.</p>
 <pre><code class="language-julia">data = similar(Trigger)
 data[1, 2] = true
-@assert data[%, 1, 2] == true
+@assert data[1, 2] == true
 static_data = similar(StaticTrigger)
 static_data[1, 1] = true
-@assert static_data[%, 1, 81] == true
+@assert static_data[1, 81] == true
 </code></pre>
 <p>Waveforms are functions, so using them only involves passing the correct
 arguments. The first argument is the phase you want to look up in the waveform,
@@ -723,7 +702,7 @@ a simple oscillator:</p>
 <pre><code class="language-julia">output = similar(MonoAudio)
 for s in sample_indices(MonoAudio)
     output[1, s] = waveform(static.phase % 1f0, s)
-    static.phase += pitch[%, 1, s] / sample_rate
+    static.phase += pitch[1, s] / sample_rate
 end
 </code></pre>
 <p>The value of the phase argument <em>must</em> be between <code>0f0</code> and <code>1f0</code> or you may
@@ -765,21 +744,13 @@ function was called.</p>
 # Linear interpolation.
 @assert lerp(from, to, 1f0) == to
 @assert lerp(0f0, 5f0, 0.2f0) == 1f0
-# mutable() returns the mutable version of a data type.
 mutable struct StaticData
-    echo_memory: mutable(StereoAudio)
+    echo_memory::StereoAudio
 end
 # viewas() lets you treat bigger data like it was smaller data.
 echo_memory = viewas(static.echo_memory, typeof(mono_audio))
 echo_memory .+= mono_audio
 echo_memory .*= 0.5f0
-# typeof2() is useful for explicitly getting the Audiobench-defined datatype of
-# something since Julia considers the immutable and mutable data types to be 
-# different.
-@assert typeof(incoming_audio) == mutable(StereoAudio)
-@assert typeof(incoming_audio) != StereoAudio
-@assert typeof2(incoming_audio) == StereoAudio
-@assert at2st(typeof2(incoming_audio)) == StereoSample
 </code></pre>
 <h1 id="the-moduleyaml-file"><a class="header" href="#the-moduleyaml-file">The .module.yaml File</a></h1>
 <p>The <code>.module.yaml</code> file describes metadata about the module. Among other things,
@@ -972,7 +943,7 @@ on bpm.) It can be used in code like this:</p>
 <pre><code class="language-julia"># timing is a ControlSignal
 timing = get_timing(context, name_of_timing_mode_control)
 for s in sample_indices(MonoAudio)
-    time_now = timing[%, 1, s]
+    time_now = timing[1, s]
     lfo_value = sin(time_now)
 end
 </code></pre>
@@ -1363,8 +1334,8 @@ function exec()
     timing = get_timing(context, timing_mode)
 
     for s in sample_indices(MonoAudio)
-        phase = (timing[%, 1, s] / cycle_time[%, 1, s] + offset[%, 1, s] + 1f0) % 1f0
-        sample = apply_strength(waveform(phase, s), strength[%, 1, s], strength_mode)
+        phase = (timing[1, s] / cycle_time[1, s] + offset[1, s] + 1f0) % 1f0
+        sample = apply_strength(waveform(phase, s), strength[1, s], strength_mode)
         audio[1, s] = sample
     end
 
@@ -1375,7 +1346,7 @@ function exec()
         push!(graph_feedback, last(audio))
         for s in 1:default_graph_resolution
             phase = ((s - 1) / Float32(default_graph_resolution - 1) + offset) % 1f0
-            sample = apply_strength(waveform(phase, s), strength[%, 1, s], strength_mode)
+            sample = apply_strength(waveform(phase, s), strength[1, s], strength_mode)
             push!(graph_feedback, sample)
         end
     end

@@ -172,7 +172,7 @@ describes the actual algorithm your module should perform.</p>
 <p>Audiobench will look for three items defined in this file:</p>
 <pre><code class="language-julia"># Optional
 mutable struct StaticData
-    echo_buffer::mutable(StereoAudio)
+    echo_buffer::StereoAudio
 end
 
 # Optional

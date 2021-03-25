@@ -320,8 +320,8 @@ function exec()
     timing = get_timing(context, timing_mode)
 
     for s in sample_indices(MonoAudio)
-        phase = (timing[%, 1, s] / cycle_time[%, 1, s] + offset[%, 1, s] + 1f0) % 1f0
-        sample = apply_strength(waveform(phase, s), strength[%, 1, s], strength_mode)
+        phase = (timing[1, s] / cycle_time[1, s] + offset[1, s] + 1f0) % 1f0
+        sample = apply_strength(waveform(phase, s), strength[1, s], strength_mode)
         audio[1, s] = sample
     end
 
@@ -332,7 +332,7 @@ function exec()
         push!(graph_feedback, last(audio))
         for s in 1:default_graph_resolution
             phase = ((s - 1) / Float32(default_graph_resolution - 1) + offset) % 1f0
-            sample = apply_strength(waveform(phase, s), strength[%, 1, s], strength_mode)
+            sample = apply_strength(waveform(phase, s), strength[1, s], strength_mode)
             push!(graph_feedback, sample)
         end
     end
