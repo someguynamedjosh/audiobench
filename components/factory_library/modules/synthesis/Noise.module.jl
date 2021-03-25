@@ -15,8 +15,8 @@ function exec()
     timing = get_timing(context, 0) # 0 = note time in seconds.
 
     for s in sample_indices(MonoAudio)
-        delay_now = max_delay[%, 1, s] * delay_mul[%, 1, s]
-        time_now = timing[%, 1, s]
+        delay_now = max_delay[1, s] * delay_mul[1, s]
+        time_now = timing[1, s]
         if delay_now <= 1f0 / sample_rate
             static.old_value = static.new_value
             static.new_value = rand()
@@ -35,13 +35,13 @@ function exec()
                 value_now = static.new_value * factor + static.old_value * (1f0 - factor)
             end
         end
-        audio[1, s] = (value_now * 2f0 - 1f0) * amplitude[%, 1, s]
+        audio[1, s] = (value_now * 2f0 - 1f0) * amplitude[1, s]
     end
 
     if do_feedback
         # We use this instead of rand() so that the waveform display doesn't violently flicker
         # every time it is updated.
-        dummy_waveform = SA_F32[
+        dummy_waveform = [
             0.3988945908f0, 0.8954911673f0, 0.0116554042f0, 0.0909389386f0, 0.0893340926f0, 0.4953123474f0, 
             0.5784687653f0, 0.2548134842f0, 0.1776265054f0, 0.3360827756f0, 0.3734218081f0, 0.6334027459f0,
             0.8120340729f0, 0.1525260985f0, 0.0720461340f0, 0.3180398718f0, 0.3208139232f0, 0.9439490845f0, 

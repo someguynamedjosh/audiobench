@@ -1,5 +1,5 @@
 mutable struct StaticData
-    phase::mutable(StereoSample)
+    phase::StereoSample
 end
 
 function static_init()
@@ -19,12 +19,12 @@ function exec()
 
     for s in sample_indices(MonoAudio)
         @. sample = 0f0
-        @. pitch_here = pitch[%, 1, s] * (fm_signal[%, :, s] * fm_strength[%, 1, s] + 1f0)
+        @. pitch_here = pitch[1, s] * (fm_signal[:, s] * fm_strength[1, s] + 1f0)
         @. phase_delta = pitch_here / sample_rate / Float32(oversampling) + 1f0
         for subsample in 1:oversampling
             @. sample += waveform(phase, (s,))
             @. phase = (phase + phase_delta) % 1f0
         end
-        @. audio[:, s] = sample * amplitude[%, 1, s] / Float32(oversampling)
+        @. audio[:, s] = sample * amplitude[1, s] / Float32(oversampling)
     end
 end

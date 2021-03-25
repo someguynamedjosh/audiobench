@@ -133,8 +133,8 @@ impl<'a> CodeGenerator<'a> {
             "    static_index += 1\n", // grumble grumble
             "    global_input = GlobalInput(midi_controls, pitch_wheel, bpm, elapsed_time, ",
             "elapsed_beats)\n",
-            "    start_trigger = Trigger(note_input.start_trigger, repeat([false], buffer_length - 1)...)\n",
-            "    release_trigger = Trigger(note_input.release_trigger, repeat([false], buffer_length - 1)...)\n",
+            "    start_trigger = Trigger(reshape([note_input.start_trigger, repeat([false], buffer_length - 1)...], (1, buffer_length)))\n",
+            "    release_trigger = Trigger(reshape([note_input.release_trigger, repeat([false], buffer_length - 1)...], (1, buffer_length)))\n",
             "    note_output = NoteOutput()\n",
             "    context = NoteContext(global_input, note_input, note_output)\n",
             "    view = ()\n",
@@ -143,7 +143,7 @@ impl<'a> CodeGenerator<'a> {
         for _ in 0..feedback_widget_selectors.len() {
             exec_body.push_str("Vector{Float32}(), ");
         }
-        exec_body.push_str(")\n\n    @. context.note_out.audio = 0.0\n");
+        exec_body.push_str(")\n\n    context.note_out.audio .= 0f0\n");
         let automation_code = AutomationCode {
             ordered_modules: ordered_modules.clone(),
         };
@@ -181,7 +181,7 @@ impl<'a> CodeGenerator<'a> {
                         exec_body.push_str("    if do_feedback\n");
                     }
                     exec_body.push_str(&format!(
-                        "      push!(feedback.m{}w{}, m{}c{}[%, 1, 1])\n",
+                        "      push!(feedback.m{}w{}, m{}c{}[1, 1])\n",
                         index, widget_index, index, control_index
                     ));
                 }

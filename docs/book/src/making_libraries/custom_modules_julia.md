@@ -11,7 +11,7 @@ Audiobench will look for three items defined in this file:
 ```julia
 # Optional
 mutable struct StaticData
-    echo_buffer::mutable(StereoAudio)
+    echo_buffer::StereoAudio
 end
 
 # Optional

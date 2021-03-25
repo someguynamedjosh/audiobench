@@ -14,10 +14,10 @@ function exec()
 
     for s in sample_indices(MonoAudio)
         if !static.releasing
-            if reset_trigger[%, 1, s]
+            if reset_trigger[1, s]
                 static.start = timing[1, s]
             end
-            if release_trigger[%, 1, s]
+            if release_trigger[1, s]
                 static.start = timing[1, s]
                 static.releasing = true
             end
@@ -26,20 +26,20 @@ function exec()
         now = timing[1, s] - static.start
         value = Float32(0)
         if static.releasing
-            if now < release_time[%, 1, s]
-                value = lerp(static.last_value, 0f0, now / release_time[%, 1, s])
+            if now < release_time[1, s]
+                value = lerp(static.last_value, 0f0, now / release_time[1, s])
             else
                 value = 0f0
             end
         else
-            if now < attack_time[%, 1, s]
-                value = now / attack_time[%, 1, s]
+            if now < attack_time[1, s]
+                value = now / attack_time[1, s]
             else
-                now = now - attack_time[%, 1, s]
-                if now < decay_time[%, 1, s]
-                    value = lerp(1f0, sustain[%, 1, s], now / decay_time[%, 1, s])
+                now = now - attack_time[1, s]
+                if now < decay_time[1, s]
+                    value = lerp(1f0, sustain[1, s], now / decay_time[1, s])
                 else
-                    value = sustain[%, 1, s]
+                    value = sustain[1, s]
                 end
             end
             static.last_value = value
@@ -51,12 +51,12 @@ function exec()
     if do_feedback
         now_time = timing[1, 1] - static.start
         if static.releasing
-            now_time = now_time + attack_time[%, 1, 1] + decay_time[%, 1, 1]
-            if now_time > attack_time[%, 1, 1] + decay_time[%, 1, 1] + release_time[%, 1, 1]
-                now_time = attack_time[%, 1, 1] + decay_time[%, 1, 1] + release_time[%, 1, 1]
+            now_time = now_time + attack_time[1, 1] + decay_time[1, 1]
+            if now_time > attack_time[1, 1] + decay_time[1, 1] + release_time[1, 1]
+                now_time = attack_time[1, 1] + decay_time[1, 1] + release_time[1, 1]
             end
-        elseif now_time > attack_time[%, 1, 1] + decay_time[%, 1, 1]
-            now_time = attack_time[%, 1, 1] + decay_time[%, 1, 1]
+        elseif now_time > attack_time[1, 1] + decay_time[1, 1]
+            now_time = attack_time[1, 1] + decay_time[1, 1]
         end
         multiplier = 1f0
         if timing_mode_unit_is_beats(timing_mode)
