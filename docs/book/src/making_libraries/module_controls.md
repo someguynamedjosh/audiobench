@@ -107,7 +107,7 @@ on bpm.) It can be used in code like this:
 # timing is a ControlSignal
 timing = get_timing(context, name_of_timing_mode_control)
 for s in sample_indices(MonoAudio)
-    time_now = timing[%, 1, s]
+    time_now = timing[1, s]
     lfo_value = sin(time_now)
 end
 ```

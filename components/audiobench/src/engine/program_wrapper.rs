@@ -236,8 +236,8 @@ impl AudiobenchExecutor {
         parameters: &GlobalParameters,
     ) -> Result<Self, String> {
         let mut base = ExecutionEngine::new();
-        base.add_global_code(julia_helper::include_packed_library!("StaticArrays"))
-            .unwrap();
+        // base.add_global_code(julia_helper::include_packed_library!("StaticArrays"))
+        //     .unwrap();
         let mut this = AudiobenchExecutor {
             base,
             // This is a quick and dirty way of getting the executor to rebuild when we use

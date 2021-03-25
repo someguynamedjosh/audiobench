@@ -62,7 +62,7 @@ static[1, 1] = false
 # place to make sure that places where Audiobench expects a valid waveform are
 # actually being given a valid waveform.
 waveform = function(phase::Float32, buffer_pos::Integer)
-    sin(phase + some_control[%, 1, buffer_pos])
+    sin(phase + some_control[1, buffer_pos])
 end
 # This is not a valid waveform. It's going through a rebellious phase.
 not_waveform = function(something::String, irrelevant::Float64)
@@ -138,7 +138,7 @@ The `buffer_pos` argument is there if you want to include some controls which
 can be automated by the user in the definition of your waveform:
 ```julia
 square_wave = function(phase::Float32, buffer_pos::Integer)
-    if phase < duty_cycle[%, 1, buffer_pos] 1f0 else -1f0 end
+    if phase < duty_cycle[1, buffer_pos] 1f0 else -1f0 end
 end
 ```
 Unlike with control signals and audio, the `phase` argument *must* be between
@@ -153,26 +153,26 @@ important to account for this possibility. For example, consider this code:
 second_sample = some_control[1, 2]
 ```
 This could fail if `some_control` is one of the `Static` variants which only
-contains a single value, indicating that it did not change during the span of 
+contains a single value, indicating that it did not change during the span of
 time it represents. The factory library extends indexing in a custom way to make
-situations like this easier. By adding a percent sign `%` as the first index,
-any Audiobench-related data can be accessed as if it were the biggest possible
-type for that kind of data. For example:
+situations like this easier. Any Audiobench-related data can be accessed as if
+it were the biggest possible type for that kind of data. For example:
 ```julia
-full_audio_data = similar(StereoAudio)
-# Note that the % trick won't work on the left hand side of an equal sign, as
-# its behavior would be misleading.
-full_audio_data[2, 3] = 1f0
-@assert full_audio_data[%, 2, 3] == 1f0
 # This represents audio data which is the same on all channels and during the
 # entire 'length' of the buffer, only storing a single value.
 static_audio_data = similar(StaticMonoAudio)
 static_audio_data[1, 1] = 1f0
 # Access it as if it were stereo and changed over time. Any access will return
 # the same value.
-@assert static_audio_data[%, 2, 3] == 1f0
-@assert static_audio_data[%, 2, 19] == 1f0
-@assert static_audio_data[%, 1, 1] == 1f0
+@assert static_audio_data[2, 3] == 1f0
+@assert static_audio_data[2, 19] == 1f0
+@assert static_audio_data[1, 1] == 1f0
+# Note that this won't work on the left hand side of an equal sign, as
+# its behavior would be misleading.
+full_audio_data = similar(StereoAudio)
+# This would be an error if we used some type other than StereoAudio.
+full_audio_data[2, 3] = 1f0
+@assert full_audio_data[2, 3] == 1f0
 ```
 If you want to manually iterate over data, the `channel_indices` and 
 `sample_indices` functions are quite useful:
@@ -188,7 +188,7 @@ for s in sample_indices(input)
     for c in channel_indices(input)
         # Using the percent trick is optional here since we already know for
         # sure that `s` and `c` are valid for this array.
-        output[c, s] = 2f0 * input[%, c, s]
+        output[c, s] = 2f0 * input[c, s]
     end
 end
 ```
@@ -202,7 +202,7 @@ for s in sample_indices(input)
     # case, we want a slice of all the channels for the particular sample `s`.
     # Also note the use of the .= since a slice is not a scalar, we want to
     # assign into it instead of over it.
-    output[:, s] .= input[%, :, s] .* sin(static.phase)
+    output[:, s] .= input[:, s] .* sin(static.phase)
     # 1.0 / sample_rate is the amount of time represented by a single audio
     # sample.
     static.phase += 1.0 / sample_rate
@@ -214,10 +214,10 @@ support having multiple channels.
 ```julia
 data = similar(Trigger)
 data[1, 2] = true
-@assert data[%, 1, 2] == true
+@assert data[1, 2] == true
 static_data = similar(StaticTrigger)
 static_data[1, 1] = true
-@assert static_data[%, 1, 81] == true
+@assert static_data[1, 81] == true
 ```
 Waveforms are functions, so using them only involves passing the correct
 arguments. The first argument is the phase you want to look up in the waveform,
@@ -233,7 +233,7 @@ a simple oscillator:
 output = similar(MonoAudio)
 for s in sample_indices(MonoAudio)
     output[1, s] = waveform(static.phase % 1f0, s)
-    static.phase += pitch[%, 1, s] / sample_rate
+    static.phase += pitch[1, s] / sample_rate
 end
 ```
 The value of the phase argument *must* be between `0f0` and `1f0` or you may
@@ -280,19 +280,11 @@ function was called.
 # Linear interpolation.
 @assert lerp(from, to, 1f0) == to
 @assert lerp(0f0, 5f0, 0.2f0) == 1f0
-# mutable() returns the mutable version of a data type.
 mutable struct StaticData
-    echo_memory: mutable(StereoAudio)
+    echo_memory::StereoAudio
 end
 # viewas() lets you treat bigger data like it was smaller data.
 echo_memory = viewas(static.echo_memory, typeof(mono_audio))
 echo_memory .+= mono_audio
 echo_memory .*= 0.5f0
-# typeof2() is useful for explicitly getting the Audiobench-defined datatype of
-# something since Julia considers the immutable and mutable data types to be 
-# different.
-@assert typeof(incoming_audio) == mutable(StereoAudio)
-@assert typeof(incoming_audio) != StereoAudio
-@assert typeof2(incoming_audio) == StereoAudio
-@assert at2st(typeof2(incoming_audio)) == StereoSample
 ```
