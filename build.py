@@ -109,7 +109,7 @@ RUST_OUTPUT_DIR = PROJECT_ROOT.joinpath(
 JUCE_FRONTEND_ROOT = PROJECT_ROOT.joinpath('components', 'juce_frontend')
 
 cargo_toml = open('components/audiobench/Cargo.toml',
-                    'r', encoding='utf8').read()
+                  'r', encoding='utf8').read()
 version_start = cargo_toml.find('version = "') + len('version = "')
 version_end = cargo_toml.find('"', version_start)
 CRATE_VERSION = cargo_toml[version_start:version_end]
@@ -117,12 +117,9 @@ CRATE_VERSION = cargo_toml[version_start:version_end]
 # Tooling on windows expects forward slashes.
 set_env('PROJECT_ROOT', str(PROJECT_ROOT).replace('\\', '/'))
 set_env('RUST_OUTPUT_DIR', str(RUST_OUTPUT_DIR).replace('\\', '/'))
-set_env('JULIA_DIR', str(PROJECT_ROOT.joinpath(
-    'dependencies', 'julia')).replace('\\', '/'))
 set_env('CRATE_VERSION', CRATE_VERSION)
 if not ON_WINDOWS:
     set_env('LD_LIBRARY_PATH', get_env('LD_LIBRARY_PATH') + ':' +
-            str(PROJECT_ROOT.joinpath('dependencies', 'julia', 'lib')) + ':' + 
             str(PROJECT_ROOT.joinpath('artifacts', 'bin')))
 mkdir(Path('dependencies'))
 
@@ -193,7 +190,7 @@ def build_juce_frontend():
             'Audiobench_Windows_x64_Standalone.exe')
         vst3_target = vst3_target.joinpath('Audiobench_Windows_x64_VST3.vst3')
         clib_target = clib_target.joinpath('audiobench_clib.dll')
-    
+
     if ON_MAC:
         standalone_source = standalone_source.joinpath('Audiobench.app')
         au_source = artifact_source.joinpath('AU', 'Audiobench.component')
@@ -210,16 +207,14 @@ def build_juce_frontend():
         # Change linkage paths.
         old_clib_path = '/usr/local/lib/libaudiobench_clib.0.1.0.dylib'
         new_clib_path = '/Library/Audiobench/libaudiobench_clib.dylib'
-        old_julia_path = '@rpath/libjulia.dylib'
-        new_julia_path = '/Library/Audiobench/Julia.app/lib/libjulia.dylib'
         files_to_change = [
             au_source.joinpath('Contents', 'MacOS', 'Audiobench'),
             standalone_source.joinpath('Contents', 'MacOS', 'Audiobench'),
             vst3_source.joinpath('Contents', 'MacOS', 'Audiobench'),
         ]
         for fpath in files_to_change:
-            command(['install_name_tool', '-change', old_clib_path, new_clib_path, fpath])
-            command(['install_name_tool', '-change', old_julia_path, new_julia_path, fpath])
+            command(['install_name_tool', '-change',
+                     old_clib_path, new_clib_path, fpath])
 
     if ON_LINUX:
         standalone_source = standalone_source.joinpath('Audiobench')
@@ -242,14 +237,17 @@ def build_juce_frontend():
 def build_installer():
     mkdir(PROJECT_ROOT.joinpath('artifacts', 'installer'))
     if ON_LINUX:
-        command(['sh', 'build.sh'], PROJECT_ROOT.joinpath('components', 'installer_linux'))
+        command(['sh', 'build.sh'], PROJECT_ROOT.joinpath(
+            'components', 'installer_linux'))
     if ON_MAC:
-        command(['sh', 'build.sh'], PROJECT_ROOT.joinpath('components', 'installer_macos'))
+        command(['sh', 'build.sh'], PROJECT_ROOT.joinpath(
+            'components', 'installer_macos'))
     if ON_WINDOWS:
         src_root = PROJECT_ROOT.joinpath('components', 'installer_windows')
         nsis_path = "C:/Program Files (x86)/NSIS/Bin/makensis.exe"
         command([nsis_path, 'main.nsi'], working_dir=src_root)
-        cp(src_root.joinpath('AudiobenchInstaller.exe'), PROJECT_ROOT.joinpath('artifacts', 'installer'))
+        cp(src_root.joinpath('AudiobenchInstaller.exe'),
+           PROJECT_ROOT.joinpath('artifacts', 'installer'))
 
 
 def run_standalone():
@@ -267,9 +265,6 @@ def run_tests():
     args = ['cargo', 'test']
     if DO_RELEASE:
         args.append('--release')
-    args.append('--')
-    # Some of the tests test running Julia, which cannot be run multiple times on different threads.
-    args.append('--test-threads=1')
     command(args)
 
 
@@ -298,7 +293,8 @@ def check_version():
     else:
         print('ERROR in components/audiobench/Cargo.toml:')
         print('Version number was not incremented correctly.')
-        print('Last version was ' + latest['version'] + ' but the crate version is ' + CRATE_VERSION)
+        print('Last version was ' +
+              latest['version'] + ' but the crate version is ' + CRATE_VERSION)
         exit(1)
 
 
@@ -320,97 +316,6 @@ def build_juce6_win():
              '--target', 'install'], working_dir=working_dir)
     set_env('JUCE_DIR', str(JUCE6_PREFIX.joinpath(
         'lib', 'cmake', 'JUCE-6.0.0')).replace('\\', '/'))
-
-
-def pack_julia_package(git_url: str, commit_id: str, module_name: str):
-    """Turns a Julia package (from a Git repository) into a single file which can more easily be
-    embedded into an application.
-    """
-    repo_dir = temp_clone(git_url, commit_id)
-    src_dir = Path(repo_dir.name).joinpath('src')
-    packed_code = ''
-    custom_include_name = '__packed_' + module_name + '_include__'
-    custom_module_name = '__packed_' + module_name + '__'
-
-    def stringify(text: str) -> str:
-        return '"' + text.replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\n').replace('\r', '\\r').replace('\t', '\\t').replace('$', '\\$') + '"'
-
-    packed_code += 'module ' + custom_module_name + '\n\n'
-    packed_code += 'sources = Dict([\n'
-    for src_file_path in src_dir.iterdir():
-        f = open(src_file_path, 'r', encoding='utf8')
-        code = f.read()
-        f.close()
-        code = code.replace(
-            'include(', 'Main.' + custom_module_name + '.include(@__MODULE__, ')
-        escaped_code = stringify(code)
-        filename = stringify(str(src_file_path.relative_to(src_dir)))
-        packed_code += '    (' + filename + ', ' + escaped_code + '),\n'
-    packed_code += '])\n\n'
-    packed_code += 'function include(mod, filename)\n'
-    packed_code += '    code = sources[filename]\n'
-    packed_code += '        include_string(mod, code, "packed/' + \
-        module_name + '/" * filename)\n'
-    packed_code += 'end\n\n'
-    packed_code += 'end\n\n'
-    packed_code += custom_module_name + \
-        '.include(Main.UnpackedDependencies, "' + module_name + '.jl")\n'
-
-    out_file = open(PROJECT_ROOT.joinpath(
-        'dependencies', 'julia_packages', module_name + '.jl'), 'w', encoding='utf8')
-    out_file.write(packed_code)
-    out_file.close()
-
-
-def get_julia_packages():
-    if should_skip_dep('julia_packages', 1):
-        return
-    pack_julia_package('https://github.com/JuliaArrays/StaticArrays.jl',
-                       'bfd1c051bbe6923261ee976a855dbc0676c02159', 'StaticArrays')
-    print('Finished downloading all necessary Julia packages.')
-    mark_dep_complete('julia_packages', 1)
-
-
-def get_julia():
-    if should_skip_dep('julia', 1):
-        return
-    target = tempfile.mktemp('.zip', 'julia')
-    print('Downloading Julia 1.5.3...')
-    if ON_WINDOWS:
-        url = 'https://julialang-s3.julialang.org/bin/winnt/x64/1.5/julia-1.5.3-win64.zip'
-        code = '''(new-object System.Net.WebClient).DownloadFile('$FILE','$DEST')'''.replace(
-            '$FILE', url).replace('$DEST', target)
-        command(['powershell', '-command', code])
-
-        print('Extracting...')
-        rmdir('dependencies/julia')
-        mkdir('dependencies/')
-        command(['tar', '-xf', target, '-C', 'dependencies/'])
-        command(['powershell', '-command', 'Expand-Archive -Force \'' +
-                 str(target) + '\' \'dependencies/\''])
-        rmdir('dependencies/julia')
-        command(['mv', 'dependencies/julia-1.5.3', 'dependencies/julia'])
-        rmdir(target)
-    if ON_MAC:
-        url = 'https://julialang-s3.julialang.org/bin/mac/x64/1.5/julia-1.5.3-mac64.dmg'
-        command(['curl', '-o', target, url])
-
-        print('Extracting...')
-        command(['hdiutil', 'attach', target])
-        rmdir('dependencies/julia')
-        command(
-            ['cp', '-r', '/Volumes/Julia-1.5.3/Julia-1.5.app/Contents/Resources/julia/', 'dependencies/julia'])
-        rmdir(target)
-    if ON_LINUX:
-        url = 'https://julialang-s3.julialang.org/bin/linux/x64/1.5/julia-1.5.3-linux-x86_64.tar.gz'
-        command(['wget', url, '-O', target])
-
-        print('Extracting...')
-        command(['tar', '-xzf', target, '-C', 'dependencies/'])
-        rmdir('dependencies/julia')
-        command(['mv', 'dependencies/julia-1.5.3', 'dependencies/julia'])
-        rmdir(target)
-    mark_dep_complete('julia', 1)
 
 
 def get_juce():
@@ -447,10 +352,8 @@ class Job:
 JOBS = {
     'jobs': Job('Print available jobs', [], print_jobs),
     'clean': Job('Delete all artifacts and intermediate files', [], clean),
-    'dep_julia': Job('Build the "julia" dependency', [], get_julia),
-    'dep_julia_packages': Job('Build the "julia_packages" dependency', [], get_julia_packages),
     'dep_juce': Job('Build the "juce" dependency', [], get_juce),
-    'deps': Job('Download or build necessary dependencies', ['dep_julia', 'dep_julia_packages', 'dep_juce'], get_dependencies),
+    'deps': Job('Download or build necessary dependencies', ['dep_juce'], get_dependencies),
     'env': Job('Run a terminal after setting variables and installing deps', ['deps'], open_terminal),
     'remove_juce_splash': Job('Remove JUCE splash screen (Audiobench is GPLv3)', [], remove_juce_splash),
     'clib': Job('Build Audiobench as a dynamic library', ['deps'], build_clib),
@@ -467,7 +370,8 @@ if ON_WINDOWS:
         'remove_juce_splash'], build_juce6_win)
     JOBS['juce_frontend'].dependencies.append('juce6')
 if ON_GITHUB_RUNNER:
-    JOBS['set_release_version'] = Job('Set release version', [], set_release_version)
+    JOBS['set_release_version'] = Job(
+        'Set release version', [], set_release_version)
 
 if args.job not in JOBS:
     print('ERROR: There is no job named "' + args.job + '"')
