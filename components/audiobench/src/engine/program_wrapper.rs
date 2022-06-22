@@ -1,19 +1,20 @@
-use crate::engine::data_transfer::{FeedbackData, GlobalData, GlobalParameters, IOData, NoteData};
-use array_macro::array;
-use jlrs_derive::IntoJulia;
-use julia_helper::{DataType, ExecutionEngine, GeneratedCode, JuliaStruct, TypedArray, Value};
 use std::collections::HashSet;
+
+use array_macro::array;
+
+use crate::engine::data_transfer::{FeedbackData, GlobalData, GlobalParameters, IOData, NoteData};
 
 /// The MIDI protocol can provide notes at 128 different pitches.
 const NUM_MIDI_NOTES: usize = 128;
-/// Notes must be silent for at least this amount of time before they will be shut off.
+/// Notes must be silent for at least this amount of time before they will be
+/// shut off.
 const MIN_SILENT_TIME: f32 = 0.1;
-/// Notes must have every sample be of this magnitude or less to be considered silent.
+/// Notes must have every sample be of this magnitude or less to be considered
+/// silent.
 const SILENT_CUTOFF: f32 = 1e-5;
 
 #[repr(C)]
-#[derive(Clone, Copy, JuliaStruct, IntoJulia)]
-#[jlrs(julia_type = "Main.Registry.Factory.Lib.NoteInput")]
+#[derive(Clone, Copy)]
 struct NoteInput {
     pub pitch: f32,
     pub velocity: f32,
@@ -210,10 +211,7 @@ impl NoteTracker {
 }
 
 pub(super) struct AudiobenchExecutor {
-    base: ExecutionEngine,
     parameters: GlobalParameters,
-    registry_source: GeneratedCode,
-    generated_source: GeneratedCode,
     loaded: bool,
 }
 
@@ -231,15 +229,8 @@ impl AudiobenchExecutor {
         result
     }
 
-    pub fn new(
-        registry_source: GeneratedCode,
-        parameters: &GlobalParameters,
-    ) -> Result<Self, String> {
-        let mut base = ExecutionEngine::new();
-        // base.add_global_code(julia_helper::include_packed_library!("StaticArrays"))
-        //     .unwrap();
+    pub fn new(parameters: &GlobalParameters) -> Result<Self, String> {
         let mut this = AudiobenchExecutor {
-            base,
             // This is a quick and dirty way of getting the executor to rebuild when we use
             // change_parameters for the first time.
             parameters: GlobalParameters {
@@ -247,8 +238,6 @@ impl AudiobenchExecutor {
                 buffer_length: 999,
                 sample_rate: 999,
             },
-            registry_source,
-            generated_source: GeneratedCode::from_unique_source("blank", ""),
             loaded: false,
         };
         this.change_parameters(parameters)?;
@@ -272,50 +261,12 @@ impl AudiobenchExecutor {
             ),
             parameters.channels, parameters.buffer_length, parameters.sample_rate
         );
-        let parameter_code =
-            GeneratedCode::from_unique_source("Generated:parameters.jl", &parameter_code);
-        self.base
-            .add_global_code(parameter_code)
-            .map_err(Self::beautify_stack_trace)?;
-        // Redefine the registry module because it may have been previously compiled with old
-        // parameters.
-        self.base
-            .add_global_code(self.registry_source.clone())
-            .map_err(Self::beautify_stack_trace)?;
-        // Redefine the Generated module to be blank because it may have been previously compiled
-        // with old parameters.
-        self.base
-            .add_global_code(self.generated_source.clone())
-            .map_err(Self::beautify_stack_trace)?;
         Ok(())
     }
 
-    pub fn change_generated_code(&mut self, generated_code: GeneratedCode) -> Result<(), String> {
-        let mut temp_file = std::env::temp_dir();
-        temp_file.push("audiobench_note_graph_code.jl");
-        if std::fs::write(temp_file.clone(), generated_code.as_str()).is_err() {
-            return Err(format!(
-                "ERROR: Failed to open {:?} for writing.",
-                temp_file
-            ));
-        }
-        self.generated_source = generated_code.clone();
-        self.base
-            .add_global_code(generated_code)
-            .map_err(Self::beautify_stack_trace)?;
-        self.loaded = true;
-        Ok(())
-    }
 
     fn reset_static_data(&mut self, index: usize) -> Result<(), String> {
-        self.base.call_fn(
-            &["Main", "Generated", "static_init"],
-            |frame, inputs| {
-                inputs.push(Value::new(frame, index)?);
-                Ok(())
-            },
-            |_, _| Ok(()),
-        )
+        todo!()
     }
 
     // Runs the main function once to make sure everything is compiled.
@@ -329,28 +280,15 @@ impl AudiobenchExecutor {
         let note_input = NoteInput::from(&note.data, &self.parameters, 1.0);
         let static_index = note.static_index;
         let global_data = GlobalData::new();
-        self.base.call_fn(
-            &["Main", "Generated", "exec"],
-            |frame, inputs| {
-                inputs.append(&mut global_data.as_julia_values(frame)?);
-                inputs.push(Value::new(frame, false)?); // do_feedback
-                inputs.push(Value::new(frame, note_input)?);
-                inputs.push(Value::new(frame, static_index)?);
-                inputs.push(Value::new(frame, 0)?);
-                for item in dyn_data {
-                    inputs.push(item.as_julia_value(frame)?);
-                }
-                Ok(())
-            },
-            |frame, output| Ok(()),
-        )?;
+        todo!("Preheat");
         notes.set_dummy_note_active(was_dummy_note_active);
         Ok(())
     }
 
-    /// This handles everything from global setup, note iteration, program execution, note teardown,
-    /// and finally global teardown. Returns true if feedback data was updated. View index is which
-    /// module's outputs should be retrieved.
+    /// This handles everything from global setup, note iteration, program
+    /// execution, note teardown, and finally global teardown. Returns true
+    /// if feedback data was updated. View index is which module's outputs
+    /// should be retrieved.
     pub fn execute(
         &mut self,
         do_feedback: bool,
@@ -384,97 +322,7 @@ impl AudiobenchExecutor {
             let note_input = NoteInput::from(&note.data, &self.parameters, pitch_mul);
             let static_index = note.static_index;
             let do_feedback = feedback_note == Some(static_index);
-
-            let res = self.base.call_fn(
-                &["Main", "Generated", "exec"],
-                |frame, inputs| {
-                    inputs.append(&mut global_data.as_julia_values(frame)?);
-                    inputs.push(Value::new(frame, do_feedback)?);
-                    inputs.push(Value::new(frame, note_input)?);
-                    inputs.push(Value::new(frame, static_index)?);
-                    inputs.push(Value::new(frame, view_index)?);
-                    for item in dyn_data {
-                        inputs.push(item.as_julia_value(frame)?);
-                    }
-                    Ok(())
-                },
-                |frame, output| {
-                    if do_feedback {
-                        let julia_feedback = match output.get_nth_field(frame, 1) {
-                            Ok(v) => v,
-                            Err(err) => {
-                                return Ok(Err(format!(
-                                    "ERROR: Failed to retrieve feedback data, caused by:\n{:?}",
-                                    err
-                                )))
-                            }
-                        };
-                        let mut native_feedback = FeedbackData::default();
-                        for index in 0..julia_feedback.n_fields() {
-                            let field = julia_feedback.get_nth_field(frame, index)?;
-                            let field = field.cast::<TypedArray<'_, '_, f32>>()?;
-                            let field = field.inline_data(frame)?.into_slice();
-                            native_feedback.widget_feeback.push(Vec::from(field));
-                        }
-                        let julia_view_data= match output.get_nth_field(frame, 2) {
-                            Ok(v) => v,
-                            Err(err) => {
-                                return Ok(Err(format!(
-                                    "ERROR: Failed to retrieve output view data, caused by:\n{:?}",
-                                    err
-                                )))
-                            }
-                        };
-                        for index in 0..julia_view_data.n_fields() {
-                            let field = julia_view_data.get_nth_field(frame, index)?;
-                            let field = field.cast::<TypedArray<'_, '_, f32>>()?;
-                            let field = field.inline_data(frame)?.into_slice();
-                            native_feedback.output_view.push(Vec::from(field));
-                        }
-                        native_feedback.output_view_module_index = view_index;
-                        feedback_data = Some(native_feedback);
-                    }
-
-                    if is_dummy {
-                        // Don't process the audio of the dummy note.
-                        is_dummy = false;
-                        return Ok(Ok(()));
-                    }
-                    // 0-based index, not Julia index.
-                    let audio = match output.get_nth_field(frame, 0) {
-                        Ok(v) => v,
-                        Err(err) => {
-                            return Ok(Err(format!(
-                                "ERROR: Failed to retrieve audio output, caused by:\n{:?}",
-                                err
-                            )))
-                        }
-                    };
-                    let audio = match audio.cast::<TypedArray<'_, '_, f32>>() {
-                        Ok(v) => v,
-                        Err(err) => {
-                            return Ok(Err(format!(
-                                "ERROR: audio is not expected type, caused by:\n{:?}",
-                                err
-                            )))
-                        }
-                    };
-                    let audio = audio.inline_data(frame)?.into_slice();
-                    let mut silent = true;
-                    for i in 0..buf_len * channels {
-                        audio_output[i] += audio[i];
-                        silent &= audio[i].abs() < SILENT_CUTOFF;
-                    }
-                    if silent {
-                        note.silent_samples += buf_len;
-                    } else {
-                        note.silent_samples = 0;
-                    }
-
-                    Ok(Ok(()))
-                },
-            );
-            res.map_err(Self::beautify_stack_trace)??;
+            todo!("Execute");
         }
 
         notes.advance_all_notes(&self.parameters, global_data);

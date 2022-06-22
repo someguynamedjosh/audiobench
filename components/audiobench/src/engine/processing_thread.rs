@@ -1,10 +1,12 @@
+use std::sync::Arc;
+
+use crossbeam_channel::{Receiver, Sender};
+
 use crate::engine::{
     data_transfer::{GlobalData, GlobalParameters, IOData},
     program_wrapper::{AudiobenchExecutor, NoteTracker},
     Communication,
 };
-use crossbeam_channel::{Receiver, Sender};
-use std::sync::Arc;
 
 #[derive(Clone, Copy, Eq, PartialEq)]
 pub enum Status {
@@ -44,7 +46,7 @@ pub(super) fn entry(
     audio_response_pipe: Sender<AudioResponse>,
     error_report_pipe: Sender<String>,
 ) {
-    let executor = AudiobenchExecutor::new(registry_source, &global_params).map_err(|err| {
+    let executor = AudiobenchExecutor::new(&global_params).map_err(|err| {
         format!(
             "Failed to initialize execution environment! (See message log for details.)\n\n{}",
             err
@@ -58,19 +60,6 @@ pub(super) fn entry(
             panic!("Unrecoverable error.");
         }
     };
-    let res = executor
-        .change_generated_code(default_patch_code)
-        .map_err(|err| {
-            format!(
-                "Default patch failed to compile! (See message log for details.)\n\n{}",
-                err
-            )
-        });
-    if let Err(err) = res {
-        error_report_pipe.send(err).unwrap();
-        comms.processing_thread_status.store(Status::Error);
-        panic!("Unrecoverable error.");
-    }
 
     let mut thread = ProcessingThread {
         comms,
@@ -150,15 +139,7 @@ impl ProcessingThread {
             self.set_status(Status::Busy);
             self.notes.silence_all();
             self.dyn_data = dyn_data;
-            let res = self.executor.change_generated_code(code);
-            if let Err(err) = res {
-                let message = format!(
-                    "Failed to load new patch code, see message log for details.\n\n{}",
-                    err
-                );
-                self.report_processing_error(message);
-                panic!("Unrecoverable error.");
-            }
+            todo!("Change generated code");
             self.preheat();
         } else if let Some(data) = self.comms.new_dyn_data.take() {
             self.dyn_data = data;

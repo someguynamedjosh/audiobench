@@ -8,7 +8,6 @@ use crate::{
         yaml,
     },
 };
-use julia_helper::FileClip;
 use rand::RngCore;
 use shared_util::prelude::*;
 use std::{
@@ -24,9 +23,6 @@ pub struct Registry {
     module_templates: Vec<Rcrc<ModuleTemplate>>,
     modules_by_resource_id: HashMap<String, usize>,
     modules_by_serialized_id: HashMap<(String, usize), usize>,
-
-    general_scripts_by_library: HashMap<String, Vec<FileClip>>,
-    module_scripts_by_library: HashMap<String, Vec<(String, FileClip)>>,
 
     icon_indexes: HashMap<String, usize>,
     icons: Vec<Vec<u8>>,
@@ -85,55 +81,6 @@ impl Registry {
         Ok(delayed_error)
     }
 
-    fn load_general_script_resource(
-        &mut self,
-        library_name: &str,
-        file_name: &str,
-        buffer: Vec<u8>,
-    ) -> Result<(), String> {
-        let buffer_as_text = String::from_utf8(buffer).map_err(|e| {
-            format!(
-                "ERROR: The file {} is not a valid UTF-8 text document, caused by:\nERROR: {}",
-                file_name, e
-            )
-        })?;
-        assert!(self.general_scripts_by_library.contains_key(library_name));
-        let clip = FileClip::new(file_name.to_owned(), buffer_as_text);
-        self.general_scripts_by_library
-            .get_mut(library_name)
-            .unwrap()
-            .push(clip);
-        Ok(())
-    }
-
-    fn load_module_script_resource(
-        &mut self,
-        library_name: &str,
-        file_name: &str,
-        buffer: Vec<u8>,
-    ) -> Result<(), String> {
-        let buffer_as_text = String::from_utf8(buffer).map_err(|e| {
-            format!(
-                "ERROR: The file {} is not a valid UTF-8 text document, caused by:\nERROR: {}",
-                file_name, e
-            )
-        })?;
-        let name_start = file_name
-            .rfind('/')
-            .or_else(|| file_name.find(':'))
-            .expect("Illegal file name")
-            + 1;
-        let name_end = file_name.rfind(".module.jl").expect("Illegal file name");
-        let module_name = String::from(&file_name[name_start..name_end]);
-        assert!(self.module_scripts_by_library.contains_key(library_name));
-        let clip = FileClip::new(file_name.to_owned(), buffer_as_text);
-        self.module_scripts_by_library
-            .get_mut(library_name)
-            .unwrap()
-            .push((module_name, clip));
-        Ok(())
-    }
-
     fn load_patch(
         &mut self,
         name: &str,
@@ -183,10 +130,6 @@ impl Registry {
                 module_id.to_owned(),
                 buffer,
             );
-        } else if file_name.ends_with(".lib.jl") {
-            self.load_general_script_resource(lib_name, &full_name, buffer)?;
-        } else if file_name.ends_with(".module.jl") {
-            self.load_module_script_resource(lib_name, &full_name, buffer)?;
         } else if file_name.ends_with(".abpatch") {
             self.unloaded_patches.push((full_name, full_path, buffer));
         } else if file_name.ends_with(".md") {
@@ -222,11 +165,6 @@ impl Registry {
             }
         }
         let internal_name = library.info.internal_name.clone();
-        // Add entries to script hash table.
-        self.general_scripts_by_library
-            .insert(internal_name.clone(), Vec::new());
-        self.module_scripts_by_library
-            .insert(internal_name.clone(), Vec::new());
         // Load icons before other data.
         for index in 0..library.content.get_num_files() {
             let file_name = library.content.get_file_name(index);
@@ -377,9 +315,6 @@ impl Registry {
             modules_by_resource_id: HashMap::new(),
             modules_by_serialized_id: HashMap::new(),
 
-            general_scripts_by_library: HashMap::new(),
-            module_scripts_by_library: HashMap::new(),
-
             icon_indexes: HashMap::new(),
             icons: Vec::new(),
 
@@ -407,14 +342,6 @@ impl Registry {
         self.modules_by_serialized_id
             .get(id)
             .map(|idx| &self.module_templates[*idx])
-    }
-
-    pub fn borrow_general_scripts_from_library(&self, lib_name: &str) -> &[FileClip] {
-        &self.general_scripts_by_library.get(lib_name).unwrap()[..]
-    }
-
-    pub fn borrow_module_scripts_from_library(&self, lib_name: &str) -> &[(String, FileClip)] {
-        &self.module_scripts_by_library.get(lib_name).unwrap()[..]
     }
 
     pub fn lookup_icon(&self, name: &str) -> Option<usize> {

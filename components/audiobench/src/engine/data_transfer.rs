@@ -2,7 +2,6 @@ use crate::{
     engine::{controls::Control, parts::Module},
     gui::top_level::graph::ModuleGraph,
 };
-use julia_helper::{Frame, JlrsResult, Value};
 use shared_util::prelude::*;
 use std::fmt::{Display, Formatter};
 
@@ -40,19 +39,6 @@ impl GlobalData {
             elapsed_time: 0.0,
             elapsed_beats: 0.0,
         }
-    }
-
-    pub fn as_julia_values<'f>(
-        &self,
-        frame: &mut impl Frame<'f>,
-    ) -> JlrsResult<Vec<Value<'f, 'f>>> {
-        Ok(vec![
-            Value::move_array(frame, self.controller_values.to_vec(), (128,))?,
-            Value::new(frame, self.pitch_wheel)?,
-            Value::new(frame, self.bpm)?,
-            Value::new(frame, self.elapsed_time)?,
-            Value::new(frame, self.elapsed_beats)?,
-        ])
     }
 }
 
@@ -108,20 +94,6 @@ pub enum IOData {
     BoolArray(Vec<bool>),
     IntArray(Vec<i32>),
     FloatArray(Vec<f32>),
-}
-
-impl IOData {
-    pub fn as_julia_value<'f>(&self, frame: &mut impl Frame<'f>) -> JlrsResult<Value<'f, 'f>> {
-        use IOData::*;
-        match self {
-            Bool(v) => Value::new(frame, *v),
-            Int(v) => Value::new(frame, *v),
-            Float(v) => Value::new(frame, *v),
-            BoolArray(v) => Value::move_array(frame, v.clone(), (v.len(),)),
-            IntArray(v) => Value::move_array(frame, v.clone(), (v.len(),)),
-            FloatArray(v) => Value::move_array(frame, v.clone(), (v.len(),)),
-        }
-    }
 }
 
 #[scones::make_constructor]

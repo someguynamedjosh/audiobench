@@ -1,14 +1,15 @@
 use std::cmp::Ordering;
 
+use observatory::{observable, ObservablePtr};
+use scui::{MouseMods, Vec2D, Widget, WidgetImpl};
+use shared_util::prelude::*;
+
 use crate::{
     engine::{controls::Control, parts::JackType, Status, UiThreadEngine},
     gui::{constants::*, top_level::*},
     registry::{save_data::Patch, Registry},
     scui_config::{DropTarget, MaybeMouseBehavior, Renderer},
 };
-use observatory::{observable, ObservablePtr};
-use scui::{MouseMods, Vec2D, Widget, WidgetImpl};
-use shared_util::prelude::*;
 
 #[derive(Copy, Clone, PartialEq, Eq, Hash)]
 pub enum InteractionHint {
@@ -118,8 +119,8 @@ pub enum TabArchetype {
 }
 
 impl TabArchetype {
-    /// Returns true if the two archetypes represent the same GUI layout, presenting the same
-    /// information and tools.
+    /// Returns true if the two archetypes represent the same GUI layout,
+    /// presenting the same information and tools.
     pub fn equivalent(&self, other: &Self) -> bool {
         use TabArchetype::*;
         match self {
@@ -388,12 +389,12 @@ impl WidgetImpl<Renderer, DropTarget> for Root {
         self.get_current_tab().draw(renderer);
         self.draw_children(renderer);
 
-        let julia_status =
-            self.with_gui_state(|state| state.engine.borrow().get_julia_thread_status());
-        let message = if julia_status == Status::Busy {
+        let processing_thread_status =
+            self.with_gui_state(|state| state.engine.borrow().get_processing_thread_status());
+        let message = if processing_thread_status == Status::Busy {
             renderer.set_color(&COLOR_WARNING);
             "Working..."
-        } else if julia_status == Status::Error {
+        } else if processing_thread_status == Status::Error {
             renderer.set_color(&COLOR_ERROR);
             "Unrecoverable Error :("
         } else {

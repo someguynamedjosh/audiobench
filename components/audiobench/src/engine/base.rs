@@ -151,7 +151,6 @@ pub fn new_engine(
     };
     let comms = Arc::new(comms);
 
-    let registry_source = codegen::generate_registry_code(&*registry)?;
     let comms2 = Arc::clone(&comms);
     let processing_executor = move || {
         processing_thread::entry(
