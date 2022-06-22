@@ -1,3 +1,5 @@
+use shared_util::prelude::*;
+
 use crate::{
     engine::{
         controls::AutomationSource,
@@ -7,8 +9,8 @@ use crate::{
     gui::module_widgets::FeedbackMode,
     registry::Registry,
 };
-use julia_helper::GeneratedCode;
-use shared_util::prelude::*;
+
+pub struct GeneratedCode {}
 
 pub(super) struct CodeGenResult {
     pub code: GeneratedCode,

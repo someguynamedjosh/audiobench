@@ -4,7 +4,6 @@ use crate::engine::{
     Communication,
 };
 use crossbeam_channel::{Receiver, Sender};
-use julia_helper::GeneratedCode;
 use std::sync::Arc;
 
 #[derive(Clone, Copy, Eq, PartialEq)]
@@ -39,8 +38,6 @@ pub struct AudioResponse {
 pub(super) fn entry(
     comms: Arc<Communication>,
     global_params: GlobalParameters,
-    registry_source: GeneratedCode,
-    default_patch_code: GeneratedCode,
     dyn_data: Vec<IOData>,
     render_pipe: Receiver<RenderRequest>,
     poll_pipe: Receiver<()>,
@@ -57,7 +54,7 @@ pub(super) fn entry(
         Ok(value) => value,
         Err(err) => {
             error_report_pipe.send(err).unwrap();
-            comms.julia_thread_status.store(Status::Error);
+            comms.processing_thread_status.store(Status::Error);
             panic!("Unrecoverable error.");
         }
     };
@@ -71,11 +68,11 @@ pub(super) fn entry(
         });
     if let Err(err) = res {
         error_report_pipe.send(err).unwrap();
-        comms.julia_thread_status.store(Status::Error);
+        comms.processing_thread_status.store(Status::Error);
         panic!("Unrecoverable error.");
     }
 
-    let mut thread = JuliaThread {
+    let mut thread = ProcessingThread {
         comms,
         executor,
         global_params,
@@ -89,7 +86,7 @@ pub(super) fn entry(
     thread.entry();
 }
 
-struct JuliaThread {
+struct ProcessingThread {
     comms: Arc<Communication>,
     executor: AudiobenchExecutor,
     global_params: GlobalParameters,
@@ -101,9 +98,9 @@ struct JuliaThread {
     error_report_pipe: Sender<String>,
 }
 
-impl JuliaThread {
+impl ProcessingThread {
     fn set_status(&self, status: Status) {
-        self.comms.julia_thread_status.store(status);
+        self.comms.processing_thread_status.store(status);
     }
 
     fn entry(&mut self) {
@@ -129,7 +126,7 @@ impl JuliaThread {
         self.set_status(Status::Error);
     }
 
-    fn report_julia_error(&mut self, message: String) {
+    fn report_processing_error(&mut self, message: String) {
         self.error_report_pipe.send(message).unwrap();
         self.set_status(Status::Error);
     }
@@ -144,7 +141,7 @@ impl JuliaThread {
                     "Failed to load new parameter code, see message log for details.\n\n{}",
                     err
                 );
-                self.report_julia_error(message);
+                self.report_processing_error(message);
                 panic!("Unrecoverable error.");
             }
             self.global_params = params;
@@ -159,7 +156,7 @@ impl JuliaThread {
                     "Failed to load new patch code, see message log for details.\n\n{}",
                     err
                 );
-                self.report_julia_error(message);
+                self.report_processing_error(message);
                 panic!("Unrecoverable error.");
             }
             self.preheat();
@@ -172,12 +169,12 @@ impl JuliaThread {
         let result = self.executor.preheat(&mut self.notes, &self.dyn_data[..]);
         if let Err(err) = result {
             let message = format!(
-                "Encountered Julia error while executing, see message log for details.\n\n{}",
+                "Encountered processing error while executing, see message log for details.\n\n{}",
                 err
             );
             eprintln!("{}", err);
             // This error is "recoverable"
-            self.report_julia_error(message);
+            self.report_processing_error(message);
         }
     }
 
@@ -210,11 +207,11 @@ impl JuliaThread {
             Ok(v) => v,
             Err(err) => {
                 let message = format!(
-                    "Encountered Julia error while executing, see message log for details.\n\n{}",
+                    "Encountered processing error while executing, see message log for details.\n\n{}",
                     err
                 );
                 eprintln!("{}", err);
-                self.report_julia_error(message);
+                self.report_processing_error(message);
                 // This error is "recoverable"
                 None
             }

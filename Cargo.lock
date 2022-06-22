@@ -79,7 +79,6 @@ dependencies = [
  "enumflags2",
  "jlrs",
  "jlrs-derive 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "julia_helper",
  "observatory",
  "owning_ref",
  "paste",
@@ -856,7 +855,8 @@ dependencies = [
 [[package]]
 name = "jlrs-derive"
 version = "0.2.0"
-source = "git+https://github.com/joshua-maros/jlrs#38be42bfd75936c642327b7540efa316b055cace"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "35542557a9ac3a1b2441ea5f1f177cf0cf379b20d7697461fa9343ea1c70628a"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -866,8 +866,7 @@ dependencies = [
 [[package]]
 name = "jlrs-derive"
 version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "35542557a9ac3a1b2441ea5f1f177cf0cf379b20d7697461fa9343ea1c70628a"
+source = "git+https://github.com/joshua-maros/jlrs#38be42bfd75936c642327b7540efa316b055cace"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -881,16 +880,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dc9f84f9b115ce7843d60706df1422a916680bfdfcbdb0447c5614ff9d7e4d78"
 dependencies = [
  "wasm-bindgen",
-]
-
-[[package]]
-name = "julia_helper"
-version = "0.1.0"
-dependencies = [
- "jlrs",
- "jlrs-derive 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "scones",
- "shared_util",
 ]
 
 [[package]]

@@ -1,24 +1,26 @@
-use crate::{
-    engine::{
-        codegen::{self, CodeGenResult},
-        data_transfer::IOData,
-        data_transfer::{
-            DynDataCollector, FeedbackData, FeedbackDisplayer, GlobalData, GlobalParameters,
-        },
-        julia_thread,
-        parts::{Module, ModuleGraph},
-    },
-    registry::{save_data::Patch, Registry},
-};
-use crossbeam_channel::{Receiver, Sender, TrySendError};
-use crossbeam_utils::atomic::AtomicCell;
-use julia_helper::GeneratedCode;
-use observatory::{observable, ObservablePtr};
-use shared_util::prelude::*;
 use std::{
     sync::Mutex,
     time::{Duration, Instant},
 };
+
+use crossbeam_channel::{Receiver, Sender, TrySendError};
+use crossbeam_utils::atomic::AtomicCell;
+use observatory::{observable, ObservablePtr};
+use shared_util::prelude::*;
+
+use crate::{
+    engine::{
+        codegen::{self, CodeGenResult},
+        data_transfer::{
+            DynDataCollector, FeedbackData, FeedbackDisplayer, GlobalData, GlobalParameters, IOData,
+        },
+        parts::{Module, ModuleGraph},
+        processing_thread,
+    },
+    registry::{save_data::Patch, Registry},
+};
+
+use super::codegen::GeneratedCode;
 
 const DEFAULT_CHANNELS: usize = 2;
 const DEFAULT_BUFFER_LENGTH: usize = 512;
@@ -34,11 +36,11 @@ struct UiThreadData {
     feedback_displayer: FeedbackDisplayer,
     current_patch_save_data: ObservablePtr<Rcrc<Patch>>,
     posted_errors: Vec<String>,
-    julia_errors: Receiver<String>,
+    processing_errors: Receiver<String>,
 }
 
 pub(super) struct Communication {
-    pub julia_thread_status: AtomicCell<julia_thread::Status>,
+    pub processing_thread_status: AtomicCell<processing_thread::Status>,
 
     pub new_global_params: AtomicCell<Option<()>>,
     pub new_note_graph_code: AtomicCell<Option<(GeneratedCode, Vec<IOData>)>>,
@@ -49,15 +51,15 @@ pub(super) struct Communication {
     pub module_view_index: AtomicCell<usize>,
 
     pub global_params: AtomicCell<GlobalParameters>,
-    pub note_events: Mutex<Vec<julia_thread::NoteEvent>>,
-    pub julia_render_pipe: Sender<julia_thread::RenderRequest>,
-    pub julia_poll_pipe: Sender<()>,
+    pub note_events: Mutex<Vec<processing_thread::NoteEvent>>,
+    pub processing_render_pipe: Sender<processing_thread::RenderRequest>,
+    pub processing_poll_pipe: Sender<()>,
 }
 
 struct AudioThreadData {
     global_data: GlobalData,
     last_feedback_data_update: Instant,
-    audio_response_output: Receiver<julia_thread::AudioResponse>,
+    audio_response_output: Receiver<processing_thread::AudioResponse>,
 }
 
 pub struct UiThreadEngine {
@@ -121,7 +123,7 @@ pub fn new_engine(
         feedback_displayer,
         current_patch_save_data: observable(default_patch),
         posted_errors: Vec::new(),
-        julia_errors: jerroro,
+        processing_errors: jerroro,
     };
 
     let atd = AudioThreadData {
@@ -132,7 +134,7 @@ pub fn new_engine(
 
     let global_params_2 = global_params.clone();
     let comms = Communication {
-        julia_thread_status: AtomicCell::new(julia_thread::Status::Busy),
+        processing_thread_status: AtomicCell::new(processing_thread::Status::Busy),
 
         new_global_params: Default::default(),
         new_note_graph_code: Default::default(),
@@ -144,19 +146,17 @@ pub fn new_engine(
 
         global_params: AtomicCell::new(global_params),
         note_events: Default::default(),
-        julia_render_pipe: renderi,
-        julia_poll_pipe: polli,
+        processing_render_pipe: renderi,
+        processing_poll_pipe: polli,
     };
     let comms = Arc::new(comms);
 
     let registry_source = codegen::generate_registry_code(&*registry)?;
     let comms2 = Arc::clone(&comms);
-    let julia_executor = move || {
-        julia_thread::entry(
+    let processing_executor = move || {
+        processing_thread::entry(
             comms2,
             global_params_2,
-            registry_source,
-            code,
             dyn_data,
             rendero,
             pollo,
@@ -165,8 +165,8 @@ pub fn new_engine(
         );
     };
     std::thread::Builder::new()
-        .name("julia_executor".to_owned())
-        .spawn(julia_executor)
+        .name("processing_executor".to_owned())
+        .spawn(processing_executor)
         .unwrap();
 
     Ok((
@@ -182,8 +182,8 @@ pub fn new_engine(
 }
 
 impl UiThreadEngine {
-    pub fn get_julia_thread_status(&self) -> julia_thread::Status {
-        self.comms.julia_thread_status.load()
+    pub fn get_processing_thread_status(&self) -> processing_thread::Status {
+        self.comms.processing_thread_status.load()
     }
 
     pub fn rename_current_patch(&mut self, name: String) {
@@ -204,7 +204,7 @@ impl UiThreadEngine {
 
     pub fn take_posted_errors(&mut self) -> Vec<String> {
         let mut errors = std::mem::take(&mut self.data.posted_errors);
-        while let Ok(error) = self.data.julia_errors.try_recv() {
+        while let Ok(error) = self.data.processing_errors.try_recv() {
             errors.push(error);
         }
         errors
@@ -236,8 +236,8 @@ impl UiThreadEngine {
         let patch_ref_ref = self.data.current_patch_save_data.borrow_untracked();
         let patch_ref = patch_ref_ref.borrow();
         let reg = self.data.registry.borrow();
-        // Use a dummy patch so we don't overwrite the actual save data of the current patch without
-        // the user explicitly clicking 'save'.
+        // Use a dummy patch so we don't overwrite the actual save data of the current
+        // patch without the user explicitly clicking 'save'.
         let mut dummy_patch = Patch::new_dummy(patch_ref.borrow_name().to_owned());
         dummy_patch.save_note_graph(&*self.data.module_graph.borrow(), &*reg);
         dummy_patch.serialize()
@@ -339,7 +339,7 @@ impl UiThreadEngine {
         self.comms
             .new_note_graph_code
             .store(Some((new_gen.code, dyn_data)));
-        self.comms.julia_poll_pipe.send(()).unwrap();
+        self.comms.processing_poll_pipe.send(()).unwrap();
         self.data.dyn_data_collector = new_gen.dyn_data_collector;
         self.data.feedback_displayer = new_gen.feedback_displayer;
     }
@@ -347,13 +347,14 @@ impl UiThreadEngine {
     pub fn reload_dyn_data(&mut self) {
         let data = self.data.dyn_data_collector.collect();
         self.comms.new_dyn_data.store(Some(data));
-        self.comms.julia_poll_pipe.send(()).unwrap();
+        self.comms.processing_poll_pipe.send(()).unwrap();
         self.set_dummy_note_active(true);
     }
 
-    /// Feedback data is generated on the audio thread. This method uses a mutex to retrieve that
-    /// data and copy it so that it can be displayed in the GUI. Nothing will happen if there is no
-    /// new data so this is okay to call relatively often. It also does not block on waiting for
+    /// Feedback data is generated on the audio thread. This method uses a mutex
+    /// to retrieve that data and copy it so that it can be displayed in the
+    /// GUI. Nothing will happen if there is no new data so this is okay to
+    /// call relatively often. It also does not block on waiting for
     /// the mutex.
     pub fn display_new_feedback_data(&mut self) {
         if let Some(data) = self.comms.new_feedback.take() {
@@ -389,19 +390,20 @@ impl UiThreadEngine {
     pub fn virtual_keyboard_note(&self, index: usize, down: bool) {
         let mut events = self.comms.note_events.lock().unwrap();
         let event = if down {
-            julia_thread::NoteEvent::StartNote {
+            processing_thread::NoteEvent::StartNote {
                 index,
                 velocity: 1.0,
             }
         } else {
-            julia_thread::NoteEvent::ReleaseNote { index }
+            processing_thread::NoteEvent::ReleaseNote { index }
         };
         events.push(event);
     }
 }
 
 impl AudioThreadEngine {
-    // AUDIO THREAD METHODS ========================================================================
+    // AUDIO THREAD METHODS
+    // ========================================================================
     pub fn set_global_params(&mut self, buffer_length: usize, sample_rate: usize) {
         let mut params = self.comms.global_params.load();
 
@@ -411,18 +413,18 @@ impl AudioThreadEngine {
             params.sample_rate = sample_rate;
             self.comms.new_global_params.store(Some(()));
             self.comms.global_params.store(params);
-            self.comms.julia_poll_pipe.send(()).unwrap();
+            self.comms.processing_poll_pipe.send(()).unwrap();
         }
     }
 
     pub fn start_note(&mut self, index: usize, velocity: f32) {
         let mut queue = self.comms.note_events.lock().unwrap();
-        queue.push(julia_thread::NoteEvent::StartNote { index, velocity });
+        queue.push(processing_thread::NoteEvent::StartNote { index, velocity });
     }
 
     pub fn release_note(&mut self, index: usize) {
         let mut queue = self.comms.note_events.lock().unwrap();
-        queue.push(julia_thread::NoteEvent::ReleaseNote { index });
+        queue.push(processing_thread::NoteEvent::ReleaseNote { index });
     }
 
     pub fn set_pitch_wheel(&mut self, new_pitch_wheel: f32) {
@@ -463,20 +465,20 @@ impl AudioThreadEngine {
             self.data.last_feedback_data_update = Instant::now();
         }
 
-        // The thread will only be marked as busy if it is doing something that takes a long time,
-        // e.g. compiling code.
-        let mut ready = self.comms.julia_thread_status.load().is_ready();
+        // The thread will only be marked as busy if it is doing something that takes a
+        // long time, e.g. compiling code.
+        let mut ready = self.comms.processing_thread_status.load().is_ready();
         if ready {
             let data = self.data.global_data.clone();
-            let request = julia_thread::RenderRequest {
+            let request = processing_thread::RenderRequest {
                 data,
                 do_feedback: update_feedback_data,
             };
-            let res = self.comms.julia_render_pipe.try_send(request);
+            let res = self.comms.processing_render_pipe.try_send(request);
             match res {
                 Ok(()) => (),
                 Err(TrySendError::Full(..)) => ready = false,
-                Err(TrySendError::Disconnected(..)) => panic!("Julia thread has shut down."),
+                Err(TrySendError::Disconnected(..)) => panic!("processing thread has shut down."),
             }
         }
 

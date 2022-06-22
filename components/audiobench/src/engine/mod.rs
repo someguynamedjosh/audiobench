@@ -2,9 +2,9 @@ mod base;
 mod codegen;
 pub mod controls;
 pub mod data_transfer;
-mod julia_thread;
 pub mod parts;
+mod processing_thread;
 mod program_wrapper;
 
 pub use base::*;
-pub use julia_thread::Status;
+pub use processing_thread::Status;
