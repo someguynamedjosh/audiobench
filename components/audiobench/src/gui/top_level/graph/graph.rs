@@ -1,6 +1,13 @@
+use scones::make_constructor;
+use scui::{
+    GuiInterfaceProvider, MouseBehavior, MouseMods, OnClickBehavior, Vec2D, Widget, WidgetImpl,
+};
+use shared_util::prelude::*;
+
 use crate::{
     engine::{
         controls::{AutomationSource, Control},
+        module::ModuleType,
         parts as ep,
     },
     gui::{
@@ -9,14 +16,9 @@ use crate::{
         top_level::{graph::Module, ModuleBrowser},
         InteractionHint, TabArchetype, Tooltip,
     },
-    registry::module_template::ModuleTemplate,
+    registry::{module_template::UserModuleTemplate, Registry},
     scui_config::{DropTarget, MaybeMouseBehavior, Renderer},
 };
-use scones::make_constructor;
-use scui::{
-    GuiInterfaceProvider, MouseBehavior, MouseMods, OnClickBehavior, Vec2D, Widget, WidgetImpl,
-};
-use shared_util::prelude::*;
 
 scui::widget! {
     pub ModuleGraph
@@ -72,7 +74,11 @@ impl GraphHighlightMode {
 }
 
 impl ModuleGraph {
-    pub fn new(parent: &impl ModuleGraphParent, graph: Rcrc<ep::ModuleGraph>) -> Rc<Self> {
+    pub fn new(
+        parent: &impl ModuleGraphParent,
+        registry: &Registry,
+        graph: Rcrc<ep::ModuleGraph>,
+    ) -> Rc<Self> {
         let state = ModuleGraphState {
             offset: (0.0, 0.0).into(),
             zoom: 1.0,
@@ -89,14 +95,14 @@ impl ModuleGraph {
             .borrow()
             .borrow_modules()
             .iter()
-            .map(|module_rc| Module::new(&this, Rc::clone(module_rc)))
+            .map(|module_rc| Module::new(&this, registry, Rc::clone(module_rc)))
             .collect();
         drop(children);
         this.recenter();
         this
     }
 
-    pub fn rebuild(self: &Rc<Self>) {
+    pub fn rebuild(self: &Rc<Self>, registry: &Registry) {
         let mut children = self.children.borrow_mut();
         children.modules.clear();
         children.detail_menu = None;
@@ -104,7 +110,7 @@ impl ModuleGraph {
         let mut top_left = Vec2D::from(std::f32::MAX);
         let mut bottom_right = Vec2D::from(std::f32::MIN);
         for module_rc in state.graph.borrow().borrow_modules() {
-            let module_widget = Module::new(self, Rc::clone(module_rc));
+            let module_widget = Module::new(self, registry, Rc::clone(module_rc));
             let pos = module_widget.get_pos();
             let size = module_widget.get_size();
             top_left = top_left.min(pos);
@@ -137,8 +143,8 @@ impl ModuleGraph {
     }
 
     /// This also adds the module to the actual graph this widget represents.
-    pub fn add_module(self: &Rc<Self>, template: Rcrc<ModuleTemplate>) {
-        let mut module = ep::Module::create(template);
+    pub fn add_module(self: &Rc<Self>, registry: &Registry, typee: ModuleType) {
+        let mut module = ep::Module::create(typee);
         let state = self.state.borrow();
         let mut pos = state.offset * -1.0;
         pos += TAB_BODY_SIZE / 3.0;
@@ -146,7 +152,7 @@ impl ModuleGraph {
         let module = rcrc(module);
         state.graph.borrow_mut().add_module(Rc::clone(&module));
         let mut children = self.children.borrow_mut();
-        children.modules.push(Module::new(self, module));
+        children.modules.push(Module::new(self, registry, module));
         self.with_gui_state_mut(|state| {
             state.engine.borrow_mut().regenerate_code();
         });
@@ -241,12 +247,12 @@ impl ModuleGraph {
         let mod_ref = module.borrow();
         let mut state = self.state.borrow_mut();
         state.wire_preview_endpoint = Some(Module::output_position(&*mod_ref, output_index));
-        let template = mod_ref.template.borrow();
+        let typee = &mod_ref.typee;
         state.highlight_mode =
-            GraphHighlightMode::ReceivesType(template.outputs[output_index].get_type());
-        let output_type = template.outputs[output_index].get_type();
+            GraphHighlightMode::ReceivesType(typee.outputs()[output_index].get_type());
+        let output_type = typee.outputs()[output_index].get_type();
         let graph = Rc::clone(self);
-        drop(template);
+        drop(typee);
         drop(mod_ref);
         Box::new(ConnectFromSource {
             graph,
@@ -337,7 +343,7 @@ impl MouseBehavior<DropTarget> for ConnectToControl {
 
     fn on_drop(self: Box<Self>, drop_target: Option<DropTarget>) {
         if let Some(DropTarget::Output(module, output_index)) = drop_target {
-            let output_type = module.borrow().template.borrow().outputs[output_index].get_type();
+            let output_type = module.borrow().typee.outputs()[output_index].get_type();
             let source = AutomationSource {
                 module,
                 output_index,

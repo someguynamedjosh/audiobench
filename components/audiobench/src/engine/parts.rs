@@ -1,10 +1,12 @@
-use crate::{
-    engine::controls::AnyControl,
-    gui::top_level::graph::ModuleGraph as ModuleGraphWidget,
-    registry::{module_template::ModuleTemplate, yaml::YamlNode},
-};
-use shared_util::prelude::*;
 use std::collections::HashSet;
+
+use shared_util::prelude::*;
+
+use super::module::ModuleType;
+use crate::{
+    engine::controls::AnyControl, gui::top_level::graph::ModuleGraph as ModuleGraphWidget,
+    registry::{yaml::YamlNode, Registry},
+};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum JackType {
@@ -44,80 +46,63 @@ impl JackType {
 #[derive(Clone, Debug)]
 pub struct IOJack {
     typ: JackType,
-    icon_index: usize,
     custom_icon_index: Option<usize>,
-    code_name: String,
     label: String,
     tooltip: String,
 }
 
 impl IOJack {
-    pub fn create(
+    pub const fn new(
         typ: JackType,
-        icon_index: usize,
         custom_icon_index: Option<usize>,
-        code_name: String,
         label: String,
         tooltip: String,
     ) -> Self {
         Self {
             typ,
-            icon_index,
             custom_icon_index,
-            code_name,
             label,
             tooltip,
         }
     }
 
-    pub fn get_type(&self) -> JackType {
+    pub const fn get_type(&self) -> JackType {
         self.typ
     }
 
-    pub fn get_icon_index(&self) -> usize {
-        self.icon_index
-    }
-
-    pub fn get_custom_icon_index(&self) -> Option<usize> {
+    pub const fn get_custom_icon_index(&self) -> Option<usize> {
         self.custom_icon_index
     }
 
-    pub fn borrow_label(&self) -> &str {
+    pub const fn borrow_label(&self) -> &str {
         &self.label
     }
 
-    pub fn borrow_code_name(&self) -> &str {
-        &self.code_name
-    }
-
-    pub fn borrow_tooltip(&self) -> &str {
+    pub const fn borrow_tooltip(&self) -> &str {
         &self.tooltip
     }
 }
 
 #[derive(Debug)]
 pub struct Module {
-    pub template: Rcrc<ModuleTemplate>,
+    pub typee: ModuleType,
     pub controls: Vec<AnyControl>,
     pub pos: (f32, f32),
 }
 
 impl Module {
-    pub fn create(template: Rcrc<ModuleTemplate>) -> Self {
-        let controls = template
-            .borrow()
-            .default_controls
-            .imc(|(_, c)| c.deep_clone());
+    pub fn create(typee: ModuleType) -> Self {
+        let controls = typee.default_controls();
         Self {
-            template,
+            typee,
             controls,
             pos: (0.0, 0.0),
         }
     }
 
-    /// Removes all inputs and controls. Use this before removing a module to avoid memory leaks.
-    /// It is still required to manually remove references to this module that exist in other
-    /// modules.
+    /// Removes all inputs and controls. Use this before removing a module to
+    /// avoid memory leaks. It is still required to manually remove
+    /// references to this module that exist in other modules.
     pub fn sever(&mut self) {
         for control in &self.controls {
             let control_ptr = control.as_dyn_ptr();
@@ -198,9 +183,9 @@ impl ModuleGraph {
         self.modules.clear();
     }
 
-    pub fn rebuild_widget(&self) {
+    pub fn rebuild_widget(&self, registry: &Registry) {
         if let Some(widget) = &self.current_widget {
-            widget.rebuild();
+            widget.rebuild(registry);
         }
     }
 

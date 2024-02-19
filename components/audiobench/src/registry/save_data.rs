@@ -1,12 +1,14 @@
-use crate::{
-    engine::{controls::AutomationSource, parts as ep},
-    registry::Registry,
-};
+use std::{error::Error, io::Write, path::PathBuf};
+
 use shared_util::{
     mini_serde::{MiniDes, MiniSer},
     prelude::*,
 };
-use std::{error::Error, io::Write, path::PathBuf};
+
+use crate::{
+    engine::{controls::AutomationSource, parts as ep},
+    registry::Registry,
+};
 
 #[derive(Debug, Clone)]
 pub(crate) enum PatchSource {
@@ -71,8 +73,9 @@ impl Patch {
         }
     }
 
-    /// Returns true if the patch has been saved at all. In other words, returns true if the synth
-    /// can be closed and reopened without losing the patch.
+    /// Returns true if the patch has been saved at all. In other words, returns
+    /// true if the synth can be closed and reopened without losing the
+    /// patch.
     pub fn exists_on_disk(&self) -> bool {
         self.exists_on_disk
     }
@@ -120,16 +123,17 @@ impl Patch {
         ser.note("Modules: ");
         for module in graph.borrow_modules() {
             let module = module.borrow();
-            let template = module.template.borrow();
-            ser.note("<lib ");
-            ser.u8(lib_index(&template.lib_name));
-            ser.note("save_id ");
-            ser.u8(template.save_id as _);
-            ser.note("x ");
-            ser.i32(module.pos.0 as _);
-            ser.note("y ");
-            ser.i32(module.pos.1 as _);
-            ser.note("> ");
+            let typee = &module.typee;
+            todo!();
+            // ser.note("<lib ");
+            // ser.u8(lib_index(&typee.lib_name));
+            // ser.note("save_id ");
+            // ser.u8(typee.save_id as _);
+            // ser.note("x ");
+            // ser.i32(module.pos.0 as _);
+            // ser.note("y ");
+            // ser.i32(module.pos.1 as _);
+            // ser.note("> ");
         }
         ser.note("Module controls: ");
         for module in graph.borrow_modules() {
@@ -175,10 +179,10 @@ impl Patch {
             let save_id = des.u8()? as usize;
             let template = registry.borrow_template_by_serialized_id(&(lib_name.clone(), save_id));
             let template = template.ok_or(())?;
-            let mut module = ep::Module::create(Rc::clone(template));
+            let mut module = ep::Module::create(todo!());
             module.pos = (des.i32()? as _, des.i32()? as _);
-            // The controls are serialized later so we can deserialize them after we know what all
-            // the outputs of each module will be.
+            // The controls are serialized later so we can deserialize them after we know
+            // what all the outputs of each module will be.
             modules.push(rcrc(module));
         }
         for i in 0..num_modules as usize {
@@ -193,13 +197,13 @@ impl Patch {
                         return Err(());
                     }
                     let target_module = Rc::clone(&modules[mod_i]);
-                    let num_outs = target_module.borrow().template.borrow().outputs.len();
+                    let num_outs = target_module.borrow().typee.outputs().len();
                     let output_index = des.u4()? as usize;
                     if output_index >= num_outs {
                         return Err(());
                     }
                     let output_type =
-                        target_module.borrow().template.borrow().outputs[output_index].get_type();
+                        target_module.borrow().typee.outputs()[output_index].get_type();
                     let source = AutomationSource {
                         module: target_module,
                         output_index,

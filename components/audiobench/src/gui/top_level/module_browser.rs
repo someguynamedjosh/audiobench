@@ -1,49 +1,54 @@
+use std::{cell::Ref, collections::HashSet};
+
+use owning_ref::OwningRef;
+use scui::{MouseMods, OnClickBehavior, Vec2D, WidgetImpl};
+use shared_util::prelude::*;
+
 use crate::{
-    engine::controls::AnyControl,
+    engine::{
+        controls::AnyControl,
+        module::{BuiltinModuleType, ModuleType},
+    },
     gui::{
         constants::*, graphics::GrahpicsWrapper, top_level::graph::ModuleGraph, GuiTab,
         InteractionHint, TabArchetype, Tooltip,
     },
-    registry::{module_template::ModuleTemplate, Registry},
+    registry::{module_template::UserModuleTemplate, Registry},
     scui_config::{DropTarget, MaybeMouseBehavior, Renderer},
 };
-use owning_ref::OwningRef;
-use scui::{MouseMods, OnClickBehavior, Vec2D, WidgetImpl};
-use shared_util::prelude::*;
-use std::cell::Ref;
-use std::collections::HashSet;
 
 struct ModuleBrowserEntry {
     name: String,
     category: String,
     input_icons: Vec<usize>,
     output_icons: Vec<usize>,
-    template: Rcrc<ModuleTemplate>,
+    typee: ModuleType,
 }
 
 impl ModuleBrowserEntry {
-    const WIDTH: f32 = fatgrid(6);
     const HEIGHT: f32 = fatgrid(1);
+    const WIDTH: f32 = fatgrid(6);
 
-    fn from(registry: &Registry, template: &Rcrc<ModuleTemplate>) -> Self {
-        let template_ref = template.borrow();
-        let name = template_ref.label.clone();
-        let category = template_ref.category.clone();
+    fn from(registry: &Registry, typee: ModuleType) -> Self {
+        let name = typee.label().to_owned();
+        // let category = typee.category().clone();
+        let category = format!("Builtin");
         let mut input_icons = Vec::new();
-        for (_, control) in &template_ref.default_controls {
+        for control in typee.default_controls() {
             if let AnyControl::Input(input) = control {
                 let icon_name = input.borrow().get_type().icon_name();
                 input_icons.push(registry.lookup_icon(icon_name).unwrap());
             }
         }
-        let output_icons = template_ref.outputs.imc(|jack| jack.get_icon_index());
-        drop(template_ref);
+        let output_icons = typee
+            .outputs()
+            .imc(|jack| registry.lookup_icon(jack.get_type().icon_name()).unwrap());
         Self {
             name,
             category,
             input_icons,
             output_icons,
-            template: Rc::clone(template),
+            typee,
         }
     }
 
@@ -123,9 +128,8 @@ impl ModuleBrowser {
         let state = inter.state.borrow();
         let registry = state.registry.borrow();
 
-        let entries: Vec<_> = registry
-            .borrow_templates()
-            .imc(|module| ModuleBrowserEntry::from(&*registry, module));
+        let entries: Vec<_> = BuiltinModuleType::all()
+            .imc(|bmt| ModuleBrowserEntry::from(&*registry, ModuleType::Builtin(*bmt)));
         let vertical_stacking =
             (TAB_BODY_HEIGHT / (ModuleBrowserEntry::HEIGHT + GRID_P)).floor() as usize;
 
@@ -220,14 +224,13 @@ impl WidgetImpl<Renderer, DropTarget> for ModuleBrowser {
     ) -> MaybeMouseBehavior {
         if let Some(entry) = self.get_entry_at(pos) {
             let add_to_graph = Rc::clone(&self.state.borrow().add_to_graph);
-            let template = Rc::clone(&entry.template);
+            let typee = entry.typee.clone();
             let this = Rc::clone(self);
             OnClickBehavior::wrap(move || {
-                add_to_graph.add_module(template);
                 let this = this;
-                // ew, ew, ew.
                 let tab = Rc::new(Rc::clone(&this));
                 this.with_gui_state_mut(|state| {
+                    add_to_graph.add_module(&*state.registry.borrow(), typee);
                     state.close_tab(tab);
                 });
             })
@@ -239,7 +242,7 @@ impl WidgetImpl<Renderer, DropTarget> for ModuleBrowser {
     fn on_hover_impl(self: &Rc<Self>, pos: Vec2D) -> Option<()> {
         if let Some(entry) = self.get_entry_at(pos) {
             let tt = Tooltip {
-                text: entry.template.borrow().tooltip.clone(),
+                text: format!("BLANK TOOLTIP"),
                 interaction: vec![InteractionHint::LeftClick],
             };
             self.with_gui_state_mut(|state| state.set_tooltip(tt));

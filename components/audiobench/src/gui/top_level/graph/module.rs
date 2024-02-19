@@ -1,15 +1,17 @@
+use scui::{MouseBehavior, MouseMods, OnClickBehavior, Vec2D, Widget, WidgetImpl};
+use shared_util::prelude::*;
+
 use crate::{
     engine::parts as ep,
     gui::{
         constants::*,
         module_widgets::ModuleWidget,
         top_level::graph::{GraphHighlightMode, ModuleGraph, OutputViewRenderer, WireTracker},
-        {InteractionHint, Tooltip},
+        InteractionHint, Tooltip,
     },
+    registry::Registry,
     scui_config::{DropTarget, MaybeMouseBehavior, Renderer},
 };
-use scui::{MouseBehavior, MouseMods, OnClickBehavior, Vec2D, Widget, WidgetImpl};
-use shared_util::prelude::*;
 
 struct OutputJack {
     label: String,
@@ -114,7 +116,7 @@ impl Module {
 
     pub fn output_position(module: &ep::Module, output_index: usize) -> Vec2D {
         let module_pos = (module.pos.0 as f32, module.pos.1 as f32);
-        let module_size = module.template.borrow().size;
+        let module_size = module.typee.size();
         let module_width = fatgrid(module_size.0) + MODULE_IO_WIDTH * 2.0 + JACK_SIZE;
         (
             module_pos.0 + module_width,
@@ -123,12 +125,16 @@ impl Module {
             .into()
     }
 
-    pub fn new(parent: &impl ModuleParent, module: Rcrc<ep::Module>) -> Rc<Self> {
+    pub fn new(
+        parent: &impl ModuleParent,
+        registry: &Registry,
+        module: Rcrc<ep::Module>,
+    ) -> Rc<Self> {
         const MIW: f32 = MODULE_IO_WIDTH;
         let module_ref = module.borrow_mut();
-        let template_ref = module_ref.template.borrow();
-        let grid_size = template_ref.size;
-        let label = template_ref.label.clone();
+        let typee = &module_ref.typee;
+        let grid_size = typee.size();
+        let label = typee.label().to_owned();
         let module_controls = &module_ref.controls;
 
         let size = Vec2D::new(
@@ -136,12 +142,12 @@ impl Module {
             fatgrid(grid_size.1),
         );
         let mut outputs = Vec::new();
-        for (index, output) in template_ref.outputs.iter().enumerate() {
+        for (index, output) in typee.outputs().iter().enumerate() {
             outputs.push(OutputJack::create(
                 output.borrow_label().to_owned(),
                 output.borrow_tooltip().to_owned(),
                 output.get_type(),
-                output.get_icon_index(),
+                registry.lookup_icon(output.get_type().icon_name()).unwrap(),
                 output.get_custom_icon_index(),
                 (size.x - JACK_SIZE, coord(index as i32)).into(),
             ));
@@ -157,14 +163,14 @@ impl Module {
         };
 
         let this = Rc::new(Self::create(parent, state));
-        let widgets = template_ref
-            .widget_outlines
-            .iter()
-            .map(|wo| wo.instantiate(&this, module_controls))
-            .collect();
-        this.state.borrow_mut().widgets = widgets;
+        // let widgets = typee
+        //     .widget_outlines
+        //     .iter()
+        //     .map(|wo| wo.instantiate(&this, module_controls))
+        //     .collect();
+        // this.state.borrow_mut().widgets = widgets;
 
-        drop(template_ref);
+        drop(typee);
         drop(module_ref);
 
         this
@@ -177,14 +183,7 @@ impl Module {
     pub fn take_output_view_data(self: &Rc<Self>, data: Vec<Vec<f32>>) {
         assert_eq!(
             data.len(),
-            self.state
-                .borrow()
-                .module
-                .borrow()
-                .template
-                .borrow()
-                .outputs
-                .len()
+            self.state.borrow().module.borrow().typee.outputs().len()
         );
         self.state.borrow_mut().output_view_data = data;
     }
@@ -388,11 +387,11 @@ impl WidgetImpl<Renderer, DropTarget> for Module {
             );
 
             let module_ref = state.module.borrow();
-            let template_ref = module_ref.template.borrow();
+            let typee = &module_ref.typee;
             let hovering = self.is_hovered();
             for output_index in 0..state.outputs.len() {
                 let output = &state.outputs[output_index];
-                let jack = &template_ref.outputs[output_index];
+                let jack = &typee.outputs()[output_index];
                 let dim = if let GraphHighlightMode::ProducesType(typ) = highlight {
                     typ != jack.get_type()
                 } else {
@@ -412,11 +411,11 @@ impl WidgetImpl<Renderer, DropTarget> for Module {
             self.draw_wires(g, pos);
         } else if layer_index == 4 && self.is_hovered() {
             let module = state.module.borrow();
-            let template = module.template.borrow();
+            let typee = &module.typee;
             let x = size.x;
             let mut y = GRID_P + JACK_SIZE / 2.0;
             let mut index = 0;
-            for output in &template.outputs {
+            for output in typee.outputs() {
                 let data = if state.output_view_data.len() > index {
                     &state.output_view_data[index][..]
                 } else {

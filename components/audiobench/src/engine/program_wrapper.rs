@@ -266,7 +266,8 @@ impl AudiobenchExecutor {
 
 
     fn reset_static_data(&mut self, index: usize) -> Result<(), String> {
-        todo!()
+        // todo!()
+        Ok(())
     }
 
     // Runs the main function once to make sure everything is compiled.
@@ -280,7 +281,7 @@ impl AudiobenchExecutor {
         let note_input = NoteInput::from(&note.data, &self.parameters, 1.0);
         let static_index = note.static_index;
         let global_data = GlobalData::new();
-        todo!("Preheat");
+        // todo!();
         notes.set_dummy_note_active(was_dummy_note_active);
         Ok(())
     }

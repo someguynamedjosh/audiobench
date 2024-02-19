@@ -1,15 +1,3 @@
-use crate::{
-    config::*,
-    registry::{
-        library_preload::{self, PreloadedLibrary, ZippedLibraryContentProvider},
-        module_template::ModuleTemplate,
-        save_data::Patch,
-        update_check::{self, UpdateInfo},
-        yaml,
-    },
-};
-use rand::RngCore;
-use shared_util::prelude::*;
 use std::{
     collections::{HashMap, HashSet},
     fs,
@@ -17,12 +5,24 @@ use std::{
     sync::mpsc::{self, Receiver, TryRecvError},
 };
 
+use rand::RngCore;
+use shared_util::prelude::*;
+
 pub use super::library_preload::LibraryInfo;
+use crate::{
+    config::*,
+    registry::{
+        library_preload::{self, PreloadedLibrary, ZippedLibraryContentProvider},
+        module_template::UserModuleTemplate,
+        save_data::Patch,
+        update_check::{self, UpdateInfo},
+        yaml,
+    },
+};
 
 pub struct Registry {
-    module_templates: Vec<Rcrc<ModuleTemplate>>,
-    modules_by_resource_id: HashMap<String, usize>,
-    modules_by_serialized_id: HashMap<(String, usize), usize>,
+    user_module_templates: Vec<Rcrc<UserModuleTemplate>>,
+    user_modules_by_serialized_id: HashMap<(String, usize), usize>,
 
     icon_indexes: HashMap<String, usize>,
     icons: Vec<Vec<u8>>,
@@ -42,45 +42,6 @@ enum DelayedError {
 }
 
 impl Registry {
-    fn load_module_resource(
-        &mut self,
-        name: &str,
-        lib_name: String,
-        module_id: String,
-        buffer: Vec<u8>,
-    ) -> Result<Option<DelayedError>, String> {
-        let buffer_as_text = String::from_utf8(buffer).map_err(|e| {
-            format!(
-                "ERROR: The file {} is not a valid UTF-8 text document, caused by:\nERROR: {}",
-                name, e
-            )
-        })?;
-        let yaml = yaml::parse_yaml(&buffer_as_text, name)?;
-        let resource_id = format!("{}:{}", lib_name, module_id);
-        let template = super::module_template::create_module_template_from_yaml(
-            &self.icon_indexes,
-            lib_name.clone(),
-            yaml,
-        )
-        .map_err(|err| {
-            format!(
-                "ERROR: Failed to load module {}, caused by:\n{}",
-                module_id, err
-            )
-        })?;
-        let index = self.module_templates.len();
-        let ser_id = (template.lib_name.clone(), template.save_id);
-        self.module_templates.push(rcrc(template));
-        self.modules_by_resource_id.insert(resource_id, index);
-        let delayed_error = if self.modules_by_serialized_id.contains_key(&ser_id) {
-            Some(DelayedError::DuplicateSaveId(ser_id.1))
-        } else {
-            None
-        };
-        self.modules_by_serialized_id.insert(ser_id, index);
-        Ok(delayed_error)
-    }
-
     fn load_patch(
         &mut self,
         name: &str,
@@ -122,14 +83,6 @@ impl Registry {
             let icon_id = format!("{}:{}", lib_name, file_name);
             self.icon_indexes.insert(icon_id, self.icons.len());
             self.icons.push(buffer);
-        } else if file_name.ends_with(".module.yaml") {
-            let module_id = Self::strip_path_and_extension(file_name, ".module.yaml");
-            return self.load_module_resource(
-                &full_name,
-                lib_name.to_owned(),
-                module_id.to_owned(),
-                buffer,
-            );
         } else if file_name.ends_with(".abpatch") {
             self.unloaded_patches.push((full_name, full_path, buffer));
         } else if file_name.ends_with(".md") {
@@ -195,7 +148,7 @@ impl Registry {
         }
         if let Some(DelayedError::DuplicateSaveId(dupl_id)) = delayed_error {
             let mut save_ids = HashSet::new();
-            for (this_lib_name, save_id) in self.modules_by_serialized_id.keys() {
+            for (this_lib_name, save_id) in self.user_modules_by_serialized_id.keys() {
                 if this_lib_name == &internal_name {
                     save_ids.insert(*save_id);
                 }
@@ -289,8 +242,8 @@ impl Registry {
             self.library_info.insert(internal_name, info);
         }
 
-        // We wait to load patches in case patches depend on libraries that aren't loaded yet when
-        // the library they are a part of is being loaded.
+        // We wait to load patches in case patches depend on libraries that aren't
+        // loaded yet when the library they are a part of is being loaded.
         let unloaded_patches = std::mem::take(&mut self.unloaded_patches);
         for (name, path, data) in unloaded_patches.into_iter() {
             self.load_patch(&name, path, data)?;
@@ -311,9 +264,8 @@ impl Registry {
         update_check::spawn_update_checker(update_urls, sender);
 
         let mut registry = Self {
-            module_templates: Vec::new(),
-            modules_by_resource_id: HashMap::new(),
-            modules_by_serialized_id: HashMap::new(),
+            user_module_templates: Vec::new(),
+            user_modules_by_serialized_id: HashMap::new(),
 
             icon_indexes: HashMap::new(),
             icons: Vec::new(),
@@ -331,17 +283,17 @@ impl Registry {
         Ok(registry)
     }
 
-    pub fn borrow_templates(&self) -> &[Rcrc<ModuleTemplate>] {
-        &self.module_templates
+    pub fn borrow_templates(&self) -> &[Rcrc<UserModuleTemplate>] {
+        &self.user_module_templates
     }
 
     pub fn borrow_template_by_serialized_id(
         &self,
         id: &(String, usize),
-    ) -> Option<&Rcrc<ModuleTemplate>> {
-        self.modules_by_serialized_id
+    ) -> Option<&Rcrc<UserModuleTemplate>> {
+        self.user_modules_by_serialized_id
             .get(id)
-            .map(|idx| &self.module_templates[*idx])
+            .map(|idx| &self.user_module_templates[*idx])
     }
 
     pub fn lookup_icon(&self, name: &str) -> Option<usize> {

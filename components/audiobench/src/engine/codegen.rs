@@ -42,9 +42,20 @@ struct CodeGenerator<'a> {
     feedback_data_len: usize,
 }
 
+pub struct ContainsFeedbackLoopsError;
+
 pub(super) fn generate_code(
     for_graph: &ModuleGraph,
     global_params: &GlobalParameters,
-) -> Result<CodeGenResult, ()> {
-    todo!()
+) -> Result<CodeGenResult, ContainsFeedbackLoopsError> {
+    Ok(CodeGenResult {
+        code: GeneratedCode {},
+        dyn_data_collector: DynDataCollector::new(vec![]),
+        feedback_displayer: FeedbackDisplayer::new(vec![]),
+        data_format: DataFormat {
+            dyn_data_types: vec![],
+            feedback_data_len: 0,
+            global_params: global_params.clone(),
+        },
+    })
 }

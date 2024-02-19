@@ -139,7 +139,7 @@ impl ProcessingThread {
             self.set_status(Status::Busy);
             self.notes.silence_all();
             self.dyn_data = dyn_data;
-            todo!("Change generated code");
+            // todo!("Change generated code");
             self.preheat();
         } else if let Some(data) = self.comms.new_dyn_data.take() {
             self.dyn_data = data;

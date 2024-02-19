@@ -1,9 +1,10 @@
+use scui::{ChildHolder, MouseMods, Vec2D, WidgetImpl};
+use shared_util::prelude::*;
+
 use crate::{
     gui::{constants::*, top_level::graph::ModuleGraph, GuiTab, TabArchetype},
     scui_config::{DropTarget, MaybeMouseBehavior, Renderer},
 };
-use scui::{ChildHolder, MouseMods, Vec2D, WidgetImpl};
-use shared_util::prelude::*;
 
 scui::widget! {
     pub NoteGraph
@@ -22,7 +23,7 @@ impl NoteGraph {
 
         let this = Rc::new(Self::create(parent, NoteGraphState {}));
         let mut children = this.children.borrow_mut();
-        children.graph = ModuleGraph::new(parent, graph).into();
+        children.graph = ModuleGraph::new(parent, &*state.registry.borrow(), graph).into();
         drop(children);
 
         this

@@ -82,21 +82,22 @@ pub fn new_engine(
         buffer_length: DEFAULT_BUFFER_LENGTH,
         sample_rate: DEFAULT_SAMPLE_RATE,
     };
-    let default_patch = Rc::clone(
-        registry
-            .get_patch_by_name("Factory:patches/Default.abpatch")
-            .ok_or("Could not find Factory:patches/Default.abpatch".to_owned())?,
-    );
-    default_patch
-        .borrow()
-        .restore_note_graph(&mut module_graph, &*registry)
-        .map_err(|_| {
-            format!(concat!(
-                "Default patch failed to load!\n",
-                "This is a critical error, please submit a bug report containing this ",
-                "error:\n\nPatch data is corrupt.",
-            ))
-        })?;
+    // let default_patch = Rc::clone(
+    //     registry
+    //         .get_patch_by_name("Factory:patches/Default.abpatch")
+    //         .ok_or("Could not find Factory:patches/Default.abpatch".to_owned())?,
+    // );
+    // default_patch
+    //     .borrow()
+    //     .restore_note_graph(&mut module_graph, &*registry)
+    //     .map_err(|_| {
+    //         format!(concat!(
+    //             "Default patch failed to load!\n",
+    //             "This is a critical error, please submit a bug report containing this ",
+    //             "error:\n\nPatch data is corrupt.",
+    //         ))
+    //     })?;
+    let default_patch = rcrc(Patch::new_dummy("asdf".to_owned()));
     let CodeGenResult {
         code,
         dyn_data_collector,
@@ -312,7 +313,9 @@ impl UiThreadEngine {
             self.post_error(format!("ERROR: Patch data is corrupt."));
             return Err(());
         }
-        self.data.module_graph.borrow().rebuild_widget();
+        let reg = self.data.registry.borrow();
+        self.data.module_graph.borrow().rebuild_widget(&*reg);
+        drop(reg);
         self.regenerate_code();
         Ok(())
     }

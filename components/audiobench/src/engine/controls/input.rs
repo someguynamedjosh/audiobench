@@ -1,3 +1,5 @@
+use shared_util::mini_serde::{MiniDes, MiniSer};
+
 use crate::{
     engine::{
         codegen::AutomationCode,
@@ -7,7 +9,6 @@ use crate::{
     },
     registry::yaml::YamlNode,
 };
-use shared_util::mini_serde::{MiniDes, MiniSer};
 
 pub struct DefaultInputDescription {
     pub name: &'static str,
@@ -77,6 +78,14 @@ pub struct InputControl {
 }
 
 impl InputControl {
+    pub const fn new(typ: JackType, default: usize) -> Self {
+        Self {
+            typ,
+            default,
+            connection: None,
+        }
+    }
+
     pub fn from_yaml(mut yaml: YamlNode) -> Result<Self, String> {
         let typ = JackType::from_yaml(&yaml.map_entry("datatype")?)?;
         let default = if let Ok(child) = yaml.map_entry("default") {
